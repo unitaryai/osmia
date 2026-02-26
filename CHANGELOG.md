@@ -75,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full security documentation with threat model, defence in depth, and container hardening
 - Getting started guide with step-by-step quick start, configuration reference, and troubleshooting
 - Plugin development guide covering Go built-in and gRPC third-party plugin authoring
+- Expanded plugin interface docs: ticketing (269 lines), notifications (246 lines), secrets (261 lines), engines (500 lines) with full RPC coverage, implementation guidance, and design considerations
 
 #### Infrastructure
 - Go module and core skeleton: controller entrypoint, config loading, TaskRun state machine, Prometheus metrics, ExecutionEngine interface

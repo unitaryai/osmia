@@ -71,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release workflow with cosign image signing and syft SBOM generation
 - GitHub issue templates (bug report, feature request, plugin request)
 - Pull request template with checklist
+- Comprehensive architecture documentation with system diagrams and component details
+- Full security documentation with threat model, defence in depth, and container hardening
+- Getting started guide with step-by-step quick start, configuration reference, and troubleshooting
+- Plugin development guide covering Go built-in and gRPC third-party plugin authoring
 
 #### Infrastructure
 - Go module and core skeleton: controller entrypoint, config loading, TaskRun state machine, Prometheus metrics, ExecutionEngine interface

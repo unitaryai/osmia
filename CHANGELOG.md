@@ -63,10 +63,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Grafana dashboard JSON (charts/robodev/dashboards/)
 - Scaling documentation (docs/scaling.md)
 
+#### Phase 5: Community & Documentation
+- Comprehensive README with architecture diagram, quick start, and full feature overview
+- Guard rails documentation (docs/guardrails.md) covering all six layers
+- Plugin interface documentation: ticketing, notifications, secrets, engines
+- Expanded CI pipeline: protobuf linting, Helm linting, Docker build verification
+- Release workflow with cosign image signing and syft SBOM generation
+- GitHub issue templates (bug report, feature request, plugin request)
+- Pull request template with checklist
+
 #### Infrastructure
 - Go module and core skeleton: controller entrypoint, config loading, TaskRun state machine, Prometheus metrics, ExecutionEngine interface
-- CI pipeline with lint, test, and build jobs
-- Helm chart skeleton with deployment, RBAC, ConfigMap, and ServiceMonitor templates
-- Documentation stubs: getting started, architecture, plugin guide, security
+- CI pipeline with lint, test, build, proto-lint, helm-lint, docker-build jobs
+- Helm chart with deployment, RBAC, ConfigMap, ServiceMonitor, Service templates
 - Community files: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
 - Comprehensive table-driven tests for all packages (20 test suites)

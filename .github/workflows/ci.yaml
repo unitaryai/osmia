@@ -21,6 +21,16 @@ jobs:
         with:
           version: latest
 
+  proto-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: latest
+      - name: Lint protobuf definitions
+        run: buf lint proto/
+
   test:
     runs-on: ubuntu-latest
     needs: lint
@@ -29,7 +39,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Run tests
+      - name: Run tests with race detector
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -45,5 +55,44 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23'
-      - name: Build
+      - name: Build controller binary
         run: go build -v -o bin/robodev ./cmd/robodev/
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: '3.14.0'
+      - name: Lint Helm chart
+        run: helm lint charts/robodev/
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build controller image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/controller/Dockerfile
+          push: false
+          tags: robodev/controller:ci
+      - name: Build Claude Code engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/engine-claude-code
+          file: docker/engine-claude-code/Dockerfile
+          push: false
+          tags: robodev/engine-claude-code:ci
+      - name: Build Codex engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/engine-codex
+          file: docker/engine-codex/Dockerfile
+          push: false
+          tags: robodev/engine-codex:ci

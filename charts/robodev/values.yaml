@@ -1,0 +1,65 @@
+# Default values for robodev.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/robodev-inc/robodev
+  pullPolicy: IfNotPresent
+  tag: ""  # Overrides the chart appVersion
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Controller configuration — mounted as a ConfigMap.
+config:
+  ticketing:
+    backend: github
+  secrets:
+    backend: k8s
+  engines:
+    default: claude-code
+  guardrails:
+    max_cost_per_job: 50.0
+    max_concurrent_jobs: 5
+    max_job_duration_minutes: 120
+
+metrics:
+  enabled: true
+  port: 8080
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    labels: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+podSecurityContext:
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

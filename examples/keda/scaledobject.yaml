@@ -1,0 +1,35 @@
+# KEDA ScaledObject for scaling based on ticket queue depth.
+# This example uses the Prometheus scaler to monitor the number of
+# queued tickets and scale the controller accordingly.
+#
+# Prerequisites:
+# - KEDA installed in the cluster
+# - Prometheus collecting RoboDev metrics
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: robodev-ticket-scaler
+  namespace: robodev
+spec:
+  scaleTargetRef:
+    name: robodev-controller
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 1
+  maxReplicaCount: 1  # Controller uses leader election; only 1 active
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.monitoring.svc.cluster.local
+        metricName: robodev_active_jobs
+        query: robodev_active_jobs
+        threshold: "10"
+---
+# TriggerAuthentication for Prometheus (if authentication is required).
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: robodev-prometheus-auth
+  namespace: robodev
+spec:
+  secretTargetRef: []

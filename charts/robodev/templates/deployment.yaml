@@ -23,6 +23,17 @@ spec:
       serviceAccountName: {{ include "robodev.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.plugins }}
+      initContainers:
+        {{- range .Values.plugins }}
+        - name: plugin-{{ .name }}
+          image: {{ .image }}
+          command: ["cp", {{ .binaryPath | quote }}, "/plugins/robodev-plugin-{{ .name }}"]
+          volumeMounts:
+            - name: plugins
+              mountPath: /plugins
+        {{- end }}
+      {{- end }}
       containers:
         - name: controller
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -30,6 +41,9 @@ spec:
           args:
             - --config=/etc/robodev/config.yaml
             - --metrics-addr=:{{ .Values.metrics.port }}
+            {{- if .Values.leaderElection.enabled }}
+            - --leader-elect=true
+            {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
@@ -54,10 +68,19 @@ spec:
             - name: config
               mountPath: /etc/robodev
               readOnly: true
+            {{- if .Values.plugins }}
+            - name: plugins
+              mountPath: /opt/robodev/plugins
+              readOnly: true
+            {{- end }}
       volumes:
         - name: config
           configMap:
             name: {{ include "robodev.fullname" . }}-config
+        {{- if .Values.plugins }}
+        - name: plugins
+          emptyDir: {}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,54 @@
+# Minimal RoboDev deployment: GitHub Issues + Slack notifications.
+# This is the quickest way to get started with RoboDev.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/robodev-inc/robodev
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+config:
+  ticketing:
+    backend: github
+    config:
+      owner: "your-org"
+      repo: "your-repo"
+      labels:
+        - "robodev"
+      token_secret: "robodev-github-token"
+
+  notifications:
+    channels:
+      - backend: slack
+        config:
+          channel_id: "C0123456789"
+          token_secret: "robodev-slack-token"
+
+  secrets:
+    backend: k8s
+
+  engines:
+    default: claude-code
+
+  guardrails:
+    max_cost_per_job: 50.0
+    max_concurrent_jobs: 3
+    max_job_duration_minutes: 120
+    blocked_file_patterns:
+      - "*.env"
+      - "**/secrets/**"
+      - "**/credentials/**"
+
+  scm:
+    backend: github
+    config:
+      token_secret: "robodev-github-token"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

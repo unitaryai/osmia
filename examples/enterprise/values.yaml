@@ -1,0 +1,163 @@
+# Full enterprise RoboDev deployment with all features enabled.
+# Includes multi-tenancy, quality gate, agent teams, and strict security.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/robodev-inc/robodev
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+config:
+  ticketing:
+    backend: github
+    config:
+      owner: "enterprise-org"
+      repo: "monorepo"
+      labels:
+        - "robodev"
+        - "approved"
+      token_secret: "robodev-github-token"
+
+  notifications:
+    channels:
+      - backend: slack
+        config:
+          channel_id: "C0123456789"
+          token_secret: "robodev-slack-token"
+
+  secrets:
+    backend: k8s
+    config:
+      namespace: "robodev-secrets"
+
+  engines:
+    default: claude-code
+    claude-code:
+      image: "ghcr.io/robodev-inc/engine-claude-code:latest"
+      auth:
+        method: bedrock
+        bedrock_region: "us-east-1"
+      agent_teams:
+        enabled: true
+        mode: "in-process"
+        max_teammates: 3
+    codex:
+      image: "ghcr.io/robodev-inc/engine-codex:latest"
+      auth:
+        method: api_key
+        api_key_secret: "robodev-openai-key"
+
+  guardrails:
+    max_cost_per_job: 100.0
+    max_concurrent_jobs: 10
+    max_job_duration_minutes: 180
+    allowed_repos:
+      - "enterprise-org/*"
+    blocked_file_patterns:
+      - "*.env"
+      - "*.pem"
+      - "*.key"
+      - "**/secrets/**"
+      - "**/credentials/**"
+      - "**/migrations/**"
+    require_human_approval_before_mr: true
+    allowed_task_types:
+      - "dependency_upgrade"
+      - "test_fix"
+      - "bug_fix"
+      - "documentation"
+      - "refactoring"
+
+  quality_gate:
+    enabled: true
+    mode: "post-completion"
+    engine: claude-code
+    max_cost_per_review: 5.00
+    security_checks:
+      scan_for_secrets: true
+      check_owasp_patterns: true
+      verify_guardrail_compliance: true
+      check_dependency_cves: true
+    on_failure: "retry_with_feedback"
+
+  review:
+    backend: coderabbit
+    config:
+      api_key_secret: "robodev-coderabbit-key"
+
+  scm:
+    backend: github
+    config:
+      token_secret: "robodev-github-token"
+
+  progress_watchdog:
+    enabled: true
+    check_interval_seconds: 60
+    min_consecutive_ticks: 2
+    research_grace_period_minutes: 5
+    loop_detection_threshold: 10
+    thrashing_token_threshold: 80000
+    stall_idle_seconds: 300
+    cost_velocity_max_per_10_min: 15.0
+    unanswered_human_timeout_minutes: 30
+
+  tenancy:
+    mode: "namespace-per-tenant"
+    tenants:
+      - name: "team-alpha"
+        namespace: "robodev-alpha"
+        ticketing:
+          backend: github
+          config:
+            owner: "alpha-org"
+            repo: "alpha-repos"
+        secrets:
+          backend: k8s
+          config:
+            namespace: "robodev-alpha"
+      - name: "team-beta"
+        namespace: "robodev-beta"
+        ticketing:
+          backend: github
+          config:
+            owner: "beta-org"
+            repo: "beta-repos"
+        secrets:
+          backend: k8s
+          config:
+            namespace: "robodev-beta"
+
+  plugin_health:
+    max_plugin_restarts: 3
+    restart_backoff: [1, 5, 30]
+    critical_plugins:
+      - "ticketing"
+      - "secrets"
+      - "scm"
+
+# Plugin init containers for external plugins.
+plugins:
+  - name: jira
+    image: ghcr.io/myorg/robodev-plugin-jira:v1.0.0
+    binaryPath: /plugin
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+metrics:
+  enabled: true
+  port: 8080
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    labels:
+      release: prometheus
+
+leaderElection:
+  enabled: true

@@ -60,6 +60,24 @@ podSecurityContext:
   seccompProfile:
     type: RuntimeDefault
 
+# Leader election for high-availability deployments.
+leaderElection:
+  enabled: true
+
+# External plugin init containers.
+# Each entry creates an init container that copies a plugin binary into
+# a shared emptyDir volume mounted at /opt/robodev/plugins.
+#
+# Example:
+#   plugins:
+#     - name: jira
+#       image: ghcr.io/myorg/robodev-plugin-jira:v1.2.0
+#       binaryPath: /plugin
+#     - name: pagerduty
+#       image: ghcr.io/myorg/robodev-plugin-pagerduty:v0.3.1
+#       binaryPath: /plugin
+plugins: []
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

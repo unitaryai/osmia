@@ -1,0 +1,31 @@
+# Build artefacts
+bin/
+
+# Version control
+.git
+.gitignore
+
+# Tests and documentation
+tests/
+docs/
+examples/
+
+# Markdown files (except CLAUDE.md which may be needed in context)
+*.md
+!CLAUDE.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+
+# Helm charts (not needed in container builds)
+charts/

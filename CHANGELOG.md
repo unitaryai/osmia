@@ -32,10 +32,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Slack notification channel (pkg/plugin/notifications/slack) with Block Kit formatted messages
 - Slack approval backend (pkg/plugin/approval/slack) with interactive messages and callback handling
 
+#### Phase 2D: Dockerfiles & Helm Chart
+- Multi-stage controller Dockerfile (golang:1.23-alpine builder to distroless runtime)
+- Claude Code engine Dockerfile with Node.js, Claude Code CLI, git, gh, python3, guard rail hooks
+- Claude Code entrypoint.sh with repo cloning, CLAUDE.md injection, and semantic exit codes
+- Guard rail hooks: block-dangerous-commands.sh (PreToolUse/Bash) and block-sensitive-files.sh (PreToolUse/Write|Edit)
+- OpenAI Codex engine Dockerfile with Node.js, Codex CLI, and full-auto entrypoint
+- Helm chart: plugin init container support via values.yaml plugins array and shared emptyDir volume
+- Helm chart: metrics Service, leader election flag, and post-install NOTES.txt
+- Makefile targets: docker-build-controller, docker-build-engine-claude-code, docker-build-engine-codex, docker-build, helm-lint
+- .dockerignore for clean container builds
+
+#### Phase 3: Codex + Aider + GitLab + CodeRabbit
+- OpenAI Codex execution engine (pkg/engine/codex) with prompt-based guard rails
+- Aider execution engine (pkg/engine/aider) with conventions.md support
+- Engine registry (pkg/engine/registry.go) for engine selection and management
+- GitLab SCM backend (pkg/plugin/scm/gitlab) with merge request support
+- CodeRabbit review backend (pkg/plugin/review/coderabbit) for quality gate integration
+
+#### Phase 4: Agent Teams, Scaling & Multi-Tenancy
+- Claude Code agent teams configuration (pkg/engine/claudecode/teams.go) with in-process mode
+- Multi-tenancy support via namespace-per-tenant model in config
+- Quality gate configuration with security checks
+- Progress watchdog configuration in main config
+- Extended engine configs with auth settings (API key, Bedrock, Vertex, setup-token)
+- Karpenter NodePool example (examples/karpenter/) with spot instances and taints
+- KEDA ScaledObject example (examples/keda/) for Prometheus-based scaling
+- Example configurations: github-slack, gitlab-teams, enterprise (with full feature set)
+- Example third-party plugins: Jira (Python) and Microsoft Teams (TypeScript)
+- Grafana dashboard JSON (charts/robodev/dashboards/)
+- Scaling documentation (docs/scaling.md)
+
 #### Infrastructure
 - Go module and core skeleton: controller entrypoint, config loading, TaskRun state machine, Prometheus metrics, ExecutionEngine interface
 - CI pipeline with lint, test, and build jobs
 - Helm chart skeleton with deployment, RBAC, ConfigMap, and ServiceMonitor templates
 - Documentation stubs: getting started, architecture, plugin guide, security
 - Community files: CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md
-- Comprehensive table-driven tests for all packages (14 test suites)
+- Comprehensive table-driven tests for all packages (20 test suites)

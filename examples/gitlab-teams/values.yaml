@@ -1,0 +1,48 @@
+# RoboDev deployment with GitLab and Microsoft Teams.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/robodev-inc/robodev
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+config:
+  ticketing:
+    backend: github  # GitLab issues via SCM integration
+    config:
+      owner: "your-group"
+      repo: "your-project"
+      labels:
+        - "robodev"
+
+  notifications:
+    channels:
+      - backend: slack  # Replace with teams plugin when available
+        config:
+          channel_id: "your-channel"
+          token_secret: "robodev-notification-token"
+
+  secrets:
+    backend: k8s
+
+  engines:
+    default: claude-code
+
+  scm:
+    backend: gitlab
+    config:
+      token_secret: "robodev-gitlab-token"
+
+  guardrails:
+    max_cost_per_job: 50.0
+    max_concurrent_jobs: 5
+    max_job_duration_minutes: 120
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

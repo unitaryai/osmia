@@ -1,0 +1,111 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 80 }] } }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
+      "title": "Active Jobs",
+      "type": "stat",
+      "targets": [{ "expr": "robodev_active_jobs", "legendFormat": "Active", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto" },
+      "title": "Total Task Runs",
+      "type": "stat",
+      "targets": [{ "expr": "sum(robodev_taskruns_total)", "legendFormat": "Total", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
+      "title": "Succeeded",
+      "type": "stat",
+      "targets": [{ "expr": "robodev_taskruns_total{state=\"Succeeded\"}", "legendFormat": "Succeeded", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "red", "mode": "fixed" } }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
+      "title": "Failed",
+      "type": "stat",
+      "targets": [{ "expr": "robodev_taskruns_total{state=\"Failed\"}", "legendFormat": "Failed", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "title": "Task Run Duration",
+      "type": "timeseries",
+      "targets": [{ "expr": "histogram_quantile(0.50, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p50", "refId": "A" }, { "expr": "histogram_quantile(0.95, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p95", "refId": "B" }, { "expr": "histogram_quantile(0.99, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p99", "refId": "C" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "title": "Task Runs by State",
+      "type": "timeseries",
+      "targets": [{ "expr": "rate(robodev_taskruns_total[5m])", "legendFormat": "{{ state }}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "Plugin Errors",
+      "type": "timeseries",
+      "targets": [{ "expr": "rate(robodev_plugin_errors_total[5m])", "legendFormat": "{{ plugin }}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "Active Jobs Over Time",
+      "type": "timeseries",
+      "targets": [{ "expr": "robodev_active_jobs", "legendFormat": "Active Jobs", "refId": "A" }]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["robodev", "kubernetes"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Prometheus",
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "RoboDev Overview",
+  "uid": "robodev-overview"
+}

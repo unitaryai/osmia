@@ -1,0 +1,31 @@
+RoboDev has been installed successfully.
+
+Controller deployment: {{ include "robodev.fullname" . }}
+Namespace:            {{ .Release.Namespace }}
+
+{{- if .Values.metrics.enabled }}
+
+Metrics are exposed on port {{ .Values.metrics.port }}.
+{{- if .Values.metrics.serviceMonitor.enabled }}
+A ServiceMonitor has been created for Prometheus scraping.
+{{- else }}
+To enable Prometheus ServiceMonitor, set metrics.serviceMonitor.enabled=true.
+{{- end }}
+{{- end }}
+
+{{- if .Values.plugins }}
+
+Configured plugins (loaded via init containers):
+{{- range .Values.plugins }}
+  - {{ .name }} ({{ .image }})
+{{- end }}
+{{- end }}
+
+To check the controller status:
+  kubectl get deployment {{ include "robodev.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs -l app.kubernetes.io/name={{ include "robodev.name" . }} -n {{ .Release.Namespace }}
+
+To view the configuration:
+  kubectl get configmap {{ include "robodev.fullname" . }}-config -n {{ .Release.Namespace }} -o yaml
+
+For more information, visit: https://github.com/robodev-inc/robodev

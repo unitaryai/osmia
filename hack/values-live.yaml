@@ -1,0 +1,64 @@
+# values-live.yaml — Helm values overlay for live end-to-end testing.
+#
+# Copy this file and fill in the placeholders before use:
+#   cp hack/values-live.yaml hack/values-live-local.yaml
+#   # edit hack/values-live-local.yaml
+#   make live-up VALUES_LIVE=hack/values-live-local.yaml
+#
+# Or edit the placeholders below directly (this file is gitignored via
+# the <PLACEHOLDERS> preventing accidental commits of real values).
+
+image:
+  pullPolicy: Never
+  tag: dev
+
+leaderElection:
+  enabled: false
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+service:
+  type: NodePort
+  nodePort: 30080
+
+config:
+  ticketing:
+    backend: github
+    config:
+      owner: "<GITHUB_OWNER>"
+      repo: "robodev-test-target"
+      labels:
+        - "robodev"
+      # Optional filters (combine as needed):
+      # assignee: "robodev-bot"
+      # milestone: "1"              # Must be milestone number, not title
+      # state: "open"               # "open" (default), "closed", or "all"
+      # exclude_labels:             # Overrides default exclusion of in-progress/failed
+      #   - "in-progress"
+      #   - "robodev-failed"
+      #   - "wontfix"
+      token_secret: "robodev-github-token"
+
+  notifications:
+    channels:
+      - backend: slack
+        config:
+          channel_id: "<SLACK_CHANNEL_ID>"
+          token_secret: "robodev-slack-token"
+
+  secrets:
+    backend: k8s
+
+  engines:
+    default: claude-code
+
+  guardrails:
+    max_cost_per_job: 10.0
+    max_concurrent_jobs: 2
+    max_job_duration_minutes: 30

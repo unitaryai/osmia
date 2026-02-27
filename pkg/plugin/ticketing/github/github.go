@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -44,13 +45,17 @@ type ghLabel struct {
 // Issues REST API. The API base URL is configurable for GitHub Enterprise
 // support.
 type GitHubBackend struct {
-	owner   string
-	repo    string
-	labels  []string
-	token   string
-	baseURL string
-	client  *http.Client
-	logger  *slog.Logger
+	owner         string
+	repo          string
+	labels        []string
+	token         string
+	baseURL       string
+	client        *http.Client
+	logger        *slog.Logger
+	assignee      string   // GitHub username filter (optional)
+	milestone     string   // milestone number filter (optional)
+	state         string   // "open" (default), "closed", "all"
+	excludeLabels []string // client-side exclusion (default: ["in-progress", "robodev-failed"])
 }
 
 // Option is a functional option for configuring a GitHubBackend.
@@ -70,29 +75,74 @@ func WithHTTPClient(c *http.Client) Option {
 	}
 }
 
+// WithAssignee filters issues by the given GitHub username.
+func WithAssignee(assignee string) Option {
+	return func(b *GitHubBackend) {
+		b.assignee = assignee
+	}
+}
+
+// WithMilestone filters issues by milestone number (not title).
+func WithMilestone(milestone string) Option {
+	return func(b *GitHubBackend) {
+		b.milestone = milestone
+	}
+}
+
+// WithState sets the issue state filter: "open" (default), "closed", or "all".
+func WithState(state string) Option {
+	return func(b *GitHubBackend) {
+		b.state = state
+	}
+}
+
+// WithExcludeLabels overrides the default client-side label exclusion list.
+// Issues carrying any of these labels are filtered out after fetching.
+func WithExcludeLabels(labels []string) Option {
+	return func(b *GitHubBackend) {
+		b.excludeLabels = labels
+	}
+}
+
 // NewGitHubBackend creates a new GitHub ticketing backend.
 func NewGitHubBackend(owner, repo string, labels []string, token string, logger *slog.Logger, opts ...Option) *GitHubBackend {
 	b := &GitHubBackend{
-		owner:   owner,
-		repo:    repo,
-		labels:  labels,
-		token:   token,
-		baseURL: defaultBaseURL,
-		client:  http.DefaultClient,
-		logger:  logger,
+		owner:         owner,
+		repo:          repo,
+		labels:        labels,
+		token:         token,
+		baseURL:       defaultBaseURL,
+		client:        http.DefaultClient,
+		logger:        logger,
+		state:         "open",
+		excludeLabels: []string{"in-progress", "robodev-failed"},
 	}
 	for _, opt := range opts {
 		opt(b)
 	}
+	if len(b.excludeLabels) == 0 {
+		b.logger.Warn("exclude_labels is empty; in-progress and failed issues will not be filtered out automatically")
+	}
 	return b
 }
 
-// PollReadyTickets lists open issues filtered by the configured labels.
+// PollReadyTickets lists issues filtered by the configured criteria.
 func (b *GitHubBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Ticket, error) {
-	labelFilter := strings.Join(b.labels, ",")
-	url := fmt.Sprintf("%s/repos/%s/%s/issues?state=open&labels=%s", b.baseURL, b.owner, b.repo, labelFilter)
+	params := url.Values{}
+	params.Set("state", b.state)
+	if len(b.labels) > 0 {
+		params.Set("labels", strings.Join(b.labels, ","))
+	}
+	if b.assignee != "" {
+		params.Set("assignee", b.assignee)
+	}
+	if b.milestone != "" {
+		params.Set("milestone", b.milestone)
+	}
 
-	body, err := b.doGet(ctx, url)
+	reqURL := fmt.Sprintf("%s/repos/%s/%s/issues?%s", b.baseURL, b.owner, b.repo, params.Encode())
+
+	body, err := b.doGet(ctx, reqURL)
 	if err != nil {
 		return nil, fmt.Errorf("polling ready tickets: %w", err)
 	}
@@ -103,8 +153,18 @@ func (b *GitHubBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Ticke
 		return nil, fmt.Errorf("decoding issues response: %w", err)
 	}
 
+	// Build exclusion set for client-side filtering.
+	excludeSet := make(map[string]struct{}, len(b.excludeLabels))
+	for _, l := range b.excludeLabels {
+		excludeSet[l] = struct{}{}
+	}
+
 	tickets := make([]ticketing.Ticket, 0, len(issues))
 	for _, issue := range issues {
+		if hasExcludedLabel(issue.Labels, excludeSet) {
+			continue
+		}
+
 		labels := make([]string, 0, len(issue.Labels))
 		for _, l := range issue.Labels {
 			labels = append(labels, l.Name)
@@ -122,6 +182,17 @@ func (b *GitHubBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Ticke
 
 	b.logger.Info("polled ready tickets", "count", len(tickets))
 	return tickets, nil
+}
+
+// hasExcludedLabel returns true if any of the issue's labels appear in the
+// exclusion set.
+func hasExcludedLabel(issueLabels []ghLabel, excludeSet map[string]struct{}) bool {
+	for _, l := range issueLabels {
+		if _, ok := excludeSet[l.Name]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // MarkInProgress adds the "in-progress" label and removes the configured

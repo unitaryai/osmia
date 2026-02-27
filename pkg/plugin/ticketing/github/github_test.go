@@ -213,6 +213,183 @@ func TestGitHubBackend_AddComment(t *testing.T) {
 	assert.Equal(t, "progress update", receivedBody["body"])
 }
 
+func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
+	// Base issues returned by all fake servers. Individual tests may override.
+	baseIssues := []ghIssue{
+		{
+			Number:  1,
+			Title:   "Normal issue",
+			Body:    "body",
+			HTMLURL: "https://github.com/o/r/issues/1",
+			Labels:  []ghLabel{{Name: "robodev"}},
+		},
+		{
+			Number:  2,
+			Title:   "In-progress issue",
+			Body:    "body",
+			HTMLURL: "https://github.com/o/r/issues/2",
+			Labels:  []ghLabel{{Name: "robodev"}, {Name: "in-progress"}},
+		},
+		{
+			Number:  3,
+			Title:   "Failed issue",
+			Body:    "body",
+			HTMLURL: "https://github.com/o/r/issues/3",
+			Labels:  []ghLabel{{Name: "robodev"}, {Name: "robodev-failed"}},
+		},
+		{
+			Number:  4,
+			Title:   "Clean issue",
+			Body:    "body",
+			HTMLURL: "https://github.com/o/r/issues/4",
+			Labels:  []ghLabel{{Name: "robodev"}},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		labels         []string
+		opts           []Option
+		issues         []ghIssue // if nil, uses baseIssues
+		wantParams     map[string]string
+		absentParams   []string // query params that must NOT be present
+		wantTicketIDs  []string
+	}{
+		{
+			name:   "labels only (backward compat)",
+			labels: []string{"robodev"},
+			wantParams: map[string]string{
+				"state":  "open",
+				"labels": "robodev",
+			},
+			absentParams:  []string{"assignee", "milestone"},
+			wantTicketIDs: []string{"1", "4"}, // issues 2,3 excluded by default excludeLabels
+		},
+		{
+			name:   "assignee only, no labels",
+			labels: nil,
+			opts:   []Option{WithAssignee("robodev-bot")},
+			issues: []ghIssue{
+				{Number: 10, Title: "Assigned issue", Body: "b", HTMLURL: "https://github.com/o/r/issues/10"},
+			},
+			wantParams: map[string]string{
+				"state":    "open",
+				"assignee": "robodev-bot",
+			},
+			absentParams:  []string{"labels"},
+			wantTicketIDs: []string{"10"},
+		},
+		{
+			name:   "milestone filter",
+			labels: nil,
+			opts:   []Option{WithMilestone("3")},
+			issues: []ghIssue{
+				{Number: 20, Title: "Sprint issue", Body: "b", HTMLURL: "https://github.com/o/r/issues/20"},
+			},
+			wantParams: map[string]string{
+				"state":     "open",
+				"milestone": "3",
+			},
+			wantTicketIDs: []string{"20"},
+		},
+		{
+			name:   "state override to all",
+			labels: []string{"robodev"},
+			opts:   []Option{WithState("all")},
+			issues: []ghIssue{
+				{Number: 30, Title: "Any state", Body: "b", HTMLURL: "https://github.com/o/r/issues/30"},
+			},
+			wantParams: map[string]string{
+				"state":  "all",
+				"labels": "robodev",
+			},
+			wantTicketIDs: []string{"30"},
+		},
+		{
+			name:   "all filters combined",
+			labels: []string{"bug"},
+			opts: []Option{
+				WithAssignee("dev"),
+				WithMilestone("5"),
+				WithState("closed"),
+			},
+			issues: []ghIssue{
+				{Number: 40, Title: "Combined", Body: "b", HTMLURL: "https://github.com/o/r/issues/40"},
+			},
+			wantParams: map[string]string{
+				"state":     "closed",
+				"labels":    "bug",
+				"assignee":  "dev",
+				"milestone": "5",
+			},
+			wantTicketIDs: []string{"40"},
+		},
+		{
+			name:          "default exclusion filters out in-progress and failed",
+			labels:        []string{"robodev"},
+			wantTicketIDs: []string{"1", "4"}, // issues 2 (in-progress) and 3 (robodev-failed) excluded
+		},
+		{
+			name:   "custom excludeLabels override",
+			labels: []string{"robodev"},
+			opts:   []Option{WithExcludeLabels([]string{"robodev-failed"})},
+			wantTicketIDs: []string{"1", "2", "4"}, // only issue 3 (robodev-failed) excluded; in-progress passes through
+		},
+		{
+			name:   "empty excludeLabels disables exclusion",
+			labels: []string{"robodev"},
+			opts:   []Option{WithExcludeLabels([]string{})},
+			wantTicketIDs: []string{"1", "2", "3", "4"}, // no client-side exclusion applied
+		},
+		{
+			name:   "empty labels omits labels param",
+			labels: nil,
+			issues: []ghIssue{
+				{Number: 50, Title: "No label filter", Body: "b", HTMLURL: "https://github.com/o/r/issues/50"},
+			},
+			absentParams:  []string{"labels"},
+			wantTicketIDs: []string{"50"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			issues := tc.issues
+			if issues == nil {
+				issues = baseIssues
+			}
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Contains(t, r.URL.Path, "/repos/o/r/issues")
+
+				for k, v := range tc.wantParams {
+					assert.Equal(t, v, r.URL.Query().Get(k), "expected query param %s=%s", k, v)
+				}
+				for _, k := range tc.absentParams {
+					assert.False(t, r.URL.Query().Has(k), "query param %s should be absent", k)
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(issues)
+			}))
+			defer srv.Close()
+
+			allOpts := append([]Option{WithBaseURL(srv.URL), WithHTTPClient(srv.Client())}, tc.opts...)
+			b := NewGitHubBackend("o", "r", tc.labels, "tok", testLogger(), allOpts...)
+
+			tickets, err := b.PollReadyTickets(context.Background())
+			require.NoError(t, err)
+
+			gotIDs := make([]string, 0, len(tickets))
+			for _, tk := range tickets {
+				gotIDs = append(gotIDs, tk.ID)
+			}
+			assert.Equal(t, tc.wantTicketIDs, gotIDs)
+		})
+	}
+}
+
 func TestGitHubBackend_WithBaseURL(t *testing.T) {
 	b := NewGitHubBackend("o", "r", nil, "tok", testLogger(), WithBaseURL("https://ghe.example.com/api/v3/"))
 	assert.Equal(t, "https://ghe.example.com/api/v3", b.baseURL)

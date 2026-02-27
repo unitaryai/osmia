@@ -16,6 +16,14 @@ config:
       repo: "your-repo"
       labels:
         - "robodev"
+      # Optional filters (combine as needed):
+      # assignee: "robodev-bot"
+      # milestone: "1"              # Must be milestone number, not title
+      # state: "open"               # "open" (default), "closed", or "all"
+      # exclude_labels:             # Overrides default exclusion of in-progress/failed
+      #   - "in-progress"
+      #   - "robodev-failed"
+      #   - "wontfix"
       token_secret: "robodev-github-token"
 
   notifications:

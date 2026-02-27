@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,9 +14,19 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/robodev-inc/robodev/internal/config"
 	"github.com/robodev-inc/robodev/internal/controller"
+	"github.com/robodev-inc/robodev/internal/jobbuilder"
+	"github.com/robodev-inc/robodev/pkg/engine/claudecode"
+	ghticket "github.com/robodev-inc/robodev/pkg/plugin/ticketing/github"
+
+	// Notification backends — imported conditionally.
+	slacknotify "github.com/robodev-inc/robodev/pkg/plugin/notifications/slack"
 
 	// Register metrics with the default Prometheus registry.
 	_ "github.com/robodev-inc/robodev/internal/metrics"
@@ -53,6 +64,58 @@ func main() {
 		"default_engine", cfg.Engines.Default,
 	)
 
+	// --- Build Kubernetes client ---
+	k8sClient, err := buildK8sClient()
+	if err != nil {
+		logger.Error("failed to create kubernetes client", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("kubernetes client initialised")
+
+	// Collect reconciler options.
+	opts := []controller.ReconcilerOption{
+		controller.WithNamespace(*namespace),
+		controller.WithK8sClient(k8sClient),
+	}
+
+	// --- Ticketing backend ---
+	if cfg.Ticketing.Backend == "github" {
+		ghBackend, ghErr := initGitHubBackend(cfg, k8sClient, *namespace, logger)
+		if ghErr != nil {
+			logger.Error("failed to initialise github ticketing backend", "error", ghErr)
+			os.Exit(1)
+		}
+		opts = append(opts, controller.WithTicketing(ghBackend))
+		logger.Info("github ticketing backend initialised")
+	} else if cfg.Ticketing.Backend != "" {
+		logger.Error("unsupported ticketing backend", "backend", cfg.Ticketing.Backend)
+		os.Exit(1)
+	}
+
+	// --- Execution engine ---
+	claudeEngine := claudecode.New()
+	opts = append(opts, controller.WithEngine(claudeEngine))
+	logger.Info("claude-code engine registered")
+
+	// --- Job builder ---
+	jb := jobbuilder.NewJobBuilder(*namespace)
+	opts = append(opts, controller.WithJobBuilder(jb))
+
+	// --- Notification channels (non-critical) ---
+	for _, chCfg := range cfg.Notifications.Channels {
+		if chCfg.Backend == "slack" {
+			slackCh, slackErr := initSlackChannel(chCfg, k8sClient, *namespace, logger)
+			if slackErr != nil {
+				logger.Warn("failed to initialise slack notifications, continuing without",
+					"error", slackErr,
+				)
+				continue
+			}
+			opts = append(opts, controller.WithNotifier(slackCh))
+			logger.Info("slack notification channel initialised")
+		}
+	}
+
 	// Readiness flag — set to true once the controller is fully initialised.
 	var ready atomic.Bool
 
@@ -88,10 +151,8 @@ func main() {
 		}
 	}()
 
-	// Create the reconciler.
-	reconciler := controller.NewReconciler(cfg, logger,
-		controller.WithNamespace(*namespace),
-	)
+	// Create the reconciler with all backends wired up.
+	reconciler := controller.NewReconciler(cfg, logger, opts...)
 
 	// Mark as ready.
 	ready.Store(true)
@@ -123,4 +184,175 @@ func main() {
 	}
 
 	logger.Info("robodev controller stopped")
+}
+
+// buildK8sClient creates a Kubernetes clientset, trying in-cluster config
+// first and falling back to kubeconfig for local development.
+func buildK8sClient() (kubernetes.Interface, error) {
+	cfg, err := rest.InClusterConfig()
+	if err != nil {
+		// Fall back to kubeconfig (local dev).
+		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+		configOverrides := &clientcmd.ConfigOverrides{}
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+		cfg, err = kubeConfig.ClientConfig()
+		if err != nil {
+			return nil, fmt.Errorf("building kubeconfig: %w", err)
+		}
+	}
+
+	client, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("creating kubernetes client: %w", err)
+	}
+	return client, nil
+}
+
+// readSecretValue reads a single key from a Kubernetes Secret.
+func readSecretValue(ctx context.Context, client kubernetes.Interface, namespace, secretName, key string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	secret, err := client.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("reading secret %q: %w", secretName, err)
+	}
+
+	val, ok := secret.Data[key]
+	if !ok {
+		return "", fmt.Errorf("key %q not found in secret %q", key, secretName)
+	}
+	return string(val), nil
+}
+
+// configString extracts a string value from a map[string]any config map.
+func configString(m map[string]any, key string) (string, error) {
+	v, ok := m[key]
+	if !ok {
+		return "", fmt.Errorf("missing config key %q", key)
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("config key %q is not a string", key)
+	}
+	return s, nil
+}
+
+// configStringOptional extracts a string value from a map[string]any config
+// map, returning ("", false, nil) when the key is absent.
+func configStringOptional(m map[string]any, key string) (string, bool, error) {
+	v, ok := m[key]
+	if !ok {
+		return "", false, nil
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false, fmt.Errorf("config key %q is not a string", key)
+	}
+	return s, true, nil
+}
+
+// configStringSlice extracts a []string from a map[string]any config map.
+func configStringSlice(m map[string]any, key string) ([]string, error) {
+	v, ok := m[key]
+	if !ok {
+		return nil, nil // optional
+	}
+
+	switch val := v.(type) {
+	case []any:
+		result := make([]string, 0, len(val))
+		for _, item := range val {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("config key %q contains non-string element", key)
+			}
+			result = append(result, s)
+		}
+		return result, nil
+	case []string:
+		return val, nil
+	default:
+		return nil, fmt.Errorf("config key %q is not a string slice", key)
+	}
+}
+
+// initGitHubBackend creates and returns a GitHub ticketing backend from
+// the controller configuration.
+func initGitHubBackend(cfg *config.Config, k8sClient kubernetes.Interface, namespace string, logger *slog.Logger) (*ghticket.GitHubBackend, error) {
+	m := cfg.Ticketing.Config
+
+	owner, err := configString(m, "owner")
+	if err != nil {
+		return nil, err
+	}
+	repo, err := configString(m, "repo")
+	if err != nil {
+		return nil, err
+	}
+	labels, err := configStringSlice(m, "labels")
+	if err != nil {
+		return nil, err
+	}
+	tokenSecret, err := configString(m, "token_secret")
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	if err != nil {
+		return nil, fmt.Errorf("reading github token: %w", err)
+	}
+
+	var opts []ghticket.Option
+
+	if assignee, ok, err := configStringOptional(m, "assignee"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, ghticket.WithAssignee(assignee))
+	}
+
+	if milestone, ok, err := configStringOptional(m, "milestone"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, ghticket.WithMilestone(milestone))
+	}
+
+	if state, ok, err := configStringOptional(m, "state"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, ghticket.WithState(state))
+	}
+
+	excludeLabels, err := configStringSlice(m, "exclude_labels")
+	if err != nil {
+		return nil, err
+	}
+	if excludeLabels != nil {
+		opts = append(opts, ghticket.WithExcludeLabels(excludeLabels))
+	}
+
+	return ghticket.NewGitHubBackend(owner, repo, labels, token, logger, opts...), nil
+}
+
+// initSlackChannel creates and returns a Slack notification channel from
+// a channel configuration block.
+func initSlackChannel(chCfg config.ChannelConfig, k8sClient kubernetes.Interface, namespace string, logger *slog.Logger) (*slacknotify.SlackChannel, error) {
+	m := chCfg.Config
+
+	channelID, err := configString(m, "channel_id")
+	if err != nil {
+		return nil, err
+	}
+	tokenSecret, err := configString(m, "token_secret")
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	if err != nil {
+		return nil, fmt.Errorf("reading slack token: %w", err)
+	}
+
+	return slacknotify.NewSlackChannel(channelID, token, logger), nil
 }

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### GitHub Backend Filtering
+- GitHub ticketing backend now supports filtering by assignee, milestone, and issue state in addition to labels
+- Added client-side label exclusion to prevent re-pickup of in-progress and failed issues (default: `in-progress`, `robodev-failed`)
+- New functional options: `WithAssignee`, `WithMilestone`, `WithState`, `WithExcludeLabels`
+- Labels filter is now optional — omitting it enables assignee-only or milestone-only workflows
+- Refactored `PollReadyTickets` URL construction to use `url.Values` for safer query parameter encoding
+
+#### Live End-to-End Testing
+- Wired up `cmd/robodev/main.go` with full backend initialisation: K8s client, GitHub ticketing, Claude Code engine, job builder, and Slack notifications
+- Controller now reads secrets from Kubernetes at startup (GitHub token, Slack token) using config-driven secret references
+- Added `hack/setup-secrets.sh` interactive script for provisioning K8s secrets (GitHub token, Anthropic API key, Slack bot token)
+- Added `hack/values-live.yaml` Helm values overlay for live testing with real backends (conservative guardrails: $10 cost cap, 30min timeout, max 2 jobs)
+- Added Makefile targets: `setup-secrets`, `live-deploy`, `live-up`, `live-redeploy` for full live testing workflow
+- In-cluster and kubeconfig fallback for K8s client creation (supports both deployed and local dev)
+
+#### Local Development & E2E Testing
+- Kind cluster configuration (`hack/kind-config.yaml`) with two-node topology and host port mapping
+- Local dev Helm values overlay (`hack/values-dev.yaml`) with `pullPolicy: Never`, disabled leader election, and NodePort access
+- End-to-end smoke test suite (`tests/e2e/`) covering deployment readiness, health endpoints, metrics, RBAC, and resource creation
+- Makefile targets for full local workflow: `check-prereqs`, `kind-create`, `kind-delete`, `docker-build-dev`, `kind-load`, `deploy`, `undeploy`, `local-up`, `local-down`, `local-redeploy`, `e2e-test`, `logs`
+- Configurable service type in Helm chart (supports NodePort for local development)
+- Local development workflow documentation in CONTRIBUTING.md
+
 #### Phase 1: Core Framework & Abstractions
 - Protobuf definitions for all 7 plugin interfaces: ticketing, notifications, approval, secrets, review, SCM, engine (plus shared common.proto)
 - buf.yaml and buf.gen.yaml for protobuf linting and Go/gRPC code generation

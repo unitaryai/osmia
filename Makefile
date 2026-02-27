@@ -10,7 +10,7 @@
 BINARY := bin/robodev
 GO := go
 GOFLAGS := -v
-REGISTRY ?= ghcr.io/robodev-inc
+REGISTRY ?= ghcr.io/unitaryai
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Local development settings

@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/robodev-inc/robodev/pkg/plugin/approval"
-	"github.com/robodev-inc/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/robodev/pkg/plugin/approval"
+	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 )
 
 const (

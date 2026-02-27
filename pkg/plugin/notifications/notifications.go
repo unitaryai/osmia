@@ -7,8 +7,8 @@ package notifications
 import (
 	"context"
 
-	"github.com/robodev-inc/robodev/pkg/engine"
-	"github.com/robodev-inc/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 )
 
 // InterfaceVersion is the current version of the NotificationChannel interface.

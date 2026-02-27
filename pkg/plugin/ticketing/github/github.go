@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/robodev-inc/robodev/pkg/engine"
-	"github.com/robodev-inc/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 )
 
 const (

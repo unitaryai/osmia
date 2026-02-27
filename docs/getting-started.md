@@ -56,7 +56,7 @@ Create a `values.yaml` file that configures ticketing, the engine, and (optional
 replicaCount: 1
 
 image:
-  repository: ghcr.io/robodev-inc/robodev
+  repository: ghcr.io/unitaryai/robodev
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -111,7 +111,7 @@ resources:
 ### 3. Install with Helm
 
 ```bash
-helm repo add robodev https://robodev-inc.github.io/robodev
+helm repo add robodev https://unitaryai.github.io/robodev
 helm repo update
 
 helm install robodev robodev/robodev \

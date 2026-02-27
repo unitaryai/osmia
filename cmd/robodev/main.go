@@ -19,17 +19,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/robodev-inc/robodev/internal/config"
-	"github.com/robodev-inc/robodev/internal/controller"
-	"github.com/robodev-inc/robodev/internal/jobbuilder"
-	"github.com/robodev-inc/robodev/pkg/engine/claudecode"
-	ghticket "github.com/robodev-inc/robodev/pkg/plugin/ticketing/github"
+	"github.com/unitaryai/robodev/internal/config"
+	"github.com/unitaryai/robodev/internal/controller"
+	"github.com/unitaryai/robodev/internal/jobbuilder"
+	"github.com/unitaryai/robodev/pkg/engine/claudecode"
+	ghticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/github"
 
 	// Notification backends — imported conditionally.
-	slacknotify "github.com/robodev-inc/robodev/pkg/plugin/notifications/slack"
+	slacknotify "github.com/unitaryai/robodev/pkg/plugin/notifications/slack"
 
 	// Register metrics with the default Prometheus registry.
-	_ "github.com/robodev-inc/robodev/internal/metrics"
+	_ "github.com/unitaryai/robodev/internal/metrics"
 )
 
 func main() {

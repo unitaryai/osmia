@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/robodev-inc/robodev/pkg/plugin/review"
+	"github.com/unitaryai/robodev/pkg/plugin/review"
 )
 
 func testLogger() *slog.Logger {

@@ -3,7 +3,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/robodev-inc/robodev
+  repository: ghcr.io/unitaryai/robodev
   pullPolicy: IfNotPresent
   tag: ""  # Overrides the chart appVersion
 

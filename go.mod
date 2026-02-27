@@ -1,4 +1,4 @@
-module github.com/robodev-inc/robodev
+module github.com/unitaryai/robodev
 
 go 1.24
 

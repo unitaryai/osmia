@@ -104,7 +104,7 @@ The primary and recommended engine. Runs the [Claude Code CLI](https://docs.anth
 |---|---|
 | Engine name | `claude-code` |
 | Package | `pkg/engine/claudecode/` |
-| Default image | `ghcr.io/robodev-inc/engine-claude-code:latest` |
+| Default image | `ghcr.io/unitaryai/engine-claude-code:latest` |
 | Default timeout | 7200 seconds (2 hours) |
 | API key secret | `anthropic-api-key` |
 | Guard rails | Pre-tool-use hooks via `hooks.json` |
@@ -117,7 +117,7 @@ config:
   engines:
     default: claude-code
     claude_code:
-      image: "ghcr.io/robodev-inc/engine-claude-code:v2.1.0"
+      image: "ghcr.io/unitaryai/engine-claude-code:v2.1.0"
       max_turns: 50
       model: "claude-sonnet-4-6"
       timeout_seconds: 3600
@@ -205,7 +205,7 @@ Runs the [OpenAI Codex CLI](https://github.com/openai/codex) in fully autonomous
 |---|---|
 | Engine name | `codex` |
 | Package | `pkg/engine/codex/` |
-| Default image | `ghcr.io/robodev-inc/engine-codex:latest` |
+| Default image | `ghcr.io/unitaryai/engine-codex:latest` |
 | Default timeout | 7200 seconds (2 hours) |
 | API key secret | `openai-api-key` |
 | Guard rails | Prompt-embedded rules |
@@ -217,7 +217,7 @@ config:
   engines:
     default: codex
     codex:
-      image: "ghcr.io/robodev-inc/engine-codex:v1.0.0"
+      image: "ghcr.io/unitaryai/engine-codex:v1.0.0"
       timeout_seconds: 3600
       resource_requests:
         cpu: "500m"
@@ -277,7 +277,7 @@ Runs the [Aider CLI](https://aider.chat/) for AI-assisted coding. Aider supports
 |---|---|
 | Engine name | `aider` |
 | Package | `pkg/engine/aider/` |
-| Default image | `ghcr.io/robodev-inc/engine-aider:latest` |
+| Default image | `ghcr.io/unitaryai/engine-aider:latest` |
 | Default timeout | 7200 seconds (2 hours) |
 | API key secret | `anthropic-api-key` (default) or `openai-api-key` |
 | Guard rails | Prompt-embedded rules |
@@ -289,7 +289,7 @@ config:
   engines:
     default: aider
     aider:
-      image: "ghcr.io/robodev-inc/engine-aider:v1.0.0"
+      image: "ghcr.io/unitaryai/engine-aider:v1.0.0"
       provider: "anthropic"   # or "openai"
       timeout_seconds: 3600
       resource_requests:
@@ -361,7 +361,7 @@ import (
     "fmt"
     "strings"
 
-    "github.com/robodev-inc/robodev/pkg/engine"
+    "github.com/unitaryai/robodev/pkg/engine"
 )
 
 const (

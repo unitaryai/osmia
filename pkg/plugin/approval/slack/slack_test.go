@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/robodev-inc/robodev/pkg/plugin/approval"
-	"github.com/robodev-inc/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/robodev/pkg/plugin/approval"
+	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 )
 
 func newTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {

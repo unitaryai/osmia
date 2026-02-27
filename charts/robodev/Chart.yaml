@@ -4,9 +4,9 @@ description: A Kubernetes-native AI coding agent harness
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/robodev-inc/robodev
+home: https://github.com/unitaryai/robodev
 sources:
-  - https://github.com/robodev-inc/robodev
+  - https://github.com/unitaryai/robodev
 maintainers:
   - name: RoboDev Authors
 keywords:

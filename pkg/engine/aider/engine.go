@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/robodev-inc/robodev/pkg/engine"
+	"github.com/unitaryai/robodev/pkg/engine"
 )
 
 const (
 	// defaultImage is the container image used when no override is provided.
-	defaultImage = "ghcr.io/robodev-inc/engine-aider:latest"
+	defaultImage = "ghcr.io/unitaryai/engine-aider:latest"
 
 	// defaultTimeoutSeconds is the default active deadline (2 hours).
 	defaultTimeoutSeconds = 7200

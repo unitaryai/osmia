@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/robodev-inc/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/robodev/pkg/plugin/scm"
 )
 
 const (

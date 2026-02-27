@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/robodev-inc/robodev/pkg/plugin/review"
+	"github.com/unitaryai/robodev/pkg/plugin/review"
 )
 
 const (

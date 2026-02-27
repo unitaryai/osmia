@@ -4,7 +4,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/robodev-inc/robodev
+  repository: ghcr.io/unitaryai/robodev
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -34,7 +34,7 @@ config:
   engines:
     default: claude-code
     claude-code:
-      image: "ghcr.io/robodev-inc/engine-claude-code:latest"
+      image: "ghcr.io/unitaryai/engine-claude-code:latest"
       auth:
         method: bedrock
         bedrock_region: "us-east-1"
@@ -43,7 +43,7 @@ config:
         mode: "in-process"
         max_teammates: 3
     codex:
-      image: "ghcr.io/robodev-inc/engine-codex:latest"
+      image: "ghcr.io/unitaryai/engine-codex:latest"
       auth:
         method: api_key
         api_key_secret: "robodev-openai-key"

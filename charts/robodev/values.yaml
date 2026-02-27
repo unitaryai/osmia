@@ -78,6 +78,9 @@ leaderElection:
 #       binaryPath: /plugin
 plugins: []
 
+service:
+  type: ClusterIP
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

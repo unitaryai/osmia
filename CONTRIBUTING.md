@@ -21,6 +21,9 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 - Go 1.23+
 - Docker (for container builds)
+- `kind` (for local Kubernetes clusters)
+- `kubectl` (for cluster interaction)
+- `helm` (for chart deployment)
 - `gofumpt` (for code formatting)
 - `golangci-lint` (for linting)
 - `buf` (for protobuf linting and generation)
@@ -30,6 +33,32 @@ Install development dependencies:
 ```bash
 ./scripts/install-deps.sh
 ```
+
+## Local Development Workflow
+
+RoboDev uses [kind](https://kind.sigs.k8s.io/) for local development and testing. The full workflow is automated via Make targets:
+
+```bash
+# Verify all prerequisites are installed
+make check-prereqs
+
+# Full setup: build binaries, build images, create kind cluster, deploy
+make local-up
+
+# Stream controller logs
+make logs
+
+# Run end-to-end smoke tests
+make e2e-test
+
+# Fast rebuild and redeploy (reuses existing cluster)
+make local-redeploy
+
+# Tear everything down
+make local-down
+```
+
+The `local-up` target creates a two-node kind cluster (control-plane + worker), builds all container images with a `dev` tag, loads them into kind, and deploys the Helm chart with local-dev overrides (no image pulls, no leader election, NodePort access on `localhost:30080`).
 
 ## Code Style
 

@@ -1,0 +1,15 @@
+image:
+  pullPolicy: Never
+  tag: dev
+leaderElection:
+  enabled: false
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+service:
+  type: NodePort
+  nodePort: 30080

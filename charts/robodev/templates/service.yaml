@@ -6,12 +6,15 @@ metadata:
   labels:
     {{- include "robodev.labels" . | nindent 4 }}
 spec:
-  type: ClusterIP
+  type: {{ .Values.service.type | default "ClusterIP" }}
   ports:
     - port: {{ .Values.metrics.port }}
       targetPort: metrics
       protocol: TCP
       name: metrics
+      {{- if .Values.service.nodePort }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "robodev.selectorLabels" . | nindent 4 }}
 {{- end }}

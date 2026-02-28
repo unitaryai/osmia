@@ -113,12 +113,12 @@ func TestCheck_ThrashingDetection(t *testing.T) {
 	}
 
 	current := &Heartbeat{
-		Seq:            2,
-		RunID:          tr.ID,
-		Timestamp:      time.Now(),
-		TokensConsumed: 90000, // exceeds 80000 threshold
-		FilesChanged:   0,     // no progress
-		ToolCallsTotal: 50,
+		Seq:             2,
+		RunID:           tr.ID,
+		Timestamp:       time.Now(),
+		TokensConsumed:  90000, // exceeds 80000 threshold
+		FilesChanged:    0,     // no progress
+		ToolCallsTotal:  50,
 		CostEstimateUSD: 1.20,
 	}
 

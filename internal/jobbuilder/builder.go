@@ -19,9 +19,9 @@ const (
 	labelTaskRunID = "robodev.io/task-run-id"
 	labelEngine    = "robodev.io/engine"
 
-	defaultRunAsUser  int64 = 1000
-	containerName           = "agent"
-	taintKey                = "robodev.io/agent"
+	defaultRunAsUser int64 = 1000
+	containerName          = "agent"
+	taintKey               = "robodev.io/agent"
 )
 
 // JobBuilder constructs Kubernetes Jobs from engine ExecutionSpecs.

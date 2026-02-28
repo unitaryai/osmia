@@ -13,10 +13,10 @@ const InterfaceVersion = 1
 
 // GateResult represents the outcome of a quality gate review.
 type GateResult struct {
-	Passed           bool             `json:"passed"`
-	Comments         []ReviewComment  `json:"comments,omitempty"`
+	Passed           bool              `json:"passed"`
+	Comments         []ReviewComment   `json:"comments,omitempty"`
 	SecurityFindings []SecurityFinding `json:"security_findings,omitempty"`
-	Summary          string           `json:"summary"`
+	Summary          string            `json:"summary"`
 }
 
 // ReviewComment is a single comment from the review process, optionally

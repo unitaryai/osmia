@@ -155,7 +155,7 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 			break
 		}
 
-		if err := r.processTicket(ctx, ticket); err != nil {
+		if err := r.ProcessTicket(ctx, ticket); err != nil {
 			r.logger.ErrorContext(ctx, "failed to process ticket",
 				"ticket_id", ticket.ID,
 				"error", err,
@@ -171,9 +171,10 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 	return nil
 }
 
-// processTicket handles a single ticket: validates guard rails, creates
-// a TaskRun with idempotency, and launches a K8s Job.
-func (r *Reconciler) processTicket(ctx context.Context, ticket ticketing.Ticket) error {
+// ProcessTicket handles a single ticket: validates guard rails, creates
+// a TaskRun with idempotency, and launches a K8s Job. It is exported so
+// that the webhook server adapter can feed tickets into the reconciler.
+func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket) error {
 	// Generate idempotency key.
 	idempotencyKey := fmt.Sprintf("%s-1", ticket.ID)
 

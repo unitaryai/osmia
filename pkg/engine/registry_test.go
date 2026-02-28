@@ -13,11 +13,12 @@ type stubEngine struct {
 	name string
 }
 
-func (s *stubEngine) Name() string           { return s.name }
-func (s *stubEngine) InterfaceVersion() int   { return 1 }
+func (s *stubEngine) Name() string          { return s.name }
+func (s *stubEngine) InterfaceVersion() int { return 1 }
 func (s *stubEngine) BuildPrompt(Task) (string, error) {
 	return "stub prompt", nil
 }
+
 func (s *stubEngine) BuildExecutionSpec(Task, EngineConfig) (*ExecutionSpec, error) {
 	return &ExecutionSpec{Image: "stub"}, nil
 }

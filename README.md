@@ -2,24 +2,29 @@
 
 **Kubernetes-native AI coding agent harness for enterprise-grade autonomous development at scale.**
 
-RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider) inside isolated Kubernetes Jobs to perform maintenance and development tasks on your codebases. It is security-first, plugin-extensible, and built on Kubernetes primitives for isolation, observability, and scaling.
+RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode, Cline) inside isolated Kubernetes Jobs to perform maintenance and development tasks on your codebases. It is security-first, plugin-extensible, and built on Kubernetes primitives for isolation, observability, and scaling.
 
 ```
-Ticketing Backend          RoboDev Controller           K8s Job (isolated)
-(GitHub Issues, Jira)  ->  (Go operator, K8s-native) -> (AI agent + code)
-        |                        |                           |
-        |                   Guard Rails                      |
-        |                   Cost Control                     v
-        v                   Watchdog              Pull Request / Merge Request
-   Slack / Teams                                        + Review
+Ticketing Backend             RoboDev Controller            K8s Job (isolated)
+(GitHub, GitLab, Shortcut,    (Go operator, K8s-native)     (AI agent + code)
+ Linear)                  ->  Guard Rails + Cost Control ->       |
+        |                     Watchdog + Secret Resolver          |
+        |                            |                            v
+Webhook Receiver                     |                Pull Request / Merge Request
+(GitHub, GitLab, Slack,              |                       + Review
+ Shortcut, Generic)                  |
+                              Notifications
+                        (Slack, Telegram, Discord)
 ```
 
 ## Key Features
 
-- **Multi-engine support** — Claude Code, OpenAI Codex, and Aider out of the box; extensible via plugin interface
-- **Plugin architecture** — Ticketing (GitHub, Jira), notifications (Slack, Teams), secrets (K8s, Vault), SCM (GitHub, GitLab), review (CodeRabbit) — all swappable
-- **Defence in depth** — Controller-level guard rails, engine-level hooks, `guardrails.md` prompt injection, quality gate, progress watchdog
-- **Kubernetes-native** — Each agent runs in an isolated pod with restricted security contexts, RBAC, and network policies
+- **5 execution engines** — Claude Code, OpenAI Codex, Aider, OpenCode, and Cline out of the box; extensible via plugin interface
+- **Event-driven ingestion** — Webhook receiver for GitHub, GitLab, Slack, Shortcut, and generic sources with HMAC signature validation — or poll-based, or both
+- **Plugin architecture** — Ticketing (GitHub, Shortcut, Linear), notifications (Slack, Telegram, Discord), secrets (K8s, Vault), SCM (GitHub, GitLab), review (CodeRabbit) — all swappable
+- **Task-scoped secrets** — Declarative secret resolution from ticket descriptions (`<!-- robodev:secrets -->`) with multi-backend support (K8s, Vault), alias system, and per-tenant policy
+- **Defence in depth** — Controller-level guard rails, engine-level hooks, `guardrails.md` prompt injection, quality gate, progress watchdog, NetworkPolicy enforcement
+- **Kubernetes-native** — Each agent runs in an isolated pod with restricted security contexts, RBAC, NetworkPolicies, and PodDisruptionBudgets
 - **Enterprise-ready** — Multi-tenancy, cost budgets, structured logging, Prometheus metrics, Grafana dashboards
 - **Scaling** — Karpenter integration for auto-provisioning agent nodes; configurable concurrency limits
 
@@ -33,29 +38,37 @@ Ticketing Backend          RoboDev Controller           K8s Job (isolated)
                            |    |    |    |    |
               +------------+    |    |    |    +----------+
               |                 |    |    |               |
-        +-----v------+   +-----v-+  | +--v------+  +----v--------+
-        | Ticketing   |   |Secrets|  | |  SCM    |  |Notification |
-        | (GitHub,    |   |(K8s,  |  | |(GitHub, |  |(Slack,      |
-        |  Jira, ...) |   |Vault) |  | |GitLab)  |  | Teams, ...) |
-        +-------------+   +-------+  | +---------+  +-------------+
-                                      |
-                           +----------v----------+
-                           |    Engine Registry   |
-                           | Claude Code | Codex  |
-                           |    Aider    | ...    |
-                           +----------+----------+
-                                      |
-                           +----------v----------+
-                           |    K8s Job (pod)     |
-                           | +------------------+ |
-                           | | AI Agent         | |
-                           | | + Guard Rail     | |
-                           | |   Hooks          | |
-                           | +------------------+ |
-                           | | Result:          | |
-                           | |  result.json     | |
-                           | +------------------+ |
-                           +----------------------+
+        +-----v------+   +-----v-+  | +--v------+  +----v----------+
+        | Ticketing   |   |Secrets|  | |  SCM    |  | Notification  |
+        | (GitHub,    |   |(K8s,  |  | |(GitHub, |  | (Slack,       |
+        | Shortcut,   |   |Vault) |  | |GitLab)  |  |  Telegram,    |
+        | Linear)     |   +---+---+  | +---------+  |  Discord)     |
+        +------+------+       |      |              +---------------+
+               ^               |      |
+               |         +-----v------v-------+
+        +------+------+  |  Secret Resolver   |
+        | Webhook     |  | (aliases, policy,  |
+        | Receiver    |  |  multi-backend)    |
+        | (GitHub,    |  +--------------------+
+        | GitLab,     |
+        | Slack,      |       +----------v----------+
+        | Shortcut,   |       |    Engine Registry   |
+        | Generic)    |       | Claude Code | Codex  |
+        +-------------+       | Aider | OpenCode     |
+                               |       Cline          |
+                               +----------+----------+
+                                          |
+                               +----------v----------+
+                               |    K8s Job (pod)     |
+                               | +------------------+ |
+                               | | AI Agent         | |
+                               | | + Guard Rail     | |
+                               | |   Hooks          | |
+                               | +------------------+ |
+                               | | Result:          | |
+                               | |  result.json     | |
+                               | +------------------+ |
+                               +----------------------+
 ```
 
 ## Quick Start
@@ -108,6 +121,28 @@ ticketing:
 
 engines:
   default: claude-code
+  opencode:
+    provider: anthropic
+  cline:
+    provider: bedrock
+    mcp_enabled: true
+
+webhook:
+  enabled: true
+  port: 8081
+  github:
+    secret: "your-webhook-secret"
+
+secret_resolver:
+  backends:
+    - scheme: vault
+      backend: vault
+      config:
+        address: https://vault.example.com
+        role: robodev
+  policy:
+    allowed_schemes: ["k8s", "vault", "alias"]
+    allow_raw_refs: false
 
 guardrails:
   max_cost_per_job: 50.0
@@ -132,6 +167,8 @@ RoboDev provides layered safety boundaries:
 3. **Prompt-level** — `guardrails.md` appended to every agent prompt with natural-language policies
 4. **Quality gate** — Optional post-completion review before merge request creation
 5. **Progress watchdog** — Detects looping, thrashing, or stalled agents during execution
+6. **Network policies** — Agent pods deny all ingress and restrict egress to HTTPS + SSH; controller pods restrict ingress to webhook and metrics ports
+7. **Secret resolution policy** — Allowed/blocked environment variable patterns, URI scheme restrictions, and per-tenant scoping prevent secret exfiltration
 
 ## Plugin System
 
@@ -139,23 +176,27 @@ All external integrations are pluggable. Built-in plugins are compiled into the 
 
 | Interface | Built-in | Third-party examples |
 |-----------|----------|---------------------|
-| Ticketing | GitHub Issues | Jira, Linear, Monday.com |
-| Notifications | Slack | Teams, Discord, Telegram |
+| Ticketing | GitHub Issues, Shortcut, Linear | Jira, Monday.com |
+| Notifications | Slack, Telegram, Discord | Teams, PagerDuty |
 | Approval | Slack | Teams |
-| Secrets | K8s Secrets | Vault, AWS SM, 1Password |
+| Secrets | K8s Secrets, HashiCorp Vault | AWS SM, 1Password |
 | SCM | GitHub, GitLab | Bitbucket |
 | Review | CodeRabbit | Custom |
-| Engine | Claude Code, Codex, Aider | Custom |
+| Engine | Claude Code, Codex, Aider, OpenCode, Cline | Custom |
 
 Write plugins in **any language** with gRPC support. SDKs are provided for Python, Go, and TypeScript. See [docs/plugins/writing-a-plugin.md](docs/plugins/writing-a-plugin.md).
 
 ## Execution Engines
 
-| Engine | Status | Guard Rails |
-|--------|--------|-------------|
-| Claude Code | Production | Hooks + prompt |
-| OpenAI Codex | Production | Prompt-only |
-| Aider | Production | Prompt-only |
+| Engine | Status | Guard Rails | Providers |
+|--------|--------|-------------|-----------|
+| Claude Code | Production | Hooks + prompt | Anthropic |
+| OpenAI Codex | Production | Prompt-only | OpenAI |
+| Aider | Production | Prompt-only | Anthropic, OpenAI |
+| OpenCode | Production | Prompt-only | Anthropic, OpenAI, Google |
+| Cline | Production | Prompt-only | Anthropic, OpenAI, Google, Bedrock |
+
+Cline additionally supports [MCP](https://modelcontextprotocol.io/) (Model Context Protocol) integration via the `--mcp` flag. See [docs/plugins/engines.md](docs/plugins/engines.md) for the full comparison matrix.
 
 ## Scaling
 
@@ -177,7 +218,10 @@ See [docs/scaling.md](docs/scaling.md) and [`examples/karpenter/`](examples/karp
 RoboDev is designed as a security-first platform. See [docs/security.md](docs/security.md).
 
 - Container isolation with restrictive security contexts (non-root, read-only FS, dropped capabilities)
-- Network policies limiting egress to HTTPS/SSH
+- NetworkPolicies for agent pods (deny all ingress, restrict egress to HTTPS/SSH) and controller pods (restrict ingress to webhook + metrics)
+- PodDisruptionBudgets for controller high-availability
+- Webhook signature validation (HMAC-SHA256 for GitHub/Slack, secret token for GitLab, replay attack prevention)
+- Task-scoped secret resolution with policy enforcement and structured audit logging (never logs secret values)
 - RBAC scoped to minimum required permissions
 - Image signing with cosign and SBOM generation with syft
 - No secrets in logs; input validation on all external data
@@ -185,20 +229,22 @@ RoboDev is designed as a security-first platform. See [docs/security.md](docs/se
 ## Project Structure
 
 ```
-cmd/robodev/           — Controller entrypoint
-internal/controller/   — Reconciliation loop
-internal/jobbuilder/   — ExecutionSpec → K8s Job
-internal/taskrun/      — TaskRun state machine
-internal/watchdog/     — Progress watchdog
-internal/config/       — Configuration loading
-internal/metrics/      — Prometheus metrics
-pkg/engine/            — ExecutionEngine interface + engines
-pkg/plugin/            — Plugin interfaces + built-in backends
-proto/                 — Protobuf definitions
-charts/robodev/        — Helm chart
-docker/                — Dockerfiles for controller + engines
-examples/              — Configuration examples
-docs/                  — Documentation
+cmd/robodev/              — Controller entrypoint
+internal/controller/      — Reconciliation loop
+internal/jobbuilder/      — ExecutionSpec → K8s Job
+internal/taskrun/         — TaskRun state machine
+internal/watchdog/        — Progress watchdog
+internal/config/          — Configuration loading
+internal/metrics/         — Prometheus metrics
+internal/webhook/         — Webhook receiver (GitHub, GitLab, Slack, Shortcut, generic)
+internal/secretresolver/  — Task-scoped secret resolution + policy
+pkg/engine/               — ExecutionEngine interface + engines (Claude Code, Codex, Aider, OpenCode, Cline)
+pkg/plugin/               — Plugin interfaces + built-in backends
+proto/                    — Protobuf definitions
+charts/robodev/           — Helm chart (incl. NetworkPolicy, PDB)
+docker/                   — Dockerfiles for controller + engines
+examples/                 — Configuration examples
+docs/                     — Documentation
 ```
 
 ## Development

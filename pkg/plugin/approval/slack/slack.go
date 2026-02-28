@@ -87,10 +87,10 @@ type slackButton struct {
 
 // slackMessage is the payload sent to chat.postMessage.
 type slackMessage struct {
-	Channel     string       `json:"channel"`
-	Text        string       `json:"text"`
-	Blocks      []slackBlock `json:"blocks"`
-	ReplaceOriginal bool     `json:"replace_original,omitempty"`
+	Channel         string       `json:"channel"`
+	Text            string       `json:"text"`
+	Blocks          []slackBlock `json:"blocks"`
+	ReplaceOriginal bool         `json:"replace_original,omitempty"`
 }
 
 // slackUpdateMessage is the payload sent to chat.update.
@@ -153,9 +153,9 @@ func (s *SlackApprovalBackend) RequestApproval(ctx context.Context, question str
 
 	if ticket.ExternalURL != "" {
 		blocks = append(blocks, slackBlock{
-			Type: "context",
+			Type:     "context",
 			Elements: []slackButton{}, // cleared below; using text fields instead
-			Text: &slackText{Type: "mrkdwn", Text: fmt.Sprintf("Ticket: <%s|%s> | Task run: `%s`", ticket.ExternalURL, ticket.ID, taskRunID)},
+			Text:     &slackText{Type: "mrkdwn", Text: fmt.Sprintf("Ticket: <%s|%s> | Task run: `%s`", ticket.ExternalURL, ticket.ID, taskRunID)},
 		})
 		// Context blocks use a different element format; simplify to a section.
 		blocks[len(blocks)-1] = slackBlock{

@@ -12,17 +12,78 @@ import (
 // Config is the top-level configuration for the RoboDev controller,
 // loaded from robodev-config.yaml.
 type Config struct {
-	Ticketing      TicketingConfig      `yaml:"ticketing"`
-	Notifications  NotificationsConfig  `yaml:"notifications"`
-	Secrets        SecretsConfig        `yaml:"secrets"`
-	Engines        EnginesConfig        `yaml:"engines"`
-	GuardRails     GuardRailsConfig     `yaml:"guardrails"`
-	PluginHealth   PluginHealthConfig   `yaml:"plugin_health"`
-	QualityGate    QualityGateConfig    `yaml:"quality_gate"`
-	Tenancy        TenancyConfig        `yaml:"tenancy"`
-	Review         ReviewConfig         `yaml:"review"`
-	SCM            SCMConfig            `yaml:"scm"`
-	ProgressWatchdog WatchdogConfig     `yaml:"progress_watchdog"`
+	Ticketing        TicketingConfig      `yaml:"ticketing"`
+	Notifications    NotificationsConfig  `yaml:"notifications"`
+	Secrets          SecretsConfig        `yaml:"secrets"`
+	Engines          EnginesConfig        `yaml:"engines"`
+	GuardRails       GuardRailsConfig     `yaml:"guardrails"`
+	PluginHealth     PluginHealthConfig   `yaml:"plugin_health"`
+	QualityGate      QualityGateConfig    `yaml:"quality_gate"`
+	Tenancy          TenancyConfig        `yaml:"tenancy"`
+	Review           ReviewConfig         `yaml:"review"`
+	SCM              SCMConfig            `yaml:"scm"`
+	ProgressWatchdog WatchdogConfig       `yaml:"progress_watchdog"`
+	Webhook          WebhookConfig        `yaml:"webhook"`
+	SecretResolver   SecretResolverConfig `yaml:"secret_resolver"`
+}
+
+// WebhookConfig configures the optional webhook receiver server.
+type WebhookConfig struct {
+	Enabled  bool                  `yaml:"enabled"`
+	Port     int                   `yaml:"port,omitempty"` // defaults to 8081
+	GitHub   *WebhookSourceConfig  `yaml:"github,omitempty"`
+	GitLab   *WebhookSourceConfig  `yaml:"gitlab,omitempty"`
+	Slack    *WebhookSourceConfig  `yaml:"slack,omitempty"`
+	Shortcut *WebhookSourceConfig  `yaml:"shortcut,omitempty"`
+	Generic  *GenericWebhookConfig `yaml:"generic,omitempty"`
+}
+
+// WebhookSourceConfig holds the shared secret for a webhook source.
+type WebhookSourceConfig struct {
+	Secret string `yaml:"secret"` // HMAC secret or validation token
+}
+
+// GenericWebhookConfig holds settings for the generic webhook handler.
+type GenericWebhookConfig struct {
+	Secret    string            `yaml:"secret,omitempty"`     // HMAC secret
+	AuthToken string            `yaml:"auth_token,omitempty"` // bearer token
+	FieldMap  map[string]string `yaml:"field_map,omitempty"`  // JSON field mapping
+}
+
+// SecretResolverConfig configures the task-scoped secret resolver.
+type SecretResolverConfig struct {
+	Backends []BackendRef               `yaml:"backends,omitempty"`
+	Aliases  map[string]AliasConfig     `yaml:"aliases,omitempty"`
+	Policy   SecretResolverPolicyConfig `yaml:"policy"`
+}
+
+// BackendRef references a secret backend by scheme and type.
+type BackendRef struct {
+	Scheme  string         `yaml:"scheme"`  // e.g. "vault", "k8s", "aws-sm"
+	Backend string         `yaml:"backend"` // backend type name
+	Config  map[string]any `yaml:"config,omitempty"`
+}
+
+// AliasConfig maps a friendly alias name to a concrete secret URI.
+type AliasConfig struct {
+	URI      string `yaml:"uri"`
+	TenantID string `yaml:"tenant_id,omitempty"`
+}
+
+// SecretResolverPolicyConfig controls which secrets can be requested.
+type SecretResolverPolicyConfig struct {
+	AllowedEnvPatterns []string `yaml:"allowed_env_patterns,omitempty"`
+	BlockedEnvPatterns []string `yaml:"blocked_env_patterns,omitempty"`
+	AllowRawRefs       bool     `yaml:"allow_raw_refs"`
+	AllowedSchemes     []string `yaml:"allowed_schemes,omitempty"`
+}
+
+// VaultSecretsConfig holds HashiCorp Vault-specific configuration.
+type VaultSecretsConfig struct {
+	Address     string `yaml:"address"`
+	AuthMethod  string `yaml:"auth_method"` // "kubernetes"
+	Role        string `yaml:"role"`
+	SecretsPath string `yaml:"secrets_path"` // e.g. "secret"
 }
 
 // TicketingConfig configures the ticketing backend.
@@ -54,6 +115,23 @@ type EnginesConfig struct {
 	ClaudeCode *ClaudeCodeEngineConfig `yaml:"claude-code,omitempty"`
 	Codex      *CodexEngineConfig      `yaml:"codex,omitempty"`
 	Aider      *AiderEngineConfig      `yaml:"aider,omitempty"`
+	OpenCode   *OpenCodeEngineConfig   `yaml:"opencode,omitempty"`
+	Cline      *ClineEngineConfig      `yaml:"cline,omitempty"`
+}
+
+// OpenCodeEngineConfig holds OpenCode-specific engine settings.
+type OpenCodeEngineConfig struct {
+	Image    string     `yaml:"image,omitempty"`
+	Auth     AuthConfig `yaml:"auth"`
+	Provider string     `yaml:"provider,omitempty"` // "anthropic", "openai", "google"
+}
+
+// ClineEngineConfig holds Cline-specific engine settings.
+type ClineEngineConfig struct {
+	Image      string     `yaml:"image,omitempty"`
+	Auth       AuthConfig `yaml:"auth"`
+	Provider   string     `yaml:"provider,omitempty"` // "anthropic", "openai", "google", "bedrock"
+	MCPEnabled bool       `yaml:"mcp_enabled,omitempty"`
 }
 
 // ClaudeCodeEngineConfig holds Claude Code-specific engine settings.
@@ -77,16 +155,16 @@ type AiderEngineConfig struct {
 
 // AuthConfig configures authentication for an execution engine.
 type AuthConfig struct {
-	Method           string `yaml:"method"`             // "api_key", "setup_token", "bedrock", "vertex", "credentials_file"
-	APIKeySecret     string `yaml:"api_key_secret"`     // K8s Secret name for API key
-	BedrockRegion    string `yaml:"bedrock_region"`     // AWS region for Bedrock
+	Method            string `yaml:"method"`             // "api_key", "setup_token", "bedrock", "vertex", "credentials_file"
+	APIKeySecret      string `yaml:"api_key_secret"`     // K8s Secret name for API key
+	BedrockRegion     string `yaml:"bedrock_region"`     // AWS region for Bedrock
 	CredentialsSecret string `yaml:"credentials_secret"` // K8s Secret name for credentials file
 }
 
 // AgentTeamsConfig configures experimental agent teams for Claude Code.
 type AgentTeamsConfig struct {
-	Enabled      bool `yaml:"enabled"`
-	Mode         string `yaml:"mode"`          // "in-process"
+	Enabled      bool   `yaml:"enabled"`
+	Mode         string `yaml:"mode"` // "in-process"
 	MaxTeammates int    `yaml:"max_teammates"`
 }
 
@@ -110,12 +188,12 @@ type PluginHealthConfig struct {
 
 // QualityGateConfig configures the optional quality gate.
 type QualityGateConfig struct {
-	Enabled           bool    `yaml:"enabled"`
-	Mode              string  `yaml:"mode"`               // "post-completion" or "security-only"
-	Engine            string  `yaml:"engine"`              // Engine to use for reviews
-	MaxCostPerReview  float64 `yaml:"max_cost_per_review"`
-	SecurityChecks    SecurityChecksConfig `yaml:"security_checks"`
-	OnFailure         string  `yaml:"on_failure"`          // "retry_with_feedback", "block_mr", "notify_human"
+	Enabled          bool                 `yaml:"enabled"`
+	Mode             string               `yaml:"mode"`   // "post-completion" or "security-only"
+	Engine           string               `yaml:"engine"` // Engine to use for reviews
+	MaxCostPerReview float64              `yaml:"max_cost_per_review"`
+	SecurityChecks   SecurityChecksConfig `yaml:"security_checks"`
+	OnFailure        string               `yaml:"on_failure"` // "retry_with_feedback", "block_mr", "notify_human"
 }
 
 // SecurityChecksConfig configures quality gate security checks.
@@ -161,7 +239,7 @@ type WatchdogConfig struct {
 	LoopDetectionThreshold     int     `yaml:"loop_detection_threshold"`
 	ThrashingTokenThreshold    int     `yaml:"thrashing_token_threshold"`
 	StallIdleSeconds           int     `yaml:"stall_idle_seconds"`
-	CostVelocityMaxPer10Min   float64 `yaml:"cost_velocity_max_per_10_min"`
+	CostVelocityMaxPer10Min    float64 `yaml:"cost_velocity_max_per_10_min"`
 	UnansweredHumanTimeoutMin  int     `yaml:"unanswered_human_timeout_minutes"`
 }
 

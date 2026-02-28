@@ -328,6 +328,96 @@ Aider reads coding conventions from `.aider/conventions.md` (rather than `CLAUDE
 
 Like Codex, Aider does not support a hooks system. Guard rails are appended directly to the task prompt, identical in content to the Codex guard rails above.
 
+### OpenCode
+
+OpenCode is a terminal-based AI coding agent. RoboDev runs it in headless mode inside Kubernetes Jobs.
+
+**Package:** `pkg/engine/opencode/`
+
+| Property | Value |
+|---|---|
+| Engine name | `opencode` |
+| Default image | `ghcr.io/unitaryai/engine-opencode:latest` |
+| Command | `opencode --non-interactive --message <prompt>` |
+| Interface version | `1` |
+
+#### Configuration
+
+```yaml
+engines:
+  default: opencode
+  opencode:
+    image: ghcr.io/unitaryai/engine-opencode:v1.0.0  # optional override
+    auth:
+      method: api_key
+      api_key_secret: anthropic-credentials
+    provider: anthropic  # or "openai", "google"
+```
+
+#### Providers
+
+| Provider | Environment Variable | K8s Secret Key |
+|---|---|---|
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | `anthropic-api-key` |
+| `openai` | `OPENAI_API_KEY` | `openai-api-key` |
+| `google` | `GOOGLE_API_KEY` | `google-api-key` |
+
+#### Repository Context
+
+OpenCode reads coding conventions from `AGENTS.md` in the repository root.
+
+#### Guard Rails (Prompt-Embedded)
+
+OpenCode does not support a hooks system. Guard rails are appended directly to the task prompt.
+
+### Cline
+
+Cline is a CLI-based AI coding agent with optional MCP (Model Context Protocol) support. RoboDev runs it in headless mode inside Kubernetes Jobs.
+
+**Package:** `pkg/engine/cline/`
+
+| Property | Value |
+|---|---|
+| Engine name | `cline` |
+| Default image | `ghcr.io/unitaryai/engine-cline:latest` |
+| Command | `cline --headless --task <prompt> --output-format json` |
+| Interface version | `1` |
+
+#### Configuration
+
+```yaml
+engines:
+  default: cline
+  cline:
+    image: ghcr.io/unitaryai/engine-cline:v1.0.0  # optional override
+    auth:
+      method: api_key
+      api_key_secret: anthropic-credentials
+    provider: anthropic  # or "openai", "google", "bedrock"
+    mcp_enabled: true    # append --mcp flag
+```
+
+#### Providers
+
+| Provider | Environment Variable | K8s Secret Key |
+|---|---|---|
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | `anthropic-api-key` |
+| `openai` | `OPENAI_API_KEY` | `openai-api-key` |
+| `google` | `GOOGLE_API_KEY` | `google-api-key` |
+| `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `aws-access-key-id`, `aws-secret-access-key` |
+
+#### Repository Context
+
+Cline reads project-specific instructions from `.clinerules` in the repository root.
+
+#### MCP Support
+
+When `mcp_enabled: true` is set in the engine configuration, the `--mcp` flag is appended to the Cline command, enabling Model Context Protocol integration for tool use.
+
+#### Guard Rails (Prompt-Embedded)
+
+Cline does not support a hooks system. Guard rails are appended directly to the task prompt.
+
 ## Engine Selection
 
 The controller selects engines in this order:
@@ -338,17 +428,17 @@ The controller selects engines in this order:
 
 ## Comparison Matrix
 
-| Criterion | Claude Code | Codex | Aider |
-|---|---|---|---|
-| Guard rail enforcement | Hook-based (deterministic) | Prompt-based (advisory) | Prompt-based (advisory) |
-| Agent teams support | Yes (experimental) | No | No |
-| Multi-model support | Anthropic only | OpenAI only | Anthropic + OpenAI |
-| Agentic turns limit | Configurable (`max_turns`) | N/A | N/A |
-| Repository context file | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` |
-| Heartbeat telemetry | Via PostToolUse hook | Not built-in | Not built-in |
-| MCP server support | Yes | No | No |
+| Criterion | Claude Code | Codex | Aider | OpenCode | Cline |
+|---|---|---|---|---|---|
+| Guard rail enforcement | Hook-based (deterministic) | Prompt-based (advisory) | Prompt-based (advisory) | Prompt-based (advisory) | Prompt-based (advisory) |
+| Agent teams support | Yes (experimental) | No | No | No | No |
+| Multi-model support | Anthropic only | OpenAI only | Anthropic + OpenAI | Anthropic + OpenAI + Google | Anthropic + OpenAI + Google + Bedrock |
+| Agentic turns limit | Configurable (`max_turns`) | N/A | N/A | N/A | N/A |
+| Repository context file | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
+| Heartbeat telemetry | Via PostToolUse hook | Not built-in | Not built-in | Not built-in | Not built-in |
+| MCP server support | Yes | No | No | No | Yes (via `--mcp` flag) |
 
-**Recommendation:** Use Claude Code as the default engine for its superior guard rail enforcement via hooks and built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences.
+**Recommendation:** Use Claude Code as the default engine for its superior guard rail enforcement via hooks and built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline supports AWS Bedrock and MCP integration.
 
 ## Writing a Custom Engine
 

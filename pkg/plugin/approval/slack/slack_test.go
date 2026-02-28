@@ -157,12 +157,12 @@ func TestSlackApprovalBackend_RequestApproval(t *testing.T) {
 
 func TestSlackApprovalBackend_CancelPending(t *testing.T) {
 	tests := []struct {
-		name          string
-		taskRunID     string
-		setupPending  bool
-		apiResp       slackResponse
-		wantAPICall   bool
-		wantErr       bool
+		name         string
+		taskRunID    string
+		setupPending bool
+		apiResp      slackResponse
+		wantAPICall  bool
+		wantErr      bool
 	}{
 		{
 			name:         "cancel existing pending request",

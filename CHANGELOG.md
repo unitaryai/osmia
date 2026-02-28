@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Webhook Receiver & Event-Driven Ingestion
+- HTTP webhook server (`internal/webhook/`) with route handlers for GitHub, GitLab, Slack, Shortcut, and a configurable generic handler
+- GitHub HMAC-SHA256 signature validation (`X-Hub-Signature-256`), issue event parsing for `opened` and `labeled` actions
+- GitLab secret token validation (`X-Gitlab-Token`), issue and merge request event parsing
+- Slack signing secret validation (`X-Slack-Signature`) with 5-minute replay attack prevention
+- Shortcut webhook handler with optional HMAC signature validation and story state change parsing
+- Generic webhook handler with configurable HMAC or bearer token auth and dot-notation JSON field mapping
+- Webhook server wired into `cmd/robodev/main.go` with graceful shutdown support
+- New `WebhookConfig` in controller configuration for per-source secrets
+
+#### Task-Scoped Secret Resolution
+- Secret resolver (`internal/secretresolver/`) parsing `<!-- robodev:secrets -->` HTML comment blocks and `robodev:secret:` label prefixes
+- Policy engine validating environment variable names against allowed/blocked glob patterns, URI scheme restrictions, and tenant scoping
+- Multi-backend resolver dispatching secrets by URI scheme (`vault://`, `k8s://`, `alias://`) to registered backends
+- Structured audit logging (secret names only, never values) for compliance and debugging
+- New `SecretResolverConfig` and `VaultSecretsConfig` types in controller configuration
+
+#### HashiCorp Vault Secrets Backend
+- Vault backend (`pkg/plugin/secrets/vault/`) implementing `secrets.Backend` interface
+- Kubernetes auth method: reads ServiceAccount token and authenticates to Vault's `/v1/auth/kubernetes/login` endpoint
+- KV v2 secret reads with token caching for performance
+- Uses `net/http` directly — no external Vault client library dependency
+
+#### OpenCode Execution Engine
+- OpenCode engine (`pkg/engine/opencode/`) implementing `ExecutionEngine` for the OpenCode CLI
+- Command: `opencode --non-interactive --message <prompt>`, context file: `AGENTS.md`
+- Supports Anthropic, OpenAI, and Google model providers
+- Makefile targets: `docker-build-engine-opencode`, `docker-build-dev-engine-opencode`
+
+#### Cline Execution Engine
+- Cline engine (`pkg/engine/cline/`) implementing `ExecutionEngine` for the Cline CLI
+- Command: `cline --headless --task <prompt> --output-format json`, context file: `.clinerules`
+- Supports Anthropic, OpenAI, Google, and AWS Bedrock model providers
+- Optional MCP (Model Context Protocol) support via `WithMCPEnabled` option and `--mcp` flag
+- Makefile targets: `docker-build-engine-cline`, `docker-build-dev-engine-cline`
+
+#### Shortcut Ticketing Backend
+- Shortcut.com backend (`pkg/plugin/ticketing/shortcut/`) implementing `ticketing.Backend`
+- REST API v3 integration with story search, label management, comments, and completion
+- Auth via `Shortcut-Token` header, configurable workflow state ID and label filtering
+
+#### Linear Ticketing Backend
+- Linear backend (`pkg/plugin/ticketing/linear/`) implementing `ticketing.Backend`
+- GraphQL API integration with issue queries, state transitions, comments, and label management
+- Auth via raw API key, configurable team ID, state filter, and label filtering
+
+#### Telegram Notification Channel
+- Telegram channel (`pkg/plugin/notifications/telegram/`) implementing `notifications.Channel`
+- Bot API `sendMessage` endpoint with Markdown formatting and optional topic-based thread support
+- Builder options: `WithAPIURL`, `WithHTTPClient`, `WithThreadID`
+
+#### Discord Notification Channel
+- Discord channel (`pkg/plugin/notifications/discord/`) implementing `notifications.Channel`
+- Webhook-based with colour-coded rich embeds (green success, red failure, blue info)
+- No auth library needed — webhook URL contains the token
+
+#### NetworkPolicy & Security Hardening
+- Agent NetworkPolicy (`networkpolicy-agent.yaml`): deny all ingress, egress allowed to DNS (53), HTTPS (443), SSH (22) only
+- Controller NetworkPolicy (`networkpolicy-controller.yaml`): allow webhook and metrics ingress, egress to DNS, HTTPS, and K8s API
+- PodDisruptionBudget (`pdb.yaml`): configurable `minAvailable` / `maxUnavailable`, defaults to `minAvailable: 1`
+- All templates gated by `networkPolicy.enabled` and `pdb.enabled` values
+- New Helm values: `webhook`, `networkPolicy`, `pdb` sections
+
 #### GitHub Backend Filtering
 - GitHub ticketing backend now supports filtering by assignee, milestone, and issue state in addition to labels
 - Added client-side label exclusion to prevent re-pickup of in-progress and failed issues (default: `in-progress`, `robodev-failed`)

@@ -1,6 +1,8 @@
 .PHONY: build test lint fmt vet tidy clean help proto-gen proto-lint \
        docker-build docker-build-controller docker-build-engine-claude-code docker-build-engine-codex \
+       docker-build-engine-opencode docker-build-engine-cline \
        docker-build-dev docker-build-dev-controller docker-build-dev-engine-claude-code docker-build-dev-engine-codex \
+       docker-build-dev-engine-opencode docker-build-dev-engine-cline \
        helm-lint \
        check-prereqs kind-create kind-delete kind-load \
        deploy undeploy local-up local-down local-redeploy \
@@ -64,7 +66,13 @@ docker-build-engine-claude-code: ## Build Claude Code engine container image
 docker-build-engine-codex: ## Build Codex engine container image
 	docker build -t $(REGISTRY)/engine-codex:$(VERSION) -f docker/engine-codex/Dockerfile docker/engine-codex/
 
-docker-build: docker-build-controller docker-build-engine-claude-code docker-build-engine-codex ## Build all container images
+docker-build-engine-opencode: ## Build OpenCode engine container image
+	docker build -t $(REGISTRY)/engine-opencode:$(VERSION) -f docker/engine-opencode/Dockerfile docker/engine-opencode/
+
+docker-build-engine-cline: ## Build Cline engine container image
+	docker build -t $(REGISTRY)/engine-cline:$(VERSION) -f docker/engine-cline/Dockerfile docker/engine-cline/
+
+docker-build: docker-build-controller docker-build-engine-claude-code docker-build-engine-codex docker-build-engine-opencode docker-build-engine-cline ## Build all container images
 
 # ---------------------------------------------------------------------------
 # Container images (local dev — fixed "dev" tag)
@@ -79,7 +87,13 @@ docker-build-dev-engine-claude-code:
 docker-build-dev-engine-codex:
 	docker build -t $(REGISTRY)/engine-codex:$(DEV_TAG) -f docker/engine-codex/Dockerfile docker/engine-codex/
 
-docker-build-dev: docker-build-dev-controller docker-build-dev-engine-claude-code docker-build-dev-engine-codex ## Build all images with dev tag
+docker-build-dev-engine-opencode:
+	docker build -t $(REGISTRY)/engine-opencode:$(DEV_TAG) -f docker/engine-opencode/Dockerfile docker/engine-opencode/
+
+docker-build-dev-engine-cline:
+	docker build -t $(REGISTRY)/engine-cline:$(DEV_TAG) -f docker/engine-cline/Dockerfile docker/engine-cline/
+
+docker-build-dev: docker-build-dev-controller docker-build-dev-engine-claude-code docker-build-dev-engine-codex docker-build-dev-engine-opencode docker-build-dev-engine-cline ## Build all images with dev tag
 
 # ---------------------------------------------------------------------------
 # Helm

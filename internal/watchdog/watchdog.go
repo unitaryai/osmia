@@ -26,17 +26,17 @@ const (
 
 // Heartbeat represents enriched telemetry data pushed from an agent container.
 type Heartbeat struct {
-	Seq                      int64      `json:"seq"`
-	RunID                    string     `json:"run_id"`
-	Timestamp                time.Time  `json:"timestamp"`
-	TokensConsumed           int64      `json:"tokens_consumed"`
-	FilesChanged             int        `json:"files_changed"`
-	ToolCallsTotal           int        `json:"tool_calls_total"`
-	LastToolName             string     `json:"last_tool_name,omitempty"`
-	LastToolArgsHash         string     `json:"last_tool_args_hash,omitempty"`
-	ConsecutiveIdenticalCalls int       `json:"consecutive_identical_calls"`
-	LastMeaningfulChangeAt   *time.Time `json:"last_meaningful_change_at,omitempty"`
-	CostEstimateUSD          float64    `json:"cost_estimate_usd"`
+	Seq                       int64      `json:"seq"`
+	RunID                     string     `json:"run_id"`
+	Timestamp                 time.Time  `json:"timestamp"`
+	TokensConsumed            int64      `json:"tokens_consumed"`
+	FilesChanged              int        `json:"files_changed"`
+	ToolCallsTotal            int        `json:"tool_calls_total"`
+	LastToolName              string     `json:"last_tool_name,omitempty"`
+	LastToolArgsHash          string     `json:"last_tool_args_hash,omitempty"`
+	ConsecutiveIdenticalCalls int        `json:"consecutive_identical_calls"`
+	LastMeaningfulChangeAt    *time.Time `json:"last_meaningful_change_at,omitempty"`
+	CostEstimateUSD           float64    `json:"cost_estimate_usd"`
 }
 
 // Reason provides structured diagnostic information when the watchdog
@@ -85,21 +85,21 @@ type TelemetryFailureConfig struct {
 
 // RulesConfig holds all anomaly detection rule configurations.
 type RulesConfig struct {
-	LoopDetection                    LoopDetectionConfig      `yaml:"loop_detection"`
-	ThrashingDetection               ThrashingDetectionConfig `yaml:"thrashing_detection"`
-	StallDetection                   StallDetectionConfig     `yaml:"stall_detection"`
-	CostVelocity                     CostVelocityConfig       `yaml:"cost_velocity"`
-	TelemetryFailure                 TelemetryFailureConfig   `yaml:"telemetry_failure"`
-	UnansweredHumanTimeoutMinutes    int                      `yaml:"unanswered_human_timeout_minutes"`
-	UnansweredHumanAction            Action                   `yaml:"unanswered_human_action"`
+	LoopDetection                 LoopDetectionConfig      `yaml:"loop_detection"`
+	ThrashingDetection            ThrashingDetectionConfig `yaml:"thrashing_detection"`
+	StallDetection                StallDetectionConfig     `yaml:"stall_detection"`
+	CostVelocity                  CostVelocityConfig       `yaml:"cost_velocity"`
+	TelemetryFailure              TelemetryFailureConfig   `yaml:"telemetry_failure"`
+	UnansweredHumanTimeoutMinutes int                      `yaml:"unanswered_human_timeout_minutes"`
+	UnansweredHumanAction         Action                   `yaml:"unanswered_human_action"`
 }
 
 // Config holds the top-level watchdog configuration.
 type Config struct {
-	CheckIntervalSeconds        int         `yaml:"check_interval_seconds"`
-	MinConsecutiveTicks         int         `yaml:"min_consecutive_ticks"`
-	ResearchGracePeriodMinutes  int         `yaml:"research_grace_period_minutes"`
-	Rules                       RulesConfig `yaml:"rules"`
+	CheckIntervalSeconds       int         `yaml:"check_interval_seconds"`
+	MinConsecutiveTicks        int         `yaml:"min_consecutive_ticks"`
+	ResearchGracePeriodMinutes int         `yaml:"research_grace_period_minutes"`
+	Rules                      RulesConfig `yaml:"rules"`
 }
 
 // DefaultConfig returns a Config with conservative default values

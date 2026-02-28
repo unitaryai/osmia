@@ -43,7 +43,7 @@ func (m *mockEngine) BuildPrompt(task engine.Task) (string, error) {
 	return "test prompt for " + task.Title, nil
 }
 
-func (m *mockEngine) Name() string         { return m.name }
+func (m *mockEngine) Name() string          { return m.name }
 func (m *mockEngine) InterfaceVersion() int { return 1 }
 
 // mockTicketing implements ticketing.Backend for testing.
@@ -90,7 +90,7 @@ func (m *mockTicketing) AddComment(_ context.Context, ticketID string, comment s
 	return nil
 }
 
-func (m *mockTicketing) Name() string         { return "mock" }
+func (m *mockTicketing) Name() string          { return "mock" }
 func (m *mockTicketing) InterfaceVersion() int { return 1 }
 
 // mockJobBuilder implements JobBuilder for testing.
@@ -201,7 +201,7 @@ func TestProcessTicket(t *testing.T) {
 	)
 
 	ctx := context.Background()
-	err := r.processTicket(ctx, ticket)
+	err := r.ProcessTicket(ctx, ticket)
 	require.NoError(t, err)
 
 	// Verify ticket was marked in progress.
@@ -245,11 +245,11 @@ func TestProcessTicketIdempotency(t *testing.T) {
 	ctx := context.Background()
 
 	// First processing.
-	err := r.processTicket(ctx, ticket)
+	err := r.ProcessTicket(ctx, ticket)
 	require.NoError(t, err)
 
 	// Second processing should be skipped (idempotency).
-	err = r.processTicket(ctx, ticket)
+	err = r.ProcessTicket(ctx, ticket)
 	require.NoError(t, err)
 
 	// Only one job should exist.

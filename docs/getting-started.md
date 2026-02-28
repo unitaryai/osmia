@@ -284,6 +284,42 @@ config:
 
 See [Engine documentation](plugins/engines.md) for the full list of options including Bedrock and Vertex AI authentication.
 
+## Webhook Setup (Optional)
+
+Instead of (or in addition to) polling the ticketing backend, RoboDev can receive webhook events for instant ticket ingestion. This reduces latency from the default 30-second poll interval to near-zero.
+
+### 1. Enable webhooks in your values
+
+```yaml
+webhook:
+  enabled: true
+  port: 8081
+
+config:
+  webhook:
+    github:
+      secret: "your-github-webhook-secret"
+```
+
+### 2. Configure your ticketing provider
+
+**GitHub:** In your repository settings, add a webhook pointing to `https://<your-robodev-host>:8081/webhooks/github`. Set the content type to `application/json`, provide the same secret as above, and select "Issues" events.
+
+**GitLab:** Add a webhook to `https://<your-robodev-host>:8081/webhooks/gitlab` with the secret token matching your configuration. Select "Issues events" and "Merge request events".
+
+**Slack:** Configure a Slack app with an interactive endpoint at `https://<your-robodev-host>:8081/webhooks/slack`. Set the signing secret in your configuration.
+
+### 3. Network policy considerations
+
+If you enable `networkPolicy.enabled`, the controller network policy automatically allows ingress on the webhook port. You can restrict the source CIDR:
+
+```yaml
+networkPolicy:
+  enabled: true
+  controller:
+    webhookSourceCIDR: "192.168.0.0/16"
+```
+
 ## Troubleshooting
 
 ### Controller pod is not starting

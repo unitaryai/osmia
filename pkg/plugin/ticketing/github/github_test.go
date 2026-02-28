@@ -247,13 +247,13 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		labels         []string
-		opts           []Option
-		issues         []ghIssue // if nil, uses baseIssues
-		wantParams     map[string]string
-		absentParams   []string // query params that must NOT be present
-		wantTicketIDs  []string
+		name          string
+		labels        []string
+		opts          []Option
+		issues        []ghIssue // if nil, uses baseIssues
+		wantParams    map[string]string
+		absentParams  []string // query params that must NOT be present
+		wantTicketIDs []string
 	}{
 		{
 			name:   "labels only (backward compat)",
@@ -330,15 +330,15 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 			wantTicketIDs: []string{"1", "4"}, // issues 2 (in-progress) and 3 (robodev-failed) excluded
 		},
 		{
-			name:   "custom excludeLabels override",
-			labels: []string{"robodev"},
-			opts:   []Option{WithExcludeLabels([]string{"robodev-failed"})},
+			name:          "custom excludeLabels override",
+			labels:        []string{"robodev"},
+			opts:          []Option{WithExcludeLabels([]string{"robodev-failed"})},
 			wantTicketIDs: []string{"1", "2", "4"}, // only issue 3 (robodev-failed) excluded; in-progress passes through
 		},
 		{
-			name:   "empty excludeLabels disables exclusion",
-			labels: []string{"robodev"},
-			opts:   []Option{WithExcludeLabels([]string{})},
+			name:          "empty excludeLabels disables exclusion",
+			labels:        []string{"robodev"},
+			opts:          []Option{WithExcludeLabels([]string{})},
 			wantTicketIDs: []string{"1", "2", "3", "4"}, // no client-side exclusion applied
 		},
 		{

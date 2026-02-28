@@ -14,11 +14,11 @@ import (
 
 // TaskProfile defines constraints and allowed operations for a task type.
 type TaskProfile struct {
-	AllowedFilePatterns    []string `yaml:"allowed_file_patterns" json:"allowed_file_patterns"`
-	BlockedFilePatterns    []string `yaml:"blocked_file_patterns" json:"blocked_file_patterns"`
-	BlockedCommands        []string `yaml:"blocked_commands" json:"blocked_commands"`
-	MaxCostPerJob          float64  `yaml:"max_cost_per_job" json:"max_cost_per_job"`
-	MaxJobDurationMinutes  int      `yaml:"max_job_duration_minutes" json:"max_job_duration_minutes"`
+	AllowedFilePatterns   []string `yaml:"allowed_file_patterns" json:"allowed_file_patterns"`
+	BlockedFilePatterns   []string `yaml:"blocked_file_patterns" json:"blocked_file_patterns"`
+	BlockedCommands       []string `yaml:"blocked_commands" json:"blocked_commands"`
+	MaxCostPerJob         float64  `yaml:"max_cost_per_job" json:"max_cost_per_job"`
+	MaxJobDurationMinutes int      `yaml:"max_job_duration_minutes" json:"max_job_duration_minutes"`
 }
 
 // promptData holds the data passed to the prompt template.

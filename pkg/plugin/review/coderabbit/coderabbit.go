@@ -29,10 +29,10 @@ var _ review.Backend = (*CodeRabbitBackend)(nil)
 // When no API key is configured, it acts as a pass-through that always
 // returns a passing gate result.
 type CodeRabbitBackend struct {
-	apiKey  string
-	apiURL  string
-	client  *http.Client
-	logger  *slog.Logger
+	apiKey string
+	apiURL string
+	client *http.Client
+	logger *slog.Logger
 }
 
 // Option is a functional option for configuring a CodeRabbitBackend.

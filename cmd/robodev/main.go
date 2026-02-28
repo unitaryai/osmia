@@ -22,7 +22,11 @@ import (
 	"github.com/unitaryai/robodev/internal/config"
 	"github.com/unitaryai/robodev/internal/controller"
 	"github.com/unitaryai/robodev/internal/jobbuilder"
+	"github.com/unitaryai/robodev/internal/webhook"
 	"github.com/unitaryai/robodev/pkg/engine/claudecode"
+	"github.com/unitaryai/robodev/pkg/engine/cline"
+	"github.com/unitaryai/robodev/pkg/engine/opencode"
+	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 	ghticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/github"
 
 	// Notification backends — imported conditionally.
@@ -92,10 +96,41 @@ func main() {
 		os.Exit(1)
 	}
 
-	// --- Execution engine ---
+	// --- Execution engines ---
 	claudeEngine := claudecode.New()
 	opts = append(opts, controller.WithEngine(claudeEngine))
 	logger.Info("claude-code engine registered")
+
+	if cfg.Engines.OpenCode != nil {
+		var ocOpts []opencode.Option
+		switch cfg.Engines.OpenCode.Provider {
+		case "openai":
+			ocOpts = append(ocOpts, opencode.WithProvider(opencode.ProviderOpenAI))
+		case "google":
+			ocOpts = append(ocOpts, opencode.WithProvider(opencode.ProviderGoogle))
+		}
+		ocEngine := opencode.New(ocOpts...)
+		opts = append(opts, controller.WithEngine(ocEngine))
+		logger.Info("opencode engine registered")
+	}
+
+	if cfg.Engines.Cline != nil {
+		var clOpts []cline.Option
+		switch cfg.Engines.Cline.Provider {
+		case "openai":
+			clOpts = append(clOpts, cline.WithProvider(cline.ProviderOpenAI))
+		case "google":
+			clOpts = append(clOpts, cline.WithProvider(cline.ProviderGoogle))
+		case "bedrock":
+			clOpts = append(clOpts, cline.WithProvider(cline.ProviderBedrock))
+		}
+		if cfg.Engines.Cline.MCPEnabled {
+			clOpts = append(clOpts, cline.WithMCPEnabled(true))
+		}
+		clEngine := cline.New(clOpts...)
+		opts = append(opts, controller.WithEngine(clEngine))
+		logger.Info("cline engine registered")
+	}
 
 	// --- Job builder ---
 	jb := jobbuilder.NewJobBuilder(*namespace)
@@ -154,6 +189,40 @@ func main() {
 	// Create the reconciler with all backends wired up.
 	reconciler := controller.NewReconciler(cfg, logger, opts...)
 
+	// --- Webhook server (optional) ---
+	var webhookSrv *webhook.Server
+	if cfg.Webhook.Enabled {
+		webhookPort := cfg.Webhook.Port
+		if webhookPort == 0 {
+			webhookPort = 8081
+		}
+
+		var whOpts []webhook.Option
+		if cfg.Webhook.GitHub != nil {
+			whOpts = append(whOpts, webhook.WithSecret("github", cfg.Webhook.GitHub.Secret))
+		}
+		if cfg.Webhook.GitLab != nil {
+			whOpts = append(whOpts, webhook.WithSecret("gitlab", cfg.Webhook.GitLab.Secret))
+		}
+		if cfg.Webhook.Slack != nil {
+			whOpts = append(whOpts, webhook.WithSecret("slack", cfg.Webhook.Slack.Secret))
+		}
+		if cfg.Webhook.Shortcut != nil {
+			whOpts = append(whOpts, webhook.WithSecret("shortcut", cfg.Webhook.Shortcut.Secret))
+		}
+
+		whHandler := &webhookAdapter{reconciler: reconciler, logger: logger}
+		webhookSrv = webhook.NewServer(logger, whHandler, whOpts...)
+		webhookAddr := fmt.Sprintf(":%d", webhookPort)
+		go func() {
+			logger.Info("starting webhook server", "addr", webhookAddr)
+			if err := webhookSrv.ListenAndServe(webhookAddr); err != nil && err != http.ErrServerClosed {
+				logger.Error("webhook server failed", "error", err)
+			}
+		}()
+		logger.Info("webhook receiver enabled", "port", webhookPort)
+	}
+
 	// Mark as ready.
 	ready.Store(true)
 	logger.Info("controller initialised and ready")
@@ -176,11 +245,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Gracefully shut down the HTTP server.
+	// Gracefully shut down HTTP servers.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http server shutdown error", "error", err)
+	}
+	if webhookSrv != nil {
+		if err := webhookSrv.Shutdown(shutdownCtx); err != nil {
+			logger.Error("webhook server shutdown error", "error", err)
+		}
 	}
 
 	logger.Info("robodev controller stopped")
@@ -333,6 +407,33 @@ func initGitHubBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 	}
 
 	return ghticket.NewGitHubBackend(owner, repo, labels, token, logger, opts...), nil
+}
+
+// webhookAdapter wraps the controller's Reconciler to satisfy the
+// webhook.EventHandler interface, bridging webhook events into the
+// controller's ticket processing pipeline.
+type webhookAdapter struct {
+	reconciler *controller.Reconciler
+	logger     *slog.Logger
+}
+
+// HandleWebhookEvent feeds parsed webhook tickets into the controller.
+func (a *webhookAdapter) HandleWebhookEvent(ctx context.Context, source string, tickets []ticketing.Ticket) error {
+	a.logger.Info("processing webhook event",
+		"source", source,
+		"ticket_count", len(tickets),
+	)
+	for i := range tickets {
+		if err := a.reconciler.ProcessTicket(ctx, tickets[i]); err != nil {
+			a.logger.Error("failed to process webhook ticket",
+				"source", source,
+				"ticket_id", tickets[i].ID,
+				"error", err,
+			)
+			// Continue processing remaining tickets.
+		}
+	}
+	return nil
 }
 
 // initSlackChannel creates and returns a Slack notification channel from

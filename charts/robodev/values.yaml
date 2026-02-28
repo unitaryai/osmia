@@ -78,6 +78,30 @@ leaderElection:
 #       binaryPath: /plugin
 plugins: []
 
+# Webhook receiver — when enabled, the controller accepts webhook events
+# in addition to (or instead of) polling the ticketing backend.
+webhook:
+  enabled: false
+  port: 8081
+
+# NetworkPolicy — restrict ingress/egress for controller and agent pods.
+networkPolicy:
+  enabled: false
+  agent: {}
+    # extraEgressRules: []
+  controller: {}
+    # webhookSourceCIDR: ""
+    # metricsSourceSelector: {}
+    # kubeAPIServerCIDR: "0.0.0.0/0"
+    # extraIngressRules: []
+    # extraEgressRules: []
+
+# PodDisruptionBudget for the controller deployment.
+pdb:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: ""
+
 service:
   type: ClusterIP
 

@@ -97,7 +97,7 @@ func TestTaskRunInvalidTransitions(t *testing.T) {
 		{"Queued→Succeeded", taskrun.StateQueued, taskrun.StateSucceeded},
 		{"Queued→Failed", taskrun.StateQueued, taskrun.StateFailed},
 		{"Queued→TimedOut", taskrun.StateQueued, taskrun.StateTimedOut},
-		{"Queued→NeedsHuman", taskrun.StateQueued, taskrun.StateNeedsHuman},
+		// Note: Queued→NeedsHuman is valid (approval gates), so not listed here.
 		{"Running→Queued", taskrun.StateRunning, taskrun.StateQueued},
 		{"Running→Retrying", taskrun.StateRunning, taskrun.StateRetrying},
 		// Failed must go through Retrying before Running again.

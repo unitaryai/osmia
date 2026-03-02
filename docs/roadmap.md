@@ -705,3 +705,4 @@ I-8. End-to-end testing       (features become reliable)
 | 16 | Engine Fingerprinting + Routing | I | Medium | **Scaffolding complete** |
 | 17 | Predictive Cost Estimation | I | Medium | **Scaffolding complete** |
 | 18 | Competitive Execution (Tournament) | I | Medium | **Scaffolding complete** |
+| 19 | Shortcut webhook noise — filter story updates that don't transition to the target state | Backlog | Low | **Complete** (fixed in `internal/webhook/shortcut.go` via `WithShortcutTargetStateID`) |

@@ -20,6 +20,13 @@ type Server struct {
 
 	// genericConfig holds the configuration for the generic webhook handler.
 	genericConfig *GenericConfig
+
+	// shortcutTargetStateID, when non-zero, restricts Shortcut webhook
+	// processing to story_update events where the workflow state changed to
+	// this specific ID. Events that do not represent this transition are
+	// acknowledged but not forwarded to the controller, preventing log noise
+	// from unrelated story edits.
+	shortcutTargetStateID int64
 }
 
 // Option is a functional option for configuring a Server.
@@ -37,6 +44,16 @@ func WithSecret(source, secret string) Option {
 func WithGenericConfig(cfg *GenericConfig) Option {
 	return func(s *Server) {
 		s.genericConfig = cfg
+	}
+}
+
+// WithShortcutTargetStateID restricts Shortcut webhook handling to story
+// updates where the workflow state transitioned to id. Set this to the same
+// workflow state ID configured on the Shortcut ticketing backend so that only
+// relevant state transitions trigger task processing.
+func WithShortcutTargetStateID(id int64) Option {
+	return func(s *Server) {
+		s.shortcutTargetStateID = id
 	}
 }
 

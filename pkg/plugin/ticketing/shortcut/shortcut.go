@@ -41,6 +41,31 @@ type scLabel struct {
 	Name string `json:"name"`
 }
 
+// scWorkflow is the subset of a Shortcut workflow response we parse.
+type scWorkflow struct {
+	ID     int64              `json:"id"`
+	Name   string             `json:"name"`
+	States []scWorkflowState  `json:"states"`
+}
+
+// scWorkflowState represents a single state within a Shortcut workflow.
+type scWorkflowState struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+// scMember is the subset of a Shortcut member response we parse.
+type scMember struct {
+	ID      string          `json:"id"`
+	Profile scMemberProfile `json:"profile"`
+}
+
+// scMemberProfile holds the fields we care about from a Shortcut member profile.
+type scMemberProfile struct {
+	MentionName string `json:"mention_name"`
+	Name        string `json:"name"`
+}
+
 // ShortcutBackend implements ticketing.Backend by talking to the Shortcut
 // REST API.
 type ShortcutBackend struct {
@@ -48,9 +73,11 @@ type ShortcutBackend struct {
 	baseURL         string
 	httpClient      *http.Client
 	logger          *slog.Logger
-	workflowStateID int64
-	labels          []string
-	excludeLabels   []string
+	workflowStateID   int64
+	workflowStateName string // human-readable name; resolved to workflowStateID by Init
+	ownerMentionName  string // mention name (e.g. "robodev"); resolved to ownerMemberID by Init
+	ownerMemberID     string // resolved Shortcut member UUID for owner filtering
+	excludeLabels     []string
 }
 
 // Option is a functional option for configuring a ShortcutBackend.
@@ -70,17 +97,30 @@ func WithHTTPClient(c *http.Client) Option {
 	}
 }
 
-// WithWorkflowStateID sets the workflow state ID used for polling stories.
+// WithWorkflowStateID sets the workflow state ID directly. Use this when you
+// already know the numeric ID. See WithWorkflowStateName for name-based lookup.
 func WithWorkflowStateID(id int64) Option {
 	return func(b *ShortcutBackend) {
 		b.workflowStateID = id
 	}
 }
 
-// WithLabels sets the labels used to filter stories when polling.
-func WithLabels(labels []string) Option {
+// WithWorkflowStateName sets the human-readable workflow state name (e.g.
+// "Ready for Development"). Init must be called to resolve it to a numeric ID
+// before polling.
+func WithWorkflowStateName(name string) Option {
 	return func(b *ShortcutBackend) {
-		b.labels = labels
+		b.workflowStateName = name
+	}
+}
+
+// WithOwnerMentionName sets the Shortcut mention name of the user that stories
+// must be assigned to in order to be picked up (e.g. "robodev"). Init must be
+// called to resolve it to a member UUID before polling.
+func WithOwnerMentionName(name string) Option {
+	return func(b *ShortcutBackend) {
+		// Strip a leading "@" if the caller included it.
+		b.ownerMentionName = strings.TrimPrefix(name, "@")
 	}
 }
 
@@ -93,6 +133,9 @@ func WithExcludeLabels(labels []string) Option {
 }
 
 // NewShortcutBackend creates a new Shortcut ticketing backend.
+//
+// workflowStateID may be zero when WithWorkflowStateName is used; Init will
+// resolve it. If both are provided, the explicit ID takes precedence.
 func NewShortcutBackend(token string, workflowStateID int64, logger *slog.Logger, opts ...Option) *ShortcutBackend {
 	b := &ShortcutBackend{
 		token:           token,
@@ -111,70 +154,148 @@ func NewShortcutBackend(token string, workflowStateID int64, logger *slog.Logger
 	return b
 }
 
+// Init resolves human-readable configuration (workflow state name, owner
+// mention name) to the numeric / UUID values required by the Shortcut API.
+// It must be called once before PollReadyTickets when WithWorkflowStateName
+// or WithOwnerMentionName is used.
+func (b *ShortcutBackend) Init(ctx context.Context) error {
+	if b.workflowStateName != "" && b.workflowStateID == 0 {
+		if err := b.resolveWorkflowStateID(ctx); err != nil {
+			return fmt.Errorf("resolving workflow state %q: %w", b.workflowStateName, err)
+		}
+		b.logger.Info("resolved workflow state",
+			slog.String("name", b.workflowStateName),
+			slog.Int64("id", b.workflowStateID),
+		)
+	}
+
+	if b.ownerMentionName != "" {
+		if err := b.resolveMemberID(ctx); err != nil {
+			return fmt.Errorf("resolving owner %q: %w", b.ownerMentionName, err)
+		}
+		b.logger.Info("resolved owner member",
+			slog.String("mention_name", b.ownerMentionName),
+			slog.String("member_id", b.ownerMemberID),
+		)
+	}
+
+	return nil
+}
+
+// WorkflowStateID returns the resolved numeric workflow state ID. This is safe
+// to call after Init and is used by the webhook server to filter incoming
+// story updates to only those transitioning into this state.
+func (b *ShortcutBackend) WorkflowStateID() int64 {
+	return b.workflowStateID
+}
+
+// resolveWorkflowStateID fetches all workflows and finds the state whose name
+// matches b.workflowStateName, populating b.workflowStateID.
+func (b *ShortcutBackend) resolveWorkflowStateID(ctx context.Context) error {
+	body, err := b.doGet(ctx, b.baseURL+"/workflows")
+	if err != nil {
+		return fmt.Errorf("fetching workflows: %w", err)
+	}
+
+	var workflows []scWorkflow
+	if err := json.Unmarshal(body, &workflows); err != nil {
+		return fmt.Errorf("decoding workflows response: %w", err)
+	}
+
+	nameLower := strings.ToLower(b.workflowStateName)
+	for _, wf := range workflows {
+		for _, state := range wf.States {
+			if strings.ToLower(state.Name) == nameLower {
+				b.workflowStateID = state.ID
+				return nil
+			}
+		}
+	}
+
+	return fmt.Errorf("no workflow state named %q found", b.workflowStateName)
+}
+
+// resolveMemberID fetches all members and finds the one whose mention_name
+// matches b.ownerMentionName, populating b.ownerMemberID.
+func (b *ShortcutBackend) resolveMemberID(ctx context.Context) error {
+	body, err := b.doGet(ctx, b.baseURL+"/members")
+	if err != nil {
+		return fmt.Errorf("fetching members: %w", err)
+	}
+
+	var members []scMember
+	if err := json.Unmarshal(body, &members); err != nil {
+		return fmt.Errorf("decoding members response: %w", err)
+	}
+
+	nameLower := strings.ToLower(b.ownerMentionName)
+	for _, m := range members {
+		if strings.ToLower(m.Profile.MentionName) == nameLower {
+			b.ownerMemberID = m.ID
+			return nil
+		}
+	}
+
+	return fmt.Errorf("no member with mention_name %q found", b.ownerMentionName)
+}
+
 // searchRequest is the JSON body sent to the Shortcut search endpoint.
 type searchRequest struct {
-	WorkflowStateID int64  `json:"workflow_state_id"`
-	LabelName       string `json:"label_name,omitempty"`
+	WorkflowStateID int64    `json:"workflow_state_id"`
+	OwnerIDs        []string `json:"owner_ids,omitempty"`
 }
 
 // PollReadyTickets searches for stories matching the configured workflow
-// state and labels.
+// state and (optionally) owner.
 func (b *ShortcutBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Ticket, error) {
+	if b.workflowStateID == 0 {
+		return nil, fmt.Errorf("workflow state ID is not set; call Init first or provide a numeric ID")
+	}
+
 	// Build exclusion set for client-side filtering.
 	excludeSet := make(map[string]struct{}, len(b.excludeLabels))
 	for _, l := range b.excludeLabels {
 		excludeSet[l] = struct{}{}
 	}
 
-	var allTickets []ticketing.Ticket
-
-	// Shortcut search only accepts a single label_name per request, so we
-	// iterate over configured labels. If no labels are configured we search
-	// with workflow state alone.
-	searchLabels := b.labels
-	if len(searchLabels) == 0 {
-		searchLabels = []string{""}
+	sr := searchRequest{WorkflowStateID: b.workflowStateID}
+	if b.ownerMemberID != "" {
+		sr.OwnerIDs = []string{b.ownerMemberID}
 	}
 
-	for _, label := range searchLabels {
-		sr := searchRequest{WorkflowStateID: b.workflowStateID}
-		if label != "" {
-			sr.LabelName = label
-		}
-
-		body, err := b.doPost(ctx, b.baseURL+"/stories/search", sr)
-		if err != nil {
-			return nil, fmt.Errorf("polling ready tickets: %w", err)
-		}
-
-		var stories []scStory
-		if err := json.Unmarshal(body, &stories); err != nil {
-			return nil, fmt.Errorf("decoding stories response: %w", err)
-		}
-
-		for _, story := range stories {
-			if hasExcludedLabel(story.Labels, excludeSet) {
-				continue
-			}
-
-			labels := make([]string, 0, len(story.Labels))
-			for _, l := range story.Labels {
-				labels = append(labels, l.Name)
-			}
-
-			allTickets = append(allTickets, ticketing.Ticket{
-				ID:          strconv.Itoa(story.ID),
-				Title:       story.Name,
-				Description: story.Description,
-				TicketType:  "story",
-				Labels:      labels,
-				ExternalURL: story.AppURL,
-			})
-		}
+	body, err := b.doPost(ctx, b.baseURL+"/stories/search", sr)
+	if err != nil {
+		return nil, fmt.Errorf("polling ready tickets: %w", err)
 	}
 
-	b.logger.Info("polled ready tickets", "count", len(allTickets))
-	return allTickets, nil
+	var stories []scStory
+	if err := json.Unmarshal(body, &stories); err != nil {
+		return nil, fmt.Errorf("decoding stories response: %w", err)
+	}
+
+	var tickets []ticketing.Ticket
+	for _, story := range stories {
+		if hasExcludedLabel(story.Labels, excludeSet) {
+			continue
+		}
+
+		labels := make([]string, 0, len(story.Labels))
+		for _, l := range story.Labels {
+			labels = append(labels, l.Name)
+		}
+
+		tickets = append(tickets, ticketing.Ticket{
+			ID:          strconv.Itoa(story.ID),
+			Title:       story.Name,
+			Description: story.Description,
+			TicketType:  "story",
+			Labels:      labels,
+			ExternalURL: story.AppURL,
+		})
+	}
+
+	b.logger.Info("polled ready tickets", "count", len(tickets))
+	return tickets, nil
 }
 
 // hasExcludedLabel returns true if any of the story's labels appear in the
@@ -250,13 +371,37 @@ func (b *ShortcutBackend) InterfaceVersion() int {
 
 // addLabel adds a single label to a story.
 func (b *ShortcutBackend) addLabel(ctx context.Context, ticketID string, label string) error {
-	// Shortcut expects a CreateLabelParams body when adding labels to a story.
 	url := fmt.Sprintf("%s/stories/%s/labels", b.baseURL, ticketID)
 	payload := map[string]string{"name": label}
 	if _, err := b.doPost(ctx, url, payload); err != nil {
 		return fmt.Errorf("adding label %q to story %s: %w", label, ticketID, err)
 	}
 	return nil
+}
+
+// doGet performs a GET request and returns the response body.
+func (b *ShortcutBackend) doGet(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	b.setAuthHeaders(req)
+
+	resp, err := b.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("executing request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+	return body, nil
 }
 
 // doPost performs a POST request with a JSON body and returns the response body.

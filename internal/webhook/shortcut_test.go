@@ -226,6 +226,115 @@ func TestHandleShortcut_HandlerError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
 
+// --- State transition filtering ---
+
+func TestHandleShortcut_TargetStateFilter(t *testing.T) {
+	const targetState = int64(200)
+
+	tests := []struct {
+		name      string
+		action    scAction
+		wantCalls int
+	}{
+		{
+			name: "workflow state transitions to target — forwarded",
+			action: scAction{
+				ID:         1,
+				EntityType: "story",
+				Action:     "update",
+				Name:       "Ready story",
+				AppURL:     "https://app.shortcut.com/workspace/story/1",
+				Changes: scChanges{
+					WorkflowState: &scWorkflowStateChange{Old: 100, New: 200},
+				},
+			},
+			wantCalls: 1,
+		},
+		{
+			name: "workflow state transitions to a different state — ignored",
+			action: scAction{
+				ID:         2,
+				EntityType: "story",
+				Action:     "update",
+				Name:       "Wrong state story",
+				AppURL:     "https://app.shortcut.com/workspace/story/2",
+				Changes: scChanges{
+					WorkflowState: &scWorkflowStateChange{Old: 100, New: 300},
+				},
+			},
+			wantCalls: 0,
+		},
+		{
+			name: "description change only (no state change) — ignored",
+			action: scAction{
+				ID:         3,
+				EntityType: "story",
+				Action:     "update",
+				Name:       "Description update",
+				AppURL:     "https://app.shortcut.com/workspace/story/3",
+				Changes: scChanges{
+					Description: &scChange{Old: "old", New: "new"},
+				},
+			},
+			wantCalls: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mock := &mockEventHandler{}
+			srv := NewServer(testLogger(), mock, WithShortcutTargetStateID(targetState))
+
+			payload := scWebhookPayload{Actions: []scAction{tc.action}}
+			body, _ := json.Marshal(payload)
+
+			req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			rec := httptest.NewRecorder()
+			srv.ServeHTTP(rec, req)
+
+			assert.Equal(t, http.StatusOK, rec.Code)
+			assert.Len(t, mock.calls, tc.wantCalls)
+		})
+	}
+}
+
+func TestHandleShortcut_NoTargetStateFilter_AllUpdatesForwarded(t *testing.T) {
+	// Without a target state ID, all story updates pass through (existing behaviour).
+	mock := &mockEventHandler{}
+	srv := NewServer(testLogger(), mock) // no WithShortcutTargetStateID
+
+	payload := scWebhookPayload{
+		Actions: []scAction{
+			{
+				ID:         42,
+				EntityType: "story",
+				Action:     "update",
+				Name:       "Any story update",
+				AppURL:     "https://app.shortcut.com/workspace/story/42",
+				Changes: scChanges{
+					Description: &scChange{Old: "old", New: "new"},
+				},
+			},
+		},
+	}
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Len(t, mock.calls, 1)
+}
+
+func TestWithShortcutTargetStateID(t *testing.T) {
+	srv := NewServer(testLogger(), &mockEventHandler{}, WithShortcutTargetStateID(500))
+	assert.Equal(t, int64(500), srv.shortcutTargetStateID)
+}
+
 func TestValidateShortcutSignature(t *testing.T) {
 	body := []byte(`{"test": true}`)
 	secret := "my-secret"

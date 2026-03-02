@@ -77,11 +77,23 @@ func (s *Server) handleShortcut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract tickets from story_update actions.
+	// Extract tickets from story_update actions, optionally filtering to only
+	// those where the workflow state transitioned to the configured target.
 	var tickets []ticketing.Ticket
 	for _, action := range payload.Actions {
 		if action.EntityType != "story" || action.Action != "update" {
 			continue
+		}
+
+		// If a target state ID is configured, only forward events where the
+		// workflow state changed to that specific state. This prevents every
+		// unrelated story edit (description change, comment, etc.) from
+		// reaching the controller.
+		if s.shortcutTargetStateID != 0 {
+			if action.Changes.WorkflowState == nil ||
+				action.Changes.WorkflowState.New != int(s.shortcutTargetStateID) {
+				continue
+			}
 		}
 
 		ticket := ticketing.Ticket{
@@ -99,7 +111,9 @@ func (s *Server) handleShortcut(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(tickets) == 0 {
-		s.logger.Debug("no story updates in shortcut webhook")
+		s.logger.Debug("no relevant story updates in shortcut webhook",
+			slog.Int64("target_state_id", s.shortcutTargetStateID),
+		)
 		w.WriteHeader(http.StatusOK)
 		return
 	}

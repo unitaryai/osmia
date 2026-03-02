@@ -45,6 +45,7 @@ type promptData struct {
 	EngineName           string
 	TaskProfile          string
 	TeamCoordination     string
+	MemoryContext        string
 }
 
 const promptTemplate = `# Task
@@ -77,6 +78,10 @@ const promptTemplate = `# Task
 ## Team Coordination
 
 {{.TeamCoordination}}
+{{- end}}
+{{- if .MemoryContext}}
+
+{{.MemoryContext}}
 {{- end}}
 {{- if .EngineName}}
 
@@ -136,6 +141,7 @@ func (pb *PromptBuilder) BuildPrompt(task engine.Task, guardRailsContent string,
 		RepoURL:         task.RepoURL,
 		GuardRails:      guardRailsContent,
 		EngineName:      engineName,
+		MemoryContext:   task.MemoryContext,
 	}
 
 	var buf bytes.Buffer
@@ -177,6 +183,7 @@ func (pb *PromptBuilder) BuildPromptWithProfile(
 		GuardRails:           guardRailsContent,
 		EngineName:           engineName,
 		TaskProfile:          profileContent,
+		MemoryContext:        task.MemoryContext,
 	}
 
 	var buf bytes.Buffer
@@ -253,6 +260,7 @@ func (pb *PromptBuilder) BuildPromptWithTeams(
 		EngineName:           engineName,
 		TaskProfile:          profileContent,
 		TeamCoordination:     TeamCoordinationSection(agents),
+		MemoryContext:        task.MemoryContext,
 	}
 
 	var buf bytes.Buffer

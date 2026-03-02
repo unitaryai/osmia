@@ -29,8 +29,8 @@ RoboDev is configured via a YAML file (`robodev-config.yaml`) which is mounted i
 | `estimator` | Pre-execution cost and duration prediction (disabled by default) |
 | `competitive_execution` | Tournament-style parallel execution (disabled by default) |
 
-!!! note "Bleeding-edge features"
-    The `prm`, `memory`, `diagnosis`, `routing`, `estimator`, and `competitive_execution` sections configure new subsystems that are scaffolded but not yet wired into the controller. They are all disabled by default and have no effect in the current release. See `docs/roadmap.md` Phase I for the integration plan.
+!!! note "Intelligence features"
+    The `prm` and `memory` subsystems are fully integrated into the controller and functional when enabled. The `diagnosis`, `routing`, `estimator`, and `competitive_execution` sections are scaffolded but not yet wired into the controller — they are all disabled by default and have no effect in the current release. See `docs/roadmap.md` Phase I for the integration plan.
 
 For the full set of fields and their defaults, see `charts/robodev/values.yaml` and the struct definitions in [`internal/config/config.go`](https://github.com/unitaryai/robodev/blob/main/internal/config/config.go).
 
@@ -299,6 +299,57 @@ review:
   config:
     api_key_secret: "coderabbit-api-key"
 ```
+
+## Process Reward Model (PRM)
+
+Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See [Real-Time Agent Coaching](../concepts/prm.md) for a full explanation.
+
+```yaml
+prm:
+  enabled: true                     # Enable PRM scoring
+  evaluation_interval: 5            # Evaluate every N tool calls
+  window_size: 10                   # Rolling window of recent events
+  score_threshold_nudge: 7          # Scores below this trigger a nudge
+  score_threshold_escalate: 3       # Scores below this trigger escalation
+  hint_file_path: "/workspace/.robodev-hint.md"
+  max_trajectory_length: 50         # Maximum trajectory points stored
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Enables PRM scoring of agent tool calls |
+| `evaluation_interval` | int | `5` | Tool calls between evaluations |
+| `window_size` | int | `10` | Events in the scoring window |
+| `score_threshold_nudge` | float | `7.0` | Score below this produces a nudge |
+| `score_threshold_escalate` | float | `3.0` | Score below this produces an escalation |
+| `hint_file_path` | string | `/workspace/.robodev-hint.md` | Path for hint files in the agent pod |
+| `max_trajectory_length` | int | `50` | Maximum trajectory points retained |
+
+## Episodic Memory
+
+Cross-task knowledge graph that accumulates lessons from every completed task and injects relevant prior knowledge into future prompts. See [Episodic Memory](../concepts/memory.md) for a full explanation.
+
+```yaml
+memory:
+  enabled: true                     # Enable episodic memory
+  store_path: "/data/memory.db"     # SQLite database path
+  decay_interval_hours: 24          # Hours between decay cycles
+  prune_threshold: 0.05             # Remove facts below this confidence
+  max_facts_per_query: 10           # Max facts injected per prompt
+  tenant_isolation: true            # Enforce cross-tenant boundaries
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Enables episodic memory |
+| `store_path` | string | `/var/lib/robodev/memory.db` | Path to the SQLite database |
+| `decay_interval_hours` | int | `24` | Hours between confidence decay cycles |
+| `prune_threshold` | float | `0.05` | Facts below this confidence are pruned |
+| `max_facts_per_query` | int | `10` | Maximum facts returned per query |
+| `tenant_isolation` | bool | `true` | Whether to enforce tenant boundaries |
+
+!!! tip "Persistent storage"
+    In Kubernetes, mount a PVC at the `store_path` directory so memory survives pod restarts.
 
 ## Environment Variable Overrides
 

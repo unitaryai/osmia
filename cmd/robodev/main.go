@@ -22,6 +22,8 @@ import (
 	"github.com/unitaryai/robodev/internal/config"
 	"github.com/unitaryai/robodev/internal/controller"
 	"github.com/unitaryai/robodev/internal/jobbuilder"
+	"github.com/unitaryai/robodev/internal/memory"
+	"github.com/unitaryai/robodev/internal/prm"
 	"github.com/unitaryai/robodev/internal/sandboxbuilder"
 	"github.com/unitaryai/robodev/internal/webhook"
 	"github.com/unitaryai/robodev/pkg/engine/claudecode"
@@ -178,6 +180,96 @@ func main() {
 		}
 	}
 
+	// Set up context and signal handling early so background goroutines
+	// (such as the memory decay loop) can observe cancellation.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		sig := <-sigCh
+		logger.Info("received signal, shutting down", "signal", sig)
+		cancel()
+	}()
+
+	// --- PRM (Process Reward Model) ---
+	if cfg.PRM.Enabled {
+		prmCfg := prm.Config{
+			Enabled:                cfg.PRM.Enabled,
+			EvaluationInterval:     cfg.PRM.EvaluationInterval,
+			WindowSize:             cfg.PRM.WindowSize,
+			ScoreThresholdNudge:    cfg.PRM.ScoreThresholdNudge,
+			ScoreThresholdEscalate: cfg.PRM.ScoreThresholdEscalate,
+			HintFilePath:           cfg.PRM.HintFilePath,
+			MaxTrajectoryLength:    cfg.PRM.MaxTrajectoryLength,
+		}
+		opts = append(opts, controller.WithPRMConfig(prmCfg))
+		logger.Info("prm evaluator enabled",
+			"evaluation_interval", prmCfg.EvaluationInterval,
+			"nudge_threshold", prmCfg.ScoreThresholdNudge,
+			"escalate_threshold", prmCfg.ScoreThresholdEscalate,
+		)
+	}
+
+	// --- Memory (cross-task episodic knowledge) ---
+	var memoryStore *memory.SQLiteStore
+	if cfg.Memory.Enabled {
+		storePath := cfg.Memory.StorePath
+		if storePath == "" {
+			storePath = "/var/lib/robodev/memory.db"
+		}
+
+		var storeErr error
+		memoryStore, storeErr = memory.NewSQLiteStore(storePath, logger.With("component", "memory-store"))
+		if storeErr != nil {
+			logger.Error("failed to open memory store", "path", storePath, "error", storeErr)
+			os.Exit(1)
+		}
+
+		graph := memory.NewGraph(memoryStore, logger.With("component", "memory-graph"))
+		if err := graph.LoadFromStore(context.Background()); err != nil {
+			logger.Error("failed to load memory graph from store", "error", err)
+			os.Exit(1)
+		}
+
+		extractor := memory.NewExtractor(logger.With("component", "memory-extractor"))
+		queryEngine := memory.NewQueryEngine(graph, logger.With("component", "memory-query"))
+		opts = append(opts, controller.WithMemory(graph, extractor, queryEngine))
+
+		logger.Info("memory subsystem enabled",
+			"store_path", storePath,
+			"node_count", graph.NodeCount(),
+			"decay_interval_hours", cfg.Memory.DecayIntervalHours,
+		)
+
+		// Start background decay goroutine.
+		decayInterval := time.Duration(cfg.Memory.DecayIntervalHours) * time.Hour
+		if decayInterval <= 0 {
+			decayInterval = 24 * time.Hour
+		}
+		pruneThreshold := cfg.Memory.PruneThreshold
+		if pruneThreshold <= 0 {
+			pruneThreshold = 0.05
+		}
+		go func() {
+			ticker := time.NewTicker(decayInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					graph.DecayConfidence(context.Background())
+					pruned := graph.PruneStale(context.Background(), pruneThreshold)
+					if pruned > 0 {
+						logger.Info("memory decay cycle completed", "pruned_nodes", pruned)
+					}
+				}
+			}
+		}()
+	}
+
 	// Readiness flag — set to true once the controller is fully initialised.
 	var ready atomic.Bool
 
@@ -254,18 +346,6 @@ func main() {
 	ready.Store(true)
 	logger.Info("controller initialised and ready")
 
-	// Set up signal handling for graceful shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		sig := <-sigCh
-		logger.Info("received signal, shutting down", "signal", sig)
-		cancel()
-	}()
-
 	// Run the reconciliation loop.
 	if err := reconciler.Run(ctx, *pollInterval); err != nil && err != context.Canceled {
 		logger.Error("reconciler exited with error", "error", err)
@@ -281,6 +361,13 @@ func main() {
 	if webhookSrv != nil {
 		if err := webhookSrv.Shutdown(shutdownCtx); err != nil {
 			logger.Error("webhook server shutdown error", "error", err)
+		}
+	}
+
+	// Close memory store if initialised.
+	if memoryStore != nil {
+		if err := memoryStore.Close(); err != nil {
+			logger.Error("memory store close error", "error", err)
 		}
 	}
 

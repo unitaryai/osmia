@@ -20,6 +20,8 @@ Webhook Receiver                     |                Pull Request / Merge Reque
 ## Key Features
 
 - **5 execution engines** — Claude Code, OpenAI Codex, Aider, OpenCode, and Cline out of the box; extensible via plugin interface
+- **Real-time agent coaching (PRM)** — Scores agent productivity at each tool call and intervenes with targeted guidance before problems escalate
+- **Episodic memory** — Accumulates cross-task knowledge that improves future task prompts — RoboDev gets smarter with every task
 - **Event-driven ingestion** — Webhook receiver for GitHub, GitLab, Slack, Shortcut, and generic sources with HMAC signature validation — or poll-based, or both
 - **Plugin architecture** — Ticketing (GitHub, Shortcut, Linear), notifications (Slack, Telegram, Discord), secrets (K8s, Vault), SCM (GitHub, GitLab), review (CodeRabbit) — all swappable
 - **Task-scoped secrets** — Declarative secret resolution from ticket descriptions (`<!-- robodev:secrets -->`) with multi-backend support (K8s, Vault), alias system, and per-tenant policy
@@ -151,6 +153,19 @@ guardrails:
   blocked_file_patterns:
     - "*.env"
     - "**/secrets/**"
+
+# Real-time agent coaching (optional)
+prm:
+  enabled: true
+  evaluation_interval: 5
+  score_threshold_nudge: 7
+  score_threshold_escalate: 3
+
+# Cross-task episodic memory (optional)
+memory:
+  enabled: true
+  store_path: /data/memory.db
+  decay_interval_hours: 24
 ```
 
 See [`examples/`](examples/) for full configuration examples:
@@ -230,14 +245,18 @@ RoboDev is designed as a security-first platform. See [docs/security.md](docs/se
 
 ```
 cmd/robodev/              — Controller entrypoint
-internal/controller/      — Reconciliation loop
+internal/controller/      — Reconciliation loop (+ PRM + Memory wiring)
 internal/jobbuilder/      — ExecutionSpec → K8s Job
 internal/taskrun/         — TaskRun state machine
 internal/watchdog/        — Progress watchdog
+internal/prm/             — Process Reward Model (real-time agent coaching)
+internal/memory/          — Episodic memory (cross-task knowledge graph)
+internal/llm/             — DSPy-inspired LLM abstraction (signatures, modules, budget)
 internal/config/          — Configuration loading
 internal/metrics/         — Prometheus metrics
 internal/webhook/         — Webhook receiver (GitHub, GitLab, Slack, Shortcut, generic)
 internal/secretresolver/  — Task-scoped secret resolution + policy
+internal/promptbuilder/   — Prompt construction (+ memory context injection)
 pkg/engine/               — ExecutionEngine interface + engines (Claude Code, Codex, Aider, OpenCode, Cline)
 pkg/plugin/               — Plugin interfaces + built-in backends
 proto/                    — Protobuf definitions

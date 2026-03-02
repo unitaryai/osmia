@@ -314,15 +314,15 @@ A polished, searchable documentation site that makes RoboDev look production-gra
 
 Seven new subsystems that move RoboDev from a standard K8s operator into an intelligent orchestration platform. The core packages and unit tests are complete (scaffolding phase). The next work is **full controller integration** — wiring these packages into the live reconciliation loop, prompt builder, and main entrypoint.
 
-### Current Status: Scaffolding Complete, Integration Pending
+### Current Status: PRM and Memory Integrated, Five More Pending
 
-Every feature below has its own Go package with types, core logic, unit tests, and integration tests. Config sections and Prometheus metrics are defined. However, **none of the features are wired into the controller** — the reconciler, `main.go`, and prompt builder are unchanged. The packages are libraries, not running features.
+**PRM**, **Memory**, and the **LLM abstraction** are now fully wired into the controller and functional when enabled in configuration. The remaining five features (Diagnosis, Routing, Estimator, Tournament, Adaptive Watchdog) have complete packages with types, core logic, unit tests, and integration tests, but are not yet wired into the controller.
 
 ---
 
 ### 12. Controller-Level Process Reward Model (PRM) — Real-Time Agent Coaching
 
-**Status:** Scaffolding complete · Integration pending
+**Status:** ✅ Integrated into controller
 **Package:** `internal/prm/`
 **Priority:** Critical (most novel feature)
 
@@ -338,14 +338,20 @@ Evaluates agent behaviour at each tool call using the NDJSON stream. Scores agen
 - [x] Unit tests (table-driven) for all components
 - [x] Integration test (`tests/integration/prm_test.go`)
 
-**Integration work remaining:**
+**Integration completed:**
 
-- [ ] Wire `prm.Evaluator` into `startStreamReader()` in controller — create evaluator per TaskRun, pass via `WithEventProcessor`
-- [ ] Implement hint file writing — `Evaluator` returns `HintContent` but nothing calls `os.WriteFile` to the shared K8s volume; need a writer that accesses the workspace PVC
+- [x] Wire `prm.Evaluator` into `startStreamReader()` in controller — create evaluator per TaskRun, pass via `WithEventProcessor`
+- [x] Implement hint recording — PRM interventions are logged + recorded on the TaskRun with Prometheus metrics
+- [x] Add `WithPRMConfig` functional option to `Reconciler` struct
+- [x] Initialise PRM in `cmd/robodev/main.go` when `config.PRM.Enabled` is true
+- [x] Clean up PRM evaluators on job completion and failure
+- [x] Unit tests and integration tests for controller wiring
+
+**Future work:**
+
 - [ ] Wire escalation into watchdog — when PRM escalates, signal the watchdog to terminate the Job with diagnostic feedback
-- [ ] Add `WithPRMEvaluator` functional option to `Reconciler` struct
-- [ ] Initialise PRM in `cmd/robodev/main.go` when `config.PRM.Enabled` is true
-- [ ] V2: Replace rule-based scorer with LLM-based scoring (prompt engineering + budget enforcement)
+- [ ] Pod-level hint delivery — write hints to the agent pod via projected ConfigMap volume
+- [ ] V2: Replace rule-based scorer with LLM-based scoring via `internal/llm/` (prompt engineering + budget enforcement)
 - [ ] Test PRM under concurrent TaskRuns (race condition coverage)
 - [ ] E2E test: run a real agent, verify PRM scores and interventions fire
 
@@ -353,7 +359,7 @@ Evaluates agent behaviour at each tool call using the NDJSON stream. Scores agen
 
 ### 13. Cross-Task Episodic Memory with Temporal Knowledge Graph
 
-**Status:** Scaffolding complete · Integration pending
+**Status:** ✅ Integrated into controller
 **Package:** `internal/memory/`
 **Priority:** Critical (the compounding brain)
 
@@ -369,18 +375,26 @@ Persistent knowledge graph accumulating structured lessons from every TaskRun ac
 - [x] Prometheus metrics (`memory_nodes_total`, `memory_queries_total`, `memory_extractions_total`, `memory_confidence_distribution`)
 - [x] Unit tests and integration test
 
-**Integration work remaining:**
+**Integration completed:**
 
-- [ ] Wire extractor into `handleJobComplete` — after task success, call `extractor.Extract()` and store nodes/edges in the graph
-- [ ] Wire extractor into `handleJobFailed` — extract failure patterns and engine capability facts
-- [ ] Wire query into prompt builder — add `WithMemory(graph)` option, inject "## Prior Knowledge" section with provenance
-- [ ] Add `WithMemoryGraph` functional option to `Reconciler` struct
-- [ ] Initialise SQLite store + graph in `cmd/robodev/main.go` when `config.Memory.Enabled` is true
-- [ ] Implement periodic confidence decay goroutine (background loop using `DecayIntervalHours`)
-- [ ] Implement periodic pruning of stale nodes below `PruneThreshold`
+- [x] Wire extractor into `handleJobComplete` — extracts knowledge in background goroutine
+- [x] Wire extractor into `handleJobFailed` — extracts failure patterns and engine capability facts
+- [x] Wire query into `ProcessTicket` — queries memory before building execution spec
+- [x] Add `MemoryContext` field to `engine.Task` — carries formatted prior knowledge
+- [x] Extend prompt builder — all three `Build*` methods inject `MemoryContext` into prompt template
+- [x] Add `WithMemory` functional option to `Reconciler` struct
+- [x] Initialise SQLite store + graph + extractor + query engine in `cmd/robodev/main.go`
+- [x] Implement periodic confidence decay goroutine
+- [x] Implement periodic pruning of stale nodes below `PruneThreshold`
+- [x] Graceful SQLite store close on shutdown
+- [x] Unit tests and integration tests for controller wiring
+
+**Future work:**
+
 - [ ] Adversarial testing of cross-tenant isolation (verify tenant A cannot read tenant B's facts)
 - [ ] Test SQLite store under concurrent writes, corruption recovery, migration idempotency
-- [ ] V2: LLM-based extraction replacing heuristic rules
+- [ ] Include provenance (source TaskRun ID) in injected facts
+- [ ] V2: LLM-based extraction via `internal/llm/` replacing heuristic rules
 - [ ] E2E test: run 10+ tasks, verify memory accumulates and injects relevant context
 
 ---
@@ -540,36 +554,43 @@ This phase wires all seven scaffolded features into the live controller. This is
 
 Wire all new subsystems into the `Reconciler` struct with functional options and config-gated initialisation.
 
-- [ ] Add fields to `Reconciler` struct: `prmEvaluator`, `memoryGraph`, `calibrator`, `analyser`, `intelligentSelector`, `estimator`, `tournamentCoordinator`
-- [ ] Add functional options: `WithPRM`, `WithMemory`, `WithCalibrator`, `WithDiagnosis`, `WithRouting`, `WithEstimator`, `WithTournament`
-- [ ] Wire `ProcessTicket` flow: estimator → approval → routing → tournament/single execution → PRM streaming
-- [ ] Wire `handleJobComplete` flow: memory extraction → calibrator recording → fingerprint update → estimator outcome recording
-- [ ] Wire `handleJobFailed` flow: diagnosis → informed retry → memory extraction
-- [ ] All features gated by config flags (disabled by default)
-- [ ] Backward compatibility: controller behaves identically when all features disabled
+- [x] Add PRM fields to `Reconciler` struct: `prmConfig`, `prmEvaluators` map
+- [x] Add Memory fields to `Reconciler` struct: `memoryGraph`, `memoryExtractor`, `memoryQuery`
+- [x] Add functional options: `WithPRMConfig`, `WithMemory`
+- [x] Wire PRM into `startStreamReader` flow via `WithEventProcessor`
+- [x] Wire Memory extraction into `handleJobComplete` and `handleJobFailed`
+- [x] Wire Memory query into `ProcessTicket` before building execution spec
+- [x] PRM and Memory gated by config flags (disabled by default)
+- [x] Backward compatibility: controller behaves identically when features disabled
+- [ ] Add remaining fields: `calibrator`, `analyser`, `intelligentSelector`, `estimator`, `tournamentCoordinator`
+- [ ] Add remaining functional options: `WithCalibrator`, `WithDiagnosis`, `WithRouting`, `WithEstimator`, `WithTournament`
+- [ ] Wire estimator into `ProcessTicket`
+- [ ] Wire routing into engine selection
+- [ ] Wire diagnosis into `handleJobFailed`
 
 #### I-2. Main Entrypoint Wiring (~1 week)
 
 Initialise all components in `cmd/robodev/main.go` and pass to reconciler.
 
-- [ ] Initialise `memory.Graph` + `memory.SQLiteStore` when `config.Memory.Enabled`
-- [ ] Initialise `prm.Evaluator` when `config.PRM.Enabled`
+- [x] Initialise `memory.Graph` + `memory.SQLiteStore` when `config.Memory.Enabled`
+- [x] Initialise PRM config when `config.PRM.Enabled`
+- [x] Background decay goroutine for memory
+- [x] Graceful shutdown for memory SQLite store
 - [ ] Initialise `watchdog.Calibrator` when `config.ProgressWatchdog.AdaptiveCalibration.Enabled`
 - [ ] Initialise `diagnosis.Analyser` when `config.Diagnosis.Enabled`
 - [ ] Initialise `routing.IntelligentSelector` + `routing.MemoryFingerprintStore` when `config.Routing.Enabled`
 - [ ] Initialise `estimator.Predictor` + `estimator.MemoryEstimatorStore` when `config.Estimator.Enabled`
 - [ ] Initialise `tournament.Coordinator` when `config.CompetitiveExecution.Enabled`
-- [ ] Graceful shutdown for new components (flush SQLite, stop background loops)
 
 #### I-3. Prompt Builder Integration (~1 week)
 
 Wire memory query results into the prompt builder.
 
-- [ ] Add `WithMemory(graph *memory.Graph)` option to `PromptBuilder`
-- [ ] Query memory graph before building prompts — inject "## Prior Knowledge" section
+- [x] Add `MemoryContext` field to `engine.Task` and `promptData`
+- [x] Extend all three `Build*` methods to populate `MemoryContext`
+- [x] Add `{{.MemoryContext}}` to prompt template
 - [ ] Include provenance (source TaskRun ID, confidence level) in injected facts
 - [ ] Test prompt injection resistance — adversarial fact content must not escape template
-- [ ] Add `BuildPromptWithMemory` method or extend existing build methods
 
 #### I-4. PRM Hint File Writer (~1 week)
 
@@ -595,14 +616,15 @@ Replace in-memory stores with durable persistence for production use.
 
 #### I-6. LLM Integration (~3-4 weeks)
 
-Replace rule-based heuristics with LLM-powered intelligence. This is the prompt engineering work.
+Replace rule-based heuristics with LLM-powered intelligence. The `internal/llm/` package is complete — this phase is prompt engineering work.
 
+- [x] Implement DSPy-inspired LLM client abstraction (`internal/llm/`) — Signature, Module (Predict, ChainOfThought), Adapter, Client, Budget
+- [x] Implement AnthropicClient using `net/http` only (no SDK dependency)
+- [x] Implement budget enforcement for LLM calls (per-subsystem spend limits)
 - [ ] **PRM V2**: Design scoring prompt — given recent tool calls, rate agent productivity 1-10 with reasoning. Iterate on real agent transcripts until reliable.
 - [ ] **Memory V2**: Design extraction prompt — given TaskRun data, extract structured facts. Handle edge cases (empty results, hallucinated facts, duplicate knowledge).
 - [ ] **Diagnosis V2**: Design classification prompt — given failure transcript, classify failure mode and generate prescription. Must resist prompt injection from agent output.
 - [ ] **Tournament Judge**: Design judging prompt — given N diffs, select best with reasoning. Test with real side-by-side diffs.
-- [ ] Implement LLM client abstraction (reuse existing engine infrastructure or dedicated lightweight client)
-- [ ] Implement budget enforcement for LLM calls (PRM has `MaxBudgetUSD`, each call costs money)
 - [ ] Rate limiting for LLM scoring calls (avoid overwhelming the API during active TaskRuns)
 
 #### I-7. Security Hardening (~1-2 weeks)
@@ -676,8 +698,8 @@ I-8. End-to-end testing       (features become reliable)
 | 9 | Plugin SDKs | F | Medium | Not started |
 | 10 | Agent Dashboard | G | High | Not started |
 | 11 | Documentation Site | H | High | Not started |
-| 12 | Controller PRM (Real-Time Coaching) | I | Critical | **Scaffolding complete** |
-| 13 | Episodic Memory (Knowledge Graph) | I | Critical | **Scaffolding complete** |
+| 12 | Controller PRM (Real-Time Coaching) | I | Critical | **Integrated** |
+| 13 | Episodic Memory (Knowledge Graph) | I | Critical | **Integrated** |
 | 14 | Causal Diagnosis (Self-Healing Retry) | I | High | **Scaffolding complete** |
 | 15 | Adaptive Watchdog Calibration | I | High | **Scaffolding complete** |
 | 16 | Engine Fingerprinting + Routing | I | Medium | **Scaffolding complete** |

@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/unitaryai/robodev/internal/config"
+	"github.com/unitaryai/robodev/internal/memory"
+	"github.com/unitaryai/robodev/internal/prm"
 	"github.com/unitaryai/robodev/internal/taskrun"
 	"github.com/unitaryai/robodev/pkg/engine"
 	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
@@ -661,4 +663,174 @@ func TestRunContextCancellation(t *testing.T) {
 
 	err := r.Run(ctx, 10*time.Second)
 	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestWithPRMConfig(t *testing.T) {
+	cfg := testConfig()
+	logger := testLogger()
+
+	prmCfg := prm.Config{
+		Enabled:                true,
+		EvaluationInterval:     5,
+		WindowSize:             10,
+		ScoreThresholdNudge:    7,
+		ScoreThresholdEscalate: 3,
+		HintFilePath:           "/workspace/.hint.md",
+		MaxTrajectoryLength:    50,
+	}
+
+	r := NewReconciler(cfg, logger, WithPRMConfig(prmCfg))
+	require.NotNil(t, r)
+	assert.True(t, r.prmConfig.Enabled)
+	assert.Equal(t, 5, r.prmConfig.EvaluationInterval)
+	assert.NotNil(t, r.prmEvaluators)
+}
+
+func TestWithPRMConfigDisabled(t *testing.T) {
+	cfg := testConfig()
+	logger := testLogger()
+
+	r := NewReconciler(cfg, logger)
+	assert.False(t, r.prmConfig.Enabled)
+	assert.NotNil(t, r.prmEvaluators)
+}
+
+func TestWithMemory(t *testing.T) {
+	cfg := testConfig()
+	logger := testLogger()
+
+	graph := memory.NewGraph(nil, logger)
+	extractor := memory.NewExtractor(logger)
+	qe := memory.NewQueryEngine(graph, logger)
+
+	r := NewReconciler(cfg, logger, WithMemory(graph, extractor, qe))
+	require.NotNil(t, r)
+	assert.NotNil(t, r.memoryGraph)
+	assert.NotNil(t, r.memoryExtractor)
+	assert.NotNil(t, r.memoryQuery)
+}
+
+func TestWithMemoryNotSet(t *testing.T) {
+	cfg := testConfig()
+	logger := testLogger()
+
+	r := NewReconciler(cfg, logger)
+	assert.Nil(t, r.memoryGraph)
+	assert.Nil(t, r.memoryExtractor)
+	assert.Nil(t, r.memoryQuery)
+}
+
+func TestProcessTicketWithMemoryContext(t *testing.T) {
+	cfg := testConfig()
+	logger := testLogger()
+	k8s := fake.NewSimpleClientset()
+
+	// Set up memory with a prior fact.
+	graph := memory.NewGraph(nil, logger)
+	ctx := context.Background()
+	require.NoError(t, graph.AddNode(ctx, &memory.Fact{
+		ID:         "test-fact",
+		Content:    "known issue with authentication",
+		FactKind:   memory.FactTypeFailurePattern,
+		Confidence: 0.9,
+		DecayRate:  0.01,
+		ValidFrom:  time.Now(),
+	}))
+
+	extractor := memory.NewExtractor(logger)
+	qe := memory.NewQueryEngine(graph, logger)
+
+	ticket := ticketing.Ticket{
+		ID:          "MEM-1",
+		Title:       "Fix auth issue",
+		Description: "Authentication is broken",
+	}
+
+	tb := newMockTicketing(nil)
+	eng := &mockEngine{name: "claude-code"}
+	jb := &mockJobBuilder{}
+
+	r := NewReconciler(cfg, logger,
+		WithEngine(eng),
+		WithTicketing(tb),
+		WithJobBuilder(jb),
+		WithK8sClient(k8s),
+		WithNamespace("test-ns"),
+		WithMemory(graph, extractor, qe),
+	)
+
+	err := r.ProcessTicket(ctx, ticket)
+	require.NoError(t, err)
+
+	tr, ok := r.GetTaskRun("MEM-1-1")
+	require.True(t, ok)
+	assert.Equal(t, taskrun.StateRunning, tr.State)
+}
+
+func TestHandleJobCompleteWithMemory(t *testing.T) {
+	logger := testLogger()
+	tb := newMockTicketing(nil)
+
+	graph := memory.NewGraph(nil, logger)
+	extractor := memory.NewExtractor(logger)
+
+	tr := taskrun.New("tr-mem", "key-mem", "TICKET-MEM", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+
+	r := &Reconciler{
+		config:          testConfig(),
+		logger:          logger,
+		ticketing:       tb,
+		taskRuns:        map[string]*taskrun.TaskRun{"key-mem": tr},
+		taskRunStore:    taskrun.NewMemoryStore(),
+		prmEvaluators:   make(map[string]*prm.Evaluator),
+		memoryGraph:     graph,
+		memoryExtractor: extractor,
+	}
+
+	ctx := context.Background()
+	r.handleJobComplete(ctx, tr)
+
+	assert.Equal(t, taskrun.StateSucceeded, tr.State)
+
+	// Give the background goroutine time to extract.
+	time.Sleep(50 * time.Millisecond)
+
+	// Memory extraction runs in a goroutine; verify it added nodes.
+	assert.Greater(t, graph.NodeCount(), 0,
+		"memory should have extracted at least one node from completed task")
+}
+
+func TestHandleJobFailedWithMemory(t *testing.T) {
+	logger := testLogger()
+	tb := newMockTicketing(nil)
+
+	graph := memory.NewGraph(nil, logger)
+	extractor := memory.NewExtractor(logger)
+
+	tr := taskrun.New("tr-fail-mem", "key-fail-mem", "TICKET-FAIL-MEM", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	tr.RetryCount = 1 // Exhaust retries.
+
+	r := &Reconciler{
+		config:          testConfig(),
+		logger:          logger,
+		ticketing:       tb,
+		taskRuns:        map[string]*taskrun.TaskRun{"key-fail-mem": tr},
+		taskRunStore:    taskrun.NewMemoryStore(),
+		prmEvaluators:   make(map[string]*prm.Evaluator),
+		memoryGraph:     graph,
+		memoryExtractor: extractor,
+	}
+
+	ctx := context.Background()
+	r.handleJobFailed(ctx, tr, "test failure")
+
+	assert.Equal(t, taskrun.StateFailed, tr.State)
+
+	// Give the background goroutine time to extract.
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Greater(t, graph.NodeCount(), 0,
+		"memory should have extracted at least one node from failed task")
 }

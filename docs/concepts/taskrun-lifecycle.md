@@ -87,9 +87,11 @@ sequenceDiagram
 
 8. **Completion** — when the agent finishes, it writes a `result.json` with the outcome. The controller reads it and transitions the TaskRun to **Succeeded** or **Failed**.
 
-9. **PR creation** — on success, the SCM backend creates a pull request from the agent's branch.
+9. **Knowledge extraction** — if [episodic memory](memory.md) is enabled, the controller extracts knowledge from the completed task (success patterns, failure insights, engine notes) into the persistent knowledge graph. This runs in a background goroutine and does not block the TaskRun.
 
-10. **Notification** — the ticketing backend is updated and notifications are sent.
+10. **PR creation** — on success, the SCM backend creates a pull request from the agent's branch.
+
+11. **Notification** — the ticketing backend is updated and notifications are sent.
 
 ## Retries
 
@@ -127,8 +129,19 @@ Every TaskRun is keyed by `<ticket_id>-<attempt>`. The controller checks this ke
 - Restarted controllers do not duplicate in-flight work.
 - Retries get a new attempt number and are tracked separately.
 
+## Real-Time Monitoring
+
+While a TaskRun is in the **Running** state, two monitoring systems operate in parallel:
+
+- **[Progress watchdog](guardrails-overview.md)** — detects loops, stalls, thrashing, and cost overruns using heartbeat telemetry
+- **[PRM (Process Reward Model)](prm.md)** — when enabled, scores agent productivity at each tool call and intervenes with guidance before problems escalate
+
+Both systems operate non-invasively on observable telemetry — neither modifies the agent's behaviour directly.
+
 ## Next Steps
 
 - [Guard Rails Overview](guardrails-overview.md) — the six safety layers protecting every TaskRun
+- [Real-Time Agent Coaching (PRM)](prm.md) — how the PRM scores and coaches agents
+- [Episodic Memory](memory.md) — how knowledge accumulates across tasks
 - [Engines Explained](engines.md) — which AI agent runs inside the container
 - [Architecture: System Overview](../architecture.md) — the full system design

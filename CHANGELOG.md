@@ -9,9 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### DSPy-Inspired LLM Abstraction (`internal/llm/`)
+- New `internal/llm/` package providing a typed, composable LLM abstraction inspired by DSPy
+- `Signature` type defining typed input/output fields for structured LLM interactions
+- `Module` interface with `Predict` (single LLM call) and `ChainOfThought` (step-by-step reasoning) implementations
+- `Adapter` converting signatures + inputs into formatted prompts and parsing structured JSON responses
+- `Client` interface with `AnthropicClient` implementation using `net/http` only (no external SDK)
+- `Budget` tracker with per-subsystem spend limits, token counting, and concurrent-safe access
+- Full table-driven unit test suite for all types, modules, adapter, client (with `httptest` server), and budget
+
+#### PRM and Memory Controller Integration
+- **PRM wired into controller**: `WithPRMConfig` reconciler option, PRM evaluator lifecycle (creation in `startStreamReader`, cleanup in `handleJobComplete`/`handleJobFailed`), real-time event processing via `WithEventProcessor`, hint recording with Prometheus metrics
+- **Memory wired into controller**: `WithMemory` reconciler option accepting graph, extractor, and query engine; knowledge extraction on task completion and failure via background goroutines; memory context query before execution spec building
+- **Memory context in prompts**: `MemoryContext` field on `engine.Task`, propagated through `BuildPrompt`, `BuildPromptWithProfile`, and `BuildPromptWithTeams` in the prompt builder template
+- **Memory initialisation in main.go**: SQLite store opening, graph loading, extractor and query engine creation, background decay goroutine with configurable interval and prune threshold, graceful store close on shutdown
+- **PRM initialisation in main.go**: Config mapping from `config.PRMConfig` to `prm.Config`, logger wiring
+- **Backwards compatible**: PRM disabled by default (`prm.enabled: false`), Memory disabled by default (`memory.enabled: false`); no behavioural change when features are off
+- New controller unit tests: `TestWithPRMConfig`, `TestWithMemory`, `TestProcessTicketWithMemoryContext`, `TestHandleJobCompleteWithMemory`, `TestHandleJobFailedWithMemory`
+- New integration tests: `tests/integration/prm_controller_test.go` (PRM wiring, disabled no-op), `tests/integration/memory_controller_test.go` (memory extraction wiring, context injection, disabled no-op)
+
 #### Bleeding-Edge Agentic Engineering Features (Scaffolding)
 
-> **Note:** All seven features below have complete packages with types, core logic, unit tests, and integration tests. Config sections and Prometheus metrics are defined. However, none are wired into the controller yet — the reconciler, `main.go`, and prompt builder are unchanged. See `docs/roadmap.md` Phase I for the full integration plan.
+> **Note:** PRM and Memory are now wired into the controller and functional when enabled. The remaining five features (Diagnosis, Routing, Estimator, Tournament, Adaptive Watchdog) have complete packages with types, core logic, unit tests, and integration tests, but are not yet wired into the controller. See `docs/roadmap.md` Phase I for the full integration plan.
 
 ##### Controller-Level Process Reward Model (Feature 2) — Real-Time Agent Coaching
 - New `internal/prm/` package: rule-based step scoring from tool call patterns, trajectory tracking with pattern detection (sustained decline, plateau, oscillation, recovery), and intervention decision logic (continue/nudge/escalate)

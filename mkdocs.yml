@@ -53,6 +53,9 @@ nav:
       - How a TaskRun Works: concepts/taskrun-lifecycle.md
       - Engines Explained: concepts/engines.md
       - Guard Rails Overview: concepts/guardrails-overview.md
+      - Real-Time Agent Coaching (PRM): concepts/prm.md
+      - Episodic Memory: concepts/memory.md
+      - LLM Abstraction Layer: concepts/llm.md
   - Architecture:
       - System Overview: architecture.md
       - Security Model: security.md

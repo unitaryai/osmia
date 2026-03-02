@@ -69,19 +69,20 @@ RoboDev watches your issue tracker for labelled tickets, validates them against 
 | **Multi-tenant** | Namespace-per-tenant isolation with dedicated RBAC, secrets, and quotas |
 | **Secure by default** | Distroless images, read-only filesystems, drop-all capabilities, network policies |
 
-## Bleeding-Edge Intelligence (Coming Soon)
+## Intelligent Agent Management
 
-Seven new subsystems are scaffolded with full unit tests and will be integrated into the controller in an upcoming release. See the [roadmap](https://github.com/unitaryai/robodev/blob/main/docs/roadmap.md) for details.
+RoboDev goes beyond basic orchestration with integrated intelligence systems that improve agent performance over time:
 
-| Subsystem | What It Does |
-|---|---|
-| **Real-Time Agent Coaching (PRM)** | Scores agent productivity at each tool call and intervenes with guidance before problems escalate |
-| **Episodic Memory** | Accumulates knowledge across all tasks, engines, and repos — "Claude Code fails on Python monorepos but Aider succeeds" |
-| **Causal Diagnosis** | Classifies why a task failed and generates targeted corrective instructions for retry |
-| **Adaptive Watchdog** | Learns what "normal" looks like per repo/engine/task type and adjusts anomaly thresholds |
-| **Intelligent Routing** | Routes tasks to the engine most likely to succeed based on historical data |
-| **Cost Estimation** | Predicts cost and duration before launch — "Predicted: $12-18, 45-90 min" |
-| **Competitive Execution** | Runs multiple engines in parallel, judges results, selects the best solution |
+| Subsystem | Status | What It Does |
+|---|---|---|
+| **[Real-Time Agent Coaching (PRM)](concepts/prm.md)** | **Active** | Scores agent productivity at each tool call and intervenes with guidance before problems escalate |
+| **[Episodic Memory](concepts/memory.md)** | **Active** | Accumulates knowledge across all tasks — prior failures, repo quirks, and engine strengths feed into future prompts |
+| **[LLM Abstraction](concepts/llm.md)** | **Active** | DSPy-inspired typed signatures, composable modules, and budget-aware LLM calls for all subsystems |
+| **Causal Diagnosis** | Scaffolded | Classifies why a task failed and generates targeted corrective instructions for retry |
+| **Adaptive Watchdog** | Scaffolded | Learns what "normal" looks like per repo/engine/task type and adjusts anomaly thresholds |
+| **Intelligent Routing** | Scaffolded | Routes tasks to the engine most likely to succeed based on historical data |
+| **Cost Estimation** | Scaffolded | Predicts cost and duration before launch — "Predicted: $12-18, 45-90 min" |
+| **Competitive Execution** | Scaffolded | Runs multiple engines in parallel, judges results, selects the best solution |
 
 ## Project Layout
 

@@ -37,13 +37,16 @@ type VolumeMount struct {
 
 // Task represents a unit of work to be performed by an engine.
 type Task struct {
-	ID          string            `json:"id"`
-	TicketID    string            `json:"ticket_id"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	RepoURL     string            `json:"repo_url"`
-	Labels      []string          `json:"labels,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	ID            string            `json:"id"`
+	TicketID      string            `json:"ticket_id"`
+	Title         string            `json:"title"`
+	Description   string            `json:"description"`
+	RepoURL       string            `json:"repo_url"`
+	Labels        []string          `json:"labels,omitempty"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
+	// MemoryContext is pre-formatted prior knowledge from episodic memory,
+	// injected into the prompt when memory is enabled.
+	MemoryContext string `json:"memory_context,omitempty"`
 }
 
 // EngineConfig holds engine-specific configuration.

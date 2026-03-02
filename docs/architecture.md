@@ -312,17 +312,18 @@ Newly created TaskRuns receive a grace period (default: 5 minutes) during which 
 
 Diagnostic `Reason` structs are populated from templates (never from raw agent output) to prevent prompt injection into the watchdog feedback path.
 
-## Bleeding-Edge Subsystems (Scaffolding Complete, Integration Pending)
+## Intelligence Layer
 
-Seven new subsystems extend RoboDev's intelligence beyond basic orchestration. These packages are fully implemented with unit tests but are **not yet wired into the controller** — the integration work is tracked in `docs/roadmap.md` under Phase I.
+Seven subsystems extend RoboDev's intelligence beyond basic orchestration. **PRM and Memory are fully wired into the controller** — the remaining five have complete packages with unit tests and are tracked for integration in `docs/roadmap.md` under Phase I.
 
 ### Subsystem Architecture
 
 ```mermaid
 graph TD
-    subgraph Intelligence["Intelligence Layer (new)"]
-        MEM["Episodic Memory<br/>internal/memory/"]
-        PRM["Process Reward Model<br/>internal/prm/"]
+    subgraph Intelligence["Intelligence Layer"]
+        MEM["Episodic Memory<br/>internal/memory/<br/>✅ ACTIVE"]
+        PRM["Process Reward Model<br/>internal/prm/<br/>✅ ACTIVE"]
+        LLM["LLM Abstraction<br/>internal/llm/<br/>✅ ACTIVE"]
         DIAG["Causal Diagnosis<br/>internal/diagnosis/"]
         CAL["Adaptive Calibrator<br/>internal/watchdog/calibrator"]
         ROUTE["Intelligent Routing<br/>internal/routing/"]
@@ -330,7 +331,7 @@ graph TD
         TOURN["Tournament<br/>internal/tournament/"]
     end
 
-    subgraph Existing["Existing Controller"]
+    subgraph Controller["Controller (Reconciler)"]
         PT["ProcessTicket"]
         HJC["handleJobComplete"]
         HJF["handleJobFailed"]
@@ -341,39 +342,41 @@ graph TD
     PT -.->|"predict cost"| EST
     PT -.->|"select engine"| ROUTE
     PT -.->|"start tournament"| TOURN
-    SSR -.->|"score each step"| PRM
+    SSR -->|"score each step"| PRM
     WD -.->|"calibrated thresholds"| CAL
-    HJC -.->|"extract knowledge"| MEM
+    HJC -->|"extract knowledge"| MEM
     HJC -.->|"record outcome"| ROUTE
     HJC -.->|"record outcome"| EST
     HJC -.->|"record telemetry"| CAL
     HJF -.->|"diagnose failure"| DIAG
-    HJF -.->|"extract knowledge"| MEM
-    MEM -.->|"inject context"| PT
+    HJF -->|"extract knowledge"| MEM
+    MEM -->|"inject context"| PT
     DIAG -.->|"informed retry"| PT
 
     style Intelligence fill:#1a1a2e,stroke:#16213e
-    style Existing fill:#0f3460,stroke:#16213e
+    style Controller fill:#0f3460,stroke:#16213e
 ```
 
-Dashed lines indicate planned integration points (not yet wired).
+Solid lines indicate active integrations. Dashed lines indicate planned integration points (not yet wired).
 
-### Controller-Level Process Reward Model (`internal/prm/`)
+### Controller-Level Process Reward Model (`internal/prm/`) — Active
 
-The PRM evaluates agent behaviour in real-time using the NDJSON event stream from `internal/agentstream/`. It operates purely on observable telemetry — no agent modification required.
+The PRM evaluates agent behaviour in real-time using the NDJSON event stream from `internal/agentstream/`. It operates purely on observable telemetry — no agent modification required. The PRM is **wired into the controller**: when `prm.enabled: true`, the controller creates a `prm.Evaluator` per TaskRun, feeds streaming events via `WithEventProcessor`, records interventions with Prometheus metrics, and cleans up evaluators on job completion or failure.
 
 **Flow:** Stream events → rolling window → rule-based scoring (1-10) → trajectory pattern detection → intervention decision.
 
 **Interventions:**
 - **Continue** — agent is productive, no action needed
-- **Nudge** — write a hint file (`/workspace/.robodev-hint.md`) with guidance
+- **Nudge** — log a structured hint with guidance and record on TaskRun
 - **Escalate** — signal the watchdog to terminate the Job with diagnostic feedback
 
 **Trajectory patterns detected:** sustained decline (3+ consecutive drops), plateau (5+ identical scores), oscillation (alternating up/down), recovery (3+ consecutive increases).
 
-### Episodic Memory (`internal/memory/`)
+For full details, see [Real-Time Agent Coaching (PRM)](concepts/prm.md).
 
-A persistent temporal knowledge graph that accumulates facts across all TaskRuns. Facts have confidence values that decay over time as repositories evolve.
+### Episodic Memory (`internal/memory/`) — Active
+
+A persistent temporal knowledge graph that accumulates facts across all TaskRuns. Facts have confidence values that decay over time as repositories evolve. Memory is **wired into the controller**: when `memory.enabled: true`, knowledge is extracted on job completion and failure, relevant prior knowledge is queried before building prompts, and a background goroutine handles confidence decay and pruning.
 
 **Node types:**
 - `Fact` — a specific observation (e.g. "repo X has flaky test Y", "engine Z fails on Python monorepos")
@@ -385,6 +388,14 @@ A persistent temporal knowledge graph that accumulates facts across all TaskRuns
 **Temporal weighting:** queries weight facts by `confidence × decay_factor(age)`. Stale facts below a configurable threshold are pruned.
 
 **Cross-tenant isolation:** all queries are scoped by tenant ID. Fact extraction tags each node with the originating tenant.
+
+For full details, see [Episodic Memory](concepts/memory.md).
+
+### LLM Abstraction (`internal/llm/`) — Active
+
+A DSPy-inspired package providing typed, composable LLM interactions for all intelligent subsystems. Defines `Signature` types with typed input/output fields, `Module` interface with `Predict` and `ChainOfThought` implementations, and a `Budget` tracker for per-subsystem cost enforcement. Uses only `net/http` — no external SDK dependency.
+
+For full details, see [LLM Abstraction Layer](concepts/llm.md).
 
 ### Causal Diagnosis (`internal/diagnosis/`)
 

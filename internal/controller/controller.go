@@ -17,7 +17,9 @@ import (
 
 	"github.com/unitaryai/robodev/internal/agentstream"
 	"github.com/unitaryai/robodev/internal/config"
+	"github.com/unitaryai/robodev/internal/memory"
 	"github.com/unitaryai/robodev/internal/metrics"
+	"github.com/unitaryai/robodev/internal/prm"
 	"github.com/unitaryai/robodev/internal/taskrun"
 	"github.com/unitaryai/robodev/pkg/engine"
 	"github.com/unitaryai/robodev/pkg/plugin/notifications"
@@ -53,6 +55,15 @@ type Reconciler struct {
 	// streamReaders tracks cancel functions for active stream readers,
 	// keyed by task run ID. Used to stop streaming when a job completes or fails.
 	streamReaders map[string]context.CancelFunc
+
+	// PRM (Process Reward Model) fields.
+	prmConfig     prm.Config
+	prmEvaluators map[string]*prm.Evaluator // keyed by task run ID
+
+	// Memory (cross-task episodic knowledge) fields.
+	memoryGraph     *memory.Graph
+	memoryExtractor *memory.Extractor
+	memoryQuery     *memory.QueryEngine
 }
 
 // ReconcilerOption configures the Reconciler.
@@ -98,6 +109,24 @@ func WithTaskRunStore(s taskrun.TaskRunStore) ReconcilerOption {
 	return func(r *Reconciler) { r.taskRunStore = s }
 }
 
+// WithPRMConfig sets the Process Reward Model configuration. When the
+// config has Enabled=true, the controller scores agent tool calls in
+// real-time and produces interventions (nudge hints or escalation).
+func WithPRMConfig(cfg prm.Config) ReconcilerOption {
+	return func(r *Reconciler) { r.prmConfig = cfg }
+}
+
+// WithMemory sets the episodic memory subsystem components. When all three
+// are non-nil, the controller extracts knowledge from completed tasks and
+// injects relevant prior knowledge into new task prompts.
+func WithMemory(g *memory.Graph, e *memory.Extractor, q *memory.QueryEngine) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.memoryGraph = g
+		r.memoryExtractor = e
+		r.memoryQuery = q
+	}
+}
+
 // NewReconciler creates a new Reconciler with the given configuration.
 func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -107,6 +136,7 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 		taskRuns:      make(map[string]*taskrun.TaskRun),
 		engineChains:  make(map[string][]string),
 		streamReaders: make(map[string]context.CancelFunc),
+		prmEvaluators: make(map[string]*prm.Evaluator),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -290,14 +320,29 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		return nil
 	}
 
+	// Query episodic memory for prior knowledge relevant to this task.
+	var memoryContext string
+	if r.memoryQuery != nil {
+		mc, qErr := r.memoryQuery.QueryForTask(ctx, ticket.Description, ticket.RepoURL, engineName, "")
+		if qErr != nil {
+			r.logger.WarnContext(ctx, "memory query failed, continuing without prior knowledge",
+				"ticket_id", ticket.ID,
+				"error", qErr,
+			)
+		} else if mc != nil && mc.FormattedSection != "" {
+			memoryContext = mc.FormattedSection
+		}
+	}
+
 	// Build execution spec.
 	task := engine.Task{
-		ID:          ticket.ID,
-		TicketID:    ticket.ID,
-		Title:       ticket.Title,
-		Description: ticket.Description,
-		RepoURL:     ticket.RepoURL,
-		Labels:      ticket.Labels,
+		ID:            ticket.ID,
+		TicketID:      ticket.ID,
+		Title:         ticket.Title,
+		Description:   ticket.Description,
+		RepoURL:       ticket.RepoURL,
+		Labels:        ticket.Labels,
+		MemoryContext: memoryContext,
 	}
 
 	engineCfg := engine.EngineConfig{
@@ -472,6 +517,7 @@ func (r *Reconciler) checkJobStatus(ctx context.Context, tr *taskrun.TaskRun) {
 // handleJobComplete processes a successfully completed job.
 func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun) {
 	r.cancelStreamReader(tr.ID)
+	r.cleanupPRMEvaluator(tr.ID)
 
 	// Check pre-merge approval gate: hold the TaskRun in NeedsHuman state
 	// before marking the ticket complete, so a human can review the output.
@@ -541,6 +587,11 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		}
 	}
 
+	// Extract knowledge from the completed task into episodic memory.
+	if r.memoryExtractor != nil {
+		go r.extractMemory(ctx, tr)
+	}
+
 	r.logger.InfoContext(ctx, "task run succeeded",
 		"task_run_id", tr.ID,
 		"ticket_id", tr.TicketID,
@@ -552,6 +603,7 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 // retrying with the same engine if allowed.
 func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, reason string) {
 	r.cancelStreamReader(tr.ID)
+	r.cleanupPRMEvaluator(tr.ID)
 
 	r.mu.Lock()
 
@@ -640,6 +692,11 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 				"error", err,
 			)
 		}
+	}
+
+	// Extract knowledge from the failed task into episodic memory.
+	if r.memoryExtractor != nil {
+		go r.extractMemory(ctx, tr)
 	}
 
 	r.logger.InfoContext(ctx, "task run failed",
@@ -770,8 +827,38 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		eventCh := make(chan *agentstream.StreamEvent, 100)
 
 		reader := agentstream.NewReader(r.logger.With("component", "stream-reader", "task_run_id", tr.ID))
+
+		var forwarderOpts []agentstream.ForwarderOption
+
+		// Wire PRM evaluator into the streaming pipeline when enabled.
+		if r.prmConfig.Enabled {
+			evaluator := prm.NewEvaluator(r.prmConfig, r.logger.With("component", "prm", "task_run_id", tr.ID))
+			r.mu.Lock()
+			r.prmEvaluators[tr.ID] = evaluator
+			r.mu.Unlock()
+
+			prmProcessor := func(ctx context.Context, event *agentstream.StreamEvent) {
+				intervention := evaluator.ProcessEvent(ctx, event)
+				if intervention == nil || intervention.Action == prm.ActionContinue {
+					return
+				}
+
+				switch intervention.Action {
+				case prm.ActionNudge:
+					r.recordPRMHint(ctx, tr, intervention)
+				case prm.ActionEscalate:
+					r.logger.WarnContext(ctx, "prm escalation triggered, deferring to watchdog",
+						"task_run_id", tr.ID,
+						"reason", intervention.Reason,
+					)
+				}
+			}
+			forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(prmProcessor))
+		}
+
 		forwarder := agentstream.NewForwarder(
 			r.logger.With("component", "stream-forwarder", "task_run_id", tr.ID),
+			forwarderOpts...,
 		)
 
 		// Start the log reader in a separate goroutine.
@@ -821,6 +908,67 @@ func (r *Reconciler) cancelStreamReader(taskRunID string) {
 		cancel()
 		r.logger.Debug("stream reader cancelled", "task_run_id", taskRunID)
 	}
+}
+
+// recordPRMHint logs the PRM intervention and records it on the TaskRun so
+// that the quality gate and audit trail have visibility. In v1 we do not
+// write directly to the agent pod; a future iteration will deliver hints
+// via a projected ConfigMap volume.
+func (r *Reconciler) recordPRMHint(ctx context.Context, tr *taskrun.TaskRun, intervention *prm.Intervention) {
+	r.logger.InfoContext(ctx, "prm nudge recorded",
+		"task_run_id", tr.ID,
+		"reason", intervention.Reason,
+		"hint_length", len(intervention.HintContent),
+	)
+
+	metrics.PRMInterventionsTotal.WithLabelValues(string(intervention.Action)).Inc()
+}
+
+// cleanupPRMEvaluator removes the PRM evaluator for the given task run ID.
+// It is safe to call even if no evaluator exists.
+func (r *Reconciler) cleanupPRMEvaluator(taskRunID string) {
+	r.mu.Lock()
+	delete(r.prmEvaluators, taskRunID)
+	r.mu.Unlock()
+}
+
+// extractMemory performs post-task knowledge extraction from a completed or
+// failed TaskRun. It runs in a background goroutine and logs errors without
+// affecting the TaskRun outcome.
+func (r *Reconciler) extractMemory(ctx context.Context, tr *taskrun.TaskRun) {
+	nodes, edges, err := r.memoryExtractor.Extract(ctx, tr, nil)
+	if err != nil {
+		r.logger.WarnContext(ctx, "memory extraction failed",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
+	for _, node := range nodes {
+		if err := r.memoryGraph.AddNode(ctx, node); err != nil {
+			r.logger.WarnContext(ctx, "failed to add memory node",
+				"task_run_id", tr.ID,
+				"node_id", node.NodeID(),
+				"error", err,
+			)
+		}
+	}
+
+	for _, edge := range edges {
+		if err := r.memoryGraph.AddEdge(ctx, edge); err != nil {
+			r.logger.WarnContext(ctx, "failed to add memory edge",
+				"task_run_id", tr.ID,
+				"error", err,
+			)
+		}
+	}
+
+	r.logger.InfoContext(ctx, "memory extraction completed",
+		"task_run_id", tr.ID,
+		"nodes_extracted", len(nodes),
+		"edges_extracted", len(edges),
+	)
 }
 
 // hasApprovalGate returns true if the given gate name is present in the

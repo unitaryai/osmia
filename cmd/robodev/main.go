@@ -32,6 +32,7 @@ import (
 	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
 	ghticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/github"
 	noopticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/noop"
+	scticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/shortcut"
 
 	// Notification backends — imported conditionally.
 	slacknotify "github.com/unitaryai/robodev/pkg/plugin/notifications/slack"
@@ -87,6 +88,7 @@ func main() {
 	}
 
 	// --- Ticketing backend ---
+	var scBackend *scticket.ShortcutBackend
 	if cfg.Ticketing.Backend == "github" {
 		ghBackend, ghErr := initGitHubBackend(cfg, k8sClient, *namespace, logger)
 		if ghErr != nil {
@@ -95,6 +97,18 @@ func main() {
 		}
 		opts = append(opts, controller.WithTicketing(ghBackend))
 		logger.Info("github ticketing backend initialised")
+	} else if cfg.Ticketing.Backend == "shortcut" {
+		var scErr error
+		scBackend, scErr = initShortcutBackend(cfg, k8sClient, *namespace, logger)
+		if scErr != nil {
+			logger.Error("failed to initialise shortcut ticketing backend", "error", scErr)
+			os.Exit(1)
+		}
+		opts = append(opts, controller.WithTicketing(scBackend))
+		logger.Info("shortcut ticketing backend initialised",
+			"workflow_state_id", scBackend.WorkflowStateID(),
+			"in_progress_state_id", scBackend.InProgressStateID(),
+		)
 	} else if cfg.Ticketing.Backend != "" {
 		logger.Error("unsupported ticketing backend", "backend", cfg.Ticketing.Backend)
 		os.Exit(1)
@@ -329,6 +343,9 @@ func main() {
 		if cfg.Webhook.Shortcut != nil {
 			whOpts = append(whOpts, webhook.WithSecret("shortcut", cfg.Webhook.Shortcut.Secret))
 		}
+		if scBackend != nil && scBackend.WorkflowStateID() != 0 {
+			whOpts = append(whOpts, webhook.WithShortcutTargetStateID(scBackend.WorkflowStateID()))
+		}
 
 		whHandler := &webhookAdapter{reconciler: reconciler, logger: logger}
 		webhookSrv = webhook.NewServer(logger, whHandler, whOpts...)
@@ -521,6 +538,59 @@ func initGitHubBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 	}
 
 	return ghticket.NewGitHubBackend(owner, repo, labels, token, logger, opts...), nil
+}
+
+// initShortcutBackend creates and returns a Shortcut ticketing backend from
+// the controller configuration. It calls Init to resolve human-readable
+// state names and owner mention names to their Shortcut API identifiers.
+func initShortcutBackend(cfg *config.Config, k8sClient kubernetes.Interface, namespace string, logger *slog.Logger) (*scticket.ShortcutBackend, error) {
+	m := cfg.Ticketing.Config
+
+	tokenSecret, err := configString(m, "token_secret")
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	if err != nil {
+		return nil, fmt.Errorf("reading shortcut token: %w", err)
+	}
+
+	var opts []scticket.Option
+
+	if stateName, ok, err := configStringOptional(m, "workflow_state_name"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, scticket.WithWorkflowStateName(stateName))
+	}
+
+	if inProgressName, ok, err := configStringOptional(m, "in_progress_state_name"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, scticket.WithInProgressStateName(inProgressName))
+	}
+
+	if ownerName, ok, err := configStringOptional(m, "owner_mention_name"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, scticket.WithOwnerMentionName(ownerName))
+	}
+
+	if excludeLabels, err := configStringSlice(m, "exclude_labels"); err != nil {
+		return nil, err
+	} else if len(excludeLabels) > 0 {
+		opts = append(opts, scticket.WithExcludeLabels(excludeLabels))
+	}
+
+	// workflowStateID of 0 is valid here — Init will resolve it from
+	// workflow_state_name. If no name is given either, PollReadyTickets will
+	// return an error with a helpful message.
+	backend := scticket.NewShortcutBackend(token, 0, logger, opts...)
+	if err := backend.Init(context.Background()); err != nil {
+		return nil, fmt.Errorf("initialising shortcut backend: %w", err)
+	}
+
+	return backend, nil
 }
 
 // webhookAdapter wraps the controller's Reconciler to satisfy the

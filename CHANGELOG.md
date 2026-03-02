@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Shortcut Backend Wired into Controller (`cmd/robodev/main.go`)
+- `initShortcutBackend` helper function reads `token_secret`, `workflow_state_name`, `in_progress_state_name`, `owner_mention_name`, and `exclude_labels` from config, fetches the API token from a Kubernetes Secret, and calls `Init()` to resolve human-readable names to Shortcut API identifiers at startup
+- `"shortcut"` case added to the ticketing backend selection block — previously only `"github"` was wired in
+- Webhook server automatically configured with `WithShortcutTargetStateID` when the Shortcut backend is active, so only story transitions to the trigger state generate webhook events
+
 ### Fixed
 
 - Add environment variable stripping to Codex, Cline, and OpenCode engine entrypoints (previously only Claude Code had it)

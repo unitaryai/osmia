@@ -28,18 +28,20 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN groupadd --gid 10000 robodev \
     && useradd --uid 10000 --gid robodev --create-home robodev
 
-# Copy entrypoint, hooks, and MCP server.
+# Copy entrypoint, hooks, MCP server, and setup wrapper.
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY hooks/ /opt/robodev/hooks/
 COPY slack_mcp.py /usr/local/bin/slack_mcp.py
+COPY setup-claude.sh /usr/local/bin/setup-claude.sh
 
-# Install MCP configuration.
+# Install MCP configuration at a fixed path outside the home emptyDir.
 RUN mkdir -p /etc/claude-code
 COPY mcp.json /etc/claude-code/mcp.json
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && chmod +x /opt/robodev/hooks/*.sh \
-    && chmod +x /usr/local/bin/slack_mcp.py
+    && chmod +x /usr/local/bin/slack_mcp.py \
+    && chmod +x /usr/local/bin/setup-claude.sh
 
 WORKDIR /workspace
 RUN chown robodev:robodev /workspace

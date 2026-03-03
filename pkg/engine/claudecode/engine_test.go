@@ -69,7 +69,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				require.True(t, len(spec.Command) >= 2, "command must have at least 2 elements")
-				assert.Equal(t, "claude", spec.Command[0])
+				assert.Equal(t, "setup-claude.sh", spec.Command[0])
 				assert.Equal(t, "-p", spec.Command[1])
 				assert.Contains(t, spec.Command, "--output-format")
 				assert.Contains(t, spec.Command, "stream-json")
@@ -77,8 +77,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.Contains(t, spec.Command, "--max-turns")
 				assert.Contains(t, spec.Command, "50")
 				assert.Contains(t, spec.Command, "--dangerously-skip-permissions")
-				assert.Contains(t, spec.Command, "--mcp-config")
-				assert.Contains(t, spec.Command, mcpConfigPath)
+				assert.NotContains(t, spec.Command, "--mcp-config")
 			},
 		},
 		{

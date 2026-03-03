@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Phase 2 Wiring — Diagnosis, Calibration, Routing, Estimator, SCM Router, Transcript
+
+**Diagnosis subsystem** (`internal/diagnosis/`, `internal/controller/controller.go`)
+- `WithDiagnosis(analyser, retryBuilder)` option wires the causal failure analyser into the controller
+- `handleJobFailed` now runs `Analyser.Analyse` before deciding whether to retry; `ShouldRetry` skips retry when the same failure mode recurs or when `InfraFailure` is diagnosed; `RetryBuilder.Build` enriches the retry prompt with corrective instructions and optionally switches engine based on diagnosis
+- `DiagnosisRecord` appended to `tr.DiagnosisHistory` on every diagnosis cycle
+- Fixed: `launchRetryJob` method added — same-engine retries were previously left in `StateRetrying` indefinitely with no new job being created
+
+**Watchdog + adaptive calibration** (`internal/watchdog/`, `internal/controller/controller.go`)
+- `WithWatchdog(wd)` and `WithWatchdogCalibration(cal, pr)` options wire the watchdog and calibration pipeline
+- Watchdog background loop started inside `Reconciler.Run` via `wd.Start`
+- `ConsumeStreamEvent` wired into the stream reader for real-time telemetry updates
+- Per-task-run heartbeat tracking (`heartbeats`, `heartbeatSeqs` maps) feeds `watchdog.Check`
+- `recordTaskOutcome` calls `calibrator.Record` + `profileResolver.RefreshProfile` after every terminal task run
+- `main.go` initialises `Calibrator`, `MemoryProfileStore`, `ProfileResolver` and uses `NewWithCalibration` constructor
+
+**Intelligent routing** (`internal/routing/`, `internal/controller/controller.go`)
+- `WithIntelligentSelector(sel)` option; `recordTaskOutcome` calls `RecordOutcome` on completion
+- `main.go` initialises `MemoryFingerprintStore` + `IntelligentSelector` when `routing.enabled: true`
+
+**Cost/duration estimator** (`internal/estimator/`, `internal/controller/controller.go`)
+- `WithEstimator(predictor, scorer)` option; `ProcessTicket` calls `ComplexityScorer.Score` + `Predictor.Predict` before job creation; auto-rejects when predicted cost exceeds the configured threshold
+- `recordTaskOutcome` calls `estimatorPredictor.RecordOutcome` on every terminal task run
+- `main.go` initialises with in-memory store when `estimator.enabled: true`
+
+**Multi-SCM routing — item 22** (`internal/scmrouter/`)
+- New `internal/scmrouter` package: `Router.For(repoURL)` selects the correct backend by matching the repo URL host against configured glob patterns; falls back to the first backend when no pattern matches
+- `WithSCMRouter(router)` option on `Reconciler`
+- `main.go`: checks `cfg.SCM.Backends` array first; falls back to legacy single-backend `cfg.SCM.Backend` for backwards compatibility
+- `SCMBackendEntry` struct and `Backends []SCMBackendEntry` added to `SCMConfig` in `internal/config/config.go`
+
+**Transcript storage — item 21** (`pkg/plugin/transcript/`)
+- New `pkg/plugin/transcript` package: `TranscriptSink` interface with `Append` and `Flush`
+- New `pkg/plugin/transcript/local`: `LocalSink` writes NDJSON audit files (one `.jsonl` per task run) to a configured directory
+- `WithTranscriptSink(sink)` option on `Reconciler`; stream reader wires `Append` as an event processor; transcript flushed when stream forwarder exits
+- `AuditConfig` + `TranscriptConfig` added to `internal/config/config.go`; local backend activated when `audit.transcript.backend: local` and `path` are set
+
 #### Agent Stream Logging Processor (`internal/agentstream/logging.go`)
 - New `NewLoggingEventProcessor(logger *slog.Logger) StreamEventProcessor` — logs each NDJSON stream event as a human-readable structured `slog` line in the controller's own logs, giving operators a clean view of agent activity without touching (or losing) the raw pod logs
 - Log format per event type: `tool_use` → INFO `"agent tool call"` with `tool` and `input` (first 80 chars of args); `content` → DEBUG `"agent content"` with `role` only (content text deliberately elided to avoid logging LLM output); `result` → INFO `"agent result"` with `success`, `summary`, `mr_url`; `cost` → INFO `"agent cost"` with token counts and USD; system/unknown → DEBUG `"agent system event"`

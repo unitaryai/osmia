@@ -61,6 +61,11 @@ type Reconciler struct {
 	// keyed by task run ID. Used to stop streaming when a job completes or fails.
 	streamReaders map[string]context.CancelFunc
 
+	// ticketCache caches the full Ticket for each processed ticket ID so that
+	// completion handlers (NotifyComplete, etc.) can access ticket metadata
+	// (e.g. title) without an additional backend round-trip.
+	ticketCache map[string]ticketing.Ticket
+
 	// PRM (Process Reward Model) fields.
 	prmConfig     prm.Config
 	prmEvaluators map[string]*prm.Evaluator // keyed by task run ID
@@ -175,6 +180,7 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 		engineChains:  make(map[string][]string),
 		streamReaders: make(map[string]context.CancelFunc),
 		prmEvaluators: make(map[string]*prm.Evaluator),
+		ticketCache:   make(map[string]ticketing.Ticket),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -241,6 +247,11 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		return fmt.Errorf("polling tickets: %w", err)
 	}
 
+	// Always check running job status, regardless of whether new tickets arrived.
+	// Previously this was only called when tickets > 0, which caused completed
+	// jobs to go undetected until the next ticket was ready.
+	defer r.checkRunningJobs(ctx)
+
 	if len(tickets) == 0 {
 		return nil
 	}
@@ -261,9 +272,6 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		}
 		activeCount++
 	}
-
-	// Check status of running jobs.
-	r.checkRunningJobs(ctx)
 
 	return nil
 }
@@ -289,6 +297,11 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	} else {
 		r.mu.RUnlock()
 	}
+
+	// Cache the ticket so completion handlers can access its metadata.
+	r.mu.Lock()
+	r.ticketCache[ticket.ID] = ticket
+	r.mu.Unlock()
 
 	// Validate guard rails.
 	if err := r.validateGuardRails(ticket); err != nil {
@@ -613,11 +626,19 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		time.Since(tr.CreatedAt).Seconds(),
 	)
 
-	result := engine.TaskResult{
-		Success: true,
-		Summary: "task completed successfully",
+	// Use the result captured by the stream reader processor; fall back to a
+	// generic success result if the stream reader did not capture one yet.
+	r.mu.RLock()
+	result := engine.TaskResult{Success: true, Summary: "task completed successfully"}
+	if tr.Result != nil {
+		result = *tr.Result
 	}
+	r.mu.RUnlock()
 	tr.Result = &result
+
+	r.mu.RLock()
+	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
 
 	if r.ticketing != nil {
 		if err := r.ticketing.MarkComplete(ctx, tr.TicketID, result); err != nil {
@@ -625,6 +646,17 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 				"ticket_id", tr.TicketID,
 				"error", err,
 			)
+		}
+	}
+
+	if hasTicket {
+		for _, n := range r.notifiers {
+			if err := n.NotifyComplete(ctx, cachedTicket, result); err != nil {
+				r.logger.ErrorContext(ctx, "completion notification failed",
+					"ticket_id", tr.TicketID,
+					"error", err,
+				)
+			}
 		}
 	}
 
@@ -866,6 +898,26 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		reader := agentstream.NewReader(r.logger.With("component", "stream-reader", "task_run_id", tr.ID))
 
 		var forwarderOpts []agentstream.ForwarderOption
+
+		// Capture the final result event so handleJobComplete can use it.
+		resultProcessor := func(_ context.Context, event *agentstream.StreamEvent) {
+			if event.Type != agentstream.EventResult {
+				return
+			}
+			re, ok := event.Parsed.(*agentstream.ResultEvent)
+			if !ok || re == nil {
+				return
+			}
+			r.mu.Lock()
+			tr.Result = &engine.TaskResult{
+				Success:         re.Success,
+				Summary:         re.Summary,
+				MergeRequestURL: re.MergeRequestURL,
+				BranchName:      re.BranchName,
+			}
+			r.mu.Unlock()
+		}
+		forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(resultProcessor))
 
 		// Wire PRM evaluator into the streaming pipeline when enabled.
 		if r.prmConfig.Enabled {

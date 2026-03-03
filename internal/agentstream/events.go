@@ -60,6 +60,14 @@ type CostEvent struct {
 }
 
 // ResultEvent describes the final outcome of an agent execution.
+//
+// The struct supports two serialisation formats:
+//   - Our internal format: success (bool) + summary (string)
+//   - Claude Code stream-json format: is_error (bool) + result (string)
+//
+// ParseEvent normalises both formats into the internal fields, so callers
+// can always read Success and Summary regardless of which agent produced
+// the event.
 type ResultEvent struct {
 	Success         bool   `json:"success"`
 	Summary         string `json:"summary"`
@@ -68,6 +76,10 @@ type ResultEvent struct {
 	TestsPassed     int    `json:"tests_passed,omitempty"`
 	TestsFailed     int    `json:"tests_failed,omitempty"`
 	TestsAdded      int    `json:"tests_added,omitempty"`
+
+	// Claude Code stream-json fields — normalised into Success/Summary by ParseEvent.
+	IsError    bool   `json:"is_error"`
+	RawResult  string `json:"result"`
 }
 
 // rawEnvelope is used for the initial unmarshal to extract the type field
@@ -126,6 +138,15 @@ func ParseEvent(line []byte) (*StreamEvent, error) {
 		var re ResultEvent
 		if err := json.Unmarshal(line, &re); err != nil {
 			return nil, fmt.Errorf("invalid result event: %w", err)
+		}
+		// Normalise Claude Code stream-json format into our internal format.
+		// Claude Code emits is_error + result; our custom format uses success + summary.
+		// The presence of a non-empty RawResult field signals Claude Code origin.
+		if re.RawResult != "" {
+			re.Success = !re.IsError
+			if re.Summary == "" {
+				re.Summary = re.RawResult
+			}
 		}
 		ev.Parsed = &re
 

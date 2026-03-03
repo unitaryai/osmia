@@ -36,6 +36,7 @@ type Config struct {
 	Memory           MemoryConfig         `yaml:"memory"`
 	Estimator             EstimatorConfig             `yaml:"estimator"`
 	CompetitiveExecution  CompetitiveExecutionConfig  `yaml:"competitive_execution"`
+	Audit                 AuditConfig                 `yaml:"audit"`
 }
 
 // CompetitiveExecutionConfig configures competitive execution with tournament selection.
@@ -356,10 +357,22 @@ type ReviewConfig struct {
 	Config  map[string]any `yaml:"config"`
 }
 
-// SCMConfig configures the source code management backend.
-type SCMConfig struct {
-	Backend string         `yaml:"backend"`
+// SCMBackendEntry configures a single backend in a multi-backend SCM router.
+// The Match field is matched against the host of the repository URL.
+type SCMBackendEntry struct {
+	Backend string         `yaml:"backend"` // "github" | "gitlab"
+	Match   string         `yaml:"match"`   // host or glob pattern, e.g. "github.com" or "*.internal.example.com"
 	Config  map[string]any `yaml:"config"`
+}
+
+// SCMConfig configures the source code management backend.
+// Use the Backends array for multi-backend routing; the single Backend/Config
+// fields are kept for backwards compatibility and take effect when Backends is
+// empty.
+type SCMConfig struct {
+	Backend  string            `yaml:"backend"`
+	Config   map[string]any    `yaml:"config"`
+	Backends []SCMBackendEntry `yaml:"backends,omitempty"`
 }
 
 // ShortcutWorkflow configures a single trigger→in-progress workflow mapping for
@@ -451,6 +464,19 @@ type MemoryConfig struct {
 	PruneThreshold     float64 `yaml:"prune_threshold"`      // nodes below this confidence are pruned
 	MaxFactsPerQuery   int     `yaml:"max_facts_per_query"`  // maximum nodes returned per query
 	TenantIsolation    bool    `yaml:"tenant_isolation"`     // enforce strict tenant-scoped queries
+}
+
+// AuditConfig configures audit log storage for task run transcripts.
+type AuditConfig struct {
+	Transcript TranscriptConfig `yaml:"transcript"`
+}
+
+// TranscriptConfig configures where task transcripts are stored.
+type TranscriptConfig struct {
+	Backend string `yaml:"backend"`         // "local" | "s3" | "gcs" | "disabled"
+	Path    string `yaml:"path,omitempty"`   // directory for the local backend
+	Bucket  string `yaml:"bucket,omitempty"` // bucket name for s3/gcs
+	Prefix  string `yaml:"prefix,omitempty"` // key prefix for s3/gcs
 }
 
 // Load reads and parses a RoboDev configuration file from the given path.

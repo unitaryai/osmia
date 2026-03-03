@@ -21,12 +21,18 @@ import (
 
 	"github.com/unitaryai/robodev/internal/config"
 	"github.com/unitaryai/robodev/internal/controller"
+	"github.com/unitaryai/robodev/internal/diagnosis"
+	"github.com/unitaryai/robodev/internal/estimator"
 	"github.com/unitaryai/robodev/internal/jobbuilder"
 	"github.com/unitaryai/robodev/internal/memory"
 	"github.com/unitaryai/robodev/internal/prm"
+	"github.com/unitaryai/robodev/internal/routing"
 	"github.com/unitaryai/robodev/internal/sandboxbuilder"
+	"github.com/unitaryai/robodev/internal/scmrouter"
 	"github.com/unitaryai/robodev/internal/secretresolver"
+	"github.com/unitaryai/robodev/internal/watchdog"
 	"github.com/unitaryai/robodev/internal/webhook"
+	"github.com/unitaryai/robodev/pkg/plugin/transcript/local"
 
 	// Execution engines.
 	"github.com/unitaryai/robodev/pkg/engine/aider"
@@ -293,8 +299,32 @@ func main() {
 		}
 	}
 
-	// --- SCM backend (non-critical) ---
-	if cfg.SCM.Backend != "" {
+	// --- SCM backend(s) ---
+	// Multi-backend router takes precedence over the legacy single-backend config.
+	if len(cfg.SCM.Backends) > 0 {
+		var entries []scmrouter.Entry
+		for _, be := range cfg.SCM.Backends {
+			beCfg := &config.Config{SCM: config.SCMConfig{Backend: be.Backend, Config: be.Config}}
+			backend, beErr := initSCMBackend(beCfg, k8sClient, *namespace, logger)
+			if beErr != nil {
+				logger.Warn("failed to initialise SCM backend in router, skipping",
+					"backend", be.Backend,
+					"match", be.Match,
+					"error", beErr,
+				)
+				continue
+			}
+			entries = append(entries, scmrouter.Entry{Match: be.Match, Backend: backend})
+			logger.Info("SCM backend registered in router",
+				"backend", be.Backend,
+				"match", be.Match,
+			)
+		}
+		if len(entries) > 0 {
+			opts = append(opts, controller.WithSCMRouter(scmrouter.NewRouter(entries...)))
+			logger.Info("SCM router initialised", "backend_count", len(entries))
+		}
+	} else if cfg.SCM.Backend != "" {
 		scmBackend, scmErr := initSCMBackend(cfg, k8sClient, *namespace, logger)
 		if scmErr != nil {
 			logger.Warn("failed to initialise SCM backend, continuing without",
@@ -350,6 +380,131 @@ func main() {
 			"evaluation_interval", prmCfg.EvaluationInterval,
 			"nudge_threshold", prmCfg.ScoreThresholdNudge,
 			"escalate_threshold", prmCfg.ScoreThresholdEscalate,
+		)
+	}
+
+	// --- Diagnosis (causal failure classification + enriched retry) ---
+	if cfg.Diagnosis.Enabled {
+		diagAnalyser := diagnosis.NewAnalyser(logger.With("component", "diagnosis"))
+		diagRetryBuilder := diagnosis.NewRetryBuilder(logger.With("component", "retry-builder"))
+		opts = append(opts, controller.WithDiagnosis(diagAnalyser, diagRetryBuilder))
+		logger.Info("diagnosis subsystem enabled",
+			"max_diagnoses_per_task", cfg.Diagnosis.MaxDiagnosesPerTask,
+			"engine_switch_enabled", cfg.Diagnosis.EnableEngineSwitch,
+		)
+	}
+
+	// --- Watchdog + adaptive calibration ---
+	if cfg.ProgressWatchdog.Enabled {
+		wdCfg := watchdog.Config{
+			CheckIntervalSeconds:       cfg.ProgressWatchdog.CheckIntervalSeconds,
+			MinConsecutiveTicks:        cfg.ProgressWatchdog.MinConsecutiveTicks,
+			ResearchGracePeriodMinutes: cfg.ProgressWatchdog.ResearchGracePeriodMinutes,
+			Rules: watchdog.RulesConfig{
+				LoopDetection: watchdog.LoopDetectionConfig{
+					ConsecutiveIdenticalCallThreshold: cfg.ProgressWatchdog.LoopDetectionThreshold,
+					RequireNoFileProgress:             true,
+					Action:                            watchdog.ActionTerminateWithFeedback,
+				},
+				ThrashingDetection: watchdog.ThrashingDetectionConfig{
+					TokensWithoutProgressThreshold: int64(cfg.ProgressWatchdog.ThrashingTokenThreshold),
+					Action:                         watchdog.ActionWarn,
+					EscalationAction:               watchdog.ActionTerminateWithFeedback,
+				},
+				StallDetection: watchdog.StallDetectionConfig{
+					IdleSecondsThreshold: cfg.ProgressWatchdog.StallIdleSeconds,
+					Action:               watchdog.ActionTerminate,
+				},
+				CostVelocity: watchdog.CostVelocityConfig{
+					MaxUSDPer10Minutes: cfg.ProgressWatchdog.CostVelocityMaxPer10Min,
+					Action:             watchdog.ActionWarn,
+				},
+				UnansweredHumanTimeoutMinutes: cfg.ProgressWatchdog.UnansweredHumanTimeoutMin,
+				UnansweredHumanAction:         watchdog.ActionTerminateAndNotify,
+			},
+			AdaptiveCalibration: watchdog.AdaptiveCalibrationConfig{
+				Enabled:             cfg.ProgressWatchdog.AdaptiveCalibration.Enabled,
+				MinSampleCount:      cfg.ProgressWatchdog.AdaptiveCalibration.MinSampleCount,
+				PercentileThreshold: cfg.ProgressWatchdog.AdaptiveCalibration.PercentileThreshold,
+				ColdStartFallback:   cfg.ProgressWatchdog.AdaptiveCalibration.ColdStartFallback,
+			},
+		}
+		if wdCfg.CheckIntervalSeconds <= 0 {
+			wdCfg.CheckIntervalSeconds = 60
+		}
+		if wdCfg.MinConsecutiveTicks <= 0 {
+			wdCfg.MinConsecutiveTicks = 2
+		}
+
+		calibrator := watchdog.NewCalibrator(logger.With("component", "watchdog-calibrator"))
+		profileStore := watchdog.NewMemoryProfileStore()
+		minSamples := cfg.ProgressWatchdog.AdaptiveCalibration.MinSampleCount
+		if minSamples <= 0 {
+			minSamples = 10
+		}
+		profileResolver := watchdog.NewProfileResolver(profileStore, calibrator, minSamples)
+
+		wd := watchdog.NewWithCalibration(wdCfg, logger.With("component", "watchdog"), calibrator, profileResolver)
+		opts = append(opts, controller.WithWatchdog(wd))
+		opts = append(opts, controller.WithWatchdogCalibration(calibrator, profileResolver))
+		logger.Info("watchdog enabled",
+			"check_interval_seconds", wdCfg.CheckIntervalSeconds,
+			"adaptive_calibration", wdCfg.AdaptiveCalibration.Enabled,
+		)
+	}
+
+	// --- Intelligent routing ---
+	if cfg.Routing.Enabled {
+		fingerprintStore := routing.NewMemoryFingerprintStore()
+		var availableEngines []string
+		for name := range map[string]bool{
+			"claude-code": cfg.Engines.ClaudeCode != nil || cfg.Engines.Default == "claude-code",
+			"opencode":    cfg.Engines.OpenCode != nil,
+			"cline":       cfg.Engines.Cline != nil,
+			"aider":       cfg.Engines.Aider != nil,
+			"codex":       cfg.Engines.Codex != nil,
+		} {
+			availableEngines = append(availableEngines, name)
+		}
+		// Always include the default engine.
+		if cfg.Engines.Default != "" {
+			found := false
+			for _, e := range availableEngines {
+				if e == cfg.Engines.Default {
+					found = true
+					break
+				}
+			}
+			if !found {
+				availableEngines = append(availableEngines, cfg.Engines.Default)
+			}
+		}
+		sel := routing.NewIntelligentSelector(fingerprintStore, nil, &cfg.Routing, availableEngines, logger.With("component", "routing"))
+		opts = append(opts, controller.WithIntelligentSelector(sel))
+		logger.Info("intelligent routing enabled",
+			"epsilon_greedy", cfg.Routing.EpsilonGreedy,
+			"engine_count", len(availableEngines),
+		)
+	}
+
+	// --- Estimator (predictive cost/duration) ---
+	if cfg.Estimator.Enabled {
+		estStore := estimator.NewMemoryEstimatorStore()
+		predictor := estimator.NewPredictor(estStore, &cfg.Estimator, logger.With("component", "estimator"))
+		scorer := estimator.NewComplexityScorer()
+		opts = append(opts, controller.WithEstimator(predictor, scorer))
+		logger.Info("estimator enabled",
+			"max_predicted_cost_per_job_usd", cfg.Estimator.MaxPredictedCostPerJob,
+		)
+	}
+
+	// --- Transcript storage (audit log) ---
+	if cfg.Audit.Transcript.Backend == "local" && cfg.Audit.Transcript.Path != "" {
+		transcriptSink := local.NewLocalSink(cfg.Audit.Transcript.Path, logger.With("component", "transcript"))
+		opts = append(opts, controller.WithTranscriptSink(transcriptSink))
+		logger.Info("transcript storage enabled",
+			"backend", "local",
+			"path", cfg.Audit.Transcript.Path,
 		)
 	}
 

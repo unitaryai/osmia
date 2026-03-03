@@ -17,18 +17,24 @@ import (
 
 	"github.com/unitaryai/robodev/internal/agentstream"
 	"github.com/unitaryai/robodev/internal/config"
+	"github.com/unitaryai/robodev/internal/diagnosis"
+	"github.com/unitaryai/robodev/internal/estimator"
 	"github.com/unitaryai/robodev/internal/jobbuilder"
 	"github.com/unitaryai/robodev/internal/memory"
 	"github.com/unitaryai/robodev/internal/metrics"
 	"github.com/unitaryai/robodev/internal/prm"
+	"github.com/unitaryai/robodev/internal/routing"
+	"github.com/unitaryai/robodev/internal/scmrouter"
 	"github.com/unitaryai/robodev/internal/secretresolver"
 	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/robodev/internal/watchdog"
 	"github.com/unitaryai/robodev/pkg/engine"
 	"github.com/unitaryai/robodev/pkg/plugin/approval"
 	"github.com/unitaryai/robodev/pkg/plugin/notifications"
 	"github.com/unitaryai/robodev/pkg/plugin/review"
 	"github.com/unitaryai/robodev/pkg/plugin/scm"
 	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/robodev/pkg/plugin/transcript"
 )
 
 // JobBuilder translates an ExecutionSpec into a Kubernetes Job.
@@ -78,8 +84,30 @@ type Reconciler struct {
 	// Plugin backends — stored for use by lifecycle hooks and quality gates.
 	approvalBackend approval.Backend
 	scmBackend      scm.Backend
+	scmRouter       *scmrouter.Router
 	reviewBackend   review.Backend
 	secretsResolver *secretresolver.Resolver
+
+	// Diagnosis subsystem — classifies failures and enriches retry prompts.
+	analyser     *diagnosis.Analyser
+	retryBuilder *diagnosis.RetryBuilder
+
+	// Watchdog subsystem — detects stalled, looping, or unproductive agents.
+	wd              *watchdog.Watchdog
+	calibrator      *watchdog.Calibrator
+	profileResolver *watchdog.ProfileResolver
+	heartbeats      map[string]*watchdog.Heartbeat
+	heartbeatSeqs   map[string]int64
+
+	// Intelligent routing — selects engines based on historical fingerprints.
+	intelligentSelector *routing.IntelligentSelector
+
+	// Cost/duration estimation — predicts and records task costs.
+	estimatorPredictor *estimator.Predictor
+	complexityScorer   *estimator.ComplexityScorer
+
+	// Transcript storage — persists agent event streams as audit logs.
+	transcriptSink transcript.TranscriptSink
 }
 
 // ReconcilerOption configures the Reconciler.
@@ -170,6 +198,61 @@ func WithSecretsResolver(sr *secretresolver.Resolver) ReconcilerOption {
 	return func(r *Reconciler) { r.secretsResolver = sr }
 }
 
+// WithSCMRouter sets a multi-backend SCM router. When non-nil, the controller
+// uses it to select the correct SCM backend for each task based on the
+// repository URL, superseding the single scmBackend field.
+func WithSCMRouter(router *scmrouter.Router) ReconcilerOption {
+	return func(r *Reconciler) { r.scmRouter = router }
+}
+
+// WithDiagnosis enables the causal failure diagnosis subsystem. When both
+// arguments are non-nil, failed tasks are analysed before retry, with an
+// enriched prompt and optional engine switch based on the diagnosis.
+func WithDiagnosis(analyser *diagnosis.Analyser, retryBuilder *diagnosis.RetryBuilder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.analyser = analyser
+		r.retryBuilder = retryBuilder
+	}
+}
+
+// WithWatchdog sets the progress watchdog. When non-nil, the watchdog loop
+// is started inside Run and all stream events are fed through it.
+func WithWatchdog(wd *watchdog.Watchdog) ReconcilerOption {
+	return func(r *Reconciler) { r.wd = wd }
+}
+
+// WithWatchdogCalibration supplies the adaptive calibration components to the
+// controller. When non-nil, task completion and failure events are recorded as
+// calibration observations and calibrated profiles are refreshed automatically.
+func WithWatchdogCalibration(cal *watchdog.Calibrator, pr *watchdog.ProfileResolver) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.calibrator = cal
+		r.profileResolver = pr
+	}
+}
+
+// WithIntelligentSelector replaces the default engine selector with an
+// intelligent, fingerprint-based router that learns from historical outcomes.
+func WithIntelligentSelector(sel *routing.IntelligentSelector) ReconcilerOption {
+	return func(r *Reconciler) { r.intelligentSelector = sel }
+}
+
+// WithEstimator enables predictive cost/duration estimation. When non-nil,
+// tasks with predicted costs above the configured threshold are auto-rejected,
+// and actual outcomes are fed back for future predictions.
+func WithEstimator(predictor *estimator.Predictor, scorer *estimator.ComplexityScorer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.estimatorPredictor = predictor
+		r.complexityScorer = scorer
+	}
+}
+
+// WithTranscriptSink sets the audit transcript storage backend. When non-nil,
+// all agent stream events are forwarded to the sink for archival.
+func WithTranscriptSink(sink transcript.TranscriptSink) ReconcilerOption {
+	return func(r *Reconciler) { r.transcriptSink = sink }
+}
+
 // NewReconciler creates a new Reconciler with the given configuration.
 func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -181,6 +264,8 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 		streamReaders: make(map[string]context.CancelFunc),
 		prmEvaluators: make(map[string]*prm.Evaluator),
 		ticketCache:   make(map[string]ticketing.Ticket),
+		heartbeats:    make(map[string]*watchdog.Heartbeat),
+		heartbeatSeqs: make(map[string]int64),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -202,6 +287,11 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 		"poll_interval", pollInterval,
 		"namespace", r.namespace,
 	)
+
+	// Start the watchdog background loop if one is configured.
+	if r.wd != nil {
+		go r.wd.Start(ctx, r.runWatchdogChecks)
+	}
 
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -322,6 +412,26 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	eng, ok := r.engines[engineName]
 	if !ok {
 		return fmt.Errorf("engine %q not registered", engineName)
+	}
+
+	// Predict cost and auto-reject tasks whose estimate exceeds the budget.
+	if r.estimatorPredictor != nil && r.complexityScorer != nil {
+		score, scoreErr := r.complexityScorer.Score(ctx, estimator.ComplexityInput{
+			TaskDescription: ticket.Description,
+			TaskType:        ticket.TicketType,
+			RepoURL:         ticket.RepoURL,
+			Labels:          ticket.Labels,
+		})
+		if scoreErr == nil {
+			pred, predErr := r.estimatorPredictor.Predict(ctx, *score, engineName)
+			if predErr == nil && r.estimatorPredictor.ShouldAutoReject(pred) {
+				r.logger.WarnContext(ctx, "auto-rejecting task: predicted cost exceeds threshold",
+					"ticket_id", ticket.ID,
+					"predicted_cost_high_usd", pred.EstimatedCostHigh,
+				)
+				return r.ticketing.MarkFailed(ctx, ticket.ID, "predicted cost exceeds configured maximum")
+			}
+		}
 	}
 
 	// Create TaskRun.
@@ -688,6 +798,10 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		go r.extractMemory(ctx, tr)
 	}
 
+	// Record outcome for calibration, routing, and cost estimation.
+	r.recordTaskOutcome(ctx, tr, true)
+	r.cleanupHeartbeat(tr.ID)
+
 	r.logger.InfoContext(ctx, "task run succeeded",
 		"task_run_id", tr.ID,
 		"ticket_id", tr.TicketID,
@@ -739,30 +853,68 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 	}
 
 	if tr.RetryCount < tr.MaxRetries {
-		if err := tr.Transition(taskrun.StateFailed); err != nil {
-			r.mu.Unlock()
-			return
+		// Optionally enrich the retry with diagnosis-based instructions.
+		retryPrompt := ""
+		shouldDoRetry := true
+		if r.analyser != nil && r.config.Diagnosis.Enabled {
+			diag, diagErr := r.analyser.Analyse(ctx, diagnosis.DiagnosisInput{
+				TaskRun:        tr,
+				WatchdogReason: reason,
+				Result:         tr.Result,
+			})
+			if diagErr == nil && diag != nil {
+				maxDiag := r.config.Diagnosis.MaxDiagnosesPerTask
+				if maxDiag <= 0 {
+					maxDiag = 3
+				}
+				shouldDoRetry = diagnosis.ShouldRetry(tr.DiagnosisHistory, diag, maxDiag)
+				tr.DiagnosisHistory = append(tr.DiagnosisHistory, diagnosis.ToDiagnosisRecord(diag))
+				if shouldDoRetry && r.retryBuilder != nil {
+					if cachedTicket, ok := r.ticketCache[tr.TicketID]; ok {
+						spec, specErr := r.retryBuilder.Build(ctx, cachedTicket.Description, diag, tr.CurrentEngine, r.config.Diagnosis.EnableEngineSwitch)
+						if specErr == nil && spec != nil {
+							retryPrompt = spec.Prompt
+							if spec.Engine != tr.CurrentEngine {
+								tr.CurrentEngine = spec.Engine
+								tr.EngineAttempts = append(tr.EngineAttempts, spec.Engine)
+							}
+						}
+					}
+				}
+			}
 		}
-		tr.RetryCount++
-		if err := tr.Transition(taskrun.StateRetrying); err != nil {
-			r.mu.Unlock()
-			return
-		}
-		r.mu.Unlock()
 
-		if err := r.taskRunStore.Save(ctx, tr); err != nil {
-			r.logger.ErrorContext(ctx, "failed to save task run to store",
+		if shouldDoRetry {
+			if err := tr.Transition(taskrun.StateFailed); err != nil {
+				r.mu.Unlock()
+				return
+			}
+			tr.RetryCount++
+			if err := tr.Transition(taskrun.StateRetrying); err != nil {
+				r.mu.Unlock()
+				return
+			}
+			r.mu.Unlock()
+
+			if err := r.taskRunStore.Save(ctx, tr); err != nil {
+				r.logger.ErrorContext(ctx, "failed to save task run to store",
+					"task_run_id", tr.ID,
+					"error", err,
+				)
+			}
+
+			r.logger.InfoContext(ctx, "retrying task run",
 				"task_run_id", tr.ID,
-				"error", err,
+				"retry_count", tr.RetryCount,
+				"max_retries", tr.MaxRetries,
 			)
+			r.launchRetryJob(ctx, tr, retryPrompt)
+			return
 		}
-
-		r.logger.InfoContext(ctx, "retrying task run",
+		// Diagnosis advises against retry; fall through to terminal failure.
+		r.logger.InfoContext(ctx, "diagnosis skipping retry, terminating task run",
 			"task_run_id", tr.ID,
-			"retry_count", tr.RetryCount,
-			"max_retries", tr.MaxRetries,
 		)
-		return
 	}
 
 	if err := tr.Transition(taskrun.StateFailed); err != nil {
@@ -794,6 +946,10 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 	if r.memoryExtractor != nil {
 		go r.extractMemory(ctx, tr)
 	}
+
+	// Record outcome for calibration, routing, and cost estimation.
+	r.recordTaskOutcome(ctx, tr, false)
+	r.cleanupHeartbeat(tr.ID)
 
 	r.logger.InfoContext(ctx, "task run failed",
 		"task_run_id", tr.ID,
@@ -922,6 +1078,29 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 
 		var forwarderOpts []agentstream.ForwarderOption
 
+		// Feed stream events into the watchdog for real-time telemetry tracking.
+		if r.wd != nil {
+			wdProcessor := func(_ context.Context, event *agentstream.StreamEvent) {
+				r.mu.Lock()
+				r.wd.ConsumeStreamEvent(tr, event)
+				r.mu.Unlock()
+			}
+			forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(wdProcessor))
+		}
+
+		// Forward events to the transcript sink for audit archival.
+		if r.transcriptSink != nil {
+			transcriptProcessor := func(sinkCtx context.Context, event *agentstream.StreamEvent) {
+				if err := r.transcriptSink.Append(sinkCtx, tr.ID, event); err != nil {
+					r.logger.Warn("transcript append failed",
+						"task_run_id", tr.ID,
+						"error", err,
+					)
+				}
+			}
+			forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(transcriptProcessor))
+		}
+
 		// Capture the final result event so handleJobComplete can use it.
 		resultProcessor := func(_ context.Context, event *agentstream.StreamEvent) {
 			if event.Type != agentstream.EventResult {
@@ -1013,6 +1192,17 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		if err := forwarder.Forward(streamCtx, eventCh); err != nil {
 			if streamCtx.Err() == nil {
 				r.logger.Warn("stream forwarder stopped with error",
+					"task_run_id", tr.ID,
+					"error", err,
+				)
+			}
+		}
+
+		// Flush the transcript now that all events for this task run have been
+		// forwarded (successful completion or context cancellation on failure).
+		if r.transcriptSink != nil {
+			if err := r.transcriptSink.Flush(context.Background(), tr.ID); err != nil {
+				r.logger.Warn("transcript flush failed",
 					"task_run_id", tr.ID,
 					"error", err,
 				)
@@ -1228,6 +1418,287 @@ func (r *Reconciler) hasApprovalGate(gate string) bool {
 		}
 	}
 	return false
+}
+
+// launchRetryJob builds and creates a new K8s Job for a same-engine retry.
+// If prompt is non-empty it overrides the original ticket description; this
+// allows the diagnosis subsystem to inject corrective instructions.
+func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, prompt string) {
+	r.mu.RLock()
+	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+
+	eng, ok := r.engines[tr.CurrentEngine]
+	if !ok {
+		r.logger.ErrorContext(ctx, "retry engine not registered",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+		)
+		return
+	}
+
+	desc := ""
+	if hasTicket {
+		desc = cachedTicket.Description
+	}
+	if prompt != "" {
+		desc = prompt
+	}
+
+	task := engine.Task{
+		ID:       tr.TicketID,
+		TicketID: tr.TicketID,
+	}
+	if hasTicket {
+		task.Title   = cachedTicket.Title
+		task.RepoURL = cachedTicket.RepoURL
+		task.Labels  = cachedTicket.Labels
+	}
+	task.Description = desc
+
+	engineCfg := engine.EngineConfig{
+		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
+		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
+		SecretKeyRefs:  r.agentSecretKeyRefs(),
+		Env:            r.slackEnv(),
+	}
+
+	spec, err := eng.BuildExecutionSpec(task, engineCfg)
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to build retry execution spec",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
+	if r.jobBuilder == nil {
+		return
+	}
+
+	jobID := fmt.Sprintf("%s-r%d", tr.ID, tr.RetryCount)
+	job, err := r.jobBuilder.Build(jobID, tr.CurrentEngine, spec)
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to build retry k8s job",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
+	if r.k8sClient != nil {
+		_, err = r.k8sClient.BatchV1().Jobs(r.namespace).Create(ctx, job, metav1.CreateOptions{})
+		if err != nil {
+			r.logger.ErrorContext(ctx, "failed to create retry k8s job",
+				"engine", tr.CurrentEngine,
+				"task_run_id", tr.ID,
+				"error", err,
+			)
+			return
+		}
+	}
+
+	r.mu.Lock()
+	if err := tr.Transition(taskrun.StateRunning); err != nil {
+		r.mu.Unlock()
+		r.logger.ErrorContext(ctx, "failed to transition task run to running after retry",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+	tr.JobName = job.Name
+	r.mu.Unlock()
+
+	if err := r.taskRunStore.Save(ctx, tr); err != nil {
+		r.logger.ErrorContext(ctx, "failed to save task run to store after retry launch",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+	}
+
+	metrics.ActiveJobs.Inc()
+
+	if tr.CurrentEngine == "claude-code" {
+		r.startStreamReader(ctx, tr)
+	}
+
+	r.logger.InfoContext(ctx, "retry job created",
+		"engine", tr.CurrentEngine,
+		"job", job.Name,
+		"task_run_id", tr.ID,
+		"retry_count", tr.RetryCount,
+	)
+}
+
+// recordTaskOutcome feeds the result of a completed or failed TaskRun into
+// the watchdog calibrator, intelligent routing fingerprints, and cost estimator.
+func (r *Reconciler) recordTaskOutcome(ctx context.Context, tr *taskrun.TaskRun, success bool) {
+	r.mu.RLock()
+	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+
+	costUSD := 0.0
+	if tr.Result != nil {
+		costUSD = tr.Result.CostEstimateUSD
+	}
+	duration := time.Since(tr.CreatedAt)
+
+	// Watchdog calibration.
+	if r.calibrator != nil {
+		repoURL, taskType := "", ""
+		if hasTicket {
+			repoURL = cachedTicket.RepoURL
+			taskType = cachedTicket.TicketType
+		}
+		obs := watchdog.Observation{
+			RepoURL:             repoURL,
+			Engine:              tr.CurrentEngine,
+			TaskType:            taskType,
+			TokensConsumed:      int64(tr.TokensConsumed),
+			ToolCallsTotal:      tr.ToolCallsTotal,
+			FilesChanged:        tr.FilesChanged,
+			CostEstimateUSD:     costUSD,
+			DurationSeconds:     duration.Seconds(),
+			ConsecutiveIdentical: tr.ConsecutiveIdenticalTools,
+			CompletedAt:         time.Now(),
+		}
+		r.calibrator.Record(ctx, obs)
+
+		if r.profileResolver != nil {
+			key := watchdog.ProfileKey{
+				RepoPattern: repoURL,
+				Engine:      tr.CurrentEngine,
+				TaskType:    taskType,
+			}
+			r.profileResolver.RefreshProfile(ctx, key)
+		}
+	}
+
+	if !hasTicket {
+		return
+	}
+
+	// Intelligent routing outcome.
+	if r.intelligentSelector != nil {
+		_ = r.intelligentSelector.RecordOutcome(ctx, routing.TaskOutcome{
+			EngineName:   tr.CurrentEngine,
+			TaskType:     cachedTicket.TicketType,
+			RepoLanguage: labelValue(cachedTicket.Labels, "lang:"),
+			Complexity:   labelValue(cachedTicket.Labels, "complexity:"),
+			Success:      success,
+			Duration:     duration,
+			Cost:         costUSD,
+		})
+	}
+
+	// Cost/duration estimator outcome.
+	if r.estimatorPredictor != nil && r.complexityScorer != nil {
+		score, scoreErr := r.complexityScorer.Score(ctx, estimator.ComplexityInput{
+			TaskDescription: cachedTicket.Description,
+			TaskType:        cachedTicket.TicketType,
+			RepoURL:         cachedTicket.RepoURL,
+			Labels:          cachedTicket.Labels,
+		})
+		if scoreErr == nil {
+			_ = r.estimatorPredictor.RecordOutcome(ctx, estimator.PredictionOutcome{
+				ComplexityScore: *score,
+				Engine:          tr.CurrentEngine,
+				ActualCost:      costUSD,
+				ActualDuration:  duration,
+				Success:         success,
+				TaskRunID:       tr.ID,
+				RecordedAt:      time.Now(),
+			})
+		}
+	}
+}
+
+// buildHeartbeat constructs a watchdog Heartbeat from the current TaskRun state.
+func (r *Reconciler) buildHeartbeat(tr *taskrun.TaskRun, seq int64) *watchdog.Heartbeat {
+	hb := &watchdog.Heartbeat{
+		Seq:                       seq,
+		RunID:                     tr.ID,
+		Timestamp:                 time.Now(),
+		TokensConsumed:            int64(tr.TokensConsumed),
+		FilesChanged:              tr.FilesChanged,
+		ToolCallsTotal:            tr.ToolCallsTotal,
+		LastToolName:              tr.LastToolName,
+		ConsecutiveIdenticalCalls: tr.ConsecutiveIdenticalTools,
+	}
+	if tr.Result != nil {
+		hb.CostEstimateUSD = tr.Result.CostEstimateUSD
+	}
+	return hb
+}
+
+// runWatchdogChecks is the callback invoked by the watchdog loop on each
+// tick. It iterates all running TaskRuns and checks each one.
+func (r *Reconciler) runWatchdogChecks(ctx context.Context) {
+	r.mu.RLock()
+	running := make([]*taskrun.TaskRun, 0, len(r.taskRuns))
+	for _, tr := range r.taskRuns {
+		if tr.State == taskrun.StateRunning {
+			running = append(running, tr)
+		}
+	}
+	r.mu.RUnlock()
+
+	for _, tr := range running {
+		r.runWatchdogCheck(ctx, tr)
+	}
+}
+
+// runWatchdogCheck evaluates the watchdog rules for a single TaskRun,
+// terminating it if an anomaly is confirmed.
+func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) {
+	r.mu.Lock()
+	seq := r.heartbeatSeqs[tr.ID] + 1
+	r.heartbeatSeqs[tr.ID] = seq
+	current := r.buildHeartbeat(tr, seq)
+	previous := r.heartbeats[tr.ID]
+	r.heartbeats[tr.ID] = current
+	r.mu.Unlock()
+
+	wdReason, action, err := r.wd.Check(tr, current, previous)
+	if err != nil || wdReason == nil {
+		return
+	}
+
+	r.logger.WarnContext(ctx, "watchdog anomaly: terminating task run",
+		"task_run_id", tr.ID,
+		"reason_code", wdReason.ReasonCode,
+		"action", string(action),
+	)
+
+	switch action {
+	case watchdog.ActionTerminate, watchdog.ActionTerminateWithFeedback, watchdog.ActionTerminateAndNotify:
+		r.handleJobFailed(ctx, tr, wdReason.Message)
+	default:
+		// ActionWarn — already logged above.
+	}
+}
+
+// cleanupHeartbeat removes all watchdog heartbeat state for a completed or
+// failed TaskRun. Safe to call even when no heartbeat data exists.
+func (r *Reconciler) cleanupHeartbeat(taskRunID string) {
+	r.mu.Lock()
+	delete(r.heartbeats, taskRunID)
+	delete(r.heartbeatSeqs, taskRunID)
+	r.mu.Unlock()
+}
+
+// labelValue extracts a label value with the given prefix from a label slice.
+// For example, labelValue(labels, "lang:") returns "go" for the label "lang:go".
+func labelValue(labels []string, prefix string) string {
+	for _, l := range labels {
+		if len(l) > len(prefix) && l[:len(prefix)] == prefix {
+			return l[len(prefix):]
+		}
+	}
+	return ""
 }
 
 // matchGlob performs a simple glob match supporting * wildcards.

@@ -1,0 +1,65 @@
+# values-live.yaml — Helm values overlay for live end-to-end testing.
+#
+# Copy this file and fill in the placeholders before use:
+#   cp hack/values-live.yaml hack/values-live-local.yaml
+#   # edit hack/values-live-local.yaml
+#   make live-up VALUES_LIVE=hack/values-live-local.yaml
+#
+# Or edit the placeholders below directly (this file is gitignored via
+# the <PLACEHOLDERS> preventing accidental commits of real values).
+
+image:
+  pullPolicy: Never
+  tag: dev
+
+leaderElection:
+  enabled: false
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+service:
+  type: NodePort
+  nodePort: 30080
+
+config:
+  ticketing:
+    backend: shortcut
+    config:
+      token_secret: "robodev-shortcut-token"
+      workflow_state_name: "Ready for Development"
+      in_progress_state_name: "In Development"
+      owner_mention_name: "robodev"
+
+  scm:
+    backend: gitlab
+    config:
+      token_secret: "robodev-scm-token"
+
+  notifications:
+    channels:
+      - backend: slack
+        config:
+          channel_id: "C040R2T97RS"
+          token_secret: "robodev-slack-token"
+
+  webhook:
+    enabled: false
+
+  secrets:
+    backend: k8s
+
+  engines:
+    default: claude-code
+    claude-code:
+      image: ghcr.io/unitaryai/engine-claude-code:dev
+
+  guardrails:
+    max_cost_per_job: 5.0
+    max_concurrent_jobs: 2
+    max_job_duration_minutes: 60

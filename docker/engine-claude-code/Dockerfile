@@ -34,9 +34,12 @@ COPY hooks/ /opt/robodev/hooks/
 COPY slack_mcp.py /usr/local/bin/slack_mcp.py
 COPY setup-claude.sh /usr/local/bin/setup-claude.sh
 
-# Install MCP configuration at a fixed path outside the home emptyDir.
+# Install MCP configuration and settings at a fixed path outside the home
+# emptyDir.  setup-claude.sh copies these into ~/.claude/ and /workspace/
+# at container startup so they are visible to Claude Code at runtime.
 RUN mkdir -p /etc/claude-code
 COPY mcp.json /etc/claude-code/mcp.json
+COPY settings.json /etc/claude-code/settings.json
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && chmod +x /opt/robodev/hooks/*.sh \

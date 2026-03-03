@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "Read(*)",
+      "WebFetch(*)",
+      "Write(*)",
+      "mcp__robodev-slack__ask_human",
+      "mcp__robodev-slack__notify_human",
+      "mcp__robodev-slack__notify_start",
+      "mcp__robodev-slack__wait_for_pipeline",
+      "mcp__robodev-slack__wait_for_coderabbit_review",
+      "mcp__robodev-slack__get_coderabbit_comments"
+    ],
+    "deny": []
+  }
+}

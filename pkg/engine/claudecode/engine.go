@@ -157,17 +157,18 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		jsonSchema = e.jsonSchema
 	}
 
-	// setup-claude.sh copies /etc/claude-code/mcp.json into ~/.claude/ before
-	// exec'ing claude.  This is necessary because the home directory is an
-	// emptyDir volume that shadows any files baked into the image, so the MCP
-	// config must be written at container startup rather than at build time.
+	// setup-claude.sh writes ~/.claude/settings.json (MCP tool permissions)
+	// and /workspace/.mcp.json (server registration) before exec'ing claude.
+	// The home directory is an emptyDir volume so these files must be created
+	// at container startup; they cannot be baked into the image.
 	command := []string{
 		"setup-claude.sh",
 		"-p", prompt,
 		"--output-format", "stream-json",
 		"--max-turns", strconv.Itoa(defaultMaxTurns),
 		"--dangerously-skip-permissions",
-		"--verbose", // richer event data (tool calls, cost breakdowns)
+		"--verbose",                           // richer event data (tool calls, cost breakdowns)
+		"--mcp-config", "/workspace/.mcp.json", // explicit load path written by setup-claude.sh
 	}
 
 	if jsonSchema != "" {

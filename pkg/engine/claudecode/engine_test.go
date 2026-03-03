@@ -77,7 +77,8 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.Contains(t, spec.Command, "--max-turns")
 				assert.Contains(t, spec.Command, "50")
 				assert.Contains(t, spec.Command, "--dangerously-skip-permissions")
-				assert.NotContains(t, spec.Command, "--mcp-config")
+				assert.Contains(t, spec.Command, "--mcp-config")
+				assert.Contains(t, spec.Command, "/workspace/.mcp.json")
 			},
 		},
 		{

@@ -1,20 +1,24 @@
 #!/bin/sh
 # setup-claude.sh — initialises Claude Code user config before running the agent.
 #
-# The home directory (/home/robodev) is mounted as an emptyDir volume so any
-# files baked into the image are not visible at runtime.  This script creates
-# the necessary Claude Code config files at startup, then exec's claude with
-# all arguments forwarded unchanged.
+# The home directory (/home/robodev) is an emptyDir volume that shadows any
+# files baked into the image.  This script replicates the config files at
+# container startup, matching the approach used in the PoC:
+#   1. ~/.claude/settings.json  — grants permission for MCP tool use
+#   2. /workspace/.mcp.json     — registers the robodev-slack MCP server
+#      (project-scope file that Claude Code auto-loads from the cwd)
+#
+# The main claude invocation also passes --mcp-config /workspace/.mcp.json
+# as an explicit belt-and-suspenders load path.
 
 set -eu
 
-# Create writable Claude config directory.
+# Restore user settings (permissions + MCP tool allowlist).
 mkdir -p "${HOME}/.claude"
+cp /etc/claude-code/settings.json "${HOME}/.claude/settings.json"
 
-# Register the Slack/GitLab MCP server so that tools such as ask_human,
-# notify_human, and wait_for_pipeline are available to the agent.
-if [ -f /etc/claude-code/mcp.json ]; then
-    cp /etc/claude-code/mcp.json "${HOME}/.claude/mcp.json"
-fi
+# Copy MCP server config to the project root so it is auto-loaded and also
+# available via the explicit --mcp-config flag in the claude invocation.
+cp /etc/claude-code/mcp.json /workspace/.mcp.json
 
 exec claude "$@"

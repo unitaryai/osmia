@@ -99,12 +99,22 @@ func WithTeamsConfig(cfg TeamsConfig) Option {
 	}
 }
 
+// WithSkills sets the custom skills to make available to the agent.
+// Each skill is written to ~/.claude/skills/<name>.md before the agent
+// starts, allowing the agent to invoke it via /skill-name in its prompts.
+func WithSkills(skills []Skill) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.skills = skills
+	}
+}
+
 // ClaudeCodeEngine implements engine.ExecutionEngine for the Claude Code CLI.
 type ClaudeCodeEngine struct {
 	fallbackModel string
 	toolWhitelist []string
 	jsonSchema    string
 	teamsConfig   TeamsConfig
+	skills        []Skill
 }
 
 // New returns a new ClaudeCodeEngine with the given functional options applied.
@@ -222,6 +232,13 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 
 	// Merge teams environment variables when teams are enabled.
 	for k, v := range TeamsEnvVars(e.teamsConfig) {
+		env[k] = v
+	}
+
+	// Inject skill files as environment variables.
+	// setup-claude.sh decodes these and writes ~/.claude/skills/<name>.md
+	// before starting the agent.
+	for k, v := range SkillEnvVars(e.skills) {
 		env[k] = v
 	}
 

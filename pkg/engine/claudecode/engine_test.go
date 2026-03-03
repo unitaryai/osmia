@@ -407,6 +407,51 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.NotContains(t, spec.Command, "--disallowedTools")
 			},
 		},
+		// --- Skill injection tests ---
+
+		{
+			name: "inline skill sets CLAUDE_SKILL_INLINE env var",
+			opts: []Option{
+				WithSkills([]Skill{
+					{Name: "create-changelog", Inline: "# Create Changelog\n\nDo the thing."},
+				}),
+			},
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				key := "CLAUDE_SKILL_INLINE_CREATE_CHANGELOG"
+				assert.Contains(t, spec.Env, key, "inline skill env var must be present")
+				assert.NotEmpty(t, spec.Env[key], "inline skill env var must not be empty")
+			},
+		},
+		{
+			name: "path skill sets CLAUDE_SKILL_PATH env var",
+			opts: []Option{
+				WithSkills([]Skill{
+					{Name: "review", Path: "/opt/robodev/skills/review.md"},
+				}),
+			},
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				key := "CLAUDE_SKILL_PATH_REVIEW"
+				require.Contains(t, spec.Env, key, "path skill env var must be present")
+				assert.Equal(t, "/opt/robodev/skills/review.md", spec.Env[key])
+			},
+		},
+		{
+			name:   "no skills produces no CLAUDE_SKILL_ env vars",
+			opts:   nil,
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				for k := range spec.Env {
+					assert.False(t, len(k) >= 13 && k[:13] == "CLAUDE_SKILL_",
+						"unexpected skill env var: %s", k)
+				}
+			},
+		},
+
 		// --- Streaming output tests ---
 
 		{

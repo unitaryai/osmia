@@ -170,7 +170,20 @@ func main() {
 	}
 
 	// --- Execution engines ---
-	claudeEngine := claudecode.New()
+	var claudeOpts []claudecode.Option
+	if cfg.Engines.ClaudeCode != nil && len(cfg.Engines.ClaudeCode.Skills) > 0 {
+		skills := make([]claudecode.Skill, 0, len(cfg.Engines.ClaudeCode.Skills))
+		for _, sc := range cfg.Engines.ClaudeCode.Skills {
+			skills = append(skills, claudecode.Skill{
+				Name:   sc.Name,
+				Path:   sc.Path,
+				Inline: sc.Inline,
+			})
+		}
+		claudeOpts = append(claudeOpts, claudecode.WithSkills(skills))
+		logger.Info("claude-code skills configured", "count", len(skills))
+	}
+	claudeEngine := claudecode.New(claudeOpts...)
 	opts = append(opts, controller.WithEngine(claudeEngine))
 	logger.Info("claude-code engine registered")
 

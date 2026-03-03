@@ -224,6 +224,21 @@ type ClineEngineConfig struct {
 	MCPEnabled bool       `yaml:"mcp_enabled,omitempty"`
 }
 
+// SkillConfig defines a custom skill to make available to the Claude Code agent.
+// Claude Code agents can invoke skills via /skill-name in their prompts.
+// Exactly one of Inline or Path must be set.
+type SkillConfig struct {
+	// Name is the skill identifier used as the filename stem (e.g. "create-changelog").
+	// Use only lowercase letters, digits, and hyphens.
+	Name string `yaml:"name"`
+	// Path is the path to a Markdown skill file on the container image,
+	// e.g. "/opt/robodev/skills/create-changelog.md". Use for bundled skills.
+	Path string `yaml:"path,omitempty"`
+	// Inline contains the skill Markdown content directly in the config.
+	// Use for custom, operator-defined skills that do not require a pre-built image.
+	Inline string `yaml:"inline,omitempty"`
+}
+
 // ClaudeCodeEngineConfig holds Claude Code-specific engine settings.
 type ClaudeCodeEngineConfig struct {
 	Image                string           `yaml:"image,omitempty"`
@@ -235,6 +250,9 @@ type ClaudeCodeEngineConfig struct {
 	JSONSchema           string           `yaml:"json_schema,omitempty"`
 	NoSessionPersistence bool             `yaml:"no_session_persistence,omitempty"`
 	AppendSystemPrompt   string           `yaml:"append_system_prompt,omitempty"`
+	// Skills lists custom skill files to make available to the agent.
+	// Each skill is written to ~/.claude/skills/<name>.md before the agent starts.
+	Skills []SkillConfig `yaml:"skills,omitempty"`
 }
 
 // CodexEngineConfig holds OpenAI Codex-specific engine settings.
@@ -303,6 +321,11 @@ type TaskProfileConfig struct {
 	Workflow      string   `yaml:"workflow,omitempty"`       // "tdd", "review-first", or "" for default
 	ToolWhitelist []string `yaml:"tool_whitelist,omitempty"` // allowed tool commands
 	ToolBlacklist []string `yaml:"tool_blacklist,omitempty"` // blocked tool commands
+	// MCPServers lists additional MCP server names to enable for tasks matching
+	// this profile, merged on top of the global engine MCP configuration.
+	// Full runtime wiring requires setup-claude.sh to merge per-profile servers
+	// into the workspace MCP config at job startup.
+	MCPServers []string `yaml:"mcp_servers,omitempty"`
 }
 
 // PluginHealthConfig configures plugin health monitoring.

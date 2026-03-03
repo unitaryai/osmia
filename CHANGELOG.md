@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Item 23 — Skills, Subagents, and Per-Task MCP Plugins
+
+**Custom skills for Claude Code** (`pkg/engine/claudecode/skills.go`, `pkg/engine/claudecode/engine.go`)
+- New `Skill` struct with `Name`, `Inline`, and `Path` fields
+- `SkillEnvVars(skills []Skill) map[string]string` converts skills to container environment
+  variables: inline skills are base64-encoded into `CLAUDE_SKILL_INLINE_<NAME>`; path-based
+  skills use `CLAUDE_SKILL_PATH_<NAME>`
+- `WithSkills(skills []Skill)` functional option on `ClaudeCodeEngine`; skill env vars are
+  injected into `ExecutionSpec.Env` during `BuildExecutionSpec`
+
+**Configuration** (`internal/config/config.go`)
+- New `SkillConfig` struct with `Name`, `Path`, `Inline` fields added to
+  `ClaudeCodeEngineConfig` as `Skills []SkillConfig`
+- `MCPServers []string` added to `TaskProfileConfig` for future per-profile MCP server overrides
+
+**Container startup** (`docker/engine-claude-code/setup-claude.sh`)
+- `setup-claude.sh` now reads `CLAUDE_SKILL_INLINE_*` and `CLAUDE_SKILL_PATH_*` env vars and
+  writes the corresponding Markdown files to `~/.claude/skills/<name>.md` before starting
+  the agent, making them available as `/skill-name` invocations
+
+**Main wiring** (`cmd/robodev/main.go`)
+- `cfg.Engines.ClaudeCode.Skills` translated to `claudecode.Skill{}` slice and passed to
+  `claudecode.New(claudecode.WithSkills(...))` at startup
+
+**Tests** (`pkg/engine/claudecode/skills_test.go`, `engine_test.go`)
+- 8 unit tests covering inline encoding, path skills, mixed skills, empty skill handling,
+  base64 round-trip, env var key generation, and execution spec integration
+
 #### Phase 2 Wiring — Diagnosis, Calibration, Routing, Estimator, SCM Router, Transcript
 
 **Diagnosis subsystem** (`internal/diagnosis/`, `internal/controller/controller.go`)

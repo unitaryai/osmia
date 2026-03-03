@@ -114,39 +114,30 @@ host pattern.
 
 ---
 
-### 23. Skills, Subagents, and Per-Task MCP Plugins
+### 23. Skills, Subagents, and Per-Task MCP Plugins ✅
 
 **Priority:** Medium
 **Scope:** Small–Medium (3–4 files)
 **Dependencies:** Claude Code engine (`pkg/engine/claudecode/`)
 
-The Claude Code engine supports custom skills (`.claude/skills/`), agent teams, and MCP
-servers, but these are not yet wired into the RoboDev config system in a way that allows
-per-task or per-profile customisation.
+- [x] Add `SkillConfig` struct + `Skills []SkillConfig` to `ClaudeCodeEngineConfig` in
+  `internal/config/config.go`. Both `path` (bundled on image) and `inline` modes supported.
+- [x] Wire skills into `BuildExecutionSpec` via `SkillEnvVars()`: inline skills are
+  base64-encoded into `CLAUDE_SKILL_INLINE_<NAME>`; path skills use `CLAUDE_SKILL_PATH_<NAME>`.
+  `setup-claude.sh` decodes and writes them to `~/.claude/skills/<name>.md` at startup.
+- [x] Add `MCPServers []string` to `TaskProfileConfig` — field added for operator config;
+  full runtime merging with the workspace MCP config is tracked as a separate task.
+- [x] Unit tests for `SkillEnvVars` (inline, path, multi-skill, empty, encoding round-trip)
+  and skill env var injection tests in `engine_test.go`.
 
-- [ ] Add `Skills []SkillConfig` to `ClaudeCodeEngineConfig` in `internal/config/config.go`:
-  ```yaml
-  engines:
-    claude-code:
-      skills:
-        - name: create-changelog
-          path: /opt/robodev/skills/create-changelog.md   # bundled skill
-        - name: custom
-          inline: |
-            # Custom skill
-            Do the thing.
-  ```
-  `SkillConfig` has `Name string`, `Path string`, `Inline string` fields.
-- [ ] Wire skills into `BuildExecutionSpec`: write each skill to
-  `/workspace/.claude/skills/<name>.md` as an init container command or volume mount
-- [ ] Add `MCPServers` override to `TaskProfileConfig` — per-task-type MCP server
-  overrides on top of the global engine config
-- [ ] Document `agent_teams` boolean + `AgentTeamsConfig` in the configuration reference —
-  this already works but is undiscoverable
-- [ ] Unit tests for skill file generation in execution spec
-- [ ] Integration test: verify skill files appear in the correct location in the generated job spec
+**Pending (integration test + MCP merging):**
+- [ ] Integration test: run a job with skills configured, verify `~/.claude/skills/*.md` appear
+- [ ] Per-profile MCP server merging: extend `setup-claude.sh` to append profile servers to
+  the workspace MCP config when `ROBODEV_MCP_SERVERS` env var is set
 
-**Key files:** `internal/config/config.go`, `pkg/engine/claudecode/engine.go`, docs
+**Key files:** `internal/config/config.go`, `pkg/engine/claudecode/skills.go`,
+`pkg/engine/claudecode/engine.go`, `docker/engine-claude-code/setup-claude.sh`,
+`cmd/robodev/main.go`
 
 ---
 

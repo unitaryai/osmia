@@ -17,7 +17,7 @@ plan (12/13 complete).
 ## Current Priority Order
 
 ```
-1. Active Integration (remaining gaps)  — tournament wiring, PRM hint writer, SQLite persistence
+1. Active Integration (remaining gaps)  — SQLite persistence, LLM V2, security hardening, E2E tests
 2. High-Priority Upcoming               — items 20 (PR/MR comments), 10 (dashboard)
 3. Design-First (ADR before code)       — items 24, 25
 4. Infrastructure                       — items 9 (plugin SDKs), 11 (docs — in progress)
@@ -28,35 +28,8 @@ plan (12/13 complete).
 ## 1. Active Integration — Remaining Gaps
 
 Phase 2 wired diagnosis, calibration, routing, estimator, SCM router, and transcript into
-the live controller. The following gaps remain before the integration layer is complete.
-
----
-
-### Tournament Coordinator Wiring ✅
-
-The `tournament` package is fully scaffolded and wired into the controller and `main.go`.
-
-- [x] `tournamentCoordinator` field + `WithTournamentCoordinator` option on `Reconciler`
-- [x] `ProcessTicket` detects tournament-eligible tasks and calls `launchTournament`
-- [x] `launchTournament`: N parallel candidate jobs + `StartTournament`
-- [x] `handleCandidateComplete`: `OnCandidateComplete` + early-termination + `launchJudge`
-- [x] `launchJudge`: atomic `BeginJudging` + judge prompt + judge K8s Job
-- [x] `handleJudgeComplete`: parse `JudgeDecision`, `SelectWinner`, mark ticket complete
-- [x] `WithTournamentCoordinator` wired in `main.go` when `CompetitiveExecution.Enabled`
-
----
-
-### PRM Hint File Writer ✅
-
-The PRM already scores tool calls and decides to write hints; hint delivery is now implemented.
-
-- [x] `writeHintFile` via K8s pod exec (`remotecommand.NewSPDYExecutor`) — no PVC needed
-- [x] Write `HintContent` to `/workspace/.robodev-hint.md` (or configured `hint_file_path`)
-- [x] Async write (10 s timeout goroutine) so stream reader is not blocked
-- [x] `cleanupHintFile` on task completion (best-effort, 5 s timeout)
-- [x] `validateHintPath` — rejects `..` components to prevent path traversal
-
-**Key files:** `internal/controller/controller.go`
+the live controller. Tournament coordinator and PRM hint writer are also complete. The
+following gaps remain before the integration layer is fully production-ready.
 
 ---
 
@@ -95,7 +68,7 @@ this is prompt engineering + integration work.
 
 ### Security Hardening
 
-- [ ] PRM hint file path — verify `../` path traversal is impossible in configured path
+- [x] PRM hint file path — `validateHintPath` rejects `..` components before every exec
 - [ ] Memory graph tenant isolation — adversarial tests: tenant A cannot read tenant B's facts
 - [ ] Diagnosis templates — verify agent output cannot escape into injected retry prompts
 - [ ] Tournament judge prompt — verify candidate diffs cannot inject instructions into the judge
@@ -286,6 +259,17 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 ## 5. Completed
 
 Everything below is implemented and merged.
+
+---
+
+### Active Integration — Phase 3 ✅
+
+Tournament coordinator, PRM hint file writer:
+
+| Subsystem | Status |
+|-----------|--------|
+| Tournament coordinator wiring (item 18) | ✅ `launchTournament` / `handleCandidateComplete` / `launchJudge` / `handleJudgeComplete` |
+| PRM hint file writer | ✅ `writeHintFile` via K8s exec; `cleanupHintFile`; `validateHintPath` |
 
 ---
 

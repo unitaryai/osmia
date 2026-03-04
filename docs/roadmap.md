@@ -17,218 +17,106 @@ plan (12/13 complete).
 ## Current Priority Order
 
 ```
-1. Near-Term (bounded, unblocked)     — items 21, 22, 23
-2. Active Integration (wire it in)    — Phase I: diagnosis, routing, estimator, tournament, watchdog
-3. High-Priority Upcoming             — items 20 (PR/MR comments), 10 (dashboard)
-4. Design-First (ADR before code)     — items 24, 25
-5. Infrastructure                     — items 9 (plugin SDKs), 11 (docs — in progress)
+1. Active Integration (remaining gaps)  — tournament wiring, PRM hint writer, SQLite persistence
+2. High-Priority Upcoming               — items 20 (PR/MR comments), 10 (dashboard)
+3. Design-First (ADR before code)       — items 24, 25
+4. Infrastructure                       — items 9 (plugin SDKs), 11 (docs — in progress)
 ```
 
 ---
 
-## 1. Near-Term — Bounded, Unblocked
+## 1. Active Integration — Remaining Gaps
 
-These were identified during live testing. Designs are clear and all dependencies
-are already in place.
-
----
-
-### 21. Transcript Storage & Audit Log
-
-**Priority:** High
-**Scope:** Medium (4–6 files)
-**Dependencies:** agentstream `Forwarder` (event pipeline already exists)
-
-Agent transcripts are currently ephemeral pod logs — once the K8s Job is GC'd they are
-gone. Add a `TranscriptSink` interface that buffers NDJSON events and flushes to object
-storage (S3, GCS, or local filesystem) on completion.
-
-**Design:** `oss-plan.md §3.6` already describes this pattern. Implement as a
-`StreamEventProcessor` registered on the `Forwarder`.
-
-- [ ] Add `TranscriptSink` interface in `pkg/plugin/transcript/transcript.go`
-  - `Append(event *StreamEvent) error`
-  - `Flush(ctx context.Context, taskRunID string) error`
-- [ ] `pkg/plugin/transcript/local/local.go` — local filesystem sink; dev/test and Docker Compose mode
-- [ ] `pkg/plugin/transcript/s3/s3.go` — S3-compatible object storage (AWS S3, MinIO, Ceph)
-- [ ] `pkg/plugin/transcript/gcs/gcs.go` — Google Cloud Storage
-- [ ] Register sink as a `StreamEventProcessor`; buffer events in-memory, flush on result event or explicit `Flush` call
-- [ ] Wire into controller: create per-TaskRun sink in `startStreamReader`, call `Flush` in `handleJobComplete` and `handleJobFailed`
-- [ ] Add `AuditConfig` to `internal/config/config.go`:
-  ```yaml
-  audit:
-    transcript_storage:
-      backend: s3          # s3 | gcs | local | disabled
-      bucket: robodev-transcripts
-      prefix: "transcripts/{year}/{month}/{task_run_id}/"
-      credentials_secret: aws-credentials
-  ```
-- [ ] Unit tests: mock sink; verify all event types are buffered and flushed correctly
-- [ ] Integration test: run a task with local sink, verify transcript file is written
-
-**Key files:** `pkg/plugin/transcript/`, `internal/agentstream/forwarder.go`,
-`internal/controller/controller.go`, `internal/config/config.go`
+Phase 2 wired diagnosis, calibration, routing, estimator, SCM router, and transcript into
+the live controller. The following gaps remain before the integration layer is complete.
 
 ---
 
-### 22. Multi-SCM Backend Routing (GitLab + GitHub simultaneously)
+### Tournament Coordinator Wiring
 
-**Priority:** High
-**Scope:** Medium (3–5 files)
-**Dependencies:** Both `pkg/plugin/scm/github/` and `pkg/plugin/scm/gitlab/` already implement the same interface
+The `tournament` package is fully scaffolded but not wired into the controller or `main.go`.
 
-Today the controller holds a single `scmBackend`. Teams that use GitLab for private
-repos and GitHub for public repos cannot configure both simultaneously. The `RepoURL`
-field on every ticket provides the host needed to route to the correct backend.
-
-**Design:** Replace the single `scmBackend` field on the `Reconciler` with a `SCMRouter`
-that selects the correct backend by matching the ticket's `RepoURL` against a configured
-host pattern.
-
-- [ ] Add `SCMBackendConfig` and update `SCMConfig` in `internal/config/config.go`:
-  ```yaml
-  scm:
-    backends:
-      - backend: gitlab
-        match: "gitlab.com"     # exact host or glob pattern
-        config:
-          token_secret: gitlab-token
-      - backend: github
-        match: "github.com"
-        config:
-          token_secret: github-token
-  ```
-- [ ] Create `internal/scmrouter/` package with `Router` struct:
-  - `For(repoURL string) (scm.Backend, error)` — selects backend by matching URL host
-    against each entry's `match` pattern (exact host or `filepath.Match`-style glob)
-  - Falls back to the first configured backend if no match
-- [ ] Update `Reconciler` to hold `scmRouter *scmrouter.Router` instead of `scmBackend scm.Backend`
-- [ ] Update `cmd/robodev/main.go` to initialise multiple backends and construct the router
-- [ ] Backward compatibility: single `backend` + `config` at the top level still works
-  (treated as a single-entry backends list)
-- [ ] Unit tests for `scmrouter.Router.For` (exact match, glob match, no match fallback, empty URL)
-- [ ] Integration test: two-backend config, verify correct backend selected per URL
-
-**Key files:** `internal/scmrouter/`, `internal/config/config.go`,
-`internal/controller/controller.go`, `cmd/robodev/main.go`
+- [ ] Add `tournamentCoordinator` field + `WithTournament` option to `Reconciler`
+- [ ] Wire into `ProcessTicket`: detect tournament-eligible tasks (label or profile flag),
+  launch N parallel jobs, wait for results, select winner via judge, cancel losers
+- [ ] Initialise `tournament.Coordinator` in `cmd/robodev/main.go` when
+  `config.CompetitiveExecution.Enabled`
 
 ---
-
-### 23. Skills, Subagents, and Per-Task MCP Plugins ✅
-
-**Priority:** Medium
-**Scope:** Small–Medium (3–4 files)
-**Dependencies:** Claude Code engine (`pkg/engine/claudecode/`)
-
-- [x] Add `SkillConfig` struct + `Skills []SkillConfig` to `ClaudeCodeEngineConfig` in
-  `internal/config/config.go`. Both `path` (bundled on image) and `inline` modes supported.
-- [x] Wire skills into `BuildExecutionSpec` via `SkillEnvVars()`: inline skills are
-  base64-encoded into `CLAUDE_SKILL_INLINE_<NAME>`; path skills use `CLAUDE_SKILL_PATH_<NAME>`.
-  `setup-claude.sh` decodes and writes them to `~/.claude/skills/<name>.md` at startup.
-- [x] Add `MCPServers []string` to `TaskProfileConfig` — field added for operator config;
-  full runtime merging with the workspace MCP config is tracked as a separate task.
-- [x] Unit tests for `SkillEnvVars` (inline, path, multi-skill, empty, encoding round-trip)
-  and skill env var injection tests in `engine_test.go`.
-
-**Pending (integration test + MCP merging):**
-- [ ] Integration test: run a job with skills configured, verify `~/.claude/skills/*.md` appear
-- [ ] Per-profile MCP server merging: extend `setup-claude.sh` to append profile servers to
-  the workspace MCP config when `ROBODEV_MCP_SERVERS` env var is set
-
-**Key files:** `internal/config/config.go`, `pkg/engine/claudecode/skills.go`,
-`pkg/engine/claudecode/engine.go`, `docker/engine-claude-code/setup-claude.sh`,
-`cmd/robodev/main.go`
-
----
-
-## 2. Active Integration — Wire the Scaffolded Features In
-
-Five packages are fully scaffolded (types, logic, unit tests, integration tests) but not
-yet wired into the live controller. PRM and Memory are already integrated and serve as
-the reference pattern.
-
-**Reference pattern** (already done for PRM and Memory):
-1. Add field + functional option to `Reconciler`
-2. Wire into the appropriate lifecycle hook (`ProcessTicket`, `handleJobFailed`, etc.)
-3. Initialise in `cmd/robodev/main.go` behind a config flag
-4. E2E test
-
-### Controller Wiring Checklist
-
-- [ ] Add `calibrator`, `analyser`, `intelligentSelector`, `estimator`, `tournamentCoordinator` fields to `Reconciler`
-- [ ] Add functional options: `WithCalibrator`, `WithDiagnosis`, `WithRouting`, `WithEstimator`, `WithTournament`
-- [ ] Wire estimator into `ProcessTicket` — run prediction before approval gate, surface in `HumanQuestion`
-- [ ] Wire routing — replace `DefaultEngineSelector` with `IntelligentSelector` when `config.Routing.Enabled`
-- [ ] Wire diagnosis into `handleJobFailed` — run before retry/fallback decision, use enriched prompt
-- [ ] Wire calibrator recording into `handleJobComplete`/`handleJobFailed`
-- [ ] Wire tournament coordinator into `ProcessTicket` for tournament-eligible tasks
-
-### Main Entrypoint Wiring Checklist
-
-- [ ] Initialise `watchdog.Calibrator` when `config.ProgressWatchdog.AdaptiveCalibration.Enabled`
-- [ ] Initialise `diagnosis.Analyser` when `config.Diagnosis.Enabled`
-- [ ] Initialise `routing.IntelligentSelector` + `routing.MemoryFingerprintStore` when `config.Routing.Enabled`
-- [ ] Initialise `estimator.Predictor` + `estimator.MemoryEstimatorStore` when `config.Estimator.Enabled`
-- [ ] Initialise `tournament.Coordinator` when `config.CompetitiveExecution.Enabled`
 
 ### PRM Hint File Writer
 
-The PRM already decides to write hints; the actual file delivery to the agent pod is not
-yet implemented.
+The PRM already scores tool calls and decides to write hints; the actual file delivery to
+the agent pod is not yet implemented. The agent's `PostToolUse` hook reads
+`/workspace/.robodev-hint.md` if it exists.
 
 - [ ] Create volume writer that accesses the shared workspace PVC
 - [ ] Write `HintContent` to `/workspace/.robodev-hint.md` (or configured `hint_file_path`)
 - [ ] Handle concurrent writes (multiple PRM evaluations for the same TaskRun)
-- [ ] Clean up hint files on task completion
+- [ ] Clean up hint file on task completion
+
+**Key files:** `internal/prm/`, `internal/controller/controller.go`
+
+---
 
 ### Persistence Layer
 
-Replace in-memory stores with durable persistence.
+All learning stores currently use in-memory backends — routing fingerprints, cost
+predictions, and calibrator observations are lost on controller restart.
 
-- [ ] Implement `routing.SQLiteFingerprintStore` (reuse memory's SQLite DB)
-- [ ] Implement `estimator.SQLiteEstimatorStore` (reuse memory's SQLite DB)
-- [ ] Persist calibrator observations (SQLite table)
-- [ ] Verify `memory.SQLiteStore` handles concurrent writes, migration idempotency, corruption recovery
-- [ ] Test data survives controller restarts
+- [ ] `routing.SQLiteFingerprintStore` — reuse memory's SQLite DB and schema pattern
+- [ ] `estimator.SQLiteEstimatorStore` — ditto
+- [ ] Persist calibrator observations in a SQLite table
+- [ ] Verify `memory.SQLiteStore` handles concurrent writes, migration idempotency, and
+  corruption recovery
+- [ ] Confirm data survives controller restarts (integration test)
 
-### LLM Integration (V2 upgrades)
+**Key files:** `internal/routing/`, `internal/estimator/`, `internal/watchdog/`
+
+---
+
+### LLM Integration — V2 Upgrades
 
 Replace rule-based heuristics with LLM-powered reasoning. `internal/llm/` is complete —
-this is prompt engineering work.
+this is prompt engineering + integration work.
 
 - [ ] **PRM V2**: scoring prompt — given recent tool calls, rate productivity 1–10 with
-  reasoning. Iterate on real agent transcripts until reliable.
-- [ ] **Memory V2**: extraction prompt — given TaskRun data, extract structured facts.
-  Handle empty results, hallucinated facts, duplicate knowledge.
+  reasoning; iterate on real agent transcripts until reliable
+- [ ] **Memory V2**: extraction prompt — given TaskRun data, extract structured facts;
+  handle empty results, hallucinated facts, duplicates
 - [ ] **Diagnosis V2**: classification prompt — given failure transcript, classify failure
-  mode and generate prescription. Must resist prompt injection from agent output.
-- [ ] **Tournament Judge**: judging prompt — given N diffs, select best with reasoning.
-  Test with real side-by-side diffs.
-- [ ] Rate limiting for LLM scoring calls (avoid overwhelming the API during active TaskRuns)
+  mode and generate prescription; must resist prompt injection from agent output
+- [ ] **Tournament Judge**: judging prompt — given N diffs, select best with reasoning;
+  test with real side-by-side diffs
+- [ ] Rate limiting for LLM scoring calls (avoid overwhelming the API during active jobs)
+
+---
 
 ### Security Hardening
 
-- [ ] PRM hint file path — verify path traversal is impossible (`../` in configured path)
+- [ ] PRM hint file path — verify `../` path traversal is impossible in configured path
 - [ ] Memory graph tenant isolation — adversarial tests: tenant A cannot read tenant B's facts
-- [ ] Diagnosis templates — verify agent output cannot escape templates into injected prompts
+- [ ] Diagnosis templates — verify agent output cannot escape into injected retry prompts
 - [ ] Tournament judge prompt — verify candidate diffs cannot inject instructions into the judge
 - [ ] LLM scoring prompts — verify agent stream events cannot manipulate PRM scores
 - [ ] Config validation — reject negative thresholds, path traversal in file paths
 
+---
+
 ### End-to-End Tests
 
 - [ ] PRM with live Claude Code agent — verify scoring and interventions fire at correct thresholds
-- [ ] Memory across 50+ tasks — verify accumulation, decay, and prompt injection
-- [ ] Adaptive watchdog for 15+ tasks — verify calibration reduces false positives
+- [ ] Memory across 50+ tasks — verify accumulation, decay, and prompt injection resistance
+- [ ] Adaptive watchdog across 15+ tasks — verify calibration reduces false positives
 - [ ] Diagnosis on intentionally failing tasks — correct classification, enriched retry
-- [ ] Routing across 20+ tasks on 3 engines — verify convergence to optimal selection
+- [ ] Routing across 20+ tasks on 3 engines — verify convergence to optimal engine selection
 - [ ] Cost estimator — validate predictions against actuals within 2×
 - [ ] 3-engine tournament on a real GitHub issue — verify judge selects best solution
-- [ ] All 7 features enabled simultaneously — no conflicts or race conditions
+- [ ] All features enabled simultaneously — no conflicts or race conditions
 
 ---
 
-## 3. High-Priority Upcoming
+## 2. High-Priority Upcoming
 
 ---
 
@@ -236,12 +124,12 @@ this is prompt engineering work.
 
 **Priority:** High
 **Scope:** Large (10+ files)
-**Dependencies:** SCM backends (already built), TaskRun store, controller reconciler
+**Dependencies:** SCM backends (built), TaskRun store (built), controller reconciler
 
-After RoboDev opens a pull/merge request, reviewers (human and AI agents — CodeRabbit,
+After RoboDev opens a pull/merge request, reviewers (human and AI — CodeRabbit,
 Copilot Review, Gemini Code Assist) may leave comments. This feature enables RoboDev to
-monitor those comments and create targeted follow-up jobs to address actionable feedback,
-turning a single-pass agent into a review-responsive loop.
+monitor those comments and spawn follow-up jobs to address actionable feedback, turning a
+single-pass agent into a review-responsive loop.
 
 - [ ] Extend SCM plugin interface:
   - `ListReviewComments(ctx, prURL) ([]ReviewComment, error)`
@@ -251,11 +139,11 @@ turning a single-pass agent into a review-responsive loop.
 - [ ] Implement for GitLab — REST API (`/merge_requests/{iid}/notes`, discussions API)
 - [ ] New `internal/reviewpoller/` — monitors open PRs created by RoboDev (tracked in TaskRunStore)
 - [ ] Comment classifier via `internal/llm/` — ignore / informational / requires-action
-- [ ] Follow-up task generator: create new TaskRun with original description + comment context
+- [ ] Follow-up task generator: new TaskRun with original description + comment context
 - [ ] Reply-and-resolve: post acknowledgement comment, call `ResolveThread` via SCM backend
-- [ ] Config section `review_response`: `enabled`, `min_severity`, `max_follow_up_jobs`, `poll_interval_minutes`
+- [ ] Config: `review_response.enabled`, `min_severity`, `max_follow_up_jobs`, `poll_interval_minutes`
 - [ ] Integration tests with mocked SCM backends
-- [ ] E2E test: open PR → add comment → verify follow-up job created → verify thread resolved
+- [ ] E2E: open PR → add comment → verify follow-up job created → verify thread resolved
 
 ---
 
@@ -272,7 +160,7 @@ A web dashboard for real-time agent observability and control.
   read-only. Good for internal ops teams.
 - **Custom UI** — Go backend + React/Next.js. Interactive approve/cancel/retry, live
   streaming via SSE/WebSocket. More effort but purpose-built.
-- **Hybrid** — Grafana for metrics + thin custom UI for interactive actions. Best of both.
+- **Hybrid** — Grafana for metrics + thin custom UI for interactive actions.
 
 **Minimum viable features:**
 - [ ] Real-time TaskRun status view (queued, running, succeeded, failed, needs-human)
@@ -284,7 +172,8 @@ A web dashboard for real-time agent observability and control.
 
 **If custom UI:**
 - [ ] `cmd/robodev-dashboard/` — separate binary or embedded in controller
-- [ ] `/api/v1/` REST endpoints: `GET /taskruns`, `POST /taskruns/:id/approve`, `GET /taskruns/:id/stream` (SSE)
+- [ ] `/api/v1/` REST endpoints: `GET /taskruns`, `POST /taskruns/:id/approve`,
+  `GET /taskruns/:id/stream` (SSE)
 - [ ] Frontend: React + Tailwind or equivalent
 
 **If Grafana-based:**
@@ -294,18 +183,17 @@ A web dashboard for real-time agent observability and control.
 
 ---
 
-## 4. Design-First — ADR Required Before Implementation
+## 3. Design-First — ADR Required Before Implementation
 
 These items have a clear problem and rough direction but need a design document or ADR
-agreed before writing code. The scope and approach are non-trivial enough that getting
-the design wrong would be costly to undo.
+agreed before writing code.
 
 ---
 
 ### 24. Non-Standard Task Types (Analysis, Reporting, Review)
 
 **Priority:** Medium
-**Scope:** Large (requires controller, prompt builder, execution spec changes)
+**Scope:** Large (controller, prompt builder, execution spec)
 **Dependencies:** Task profiles (partially implemented), prompt builder
 
 Tasks like "review open MRs and report which need approval" do not fit the standard
@@ -314,17 +202,19 @@ as output rather than a merge request.
 
 **Design questions before implementation:**
 
-1. **Execution mode taxonomy**: `clone_push_mr` (today) | `read_only` (no git clone) | `api_read` (no workspace, just SCM API access)
-2. **Result handler taxonomy**: `open_mr` (today) | `comment_and_notify` (post summary as ticket comment + notify channels)
+1. **Execution mode taxonomy**: `clone_push_mr` (today) | `read_only` (no git clone) |
+   `api_read` (no workspace, just SCM API access)
+2. **Result handler taxonomy**: `open_mr` (today) | `comment_and_notify` (post summary as
+   ticket comment + notify channels)
 3. **Profile dispatch**: label-based (`robodev:analysis`) or story-type-based?
-4. **Prompt design**: what system prompt makes a read-only analysis task produce a well-structured summary?
+4. **Prompt design**: what system prompt makes a read-only analysis task produce a
+   well-structured summary?
 
-**Rough implementation sketch (draft only — validate design first):**
-
-- Extend `TaskProfileConfig` with `ExecutionMode string` and `ResultHandler string`
+**Rough sketch (validate design first):**
+- Extend `TaskProfileConfig` with `ExecutionMode` and `ResultHandler` fields
 - Update `BuildExecutionSpec` in all engines to skip git clone for `read_only` mode
 - Add `result_handler` dispatch in `handleJobComplete`
-- Update prompt builder to inject a different system prompt for analysis vs fix tasks
+- Update prompt builder to inject different system prompt per execution mode
 
 ---
 
@@ -334,47 +224,28 @@ as output rather than a merge request.
 **Scope:** Medium–Large
 **Dependencies:** PRM (`internal/prm/`), agentstream `Forwarder`, `internal/llm/`
 
-**What it solves that the watchdog and PRM don't:**
-
-The watchdog detects quantitative failure modes — stuck, looping, thrashing — and
-terminates. The PRM scores each tool call against productivity heuristics and nudges.
-Neither can reason about *whether the agent is pursuing the right approach*.
+The watchdog detects quantitative failure modes and terminates. The PRM scores each tool
+call and nudges. Neither can reason about *whether the agent is pursuing the right approach*.
 
 A supervisor adds LLM-based qualitative oversight: "you're correctly implementing a cache
-but the ticket asked for pagination." The agent may be passing every watchdog threshold
-while doing the wrong thing entirely.
+but the ticket asked for pagination."
 
 **Key design question — standalone package vs PRM V2:**
 
-The PRM already has the scaffolding for this: `StreamEventProcessor`, sliding window,
-hint file writer, intervention logic. The cleanest implementation is probably to extend
-the PRM's `Evaluator` with an optional LLM scoring backend (already noted as "PRM V2"
-in the I-6 integration checklist) rather than building a parallel `internal/supervisor/`
-package with duplicated infrastructure.
+The PRM already has `StreamEventProcessor`, sliding window, hint file writer, and
+intervention logic. The cleanest path is probably to extend the PRM `Evaluator` with an
+optional LLM scoring backend (PRM V2) rather than a parallel `internal/supervisor/` package.
 
 **Resolve before implementation:**
-
-1. PRM V2 extension vs standalone `internal/supervisor/` package — pick one
-2. Should the supervisor have access to the full task description + codebase context,
-   or only the recent event window?
-3. Should it be able to trigger `NeedsHuman` (ask the human) or only write hints?
-4. Anti-thrashing mechanism: how do we avoid over-correcting an agent that is actually
-   on the right track but taking an unfamiliar path?
-5. What does "severely off-track" mean precisely, and how does escalation to the watchdog
-   differ from what the PRM's escalation already does?
-
-**Rough design (if standalone — validate against PRM V2 option first):**
-
-- `SupervisorAgent` implements `StreamEventProcessor` — subscribes to agentstream events
-- Sliding window of the last N tool calls and their outcomes
-- Every M tool calls, sends window to a cheap LLM (Haiku) with a structured prompt
-- If off-track: writes steering hint to `/workspace/.robodev-hint.md`
-- If severely off-track: escalates to watchdog with diagnosis string
-- Budget-enforced via `internal/llm/` (`max_budget_usd` per supervised job)
+1. PRM V2 extension vs standalone `internal/supervisor/` — pick one
+2. Full task description + codebase context, or only recent event window?
+3. Can it trigger `NeedsHuman`, or only write hints?
+4. Anti-thrashing: how to avoid over-correcting an on-track agent?
+5. What constitutes "severely off-track" vs what PRM escalation already handles?
 
 ---
 
-## 5. Infrastructure
+## 4. Infrastructure
 
 ---
 
@@ -384,12 +255,13 @@ package with duplicated infrastructure.
 **Scope:** Large (separate repositories)
 **Dependencies:** Protobuf definitions (complete in `proto/`)
 
-Generated SDKs so third-party plugin authors don't need to implement raw gRPC.
-
 - [ ] Configure `buf.gen.yaml` for multi-language stub generation
-- [ ] **Python SDK** (`unitaryai/robodev-plugin-sdk-python`) — gRPC stubs, base classes, `scaffold`/`serve`/`test` CLI, example plugins
-- [ ] **Go SDK** (`unitaryai/robodev-plugin-sdk-go`) — gRPC stubs (separate module), hashicorp/go-plugin boilerplate, example plugins
-- [ ] **TypeScript SDK** (`unitaryai/robodev-plugin-sdk-ts`) — gRPC stubs, grpc-js wrapper, example plugins
+- [ ] **Python SDK** (`unitaryai/robodev-plugin-sdk-python`) — gRPC stubs, base classes,
+  `scaffold`/`serve`/`test` CLI, example plugins
+- [ ] **Go SDK** (`unitaryai/robodev-plugin-sdk-go`) — gRPC stubs (separate module),
+  hashicorp/go-plugin boilerplate, example plugins
+- [ ] **TypeScript SDK** (`unitaryai/robodev-plugin-sdk-ts`) — gRPC stubs, grpc-js wrapper,
+  example plugins
 - [ ] Publish SDK documentation to `docs/plugins/`
 
 ---
@@ -397,7 +269,7 @@ Generated SDKs so third-party plugin authors don't need to implement raw gRPC.
 ### 11. Documentation Site *(In Progress)*
 
 **Priority:** High
-**Framework:** MkDocs Material (selected)
+**Framework:** MkDocs Material
 
 - [x] Landing page, getting started, architecture overview, configuration reference
 - [x] Engine guides, plugin development guide, security model, deployment guides
@@ -410,9 +282,50 @@ Generated SDKs so third-party plugin authors don't need to implement raw gRPC.
 
 ---
 
-## 6. Completed
+## 5. Completed
 
 Everything below is implemented and merged.
+
+---
+
+### Near-Term Items — All Complete ✅
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 21 | Transcript Storage & Audit Log | `TranscriptSink` interface; local filesystem sink; wired into controller agentstream |
+| 22 | Multi-SCM Backend Routing | `internal/scmrouter` package; host-pattern routing; backward-compatible config |
+| 23 | Skills, Subagents & Per-Task MCP Plugins | `Skill` + `SkillEnvVars`; base64 env var delivery via `setup-claude.sh` |
+
+---
+
+### Active Integration — Phase 2 ✅
+
+Diagnosis, calibration, routing, estimator, SCM router, and transcript all wired into the
+live controller and `main.go`:
+
+| Subsystem | Status |
+|-----------|--------|
+| Causal diagnosis (item 14) | ✅ Wired — `WithDiagnosis`; enriched retry prompts in `handleJobFailed` |
+| Adaptive watchdog calibration (item 15) | ✅ Wired — `WithWatchdog` + `WithWatchdogCalibration`; `ConsumeStreamEvent` in stream reader |
+| Intelligent routing (item 16) | ✅ Wired — `WithIntelligentSelector`; `RecordOutcome` after every terminal run |
+| Predictive cost estimation (item 17) | ✅ Wired — `WithEstimator`; auto-reject in `ProcessTicket`; `RecordOutcome` after terminal run |
+| Multi-SCM routing (item 22) | ✅ Wired — `WithSCMRouter`; `cfg.SCM.Backends` array in `main.go` |
+| Transcript storage (item 21) | ✅ Wired — `WithTranscriptSink`; `Append` in stream reader; `Flush` on completion |
+| Bug fix: `launchRetryJob` | ✅ Same-engine retries were transitioning to `StateRetrying` with no new job created |
+
+---
+
+### Active Integration — Phase 1 ✅
+
+| Subsystem | Notes |
+|-----------|-------|
+| Phase 1 agent log filtering | `LoggingEventProcessor` in `agentstream/` |
+| Multi-workflow Shortcut (item 4 from post-testing plan) | `workflows:` array; per-story state resolution |
+| Code review config (item 7) | `code_review.enabled` guard in controller |
+| PRM — Real-Time Agent Coaching (item 12) | Integrated; V2 (LLM scoring) pending |
+| Episodic Memory (item 13) | Integrated; V2 (LLM extraction) pending |
+
+---
 
 ### Original 13-Item Improvements Plan — 12/13 complete
 
@@ -432,39 +345,30 @@ Everything below is implemented and merged.
 | 12 | Plugin SDKs (Python, Go, TypeScript) | ⏳ Not started |
 | 13 | Local Development Mode (Docker Compose) | ✅ |
 
-### Strategic Features — Completed
-
-| # | Feature | Notes |
-|---|---------|-------|
-| 1 | Enhanced Claude Code Engine | Structured output, tool control, model fallback |
-| 2 | Real-Time Agent Streaming | NDJSON stream-json; agentstream package |
-| 3 | Engine Fallback Chains | Ordered fallback with per-ticket override |
-| 4 | Agent Sandbox Integration | gVisor + Kata + warm pools |
-| 5 | Multi-Agent Coordination (Phase 1) | In-process Claude Code teams |
-| 6 | TDD Workflow Mode | `tdd` and `review-first` workflow modes |
-| 7 | Approval Workflows & Audit Trail | pre_start + pre_merge gates; in-memory store |
-| 8 | Local Development Mode | Docker Compose + DockerBuilder |
-| 12 | PRM — Real-Time Agent Coaching | ✅ Integrated; V2 (LLM scoring) pending |
-| 13 | Episodic Memory | ✅ Integrated; V2 (LLM extraction) pending |
-| 19 | Shortcut webhook state filtering | `WithShortcutTargetStateID` in webhook handler |
-
 ---
 
 ## Summary Table
 
 | # | Feature | Priority | Status |
 |---|---------|----------|--------|
-| 21 | Transcript Storage & Audit Log | High | Not started |
-| 22 | Multi-SCM Backend Routing | High | Not started |
-| 23 | Skills, Subagents & Per-Task MCP Plugins | Medium | Not started |
-| 14 | Causal Diagnosis (Self-Healing Retry) | High | Scaffolding complete · Integration pending |
-| 15 | Adaptive Watchdog Calibration | High | Scaffolding complete · Integration pending |
-| 16 | Engine Fingerprinting + Routing | Medium | Scaffolding complete · Integration pending |
-| 17 | Predictive Cost Estimation | Medium | Scaffolding complete · Integration pending |
-| 18 | Competitive Execution (Tournament) | Medium | Scaffolding complete · Integration pending |
+| — | Tournament coordinator wiring | High | Not started |
+| — | PRM hint file writer | High | Not started |
+| — | SQLite persistence (routing, estimator, calibrator) | Medium | Not started |
+| — | LLM V2 upgrades (PRM, memory, diagnosis, judge) | Medium | Not started |
+| — | Security hardening | High | Not started |
+| — | E2E test suite | High | Not started |
 | 20 | PR/MR Comment Response | High | Not started |
 | 10 | Agent Dashboard | High | Not started |
-| 24 | Non-Standard Task Types | Medium | Not started — design doc required |
-| 25 | Supervisor Agent / PRM V2 | Medium | Not started — design doc required |
+| 24 | Non-Standard Task Types | Medium | Design doc required |
+| 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | Not started |
 | 11 | Documentation Site | High | **In progress** |
+| 21 | Transcript Storage & Audit Log | High | ✅ Complete |
+| 22 | Multi-SCM Backend Routing | High | ✅ Complete |
+| 23 | Skills, Subagents & Per-Task MCP Plugins | Medium | ✅ Complete |
+| 14 | Causal Diagnosis (Self-Healing Retry) | High | ✅ Complete |
+| 15 | Adaptive Watchdog Calibration | High | ✅ Complete |
+| 16 | Engine Fingerprinting + Routing | Medium | ✅ Complete |
+| 17 | Predictive Cost Estimation | Medium | ✅ Complete |
+| 18 | Competitive Execution (Tournament) | Medium | Scaffolding ✅ · Wiring pending |
+| 19 | Shortcut webhook state filtering | Low | ✅ Complete |

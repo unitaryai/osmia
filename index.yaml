@@ -2,6 +2,27 @@ apiVersion: v1
 entries:
   robodev:
   - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-03-05T18:23:53.362619117Z"
+    description: A Kubernetes-native AI coding agent harness
+    digest: f5e19de43b9635da8e5e885d0834f164584e1697d4ccc74be3e06f4b8bfc4f9f
+    home: https://github.com/unitaryai/robodev
+    keywords:
+    - ai
+    - coding-agent
+    - kubernetes
+    - automation
+    - claude-code
+    maintainers:
+    - name: RoboDev Authors
+    name: robodev
+    sources:
+    - https://github.com/unitaryai/robodev
+    type: application
+    urls:
+    - https://github.com/unitaryai/RoboDev/releases/download/robodev-0.2.0/robodev-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v2
     appVersion: 0.1.0
     created: "2026-03-05T16:18:44.183616266Z"
     description: A Kubernetes-native AI coding agent harness
@@ -22,4 +43,4 @@ entries:
     urls:
     - https://github.com/unitaryai/RoboDev/releases/download/robodev-0.1.0/robodev-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-05T16:18:44.1836294Z"
+generated: "2026-03-05T18:23:53.362632361Z"

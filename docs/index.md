@@ -78,11 +78,11 @@ RoboDev goes beyond basic orchestration with integrated intelligence systems tha
 | **[Real-Time Agent Coaching (PRM)](concepts/prm.md)** | **Active** | Scores agent productivity at each tool call and intervenes with guidance before problems escalate |
 | **[Episodic Memory](concepts/memory.md)** | **Active** | Accumulates knowledge across all tasks — prior failures, repo quirks, and engine strengths feed into future prompts |
 | **[LLM Abstraction](concepts/llm.md)** | **Active** | DSPy-inspired typed signatures, composable modules, and budget-aware LLM calls for all subsystems |
-| **Causal Diagnosis** | Scaffolded | Classifies why a task failed and generates targeted corrective instructions for retry |
-| **Adaptive Watchdog** | Scaffolded | Learns what "normal" looks like per repo/engine/task type and adjusts anomaly thresholds |
-| **Intelligent Routing** | Scaffolded | Routes tasks to the engine most likely to succeed based on historical data |
-| **Cost Estimation** | Scaffolded | Predicts cost and duration before launch — "Predicted: $12-18, 45-90 min" |
-| **Competitive Execution** | Scaffolded | Runs multiple engines in parallel, judges results, selects the best solution |
+| **Causal Diagnosis** | **Active** | Classifies why a task failed and generates targeted corrective instructions for retry |
+| **Adaptive Watchdog** | **Active** | Learns what "normal" looks like per repo/engine/task type and adjusts anomaly thresholds |
+| **Intelligent Routing** | **Active** | Routes tasks to the engine most likely to succeed based on historical data |
+| **Cost Estimation** | **Active** | Predicts cost and duration before launch — "Predicted: $12-18, 45-90 min" |
+| **Competitive Execution** | **Active** | Runs multiple engines in parallel, judges results, selects the best solution |
 
 ## Project Layout
 

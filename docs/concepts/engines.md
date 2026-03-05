@@ -84,9 +84,7 @@ Different engines have different cost profiles depending on the underlying model
 
 Use `max_cost_per_job` in your guard rails to cap spending per task regardless of engine.
 
-## Intelligent Routing (Coming Soon)
-
-> **Status:** Scaffolding complete, integration pending. See `docs/roadmap.md` Phase I.
+## Intelligent Routing
 
 RoboDev is building an intelligent task routing system (`internal/routing/`) that replaces static fallback chains with data-driven engine selection. Instead of always trying `claude-code → cline → aider` in order, the router will learn which engine is best for each combination of task type, repo language, repo size, and complexity.
 
@@ -99,9 +97,7 @@ RoboDev is building an intelligent task routing system (`internal/routing/`) tha
 
 This will be transparent — Prometheus metrics will show which engine is being selected and why. Cold-start behaviour falls back to the static fallback chain until enough data accumulates (minimum 5 outcomes per engine).
 
-## Competitive Execution / Tournaments (Coming Soon)
-
-> **Status:** Scaffolding complete, integration pending. See `docs/roadmap.md` Phase I.
+## Competitive Execution / Tournaments
 
 For high-value tasks, RoboDev will be able to launch multiple engines in parallel (a "tournament"), have a judge compare the results, and select the best solution. This uses genuinely different engines (Claude Code vs Aider vs Cline) running in isolated git worktrees.
 

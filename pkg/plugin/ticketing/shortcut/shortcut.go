@@ -370,39 +370,6 @@ func findStateID(workflows []scWorkflow, name string) (int64, error) {
 		name, strings.Join(available, ", "))
 }
 
-// findStateIDInSameWorkflow finds the workflow containing anchorStateID and
-// then searches for a state matching name (case-insensitive) within that same
-// workflow. This ensures that trigger and in-progress states are always from
-// the same workflow, which is required by the Shortcut API.
-func findStateIDInSameWorkflow(workflows []scWorkflow, anchorStateID int64, name string) (int64, error) {
-	nameLower := strings.ToLower(name)
-	for _, wf := range workflows {
-		var anchorFound bool
-		for _, state := range wf.States {
-			if state.ID == anchorStateID {
-				anchorFound = true
-				break
-			}
-		}
-		if !anchorFound {
-			continue
-		}
-		// Found the workflow containing the trigger state; search for the target name.
-		for _, state := range wf.States {
-			if strings.ToLower(state.Name) == nameLower {
-				return state.ID, nil
-			}
-		}
-		var available []string
-		for _, state := range wf.States {
-			available = append(available, fmt.Sprintf("%q", state.Name))
-		}
-		return 0, fmt.Errorf("no state named %q in workflow %q; states in this workflow: %s",
-			name, wf.Name, strings.Join(available, ", "))
-	}
-	return 0, fmt.Errorf("could not find workflow containing trigger state ID %d", anchorStateID)
-}
-
 // resolveMemberID fetches all members and finds the one whose mention_name
 // matches b.ownerMentionName, populating b.ownerMemberID.
 func (b *ShortcutBackend) resolveMemberID(ctx context.Context) error {

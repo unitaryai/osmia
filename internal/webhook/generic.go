@@ -182,10 +182,7 @@ func validateGenericHMACSignature(body []byte, sigHeader, secret string) bool {
 		return false
 	}
 
-	sigHex := sigHeader
-	if strings.HasPrefix(sigHex, "sha256=") {
-		sigHex = sigHex[len("sha256="):]
-	}
+	sigHex := strings.TrimPrefix(sigHeader, "sha256=")
 
 	sig, err := hex.DecodeString(sigHex)
 	if err != nil {

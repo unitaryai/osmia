@@ -152,9 +152,10 @@ func TestCoordinator_FullLifecycle(t *testing.T) {
 	assert.Equal(t, StateCompeting, tournament.State)
 
 	// Complete 2 of 3 candidates.
-	c.OnCandidateComplete(ctx, "t-1", &CandidateResult{
+	_, err = c.OnCandidateComplete(ctx, "t-1", &CandidateResult{
 		TaskRunID: "tr-1", Engine: "claude-code", Success: true, Cost: 2.0, Duration: 5 * time.Minute,
 	})
+	require.NoError(t, err)
 	_, err = c.OnCandidateComplete(ctx, "t-1", &CandidateResult{
 		TaskRunID: "tr-2", Engine: "aider", Success: true, Cost: 0.8, Duration: 3 * time.Minute,
 	})
@@ -190,7 +191,8 @@ func TestCoordinator_SelectWinner_InvalidState(t *testing.T) {
 	ctx := context.Background()
 	cfg := TournamentConfig{CandidateCount: 2}
 
-	c.StartTournament(ctx, "t-1", "ticket-1", []string{"tr-1", "tr-2"}, cfg)
+	_, err := c.StartTournament(ctx, "t-1", "ticket-1", []string{"tr-1", "tr-2"}, cfg)
+	require.NoError(t, err)
 
 	// Cannot select winner while still competing.
 	err := c.SelectWinner(ctx, "t-1", "tr-1")
@@ -203,7 +205,8 @@ func TestCoordinator_CancelTournament(t *testing.T) {
 	ctx := context.Background()
 	cfg := TournamentConfig{CandidateCount: 2}
 
-	c.StartTournament(ctx, "t-1", "ticket-1", []string{"tr-1", "tr-2"}, cfg)
+	_, err := c.StartTournament(ctx, "t-1", "ticket-1", []string{"tr-1", "tr-2"}, cfg)
+	require.NoError(t, err)
 
 	err := c.CancelTournament(ctx, "t-1")
 	require.NoError(t, err)

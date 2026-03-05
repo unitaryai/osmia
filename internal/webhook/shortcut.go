@@ -138,10 +138,7 @@ func validateShortcutSignature(body []byte, sigHeader, secret string) bool {
 	}
 
 	// Shortcut may prefix with "sha256=" or send the hex directly.
-	sigHex := sigHeader
-	if strings.HasPrefix(sigHex, "sha256=") {
-		sigHex = sigHex[len("sha256="):]
-	}
+	sigHex := strings.TrimPrefix(sigHeader, "sha256=")
 
 	sig, err := hex.DecodeString(sigHex)
 	if err != nil {

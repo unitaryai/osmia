@@ -14,14 +14,6 @@ func validateNonNegativeFloat(name string, v float64) error {
 	return nil
 }
 
-// validatePositiveInt returns an error if v <= 0.
-func validatePositiveInt(name string, v int) error {
-	if v <= 0 {
-		return fmt.Errorf("%s must be positive, got %d", name, v)
-	}
-	return nil
-}
-
 // validateFraction returns an error if v is not in [0.0, 1.0].
 func validateFraction(name string, v float64) error {
 	if v < 0.0 || v > 1.0 {

@@ -34,9 +34,6 @@ const (
 	// configMountPath is where the configuration volume is mounted.
 	configMountPath = "/config"
 
-	// mcpConfigPath is the path to the MCP server configuration baked into the image.
-	mcpConfigPath = "/etc/claude-code/mcp.json"
-
 	// apiKeySecretName is the Kubernetes Secret containing the Anthropic API key.
 	apiKeySecretName = "robodev-anthropic-key"
 

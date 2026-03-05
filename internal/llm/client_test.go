@@ -69,7 +69,7 @@ func TestAnthropicClientComplete(t *testing.T) {
 func TestAnthropicClientAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error": {"type": "invalid_request", "message": "bad input"}}`))
+		_, _ = w.Write([]byte(`{"error": {"type": "invalid_request", "message": "bad input"}}`))
 	}))
 	defer server.Close()
 

@@ -22,7 +22,7 @@ func testLogger() *slog.Logger {
 }
 
 func seedSecrets(client *fake.Clientset, namespace string) {
-	client.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
+	_, _ = client.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "api-keys", Namespace: namespace},
 		Data: map[string][]byte{
 			"github-token": []byte("ghp_abc123"),
@@ -30,7 +30,7 @@ func seedSecrets(client *fake.Clientset, namespace string) {
 		},
 	}, metav1.CreateOptions{})
 
-	client.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
+	_, _ = client.CoreV1().Secrets(namespace).Create(context.Background(), &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "db-creds", Namespace: namespace},
 		Data: map[string][]byte{
 			"password": []byte("s3cret"),

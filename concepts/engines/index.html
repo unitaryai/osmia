@@ -782,10 +782,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#intelligent-routing-coming-soon" class="md-nav__link">
+  <a href="#intelligent-routing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Intelligent Routing (Coming Soon)
+        Intelligent Routing
       
     </span>
   </a>
@@ -793,10 +793,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#competitive-execution-tournaments-coming-soon" class="md-nav__link">
+  <a href="#competitive-execution-tournaments" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Competitive Execution / Tournaments (Coming Soon)
+        Competitive Execution / Tournaments
       
     </span>
   </a>
@@ -1844,10 +1844,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#intelligent-routing-coming-soon" class="md-nav__link">
+  <a href="#intelligent-routing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Intelligent Routing (Coming Soon)
+        Intelligent Routing
       
     </span>
   </a>
@@ -1855,10 +1855,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#competitive-execution-tournaments-coming-soon" class="md-nav__link">
+  <a href="#competitive-execution-tournaments" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Competitive Execution / Tournaments (Coming Soon)
+        Competitive Execution / Tournaments
       
     </span>
   </a>
@@ -2062,10 +2062,7 @@
 </tbody>
 </table>
 <p>Use <code>max_cost_per_job</code> in your guard rails to cap spending per task regardless of engine.</p>
-<h2 id="intelligent-routing-coming-soon">Intelligent Routing (Coming Soon)<a class="headerlink" href="#intelligent-routing-coming-soon" title="Permanent link">&para;</a></h2>
-<blockquote>
-<p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>
-</blockquote>
+<h2 id="intelligent-routing">Intelligent Routing<a class="headerlink" href="#intelligent-routing" title="Permanent link">&para;</a></h2>
 <p>RoboDev is building an intelligent task routing system (<code>internal/routing/</code>) that replaces static fallback chains with data-driven engine selection. Instead of always trying <code>claude-code → cline → aider</code> in order, the router will learn which engine is best for each combination of task type, repo language, repo size, and complexity.</p>
 <p><strong>How it works:</strong></p>
 <ol>
@@ -2075,10 +2072,7 @@
 <li>An epsilon-greedy exploration factor (default 10%) ensures the system occasionally tries non-optimal engines to discover new strengths.</li>
 </ol>
 <p>This will be transparent — Prometheus metrics will show which engine is being selected and why. Cold-start behaviour falls back to the static fallback chain until enough data accumulates (minimum 5 outcomes per engine).</p>
-<h2 id="competitive-execution-tournaments-coming-soon">Competitive Execution / Tournaments (Coming Soon)<a class="headerlink" href="#competitive-execution-tournaments-coming-soon" title="Permanent link">&para;</a></h2>
-<blockquote>
-<p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>
-</blockquote>
+<h2 id="competitive-execution-tournaments">Competitive Execution / Tournaments<a class="headerlink" href="#competitive-execution-tournaments" title="Permanent link">&para;</a></h2>
 <p>For high-value tasks, RoboDev will be able to launch multiple engines in parallel (a "tournament"), have a judge compare the results, and select the best solution. This uses genuinely different engines (Claude Code vs Aider vs Cline) running in isolated git worktrees.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>

@@ -5,7 +5,7 @@ hide:
 
 # RoboDev
 
-**Kubernetes-native AI coding agent harness.** Orchestrate Claude Code, OpenAI Codex, Aider, OpenCode, and Cline to perform maintenance and development tasks on your codebases — autonomously, at scale, with enterprise-grade guard rails.
+**Kubernetes-native AI coding agent harness.** Orchestrate Claude Code, OpenAI Codex, Aider, and OpenCode to perform maintenance and development tasks on your codebases — autonomously, at scale, with enterprise-grade guard rails.
 
 <div class="grid cards" markdown>
 
@@ -61,7 +61,7 @@ RoboDev watches your issue tracker for labelled tickets, validates them against 
 
 | Feature | Description |
 |---|---|
-| **Multi-engine** | Claude Code, Codex, Aider, OpenCode, Cline — with automatic fallback chains |
+| **Multi-engine** | Claude Code, Codex, Aider, OpenCode — with automatic fallback chains |
 | **Defence in depth** | Six independent guard rail layers prevent unsafe agent behaviour |
 | **Plugin architecture** | Extend ticketing, notifications, secrets, SCM, approvals, and reviews via gRPC |
 | **Kubernetes-native** | Operator pattern with leader election, Karpenter integration, and KEDA scaling |
@@ -118,7 +118,7 @@ docker/                   — Dockerfiles for the controller and each engine
   engine-claude-code/     — Claude Code engine container image
   engine-codex/           — OpenAI Codex engine container image
   engine-opencode/        — OpenCode engine container image
-  engine-cline/           — Cline engine container image
+  engine-cline/           — Cline engine container image (community template)
 examples/                 — Example configurations and plugin implementations
   github-slack/           — GitHub Issues + Slack notification example values
   gitlab-teams/           — GitLab Issues + Microsoft Teams example values

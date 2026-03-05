@@ -33,6 +33,7 @@ graph TD
 | **MCP support** | Yes | No | No | No | Yes |
 | **Repo context file** | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
 | **Best for** | General-purpose, large refactors | OpenAI shops | Lightweight edits, cost-sensitive | BYOM flexibility | Bedrock, MCP integration |
+| **Pre-built image** | ✅ | ✅ | ✅ | ✅ | ❌ Community template |
 
 ## What "Hook-Based" vs "Prompt-Based" Guard Rails Means
 
@@ -52,10 +53,13 @@ You can configure a fallback chain so that if one engine fails, the next is trie
 ```yaml
 engines:
   default: claude-code
-  fallback_engines: [cline, aider]
+  fallback_engines: [codex, aider]
 ```
 
-The controller tries `claude-code` first. If it fails, it tries `cline`. If that also fails, it tries `aider`. This is useful for resilience against API outages or rate limits.
+The controller tries `claude-code` first. If it fails, it tries `codex`. If that also fails, it tries `aider`. This is useful for resilience against API outages or rate limits.
+
+!!! note
+    Do not use `cline` in a fallback chain. No pre-built Cline image is published — see [Engine Reference](../plugins/engines.md#cline) for details.
 
 ## Per-Task Engine Override
 

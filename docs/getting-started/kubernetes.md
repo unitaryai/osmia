@@ -211,14 +211,14 @@ RoboDev supports multiple AI coding agents. See [Engines Explained](../concepts/
 | **Codex** | OpenAI-ecosystem shops | Prompt-based (advisory) |
 | **Aider** | Lightweight edits, cost-sensitive workloads | Prompt-based (advisory) |
 | **OpenCode** | BYOM (Anthropic/OpenAI/Google) | Prompt-based (advisory) |
-| **Cline** | AWS Bedrock, MCP support | Prompt-based (advisory) |
+| **Cline** | AWS Bedrock, MCP support *(community template — no pre-built image)* | Prompt-based (advisory) |
 
 To switch the default engine:
 
 ```yaml
 config:
   engines:
-    default: codex    # or "aider", "opencode", "cline"
+    default: codex    # or "aider", "opencode"
 ```
 
 ## Webhook Setup (Optional)

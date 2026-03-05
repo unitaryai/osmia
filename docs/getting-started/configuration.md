@@ -55,7 +55,7 @@ The ticketing backend is the primary input source. The controller polls it every
 engines:
   default: claude-code     # Default engine for all tasks
   fallback_engines:        # Tried in order if the default fails
-    - cline
+    - codex
     - aider
   claude-code:
     auth:
@@ -72,12 +72,7 @@ engines:
     auth:
       method: api_key
       api_key_secret: "robodev-anthropic-key"
-  cline:
-    provider: anthropic    # "anthropic", "openai", "google", "bedrock"
-    mcp_enabled: true
-    auth:
-      method: api_key
-      api_key_secret: "robodev-anthropic-key"
+  # cline: no pre-built image is published yet — see Engine Reference.
 ```
 
 See [Engine Comparison](../plugins/engines.md) for detailed per-engine configuration.

@@ -75,7 +75,7 @@ An engine is an AI coding tool that RoboDev can run. The controller doesn't writ
 | **Codex** | OpenAI's coding agent |
 | **Aider** | Open-source AI pair programming tool |
 | **OpenCode** | Terminal-based, supports multiple LLM providers |
-| **Cline** | CLI agent with MCP and AWS Bedrock support |
+| **Cline** | MCP and AWS Bedrock support *(community template — no pre-built image)* |
 
 You configure a default engine and optional fallbacks. If one engine fails, the next is tried automatically. See [Engines Explained](engines.md) for a comparison.
 

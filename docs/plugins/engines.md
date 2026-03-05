@@ -376,14 +376,17 @@ OpenCode does not support a hooks system. Guard rails are appended directly to t
 
 ### Cline
 
-Cline is a CLI-based AI coding agent with optional MCP (Model Context Protocol) support. RoboDev runs it in headless mode inside Kubernetes Jobs.
+!!! warning "Community template — no pre-built image"
+    Cline is a VS Code extension with no published headless CLI. The Go engine implementation (`pkg/engine/cline/`) and the Dockerfile (`docker/engine-cline/`) are provided as a community contribution template. **No pre-built container image is published for Cline.** Configuring `cline` as your engine will result in an image pull failure until a working headless integration is contributed. See [Contributing](../contributing.md) if you want to help.
+
+Cline is an AI coding agent with optional MCP (Model Context Protocol) and AWS Bedrock support. When a headless CLI becomes available, RoboDev can run it inside Kubernetes Jobs using the implementation in `pkg/engine/cline/`.
 
 **Package:** `pkg/engine/cline/`
 
 | Property | Value |
 |---|---|
 | Engine name | `cline` |
-| Default image | `ghcr.io/unitaryai/engine-cline:latest` |
+| Default image | `ghcr.io/unitaryai/engine-cline:latest` *(not yet published)* |
 | Command | `cline --headless --task <prompt> --output-format json` |
 | Interface version | `1` |
 
@@ -441,8 +444,9 @@ The controller selects engines in this order:
 | Repository context file | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
 | Heartbeat telemetry | Via PostToolUse hook | Not built-in | Not built-in | Not built-in | Not built-in |
 | MCP server support | Yes | No | No | No | Yes (via `--mcp` flag) |
+| Pre-built image | ✅ | ✅ | ✅ | ✅ | ❌ Community template |
 
-**Recommendation:** Use Claude Code as the default engine for its superior guard rail enforcement via hooks and built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline supports AWS Bedrock and MCP integration.
+**Recommendation:** Use Claude Code as the default engine for its superior guard rail enforcement via hooks and built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline is a community template without a published image.
 
 ## Writing a Custom Engine
 

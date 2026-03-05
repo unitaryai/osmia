@@ -2,7 +2,7 @@
 
 **Kubernetes-native AI coding agent harness with a real-time intelligence layer.**
 
-RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode, Cline) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
+RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
 
 ![RoboDev Architecture](docs/images/RoboDev-architecture.png)
 
@@ -31,7 +31,7 @@ An adaptive **watchdog** detects repetitive tool-call loops, cost-velocity spike
 
 ## Core Features
 
-- **5 execution engines** — Claude Code, OpenAI Codex, Aider, OpenCode, and Cline; extensible via gRPC plugin interface
+- **4 execution engines** — Claude Code, OpenAI Codex, Aider, and OpenCode; extensible via gRPC plugin interface
 - **Event-driven ingestion** — Webhooks for GitHub, GitLab, Slack, Shortcut, and generic sources with HMAC signature validation
 - **Plugin architecture** — Ticketing, notifications, secrets, SCM, and review backends are all swappable; write plugins in any language with gRPC support
 - **Human-in-the-loop** — Approval gates at `pre_start` and `pre_merge` hold execution until a human approves via Slack
@@ -99,7 +99,7 @@ All external integrations are pluggable. Built-in plugins are compiled into the 
 | Secrets | K8s Secrets, HashiCorp Vault | AWS SM, 1Password |
 | SCM | GitHub, GitLab | Bitbucket |
 | Review | CodeRabbit | Custom |
-| Engine | Claude Code, Codex, Aider, OpenCode, Cline | Custom |
+| Engine | Claude Code, Codex, Aider, OpenCode | Custom |
 
 SDKs are provided for Python, Go, and TypeScript. See the [plugin docs](https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/) for details.
 

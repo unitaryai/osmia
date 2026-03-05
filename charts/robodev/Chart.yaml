@@ -2,7 +2,7 @@ apiVersion: v2
 name: robodev
 description: A Kubernetes-native AI coding agent harness
 type: application
-version: 0.1.0
+version: 0.1.1
 appVersion: "0.1.0"
 home: https://github.com/unitaryai/robodev
 sources:

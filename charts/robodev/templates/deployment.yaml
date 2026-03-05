@@ -78,6 +78,10 @@ spec:
               mountPath: /opt/robodev/plugins
               readOnly: true
             {{- end }}
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
       volumes:
         - name: config
           configMap:
@@ -85,6 +89,11 @@ spec:
         {{- if .Values.plugins }}
         - name: plugins
           emptyDir: {}
+        {{- end }}
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "robodev.fullname" . }}-data
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

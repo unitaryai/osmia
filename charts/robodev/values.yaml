@@ -126,6 +126,14 @@ pdb:
   # minAvailable: 1
   # maxUnavailable: ""
 
+# Persistence — mounts a PVC at /data for SQLite stores (memory, routing, watchdog).
+# Disabled by default; enable when using memory, routing, or estimator subsystems.
+persistence:
+  enabled: false
+  size: 1Gi
+  storageClass: ""  # leave empty to use cluster default
+  accessMode: ReadWriteOnce
+
 service:
   type: ClusterIP
 

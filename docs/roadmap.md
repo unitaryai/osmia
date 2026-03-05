@@ -1,8 +1,7 @@
 # RoboDev Feature Roadmap
 
 This document tracks what to work on next, in priority order. Completed work is
-archived at the bottom. See `docs/improvements-plan.md` for the original 13-item
-plan (12/13 complete).
+archived at the bottom.
 
 ---
 
@@ -11,61 +10,6 @@ plan (12/13 complete).
 - [ ] Not started
 - [x] Complete
 - **In Progress** — marked in the item description when actively being worked on
-
----
-
-## Current Priority Order
-
-```
-1. High-Priority Upcoming               — item 10 (dashboard); item 20 complete ✅
-2. Live-backend E2E validation          — long-running / real-GitHub items below
-3. Design-First (ADR before code)       — items 24, 25
-4. Infrastructure                       — items 9 (plugin SDKs), 11 (docs — in progress)
-```
-
----
-
-## Item 20: PR/MR Comment Response ✅ (2026-03-04)
-
-RoboDev now monitors open pull/merge requests it creates and spawns follow-up
-jobs to address actionable review feedback.
-
-**Implemented:**
-
-- `pkg/plugin/scm` — `ReviewComment` type; `ListReviewComments`, `ReplyToComment`,
-  `ResolveThread` added to the `Backend` interface
-- `pkg/plugin/scm/github` — GitHub REST implementation of the three new methods
-  (`ListReviewComments` merges review + issue comment endpoints; `ReplyToComment`
-  attempts review reply then falls back to issue comment; `ResolveThread` is a
-  no-op since GitHub REST does not support thread resolution)
-- `pkg/plugin/scm/gitlab` — GitLab REST implementation (notes endpoint;
-  discussion-aware reply; PUT `resolved: true` for thread resolution)
-- `internal/reviewpoller` — new package:
-  - `types.go` — `Classification`, `ClassifiedComment`, `TrackedPR`, `FollowUpRequest`
-  - `classifier.go` — `RuleBasedClassifier` (keyword + bot author heuristics) and
-    `LLMClassifier` (ChainOfThought with rule-based fallback)
-  - `poller.go` — background `Poller` with `Register`, `DrainFollowUps`, `Start`
-- `internal/config` — `ReviewResponseConfig` struct + validation
-- `internal/taskrun` — `ParentTicketID`, `ReviewCommentID`, `ReviewThreadID`,
-  `ReviewPRURL` fields on `TaskRun`
-- `internal/controller` — `reviewPoller` field, `WithReviewPoller` option,
-  `handleFollowUpComplete`, `processFollowUpTask`, `scmFor` helper; drain in
-  `reconcileOnce`; register in `handleJobComplete`
-- `cmd/robodev/main.go` — review response subsystem wiring
-- `tests/integration/review_response_test.go` — 9 integration tests
-
-**Configuration** (`robodev-config.yaml`):
-
-```yaml
-review_response:
-  enabled: true
-  poll_interval_minutes: 5
-  min_severity: warning        # info | warning | error
-  max_follow_up_jobs: 3        # per PR
-  reply_to_comments: true
-  resolve_threads: false       # GitLab only; no-op on GitHub REST
-  llm_classifier: false        # set true to enable LLM-backed classification
-```
 
 ---
 
@@ -228,7 +172,7 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 
 ---
 
-### 11. Documentation Site *(In Progress)*
+### 11. Documentation Site
 
 **Priority:** High
 **Framework:** MkDocs Material
@@ -236,17 +180,61 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 - [x] Landing page, getting started, architecture overview, configuration reference
 - [x] Engine guides, plugin development guide, security model, deployment guides
 - [x] Search + dark mode
+- [x] CI/CD pipeline for automatic deployment on merge to main
+- [x] `make docs-serve` / `make docs-build` targets
 - [ ] API reference (webhook endpoints, protobuf service definitions)
 - [ ] Changelog and migration guides
-- [ ] CI/CD pipeline for automatic deployment on merge to main
 - [ ] Custom domain (`docs.robodev.dev` or similar)
-- [ ] `make docs-serve` / `make docs-build` targets
 
 ---
 
 ## 5. Completed
 
 Everything below is implemented and merged.
+
+---
+
+### Item 20: PR/MR Comment Response ✅ (2026-03-04)
+
+RoboDev now monitors open pull/merge requests it creates and spawns follow-up
+jobs to address actionable review feedback.
+
+**Implemented:**
+
+- `pkg/plugin/scm` — `ReviewComment` type; `ListReviewComments`, `ReplyToComment`,
+  `ResolveThread` added to the `Backend` interface
+- `pkg/plugin/scm/github` — GitHub REST implementation of the three new methods
+  (`ListReviewComments` merges review + issue comment endpoints; `ReplyToComment`
+  attempts review reply then falls back to issue comment; `ResolveThread` is a
+  no-op since GitHub REST does not support thread resolution)
+- `pkg/plugin/scm/gitlab` — GitLab REST implementation (notes endpoint;
+  discussion-aware reply; PUT `resolved: true` for thread resolution)
+- `internal/reviewpoller` — new package:
+  - `types.go` — `Classification`, `ClassifiedComment`, `TrackedPR`, `FollowUpRequest`
+  - `classifier.go` — `RuleBasedClassifier` (keyword + bot author heuristics) and
+    `LLMClassifier` (ChainOfThought with rule-based fallback)
+  - `poller.go` — background `Poller` with `Register`, `DrainFollowUps`, `Start`
+- `internal/config` — `ReviewResponseConfig` struct + validation
+- `internal/taskrun` — `ParentTicketID`, `ReviewCommentID`, `ReviewThreadID`,
+  `ReviewPRURL` fields on `TaskRun`
+- `internal/controller` — `reviewPoller` field, `WithReviewPoller` option,
+  `handleFollowUpComplete`, `processFollowUpTask`, `scmFor` helper; drain in
+  `reconcileOnce`; register in `handleJobComplete`
+- `cmd/robodev/main.go` — review response subsystem wiring
+- `tests/integration/review_response_test.go` — 9 integration tests
+
+**Configuration** (`robodev-config.yaml`):
+
+```yaml
+review_response:
+  enabled: true
+  poll_interval_minutes: 5
+  min_severity: warning        # info | warning | error
+  max_follow_up_jobs: 3        # per PR
+  reply_to_comments: true
+  resolve_threads: false       # GitLab only; no-op on GitHub REST
+  llm_classifier: false        # set true to enable LLM-backed classification
+```
 
 ---
 
@@ -371,20 +359,21 @@ live controller and `main.go`:
 
 | # | Feature | Priority | Status |
 |---|---------|----------|--------|
+| 10 | Agent Dashboard | High | Not started |
+| 24 | Non-Standard Task Types | Medium | Design doc required |
+| 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
+| 9 | Plugin SDKs | Medium | 🚧 In progress |
+| 11 | Documentation Site | High | Partially complete |
+| — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
+| 20 | PR/MR Comment Response | High | ✅ Complete |
+| — | Cost & token usage in notifications | Low | ✅ Complete |
+| — | E2E workflow suite (fake-agent, 7 tests) | High | ✅ Complete |
+| — | E2E live-backend validation (initial 2 tests) | High | ✅ Complete |
 | — | Tournament coordinator wiring | High | ✅ Complete |
 | — | PRM hint file writer | High | ✅ Complete |
 | — | SQLite persistence (routing, estimator, calibrator) | Medium | ✅ Complete |
 | — | LLM V2 upgrades (PRM, memory, diagnosis, judge) | Medium | ✅ Complete |
 | — | Security hardening | High | ✅ Complete |
-| — | E2E workflow suite (fake-agent, 7 tests) | High | ✅ Complete |
-| — | E2E live-backend validation (initial 2 tests) | High | ✅ Complete |
-| — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
-| 20 | PR/MR Comment Response | High | ✅ Complete |
-| 10 | Agent Dashboard | High | Not started |
-| 24 | Non-Standard Task Types | Medium | Design doc required |
-| 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
-| 9 | Plugin SDKs | Medium | 🚧 In progress |
-| 11 | Documentation Site | High | **In progress** |
 | 21 | Transcript Storage & Audit Log | High | ✅ Complete |
 | 22 | Multi-SCM Backend Routing | High | ✅ Complete |
 | 23 | Skills, Subagents & Per-Task MCP Plugins | Medium | ✅ Complete |

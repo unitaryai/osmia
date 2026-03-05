@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt vet tidy clean help proto-gen proto-lint \
+.PHONY: build test lint fmt vet tidy clean help proto-gen proto-lint sdk-gen \
        docker-build docker-build-controller docker-build-engine-claude-code docker-build-engine-codex \
        docker-build-engine-opencode docker-build-engine-cline \
        docker-build-dev docker-build-dev-controller docker-build-dev-engine-claude-code docker-build-dev-engine-codex \
@@ -51,7 +51,10 @@ tidy: ## Run go mod tidy
 proto-lint: ## Lint protobuf definitions with buf
 	buf lint
 
-proto-gen: ## Generate Go code from protobuf definitions
+proto-gen: ## Generate Go code from protobuf definitions (see also: sdk-gen)
+	buf generate
+
+sdk-gen: ## Generate SDK stubs for Python and TypeScript from protobuf definitions
 	buf generate
 
 clean: ## Remove build artefacts

@@ -1,0 +1,21 @@
+{
+  "name": "@unitaryai/robodev-plugin-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for building RoboDev plugins",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "generate": "buf generate ../../proto"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.0.0",
+    "@connectrpc/connect": "^2.0.0",
+    "@connectrpc/connect-node": "^2.0.0"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.40.0",
+    "typescript": "^5.4.0"
+  }
+}

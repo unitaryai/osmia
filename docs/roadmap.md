@@ -109,33 +109,6 @@ Run with: `make e2e-live-test` (requires `make live-up` + valid secrets)
 
 ---
 
-### 20. PR/MR Comment Response (GitHub + GitLab)
-
-**Priority:** High
-**Scope:** Large (10+ files)
-**Dependencies:** SCM backends (built), TaskRun store (built), controller reconciler
-
-After RoboDev opens a pull/merge request, reviewers (human and AI — CodeRabbit,
-Copilot Review, Gemini Code Assist) may leave comments. This feature enables RoboDev to
-monitor those comments and spawn follow-up jobs to address actionable feedback, turning a
-single-pass agent into a review-responsive loop.
-
-- [ ] Extend SCM plugin interface:
-  - `ListReviewComments(ctx, prURL) ([]ReviewComment, error)`
-  - `ReplyToComment(ctx, prURL, commentID, body string) error`
-  - `ResolveThread(ctx, prURL, threadID string) error`
-- [ ] Implement for GitHub — REST API (`/pulls/{pr}/comments`, `/pulls/{pr}/reviews`)
-- [ ] Implement for GitLab — REST API (`/merge_requests/{iid}/notes`, discussions API)
-- [ ] New `internal/reviewpoller/` — monitors open PRs created by RoboDev (tracked in TaskRunStore)
-- [ ] Comment classifier via `internal/llm/` — ignore / informational / requires-action
-- [ ] Follow-up task generator: new TaskRun with original description + comment context
-- [ ] Reply-and-resolve: post acknowledgement comment, call `ResolveThread` via SCM backend
-- [ ] Config: `review_response.enabled`, `min_severity`, `max_follow_up_jobs`, `poll_interval_minutes`
-- [ ] Integration tests with mocked SCM backends
-- [ ] E2E: open PR → add comment → verify follow-up job created → verify thread resolved
-
----
-
 ### 10. Agent Dashboard (Web UI)
 
 **Priority:** High
@@ -389,7 +362,7 @@ live controller and `main.go`:
 | 9 | HashiCorp Vault Secrets Backend | ✅ |
 | 10 | Task-Scoped Secret Resolution | ✅ |
 | 11 | NetworkPolicy & Security Hardening | ✅ |
-| 12 | Plugin SDKs (Python, Go, TypeScript) | ⏳ Not started |
+| 12 | Plugin SDKs (Python, Go, TypeScript) | 🚧 In progress |
 | 13 | Local Development Mode (Docker Compose) | ✅ |
 
 ---
@@ -406,11 +379,11 @@ live controller and `main.go`:
 | — | E2E workflow suite (fake-agent, 7 tests) | High | ✅ Complete |
 | — | E2E live-backend validation (initial 2 tests) | High | ✅ Complete |
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
-| 20 | PR/MR Comment Response | High | Not started |
+| 20 | PR/MR Comment Response | High | ✅ Complete |
 | 10 | Agent Dashboard | High | Not started |
 | 24 | Non-Standard Task Types | Medium | Design doc required |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
-| 9 | Plugin SDKs | Medium | Not started |
+| 9 | Plugin SDKs | Medium | 🚧 In progress |
 | 11 | Documentation Site | High | **In progress** |
 | 21 | Transcript Storage & Audit Log | High | ✅ Complete |
 | 22 | Multi-SCM Backend Routing | High | ✅ Complete |

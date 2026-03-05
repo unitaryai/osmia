@@ -13,3 +13,18 @@ plugins:
     out: proto
     opt:
       - paths=source_relative
+  # Python stubs (generated via buf generate)
+  - remote: buf.build/protocolbuffers/python
+    out: sdk/python/src/robodev/proto
+    opt:
+      - paths=source_relative
+  - remote: buf.build/grpc/python
+    out: sdk/python/src/robodev/proto
+    opt:
+      - paths=source_relative
+  # TypeScript stubs using protobuf-es (generated via buf generate)
+  - remote: buf.build/bufbuild/es
+    out: sdk/typescript/src/proto
+    opt:
+      - target=ts
+      - paths=source_relative

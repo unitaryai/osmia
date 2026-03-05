@@ -70,6 +70,11 @@ nav:
       - Ticketing: plugins/ticketing.md
       - Notifications: plugins/notifications.md
       - Secrets: plugins/secrets.md
+      - SDKs: plugins/sdks.md
+  - API Reference:
+      - Overview: api/index.md
+      - Webhook API: api/webhooks.md
+      - Plugin gRPC API: api/plugins.md
   - Community:
       - Contributing: contributing.md
       - Code of Conduct: code-of-conduct.md

@@ -1,14 +1,13 @@
-name: Release
+name: Build and push edge images
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: read
   packages: write
-  id-token: write  # For cosign OIDC keyless signing
 
 env:
   REGISTRY: ghcr.io
@@ -19,7 +18,7 @@ env:
   ENGINE_CLINE_IMAGE: ghcr.io/${{ github.repository }}/engine-cline
 
 jobs:
-  release-controller:
+  controller:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,8 +39,7 @@ jobs:
         with:
           images: ${{ env.CONTROLLER_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=main
             type=sha
 
       - name: Build and push controller image
@@ -53,30 +51,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image with cosign (keyless)
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            cosign sign --yes "$tag"
-          done
-
-      - name: Install syft
-        uses: anchore/sbom-action/download-syft@v0
-
-      - name: Generate SBOM
-        run: |
-          VERSION_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
-          syft "$VERSION_TAG" -o cyclonedx-json > controller-sbom.json
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: controller-sbom
-          path: controller-sbom.json
-
-  release-engine-claude-code:
+  engine-claude-code:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,8 +72,7 @@ jobs:
         with:
           images: ${{ env.ENGINE_CLAUDE_CODE_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=main
             type=sha
 
       - name: Build and push engine image
@@ -110,16 +84,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image with cosign (keyless)
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            cosign sign --yes "$tag"
-          done
-
-  release-engine-codex:
+  engine-codex:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -140,8 +105,7 @@ jobs:
         with:
           images: ${{ env.ENGINE_CODEX_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=main
             type=sha
 
       - name: Build and push engine image
@@ -153,16 +117,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image with cosign (keyless)
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            cosign sign --yes "$tag"
-          done
-
-  release-engine-opencode:
+  engine-opencode:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -183,8 +138,7 @@ jobs:
         with:
           images: ${{ env.ENGINE_OPENCODE_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=main
             type=sha
 
       - name: Build and push engine image
@@ -196,16 +150,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image with cosign (keyless)
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            cosign sign --yes "$tag"
-          done
-
-  release-engine-cline:
+  engine-cline:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -226,8 +171,7 @@ jobs:
         with:
           images: ${{ env.ENGINE_CLINE_IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=main
             type=sha
 
       - name: Build and push engine image
@@ -238,12 +182,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image with cosign (keyless)
-        run: |
-          echo "${{ steps.meta.outputs.tags }}" | while read -r tag; do
-            cosign sign --yes "$tag"
-          done

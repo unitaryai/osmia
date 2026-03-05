@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-03-05
+
+### Added
+
+#### Helm Chart Persistence
+
+- New `persistence` values block — when `persistence.enabled: true`, a PVC is
+  provisioned and mounted at `/data` for SQLite stores (memory, routing, watchdog).
+  Uses the cluster default storage class; override via `persistence.storageClass`.
+- Memory and routing subsystems now survive pod restarts when persistence is enabled.
+
+#### Memory and PRM in Live Deployments
+
+- `memory` and `prm` subsystems are now enabled via `values-live-local.yaml` and
+  confirmed working end-to-end against a real kind cluster.
+- Controller now logs `memory context injected into prompt` (with fact/insight/issue
+  counts) when prior knowledge is retrieved and passed to an agent.
+- Controller logs `memory extraction completed` with node and edge counts after each
+  successful task run.
+
+#### Shortcut: Configurable Completed State
+
+- New `completed_state_name` config key for the Shortcut backend. When set, `MarkComplete`
+  transitions stories to that named state (e.g. `"Ready for Review"`) rather than
+  always using the first done-type state in the workflow.
+
+### Fixed
+
+#### Helm Chart RBAC
+
+- Added `pods/exec` with `create` verb to the controller `ClusterRole`. Previously the
+  PRM hint file injection and cleanup would fail with a 403 — this is now resolved.
+
+### Changed
+
+#### CI Workflow
+
+- Added `workflow_dispatch` trigger to the CI workflow so it can be manually run
+  against any branch without requiring a push event.
+
+### Documentation
+
+- **Configuration Reference** — expanded ticketing section with full config reference
+  for GitHub Issues, Shortcut, and Linear, including all keys and field tables.
+- **Plugins / Ticketing** — added Shortcut and Linear built-in backend sections with
+  configuration examples, behaviour tables, and permissions notes.
+- **Setup Guide: Linear + Slack** — new step-by-step guide covering API key creation,
+  team ID lookup, label setup, secrets, config, deploy, and troubleshooting.
+- **Setup Guide: Shortcut + Slack** — added `completed_state_name`, `exclude_labels`,
+  and multi-workflow tip.
+- **Roadmap** — moved Item 20 to completed section; marked documentation CI/CD items done;
+  removed stale note about intelligence subsystems being unwired.
+- Fixed broken anchor link in `index.md` pointing to the Competitive Execution section.
+
+---
+
 ### Added
 
 #### PR/MR Comment Response (Item 20)

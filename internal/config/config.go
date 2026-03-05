@@ -552,9 +552,20 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
+	cfg.applyDefaults()
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return cfg, nil
+}
+
+// applyDefaults fills in zero-value fields with sensible defaults. It is
+// called after unmarshalling so that users who omit a field get the expected
+// default rather than the Go zero value.
+func (c *Config) applyDefaults() {
+	if c.Routing.EpsilonGreedy == 0 {
+		c.Routing.EpsilonGreedy = 0.1
+	}
 }

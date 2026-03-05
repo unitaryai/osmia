@@ -39,6 +39,7 @@ guardrails:
 					MaxConcurrentJobs:     10,
 					MaxJobDurationMinutes: 60,
 				},
+				Routing: RoutingConfig{EpsilonGreedy: 0.1},
 			},
 		},
 		{
@@ -109,6 +110,7 @@ plugin_health:
 					RestartBackoff:    []int{1, 5, 30},
 					CriticalPlugins:   []string{"ticketing", "notifications"},
 				},
+				Routing: RoutingConfig{EpsilonGreedy: 0.1},
 			},
 		},
 		{

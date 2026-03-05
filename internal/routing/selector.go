@@ -41,17 +41,10 @@ func NewIntelligentSelector(
 	availableEngines []string,
 	logger *slog.Logger,
 ) *IntelligentSelector {
-	epsilon := cfg.EpsilonGreedy
-	if epsilon <= 0 {
-		epsilon = 0.1
-	}
-	cfgCopy := *cfg
-	cfgCopy.EpsilonGreedy = epsilon
-
 	return &IntelligentSelector{
 		store:            store,
 		fallback:         fallback,
-		cfg:              &cfgCopy,
+		cfg:              cfg,
 		logger:           logger,
 		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
 		availableEngines: availableEngines,

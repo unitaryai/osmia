@@ -98,6 +98,7 @@ type ShortcutBackend struct {
 	ownerMentionName    string            // mention name (e.g. "robodev"); resolved to ownerMemberID by Init
 	ownerMemberID       string            // resolved Shortcut member UUID for owner filtering
 	excludeLabels       []string
+	completedStateName  string       // if set, MarkComplete moves stories here instead of the first done-type state
 	workflows           []scWorkflow // cached at Init; used for per-story state lookups
 }
 
@@ -143,6 +144,15 @@ func WithWorkflowStateName(name string) Option {
 func WithInProgressStateName(name string) Option {
 	return func(b *ShortcutBackend) {
 		b.inProgressStateName = name
+	}
+}
+
+// WithCompletedStateName sets the workflow state name that stories are moved to
+// when RoboDev successfully completes a task (e.g. "Ready for Review"). When
+// not set, MarkComplete uses the first done-type state in the story's workflow.
+func WithCompletedStateName(name string) Option {
+	return func(b *ShortcutBackend) {
+		b.completedStateName = name
 	}
 }
 
@@ -690,9 +700,17 @@ func (b *ShortcutBackend) MarkComplete(ctx context.Context, ticketID string, res
 	if err != nil {
 		return fmt.Errorf("resolving workflow for story %s: %w", ticketID, err)
 	}
-	doneStateID, err := findDoneStateInWorkflow(wf)
-	if err != nil {
-		return fmt.Errorf("finding done state in workflow %q: %w", wf.Name, err)
+	var doneStateID int64
+	if b.completedStateName != "" {
+		doneStateID, err = findStateInWorkflow(wf, b.completedStateName)
+		if err != nil {
+			return fmt.Errorf("finding completed state %q in workflow %q: %w", b.completedStateName, wf.Name, err)
+		}
+	} else {
+		doneStateID, err = findDoneStateInWorkflow(wf)
+		if err != nil {
+			return fmt.Errorf("finding done state in workflow %q: %w", wf.Name, err)
+		}
 	}
 
 	storyURL := fmt.Sprintf("%s/stories/%s", b.baseURL, ticketID)

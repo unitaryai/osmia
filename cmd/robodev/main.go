@@ -915,6 +915,12 @@ func initShortcutBackend(cfg *config.Config, k8sClient kubernetes.Interface, nam
 		opts = append(opts, scticket.WithInProgressStateName(inProgressName))
 	}
 
+	if completedName, ok, err := configStringOptional(m, "completed_state_name"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, scticket.WithCompletedStateName(completedName))
+	}
+
 	if ownerName, ok, err := configStringOptional(m, "owner_mention_name"); err != nil {
 		return nil, err
 	} else if ok {

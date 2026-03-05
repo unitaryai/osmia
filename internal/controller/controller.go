@@ -563,6 +563,12 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 			)
 		} else if mc != nil && mc.FormattedSection != "" {
 			memoryContext = mc.FormattedSection
+			r.logger.InfoContext(ctx, "memory context injected into prompt",
+				"ticket_id", ticket.ID,
+				"relevant_facts", len(mc.RelevantFacts),
+				"engine_insights", len(mc.EngineInsights),
+				"known_issues", len(mc.KnownIssues),
+			)
 		}
 	}
 
@@ -2294,6 +2300,14 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 	if r.memoryQuery != nil {
 		if mc, qErr := r.memoryQuery.QueryForTask(ctx, ticket.Description, ticket.RepoURL, candidateEngines[0], ""); qErr == nil && mc != nil {
 			memoryContext = mc.FormattedSection
+			if mc.FormattedSection != "" {
+				r.logger.InfoContext(ctx, "memory context injected into tournament prompt",
+					"ticket_id", ticket.ID,
+					"relevant_facts", len(mc.RelevantFacts),
+					"engine_insights", len(mc.EngineInsights),
+					"known_issues", len(mc.KnownIssues),
+				)
+			}
 		}
 	}
 

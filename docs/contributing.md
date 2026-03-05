@@ -10,12 +10,11 @@ This project adheres to the [Contributor Covenant Code of Conduct](code-of-condu
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/robodev.git`
-3. Create a feature branch: `git checkout -b feat/my-feature`
-4. Make your changes
-5. Run tests: `make test`
-6. Run linting: `make lint`
-7. Commit with a conventional commit message
-8. Push and open a pull request
+3. Install git hooks: `./hack/install-hooks.sh`
+4. Create a feature branch: `git checkout -b feat/my-feature`
+5. Make your changes
+6. Commit with a conventional commit message
+7. Push and open a pull request (hooks run lint and tests automatically)
 
 ## Development Prerequisites
 
@@ -33,6 +32,16 @@ Install development dependencies:
 ```bash
 ./scripts/install-deps.sh
 ```
+
+## Git Hooks
+
+Install the recommended git hooks after cloning:
+
+```bash
+./hack/install-hooks.sh
+```
+
+This installs a `pre-push` hook that runs `golangci-lint` and `go test -race ./...` before every push, catching lint errors and test failures locally before they reach CI.
 
 ## Local Development Workflow
 

@@ -58,6 +58,8 @@ nav:
       - Real-Time Agent Coaching (PRM): concepts/prm.md
       - Episodic Memory: concepts/memory.md
       - LLM Abstraction Layer: concepts/llm.md
+      - Causal Failure Diagnosis: concepts/diagnosis.md
+      - Predictive Cost Estimation: concepts/estimator.md
   - Architecture:
       - System Overview: architecture.md
       - Security Model: security.md

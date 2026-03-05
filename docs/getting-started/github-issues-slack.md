@@ -109,7 +109,7 @@ guardrails:
 
 ```bash
 # Add the RoboDev chart repository
-helm repo add robodev https://unitaryai.github.io/robodev
+helm repo add robodev https://unitaryai.github.io/RoboDev
 helm repo update
 
 # Create the namespace

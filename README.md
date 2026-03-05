@@ -52,7 +52,7 @@ kubectl create secret generic robodev-github-token \
 kubectl create secret generic robodev-anthropic-key \
   -n robodev --from-literal=api_key=sk-ant-YOUR_KEY
 
-helm repo add robodev https://unitaryai.github.io/robodev/charts
+helm repo add robodev https://unitaryai.github.io/RoboDev/charts
 helm install robodev robodev/robodev -n robodev -f robodev-config.yaml
 ```
 

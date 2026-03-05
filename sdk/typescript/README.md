@@ -60,4 +60,4 @@ plugin.serve();
 ## Further reading
 
 Full plugin authoring guide:
-<https://unitaryai.github.io/robodev/plugins/writing-a-plugin/>
+<https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/>

@@ -1,6 +1,6 @@
 site_name: RoboDev
 site_description: Kubernetes-native AI coding agent harness
-site_url: https://unitaryai.github.io/robodev
+site_url: https://unitaryai.github.io/RoboDev
 repo_url: https://github.com/unitaryai/robodev
 repo_name: unitaryai/robodev
 edit_uri: edit/main/docs/

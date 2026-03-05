@@ -106,7 +106,7 @@ resources:
 ## 3. Install with Helm
 
 ```bash
-helm repo add robodev https://unitaryai.github.io/robodev
+helm repo add robodev https://unitaryai.github.io/RoboDev
 helm repo update
 
 helm install robodev robodev/robodev \

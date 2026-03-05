@@ -2,4 +2,4 @@
 # Writes the Helm repository index to index.yaml at the root of the
 # gh-pages branch, served at https://unitaryai.github.io/RoboDev.
 pages-index-path: index.yaml
-charts-repo-url: https://unitaryai.github.io/robodev
+charts-repo-url: https://unitaryai.github.io/RoboDev

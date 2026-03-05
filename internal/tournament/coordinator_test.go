@@ -195,7 +195,7 @@ func TestCoordinator_SelectWinner_InvalidState(t *testing.T) {
 	require.NoError(t, err)
 
 	// Cannot select winner while still competing.
-	err := c.SelectWinner(ctx, "t-1", "tr-1")
+	err = c.SelectWinner(ctx, "t-1", "tr-1")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not in judging state")
 }
@@ -208,7 +208,7 @@ func TestCoordinator_CancelTournament(t *testing.T) {
 	_, err := c.StartTournament(ctx, "t-1", "ticket-1", []string{"tr-1", "tr-2"}, cfg)
 	require.NoError(t, err)
 
-	err := c.CancelTournament(ctx, "t-1")
+	err = c.CancelTournament(ctx, "t-1")
 	require.NoError(t, err)
 
 	tournament := c.GetTournament("t-1")

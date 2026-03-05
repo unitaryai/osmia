@@ -214,6 +214,8 @@ jobs:
   helm-chart:
     name: Release Helm chart
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # chart-releaser creates GitHub Releases
     needs:
       - release-controller
       - release-engine-claude-code

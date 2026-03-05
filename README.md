@@ -4,6 +4,7 @@
 
 RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode, Cline) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
 
+![RoboDev Architecture](docs/images/RoboDev-architecture.png)
 ---
 
 ## What Makes RoboDev Different
@@ -37,11 +38,6 @@ On top of these, a sophisticated **adaptive watchdog** detects repetitive tool-c
 
 ---
 
-## Architecture
-
-![RoboDev Architecture](docs/images/RoboDev-architecture.png)
-
----
 
 ## Quick Start
 

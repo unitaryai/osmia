@@ -48,3 +48,6 @@ charts/*/tmpcharts/
 
 # Temporary files
 tmp/
+
+# Local marketing / launch content (not for public repo)
+docs/marketing/

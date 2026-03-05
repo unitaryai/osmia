@@ -7,41 +7,13 @@ hide:
 
 **Kubernetes-native AI coding agent harness.** Orchestrate Claude Code, OpenAI Codex, Aider, and OpenCode to perform maintenance and development tasks on your codebases — autonomously, at scale, with enterprise-grade guard rails.
 
-<div class="grid cards" markdown>
+**[5-Minute Quick Start](getting-started/docker-compose.md)** — Get RoboDev running locally with Docker Compose, no Kubernetes required.
 
--   :material-rocket-launch:{ .lg .middle } **5-Minute Quick Start**
+**[Deploy on Kubernetes](getting-started/kubernetes.md)** — Install with Helm, configure GitHub Issues + Claude Code, and run your first task.
 
-    ---
+**[Guard Rails Overview](concepts/guardrails-overview.md)** — Controller validation, engine hooks, repo-level rules, task profiles, quality gates, and a progress watchdog.
 
-    Get RoboDev running locally with Docker Compose — no Kubernetes required.
-
-    [:octicons-arrow-right-24: Docker Compose quick start](getting-started/docker-compose.md)
-
--   :material-kubernetes:{ .lg .middle } **Deploy on Kubernetes**
-
-    ---
-
-    Install with Helm, configure GitHub Issues + Claude Code, and run your first task.
-
-    [:octicons-arrow-right-24: Kubernetes quick start](getting-started/kubernetes.md)
-
--   :material-shield-check:{ .lg .middle } **Six Layers of Guard Rails**
-
-    ---
-
-    Controller validation, engine hooks, repo-level rules, task profiles, quality gates, and a progress watchdog.
-
-    [:octicons-arrow-right-24: Guard rails overview](concepts/guardrails-overview.md)
-
--   :material-puzzle:{ .lg .middle } **Extensible Plugin System**
-
-    ---
-
-    Ticketing, notifications, secrets, SCM, approvals, and reviews — all pluggable via gRPC.
-
-    [:octicons-arrow-right-24: Writing a plugin](plugins/writing-a-plugin.md)
-
-</div>
+**[Writing a Plugin](plugins/writing-a-plugin.md)** — Ticketing, notifications, secrets, SCM, approvals, and reviews — all pluggable via gRPC.
 
 ## How It Works
 

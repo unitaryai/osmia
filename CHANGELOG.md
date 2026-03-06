@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Configurable Max Turns for Claude Code
+
+- **`max_turns` is now configurable** for the Claude Code engine. Set `engines.claude_code.max_turns` in your config to override the default of 50 turns. Increase this for tasks that require more steps, such as large refactors or multi-file changes. The value is passed directly to Claude Code's `--max-turns` flag.
+
 #### ConfigMap-Backed Skills
 
 - **Skills can now be loaded from Kubernetes ConfigMaps.** Set `configmap` (and optionally `key`) on a skill config entry instead of `inline` or `path`. The ConfigMap is volume-mounted into the agent container and copied to `~/.claude/skills/` at startup. This avoids bloating the controller config with large Markdown files and allows teams to manage skills independently.

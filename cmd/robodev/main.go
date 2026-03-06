@@ -209,6 +209,10 @@ func main() {
 		claudeOpts = append(claudeOpts, claudecode.WithSubAgents(subAgents))
 		logger.Info("claude-code sub-agents configured", "count", len(subAgents))
 	}
+	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.MaxTurns > 0 {
+		claudeOpts = append(claudeOpts, claudecode.WithMaxTurns(cfg.Engines.ClaudeCode.MaxTurns))
+		logger.Info("claude-code max turns configured", "max_turns", cfg.Engines.ClaudeCode.MaxTurns)
+	}
 	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled {
 		claudeOpts = append(claudeOpts, claudecode.WithTeamsConfig(claudecode.TeamsConfig{
 			Enabled:      true,

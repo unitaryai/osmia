@@ -106,6 +106,15 @@ func WithSubAgents(agents []SubAgent) Option {
 	}
 }
 
+// WithMaxTurns overrides the default maximum number of agentic turns passed to
+// Claude Code via --max-turns. Use this for tasks that require more steps than
+// the default (50).
+func WithMaxTurns(n int) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.maxTurns = n
+	}
+}
+
 // WithSkills sets the custom skills to make available to the agent.
 // Each skill is written to ~/.claude/skills/<name>.md before the agent
 // starts, allowing the agent to invoke it via /skill-name in its prompts.
@@ -118,6 +127,7 @@ func WithSkills(skills []Skill) Option {
 // ClaudeCodeEngine implements engine.ExecutionEngine for the Claude Code CLI.
 type ClaudeCodeEngine struct {
 	fallbackModel string
+	maxTurns      int
 	toolWhitelist []string
 	jsonSchema    string
 	teamsConfig   TeamsConfig
@@ -143,6 +153,15 @@ func (e *ClaudeCodeEngine) Name() string {
 // this engine implements.
 func (e *ClaudeCodeEngine) InterfaceVersion() int {
 	return interfaceVersion
+}
+
+// effectiveMaxTurns returns the configured max turns, falling back to the
+// package default when none was set.
+func (e *ClaudeCodeEngine) effectiveMaxTurns() int {
+	if e.maxTurns > 0 {
+		return e.maxTurns
+	}
+	return defaultMaxTurns
 }
 
 // BuildExecutionSpec translates a task and engine configuration into an
@@ -183,7 +202,7 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		"setup-claude.sh",
 		"-p", prompt,
 		"--output-format", "stream-json",
-		"--max-turns", strconv.Itoa(defaultMaxTurns),
+		"--max-turns", strconv.Itoa(e.effectiveMaxTurns()),
 		"--dangerously-skip-permissions",
 		"--verbose",                            // richer event data (tool calls, cost breakdowns)
 		"--mcp-config", "/workspace/.mcp.json", // explicit load path written by setup-claude.sh

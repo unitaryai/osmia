@@ -82,6 +82,26 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "WithMaxTurns overrides default",
+			opts: []Option{WithMaxTurns(200)},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				idx := -1
+				for i, s := range spec.Command {
+					if s == "--max-turns" {
+						idx = i
+						break
+					}
+				}
+				require.NotEqual(t, -1, idx, "--max-turns flag must be present")
+				require.Less(t, idx+1, len(spec.Command), "--max-turns must be followed by a value")
+				assert.Equal(t, "200", spec.Command[idx+1])
+			},
+		},
+		{
 			name: "environment variables are set",
 			task: baseTask,
 			config: engine.EngineConfig{

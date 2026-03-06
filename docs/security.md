@@ -34,8 +34,9 @@ agents against live codebases.
 
 ## Defence in Depth — The Six Guard Rail Layers
 
-RoboDev enforces safety through six independent layers. A request must pass
-through all of them before an agent can act on it.
+RoboDev enforces safety through six independent layers. Layers 1, 2, 5, and 6
+are enforced by the controller at runtime. Layers 3 and 4 are advisory or
+partially implemented — see the notes under each layer.
 
 ```mermaid
 graph LR
@@ -77,15 +78,22 @@ The Claude Code engine (`pkg/engine/claudecode/hooks.go`) generates a
 
 ### Layer 3: Guardrails.md / CLAUDE.md
 
-A per-repository `guardrails.md` or `CLAUDE.md` file constrains the agent's
-behaviour within the codebase itself — for example, forbidding changes to
+A per-repository `guardrails.md` or `CLAUDE.md` file can instruct the agent
+to follow repo-specific conventions — for example, forbidding changes to
 deployment manifests or limiting modifications to specific directories.
+
+These files take effect when a Claude Code agent reads its `CLAUDE.md`
+naturally during execution. The controller does not currently inject them into
+the agent prompt — prompt-builder injection is on the roadmap. This layer is
+advisory: the agent may read and follow the file, but the controller does not
+enforce compliance.
 
 ### Layer 4: Task Profiles
 
-Task profiles define the scope of work an agent may perform for a given task
-type. They restrict which tools the agent may call and which file paths it may
-modify, providing a declarative security boundary per task category.
+Task profiles define cost and duration budgets per task type. The config
+schema is fully defined and values are stored, but per-task-type file pattern
+restrictions (`allowed_file_patterns`, `blocked_file_patterns`) are not yet
+enforced at runtime.
 
 ### Layer 5: Quality Gate
 

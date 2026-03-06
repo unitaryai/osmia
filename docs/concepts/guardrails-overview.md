@@ -55,10 +55,13 @@ If a hook blocks an operation, the agent sees the rejection and adjusts its appr
 
 ### Layer 3: Repository Rules
 
-**When:** Loaded into the agent's context at the start of each task.
+**When:** Read by the agent from the target repository during execution.
 **What:** A `guardrails.md` or `CLAUDE.md` file in the target repository that tells the agent what it must (and must not) do.
 
-Example `guardrails.md`:
+!!! note "Advisory — not enforced by the controller"
+    The controller does not currently inject these files into the agent prompt. Claude Code reads `CLAUDE.md` automatically when it starts work; other engines do not. Prompt-builder injection for all engines is on the roadmap.
+
+Example `guardrails.md` (for Claude Code via `CLAUDE.md`):
 
 ```markdown
 ## Never Do
@@ -76,7 +79,7 @@ These rules are repo-specific and maintained by the repository owners.
 ### Layer 4: Task Profiles
 
 **When:** Applied when the controller selects the engine configuration.
-**What:** Different task types get different permissions.
+**What:** Different task types get different cost/duration budgets.
 
 ```yaml
 guardrails:
@@ -89,7 +92,8 @@ guardrails:
       max_cost_per_job: 50.0
 ```
 
-A documentation task can only edit markdown files. A bug fix can't touch migrations or auth code. This limits blast radius based on task type.
+!!! note "Config schema only — file pattern enforcement not yet wired"
+    `max_cost_per_job` and `max_job_duration_minutes` overrides per task type are read from config. However, `allowed_file_patterns` and `blocked_file_patterns` at the profile level are not yet enforced at runtime — only the global `blocked_file_patterns` is injected into engine hooks. Per-profile enforcement is on the roadmap.
 
 ### Layer 5: Quality Gate
 
@@ -170,12 +174,12 @@ Consider this scenario: a ticket asks the agent to "update the deployment manife
 
 1. **Controller validation** checks that the repo is in `allowed_repos` — ✅ pass.
 2. **Engine hooks** would block writes to `.github/workflows/**` if configured — ✅ blocked if needed.
-3. **Repository guardrails.md** says "Never modify CI/CD pipeline configuration" — the agent should avoid it.
-4. **Task profile** for `infrastructure` type might block `*.yaml` in `.github/` — ✅ enforced.
+3. **Repository guardrails.md** says "Never modify CI/CD pipeline configuration" — the agent should avoid it (advisory).
+4. **Task profile** for `infrastructure` type defines a lower cost budget — ✅ enforced. (File pattern enforcement is on the roadmap.)
 5. **Quality gate** scans the output and flags if deployment files were changed — ✅ caught.
 6. **Watchdog** ensures the agent doesn't loop endlessly trying to find the right file — ✅ monitored.
 
-Even if layers 3 (prompt-based) is ignored by the agent, layers 2, 4, and 5 still catch the problem.
+Even if layer 3 (prompt-based) is ignored by the agent, layers 2 and 5 still catch the problem.
 
 ## Next Steps
 

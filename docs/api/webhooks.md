@@ -212,10 +212,11 @@ arrive as:
 - JSON body (`Content-Type: application/json`)
 - URL-encoded form data with a `payload` field (`Content-Type: application/x-www-form-urlencoded`)
 
-Actions with an `action_id` matching `robodev_approve_<task_run_id>` or
-`robodev_reject_<task_run_id>` are recognised as approval callbacks and logged
-accordingly. All actions are forwarded to the event handler as tickets with
-`ticket_type: "slack_interaction"`.
+Actions with an `action_id` prefixed `robodev_approval_` are recognised as
+approval callbacks and routed directly to the approval handler. They are **not**
+forwarded as tickets — doing so would create spurious task runs. Only
+non-approval Slack interactions (slash commands, other button actions) are
+forwarded as tickets with `ticket_type: "slack_interaction"`.
 
 ### Example payload (interactive message action)
 
@@ -224,7 +225,7 @@ accordingly. All actions are forwarded to the event handler as tickets with
   "type": "block_actions",
   "actions": [
     {
-      "action_id": "robodev_approve_42-1",
+      "action_id": "robodev_approval_42-1_0",
       "value": "approved"
     }
   ],

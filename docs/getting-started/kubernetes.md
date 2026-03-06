@@ -183,7 +183,10 @@ config:
 
 ### Repository-Level Guard Rails
 
-Place a `guardrails.md` file in the root of any repository the agent works on:
+Place a `guardrails.md` (or `CLAUDE.md`) file in the root of any repository the agent works on. Claude Code reads `CLAUDE.md` automatically at startup — other engines do not. These files are advisory: the controller does not enforce compliance, but they are the simplest way to give Claude Code per-repo constraints.
+
+!!! note
+    Prompt-builder injection of `guardrails.md` for all engines is on the roadmap.
 
 ```markdown
 ## Never Do

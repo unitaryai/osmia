@@ -66,11 +66,11 @@ For advanced scaling scenarios, KEDA can trigger scaling based on ticket queue d
 # See examples/keda/scaledobject.yaml
 ```
 
-Note: Since the controller uses leader election, only one replica is active at a time. KEDA is most useful for alerting or for scaling downstream resources.
+Note: The controller currently runs as a single replica (leader election is on the roadmap). KEDA is most useful for alerting or for scaling downstream resources.
 
 ## Multi-Tenancy
 
-For shared clusters serving multiple teams or organisations, RoboDev supports namespace-per-tenant isolation:
+For shared clusters, RoboDev defines a tenancy configuration schema. Namespace-per-tenant runtime isolation is on the roadmap; the config structure and RBAC recommendations are in place:
 
 ```yaml
 tenancy:

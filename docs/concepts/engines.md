@@ -110,7 +110,7 @@ Tournaments are best suited for:
 - Situations where code quality or correctness matters more than cost
 
 !!! warning "Tournaments multiply cost"
-    A 2-candidate tournament with a judge run costs roughly 3× a single task. Use the cost estimator's approval gate (`max_predicted_cost_per_job`) to avoid surprises.
+    A 2-candidate tournament with a judge run costs roughly 3× a single task. Use `max_predicted_cost_per_job` to auto-reject tasks before they start when the predicted cost is too high.
 
 ### Configuration
 

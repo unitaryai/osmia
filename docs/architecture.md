@@ -215,9 +215,9 @@ RoboDev enforces safety through six complementary layers. For full details, see 
 
 2. **Engine hooks** -- for engines that support them (notably Claude Code), hooks run inside the agent container at tool-call boundaries. These hooks can intercept and block dangerous operations (e.g. writing to protected files, executing disallowed commands) before they take effect.
 
-3. **Repository guard rail files** -- `guardrails.md` and `CLAUDE.md` files placed in target repositories provide per-repo instructions and constraints that the AI agent must follow. These are loaded into the agent's context at the start of each task.
+3. **Repository guard rail files** -- `guardrails.md` and `CLAUDE.md` files placed in target repositories provide per-repo instructions that the AI agent may follow. These files are read by the agent naturally during execution (Claude Code reads `CLAUDE.md` automatically). The controller does not currently inject them — prompt-builder injection is on the roadmap.
 
-4. **Task profiles** -- configuration-driven profiles that constrain what an agent may do based on task type (e.g. "documentation-only" tasks may not modify source code).
+4. **Task profiles** -- configuration-driven profiles that define cost and duration limits per task type. The config schema is defined and values are stored, but per-task-type file pattern restrictions (`allowed_file_patterns`, `blocked_file_patterns`) are not yet enforced at runtime.
 
 5. **Quality gate** -- an optional post-completion review step. A separate AI engine (or the same one) reviews the agent's output for security issues, OWASP patterns, leaked secrets, and dependency CVEs. Configurable responses include `retry_with_feedback`, `block_mr`, or `notify_human`.
 

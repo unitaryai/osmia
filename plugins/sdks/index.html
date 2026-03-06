@@ -1375,10 +1375,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#available-sdks" class="md-nav__link">
+  <a href="#whats-in-the-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Available SDKs
+        What's in the repository
       
     </span>
   </a>
@@ -1829,10 +1829,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#available-sdks" class="md-nav__link">
+  <a href="#whats-in-the-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Available SDKs
+        What's in the repository
       
     </span>
   </a>
@@ -1920,33 +1920,34 @@
 
 
 <h1 id="plugin-sdks">Plugin SDKs<a class="headerlink" href="#plugin-sdks" title="Permanent link">&para;</a></h1>
-<p>RoboDev provides generated client/server stubs for three languages. All SDKs
-are derived from the protobuf definitions in <code>proto/</code> — they are never edited
-by hand. The source of truth is always the <code>.proto</code> files.</p>
-<h2 id="available-sdks">Available SDKs<a class="headerlink" href="#available-sdks" title="Permanent link">&para;</a></h2>
+<p>RoboDev provides SDK helper libraries and build tooling for three languages.
+The protobuf definitions in <code>proto/</code> are the source of truth. Generated stubs
+are <strong>not checked into the repository</strong> — you generate them locally with
+<code>make sdk-gen</code> before using the SDKs.</p>
+<h2 id="whats-in-the-repository">What's in the repository<a class="headerlink" href="#whats-in-the-repository" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Language</th>
 <th>Directory</th>
-<th>Status</th>
+<th>What's included</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Go</td>
 <td><code>sdk/go/</code></td>
-<td>Stable</td>
+<td>Helper scaffolding and examples; no generated stubs</td>
 </tr>
 <tr>
 <td>Python</td>
 <td><code>sdk/python/</code></td>
-<td>Generated on demand</td>
+<td><code>plugin.py</code> base class helpers; proto stub dirs are empty until you run <code>make sdk-gen</code></td>
 </tr>
 <tr>
 <td>TypeScript</td>
 <td><code>sdk/typescript/</code></td>
-<td>Generated on demand</td>
+<td><code>plugin.ts</code> base class helpers; proto stub dirs are empty until you run <code>make sdk-gen</code></td>
 </tr>
 </tbody>
 </table>

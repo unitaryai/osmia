@@ -1135,10 +1135,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-custom-guard-rails-via-markdown" class="md-nav__link">
+  <a href="#3-custom-guard-rails-via-markdown-planned" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Custom Guard Rails via Markdown
+        3. Custom Guard Rails via Markdown (Planned)
       
     </span>
   </a>
@@ -1146,10 +1146,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-per-task-type-permission-profiles" class="md-nav__link">
+  <a href="#4-per-task-type-permission-profiles-partially-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Per-Task-Type Permission Profiles
+        4. Per-Task-Type Permission Profiles (Partially Implemented)
       
     </span>
   </a>
@@ -1980,10 +1980,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-custom-guard-rails-via-markdown" class="md-nav__link">
+  <a href="#3-custom-guard-rails-via-markdown-planned" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Custom Guard Rails via Markdown
+        3. Custom Guard Rails via Markdown (Planned)
       
     </span>
   </a>
@@ -1991,10 +1991,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-per-task-type-permission-profiles" class="md-nav__link">
+  <a href="#4-per-task-type-permission-profiles-partially-implemented" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Per-Task-Type Permission Profiles
+        4. Per-Task-Type Permission Profiles (Partially Implemented)
       
     </span>
   </a>
@@ -2076,22 +2076,16 @@
     participant Ticket as Incoming Ticket
     participant L1 as 1. Controller Validation
     participant L2 as 2. Engine Hooks
-    participant L3 as 3. guardrails.md
-    participant L4 as 4. Task Profiles
-    participant L5 as 5. Quality Gate
-    participant L6 as 6. Watchdog
+    participant L3 as 3. Quality Gate
+    participant L4 as 4. Watchdog
 
     Ticket-&gt;&gt;L1: Check allowed repos, task types, limits
     L1-&gt;&gt;L2: Pass — launch agent
     Note over L2: Intercept tool calls&lt;br/&gt;in real time
-    L2-&gt;&gt;L3: Agent reads repo rules
-    Note over L3: "Never modify CI files"
-    L3-&gt;&gt;L4: Apply profile restrictions
-    Note over L4: docs tasks → only *.md
-    L4-&gt;&gt;L5: Agent finishes
-    Note over L5: Scan for secrets,&lt;br/&gt;OWASP patterns
-    L5-&gt;&gt;L6: Continuous monitoring
-    Note over L6: Detect loops, stalls,&lt;br/&gt;cost overruns</code></pre>
+    L2-&gt;&gt;L3: Agent finishes
+    Note over L3: Scan for secrets,&lt;br/&gt;OWASP patterns
+    L3-&gt;&gt;L4: Continuous monitoring
+    Note over L4: Detect loops, stalls,&lt;br/&gt;cost overruns</code></pre>
 <h2 id="1-controller-level-guards">1. Controller-Level Guards<a class="headerlink" href="#1-controller-level-guards" title="Permanent link">&para;</a></h2>
 <p>Applied before a job is created. Configured in <code>robodev-config.yaml</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">guardrails</span><span class="p">:</span>
@@ -2207,24 +2201,27 @@
 - <code>**/secrets/**</code>
 - <code>*.pem</code>, <code>*.key</code> (private keys)</p>
 <p>Custom patterns can be added via the <code>BLOCKED_FILE_PATTERNS</code> environment variable.</p>
-<h2 id="3-custom-guard-rails-via-markdown">3. Custom Guard Rails via Markdown<a class="headerlink" href="#3-custom-guard-rails-via-markdown" title="Permanent link">&para;</a></h2>
-<p>Users can provide a <code>guardrails.md</code> file that is appended to every prompt sent to the execution engine:</p>
+<h2 id="3-custom-guard-rails-via-markdown-planned">3. Custom Guard Rails via Markdown (Planned)<a class="headerlink" href="#3-custom-guard-rails-via-markdown-planned" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Not yet wired</p>
+<p>The <code>guardrails.md</code> injection path is not currently wired in the controller. The <code>TaskProfileConfig</code> struct has a <code>Workflow</code> field and the promptbuilder package exists, but the controller builds execution specs directly from ticket fields rather than routing through the promptbuilder. This feature is on the roadmap.</p>
+</div>
+<p>The intention is that users will provide a <code>guardrails.md</code> file (mounted from a ConfigMap) that the prompt builder appends to every agent prompt, giving the agent advisory rules such as:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gh"># Guard Rails</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="gu">## Never Do</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">-</span><span class="w"> </span>Never modify CI/CD pipeline configuration files
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">-</span><span class="w"> </span>Never change database migration files
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">-</span><span class="w"> </span>Never alter authentication or authorisation logic
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">-</span><span class="w"> </span>Never commit secrets, API keys, or credentials
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="gu">## Always Do</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">-</span><span class="w"> </span>Always run the full test suite before creating an MR
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">-</span><span class="w"> </span>Always add tests for new functionality
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="k">-</span><span class="w"> </span>Always follow the existing code style in the repository
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="gu">## Always Do</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">-</span><span class="w"> </span>Always run the full test suite before creating an MR
 </code></pre></div>
-<p>This file is mounted from a ConfigMap and injected by the prompt builder.</p>
-<h2 id="4-per-task-type-permission-profiles">4. Per-Task-Type Permission Profiles<a class="headerlink" href="#4-per-task-type-permission-profiles" title="Permanent link">&para;</a></h2>
-<p>Different task types carry different risk profiles:</p>
+<h2 id="4-per-task-type-permission-profiles-partially-implemented">4. Per-Task-Type Permission Profiles (Partially Implemented)<a class="headerlink" href="#4-per-task-type-permission-profiles-partially-implemented" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Config schema only</p>
+<p><code>task_profiles</code> is present in the config schema and values are stored, but per-task-type file pattern restrictions (<code>allowed_file_patterns</code>, <code>blocked_file_patterns</code>) are not enforced at runtime. The controller reads <code>AllowedTaskTypes</code> for validation but does not yet apply profile-level constraints to agent pods.</p>
+</div>
+<p>The <code>task_profiles</code> config structure is defined for future enforcement:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">guardrails</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">task_profiles</span><span class="p">:</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="nt">dependency_upgrade</span><span class="p">:</span>

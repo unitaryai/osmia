@@ -2099,13 +2099,13 @@
 
 <h1 id="scaling">Scaling<a class="headerlink" href="#scaling" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>RoboDev is designed for horizontal scaling on Kubernetes. The controller runs as a single-leader replica, whilst agent jobs scale independently via Karpenter node provisioning and configurable concurrency limits.</p>
+<p>RoboDev is designed for horizontal scaling on Kubernetes. The controller runs as a single replica, whilst agent jobs scale independently via Karpenter node provisioning and configurable concurrency limits.</p>
 <h2 id="controller-high-availability">Controller High Availability<a class="headerlink" href="#controller-high-availability" title="Permanent link">&para;</a></h2>
-<p>The controller uses controller-runtime's built-in leader election via Kubernetes Lease objects. Multiple replicas can run simultaneously; only the leader processes tickets and creates jobs. Failover is automatic.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Enable leader election in Helm values</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nt">leaderElection</span><span class="p">:</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Planned feature</p>
+<p>Leader election (multiple controller replicas with automatic failover) is not yet implemented. The controller currently runs as a single replica. HA support via controller-runtime Kubernetes Lease objects is on the roadmap.</p>
+</div>
+<p>For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and are unaffected by a controller restart — in-flight jobs complete normally.</p>
 <h2 id="karpenter-integration">Karpenter Integration<a class="headerlink" href="#karpenter-integration" title="Permanent link">&para;</a></h2>
 <p>RoboDev agent jobs are ephemeral, CPU-bound workloads. Karpenter provisions dedicated nodes on demand when jobs are created and scales down when they complete.</p>
 <h3 id="recommended-nodepool">Recommended NodePool<a class="headerlink" href="#recommended-nodepool" title="Permanent link">&para;</a></h3>
@@ -2118,15 +2118,15 @@
 - <strong>CPU limits</strong> to cap maximum infrastructure spend</p>
 <h3 id="tolerations">Tolerations<a class="headerlink" href="#tolerations" title="Permanent link">&para;</a></h3>
 <p>Agent jobs include tolerations for the <code>robodev.io/agent</code> taint by default:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">tolerations</span><span class="p">:</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">robodev.io/agent</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">effect</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NoSchedule</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">tolerations</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">robodev.io/agent</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">effect</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NoSchedule</span>
 </code></pre></div>
 <h2 id="concurrency-limits">Concurrency Limits<a class="headerlink" href="#concurrency-limits" title="Permanent link">&para;</a></h2>
 <p>The controller enforces a maximum number of concurrent jobs to prevent runaway scaling:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">guardrails</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">max_concurrent_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">guardrails</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">max_concurrent_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 </code></pre></div>
 <p>When the limit is reached, new tickets are queued until running jobs complete.</p>
 <h2 id="cost-controls">Cost Controls<a class="headerlink" href="#cost-controls" title="Permanent link">&para;</a></h2>
@@ -2140,20 +2140,20 @@
 </ol>
 <h2 id="keda-scaling">KEDA Scaling<a class="headerlink" href="#keda-scaling" title="Permanent link">&para;</a></h2>
 <p>For advanced scaling scenarios, KEDA can trigger scaling based on ticket queue depth:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># See examples/keda/scaledobject.yaml</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># See examples/keda/scaledobject.yaml</span>
 </code></pre></div>
 <p>Note: Since the controller uses leader election, only one replica is active at a time. KEDA is most useful for alerting or for scaling downstream resources.</p>
 <h2 id="multi-tenancy">Multi-Tenancy<a class="headerlink" href="#multi-tenancy" title="Permanent link">&para;</a></h2>
 <p>For shared clusters serving multiple teams or organisations, RoboDev supports namespace-per-tenant isolation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">tenancy</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;namespace-per-tenant&quot;</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">tenants</span><span class="p">:</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;team-alpha&quot;</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;robodev-alpha&quot;</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">ticketing</span><span class="p">:</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">github</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">        </span><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">          </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;alpha-org/repos&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">tenancy</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;namespace-per-tenant&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">tenants</span><span class="p">:</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;team-alpha&quot;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">namespace</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;robodev-alpha&quot;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">ticketing</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">github</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">          </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;alpha-org/repos&quot;</span>
 </code></pre></div>
 <p>Each tenant receives:
 - Dedicated namespace with its own RBAC, NetworkPolicies, and ResourceQuotas

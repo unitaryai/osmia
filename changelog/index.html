@@ -1786,22 +1786,16 @@
   
 </li>
         
-      </ul>
-    </nav>
-  
-</li>
-        
           <li class="md-nav__item">
-  <a href="#deprecated" class="md-nav__link">
+  <a href="#agent-teams-fixed-and-wired" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deprecated
+        Agent Teams Fixed and Wired
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Deprecated">
-      <ul class="md-nav__list">
+</li>
         
           <li class="md-nav__item">
   <a href="#documentation" class="md-nav__link">
@@ -2846,22 +2840,16 @@
   
 </li>
         
-      </ul>
-    </nav>
-  
-</li>
-        
           <li class="md-nav__item">
-  <a href="#deprecated" class="md-nav__link">
+  <a href="#agent-teams-fixed-and-wired" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deprecated
+        Agent Teams Fixed and Wired
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Deprecated">
-      <ul class="md-nav__list">
+</li>
         
           <li class="md-nav__item">
   <a href="#documentation" class="md-nav__link">
@@ -3833,7 +3821,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h4 id="sub-agent-support">Sub-Agent Support<a class="headerlink" href="#sub-agent-support" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>New <code>sub_agents</code> configuration</strong> replaces the broken <code>agent_teams</code> feature. Sub-agents use the official Claude Code sub-agents specification with the correct <code>--agents</code> flag format (<code>{"name": {"description":"...", ...}}</code>). Supports inline prompts and ConfigMap-backed prompts (mounted to <code>~/.claude/agents/</code>). Full feature set: model selection, tool allow/deny lists, permission modes, max turns, skills, and background mode.</li>
+<li><strong>New <code>sub_agents</code> configuration</strong> for Claude Code sub-agents. Sub-agents are lightweight helpers within a single session, using the official <code>--agents</code> flag format (<code>{"name": {"description":"...", ...}}</code>). Supports inline prompts and ConfigMap-backed prompts (mounted to <code>~/.claude/agents/</code>). Full feature set: model selection, tool allow/deny lists, permission modes, max turns, skills, and background mode. This is a separate feature from agent teams (which spawn multiple independent instances).</li>
 </ul>
 <h4 id="configmap-volume-support">ConfigMap Volume Support<a class="headerlink" href="#configmap-volume-support" title="Permanent link">&para;</a></h4>
 <ul>
@@ -3844,9 +3832,9 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <li><strong><code>proto/scm.proto</code> updated to match Go interface.</strong> Added <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code>, and <code>GetDiff</code> RPCs with their request/response message types. Third-party SCM plugins written against the protobuf API can now implement the full v2 contract.</li>
 <li><strong>Plugin host now validates interface versions at load time.</strong> <code>LoadPlugin</code> checks the plugin's declared <code>interface_version</code> against the controller's expected version before spawning the subprocess. Mismatched plugins are rejected immediately with a structured error instead of silently loading.</li>
 </ul>
-<h3 id="deprecated">Deprecated<a class="headerlink" href="#deprecated" title="Permanent link">&para;</a></h3>
+<h4 id="agent-teams-fixed-and-wired">Agent Teams Fixed and Wired<a class="headerlink" href="#agent-teams-fixed-and-wired" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong><code>agent_teams</code> configuration is deprecated.</strong> Use <code>sub_agents</code> instead. The old agent teams format produced an incorrect <code>--agents</code> flag (JSON array instead of object map) and was never wired in <code>main.go</code>. A deprecation warning is logged when <code>agent_teams.enabled</code> is set.</li>
+<li><strong>Agent teams are now properly wired in the controller.</strong> Previously, <code>WithTeamsConfig</code> was never called in <code>main.go</code>. Agent teams now correctly set <code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code>, <code>CLAUDE_CODE_MAX_TEAMMATES</code>, and pass <code>--teammate-mode</code> to the Claude CLI. The incorrect <code>--agents</code> flag (which is a sub-agents feature, not an agent teams feature) has been removed. Agent teams and sub-agents are separate, complementary features that can be used simultaneously.</li>
 </ul>
 <h4 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h4>
 <ul>
@@ -4406,11 +4394,11 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h5 id="multi-agent-coordination-phase-1-item-5">Multi-Agent Coordination Phase 1 (Item 5)<a class="headerlink" href="#multi-agent-coordination-phase-1-item-5" title="Permanent link">&para;</a></h5>
 <ul>
-<li><code>AgentDef</code> config type with role, model, and instructions</li>
-<li><code>BuildAgentFlags</code> generating <code>--agents</code> JSON from config or task-type defaults (bug_fix: coder+reviewer, feature: coder+reviewer+tester)</li>
+<li><code>TeamsConfig</code> with enabled, mode, and max_teammates</li>
+<li><code>TeamsFlags</code> generating <code>--teammate-mode</code> CLI flag</li>
+<li><code>TeamsEnvVars</code> setting <code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS</code> and <code>CLAUDE_CODE_MAX_TEAMMATES</code></li>
 <li><code>WithTeamsConfig</code> functional option on Claude Code engine</li>
 <li>Team coordination prompt section in <code>BuildPromptWithTeams</code></li>
-<li><code>CLAUDE_CODE_MAX_TEAMMATES</code> environment variable</li>
 </ul>
 <h5 id="tdd-workflow-mode-item-6">TDD Workflow Mode (Item 6)<a class="headerlink" href="#tdd-workflow-mode-item-6" title="Permanent link">&para;</a></h5>
 <ul>

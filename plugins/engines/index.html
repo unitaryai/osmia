@@ -1358,10 +1358,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent-teams-deprecated" class="md-nav__link">
+  <a href="#agent-teams" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Agent Teams (Deprecated)
+        Agent Teams
       
     </span>
   </a>
@@ -2490,10 +2490,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#agent-teams-deprecated" class="md-nav__link">
+  <a href="#agent-teams" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Agent Teams (Deprecated)
+        Agent Teams
       
     </span>
   </a>
@@ -3054,9 +3054,9 @@
 <a id="__codelineno-5-41" name="__codelineno-5-41" href="#__codelineno-5-41"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect</span>
 <a id="__codelineno-5-42" name="__codelineno-5-42" href="#__codelineno-5-42"></a><span class="w">          </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;System</span><span class="nv"> </span><span class="s">architecture</span><span class="nv"> </span><span class="s">reviewer&quot;</span>
 <a id="__codelineno-5-43" name="__codelineno-5-43" href="#__codelineno-5-43"></a><span class="w">          </span><span class="nt">configmap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect-agent</span><span class="w">      </span><span class="c1"># load prompt from ConfigMap</span>
-<a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a><span class="w">      </span><span class="nt">agent_teams</span><span class="p">:</span><span class="w">                       </span><span class="c1"># deprecated — use sub_agents instead</span>
+<a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a><span class="w">      </span><span class="nt">agent_teams</span><span class="p">:</span><span class="w">                       </span><span class="c1"># experimental multi-instance collaboration</span>
 <a id="__codelineno-5-45" name="__codelineno-5-45" href="#__codelineno-5-45"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-<a id="__codelineno-5-46" name="__codelineno-5-46" href="#__codelineno-5-46"></a><span class="w">        </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span>
+<a id="__codelineno-5-46" name="__codelineno-5-46" href="#__codelineno-5-46"></a><span class="w">        </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span><span class="w">                 </span><span class="c1"># required for headless K8s containers</span>
 <a id="__codelineno-5-47" name="__codelineno-5-47" href="#__codelineno-5-47"></a><span class="w">        </span><span class="nt">max_teammates</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 </code></pre></div>
 <table>
@@ -3133,7 +3133,7 @@
 <td><code>agent_teams</code></td>
 <td>AgentTeamsConfig</td>
 <td>disabled</td>
-<td><strong>Deprecated</strong> — use <code>sub_agents</code> instead. See <a href="#agent-teams-deprecated">Agent Teams</a></td>
+<td>Experimental multi-instance collaboration — see <a href="#agent-teams">Agent Teams</a></td>
 </tr>
 </tbody>
 </table>
@@ -3231,12 +3231,12 @@
 <tr>
 <td><code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS</code></td>
 <td>Engine</td>
-<td>Set to <code>1</code> when deprecated agent teams are enabled</td>
+<td>Set to <code>1</code> when agent teams are enabled</td>
 </tr>
 <tr>
 <td><code>CLAUDE_CODE_MAX_TEAMMATES</code></td>
 <td>Engine</td>
-<td>Maximum teammate agents (deprecated agent teams)</td>
+<td>Maximum teammate agents (agent teams)</td>
 </tr>
 </tbody>
 </table>
@@ -3453,28 +3453,57 @@
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span>--from-file<span class="o">=</span>architect.md<span class="o">=</span>./agents/architect.md
 </code></pre></div>
 <p>The Markdown file can include YAML frontmatter for metadata (model, tools, etc.) following the <a href="https://code.claude.com/docs/en/sub-agents">Claude Code sub-agents specification</a>.</p>
-<h4 id="agent-teams-deprecated">Agent Teams (Deprecated)<a class="headerlink" href="#agent-teams-deprecated" title="Permanent link">&para;</a></h4>
-<div class="admonition warning">
-<p class="admonition-title">Deprecated</p>
-<p>Agent teams are deprecated. Use <a href="#sub-agents">Sub-Agents</a> instead, which use the official Claude Code sub-agents format. The <code>agent_teams</code> configuration will be removed in a future release.</p>
+<h4 id="agent-teams">Agent Teams<a class="headerlink" href="#agent-teams" title="Permanent link">&para;</a></h4>
+<div class="admonition info">
+<p class="admonition-title">Experimental</p>
+<p>Agent teams are an experimental Claude Code feature (<code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS</code>). The API may change in future Claude Code releases.</p>
 </div>
-<p>Agent teams allow splitting a task across multiple Claude Code sub-agents running in-process within a single K8s Job pod.</p>
+<p>Agent teams spawn <strong>multiple independent Claude Code instances</strong> that collaborate via shared task lists and inter-agent messaging, coordinated by a team lead. The team lead dynamically creates teammates based on the task — you do not pre-define agents.</p>
+<p>This is fundamentally different from <a href="#sub-agents">Sub-Agents</a>, which are lightweight helpers within a <strong>single</strong> Claude Code session. Both features can be used simultaneously.</p>
 <p><strong>Configuration:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nt">engines</span><span class="p">:</span>
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">claude_code</span><span class="p">:</span>
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">agent_teams</span><span class="p">:</span>
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">      </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">      </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span><span class="w">        </span><span class="c1"># required for headless K8s containers (no tmux)</span>
 <a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">      </span><span class="nt">max_teammates</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">      </span><span class="nt">agents</span><span class="p">:</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">        </span><span class="nt">coder</span><span class="p">:</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Write</span><span class="nv"> </span><span class="s">code</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">implement</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">feature&quot;</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">          </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">opus</span>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">        </span><span class="nt">reviewer</span><span class="p">:</span>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">          </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Review</span><span class="nv"> </span><span class="s">code</span><span class="nv"> </span><span class="s">changes</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">correctness&quot;</span>
-<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">          </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haiku</span>
 </code></pre></div>
-<p>When enabled, the engine sets <code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code> and <code>CLAUDE_CODE_MAX_TEAMMATES=&lt;n&gt;</code> in the container environment, and appends <code>--agents &lt;JSON&gt;</code> to the Claude CLI command with the agent definitions.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Activate agent teams mode</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>string</td>
+<td><code>in-process</code></td>
+<td>Teammate execution mode. Use <code>in-process</code> for headless containers (no tmux required). Alternative: <code>tmux</code> for interactive environments</td>
+</tr>
+<tr>
+<td><code>max_teammates</code></td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Maximum number of teammate agents the team lead can spawn</td>
+</tr>
+</tbody>
+</table>
+<p>When enabled, the engine:</p>
+<ol>
+<li>Sets <code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code> and <code>CLAUDE_CODE_MAX_TEAMMATES=&lt;n&gt;</code> in the container environment.</li>
+<li>Appends <code>--teammate-mode &lt;mode&gt;</code> to the Claude CLI command.</li>
+</ol>
+<p>The team lead then autonomously decides how many teammates to create, what roles they should have, and how to distribute work across them.</p>
 <hr />
 <h3 id="openai-codex">OpenAI Codex<a class="headerlink" href="#openai-codex" title="Permanent link">&para;</a></h3>
 <p>Runs the <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> in fully autonomous mode.</p>

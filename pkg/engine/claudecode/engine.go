@@ -88,10 +88,9 @@ func WithJSONSchema(schema string) Option {
 }
 
 // WithTeamsConfig sets the agent teams configuration. When enabled, the
-// engine appends --agents flags and team-related environment variables
-// to the execution spec.
-//
-// Deprecated: use WithSubAgents instead.
+// engine sets team-related environment variables and appends --teammate-mode
+// to the execution spec. Agent teams spawn multiple independent Claude Code
+// instances; this is distinct from sub-agents (see WithSubAgents).
 func WithTeamsConfig(cfg TeamsConfig) Option {
 	return func(e *ClaudeCodeEngine) {
 		e.teamsConfig = cfg
@@ -225,12 +224,7 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	}
 
 	// Append agent teams flags when teams are enabled.
-	taskType := task.Metadata["task_type"]
-	teamFlags, err := BuildAgentFlags(e.teamsConfig, taskType)
-	if err != nil {
-		return nil, fmt.Errorf("building agent team flags: %w", err)
-	}
-	command = append(command, teamFlags...)
+	command = append(command, TeamsFlags(e.teamsConfig)...)
 
 	env := map[string]string{
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",

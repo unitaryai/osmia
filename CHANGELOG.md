@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sub-Agent Support
 
-- **New `sub_agents` configuration** replaces the broken `agent_teams` feature. Sub-agents use the official Claude Code sub-agents specification with the correct `--agents` flag format (`{"name": {"description":"...", ...}}`). Supports inline prompts and ConfigMap-backed prompts (mounted to `~/.claude/agents/`). Full feature set: model selection, tool allow/deny lists, permission modes, max turns, skills, and background mode.
+- **New `sub_agents` configuration** for Claude Code sub-agents. Sub-agents are lightweight helpers within a single session, using the official `--agents` flag format (`{"name": {"description":"...", ...}}`). Supports inline prompts and ConfigMap-backed prompts (mounted to `~/.claude/agents/`). Full feature set: model selection, tool allow/deny lists, permission modes, max turns, skills, and background mode. This is a separate feature from agent teams (which spawn multiple independent instances).
 
 #### ConfigMap Volume Support
 
@@ -26,9 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`proto/scm.proto` updated to match Go interface.** Added `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` RPCs with their request/response message types. Third-party SCM plugins written against the protobuf API can now implement the full v2 contract.
 - **Plugin host now validates interface versions at load time.** `LoadPlugin` checks the plugin's declared `interface_version` against the controller's expected version before spawning the subprocess. Mismatched plugins are rejected immediately with a structured error instead of silently loading.
 
-### Deprecated
+#### Agent Teams Fixed and Wired
 
-- **`agent_teams` configuration is deprecated.** Use `sub_agents` instead. The old agent teams format produced an incorrect `--agents` flag (JSON array instead of object map) and was never wired in `main.go`. A deprecation warning is logged when `agent_teams.enabled` is set.
+- **Agent teams are now properly wired in the controller.** Previously, `WithTeamsConfig` was never called in `main.go`. Agent teams now correctly set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, `CLAUDE_CODE_MAX_TEAMMATES`, and pass `--teammate-mode` to the Claude CLI. The incorrect `--agents` flag (which is a sub-agents feature, not an agent teams feature) has been removed. Agent teams and sub-agents are separate, complementary features that can be used simultaneously.
 
 #### Documentation
 
@@ -578,11 +578,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Environment variable stripping in Claude Code entrypoint (guarded by `ENV_STRIPPING`)
 
 ##### Multi-Agent Coordination Phase 1 (Item 5)
-- `AgentDef` config type with role, model, and instructions
-- `BuildAgentFlags` generating `--agents` JSON from config or task-type defaults (bug_fix: coder+reviewer, feature: coder+reviewer+tester)
+- `TeamsConfig` with enabled, mode, and max_teammates
+- `TeamsFlags` generating `--teammate-mode` CLI flag
+- `TeamsEnvVars` setting `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and `CLAUDE_CODE_MAX_TEAMMATES`
 - `WithTeamsConfig` functional option on Claude Code engine
 - Team coordination prompt section in `BuildPromptWithTeams`
-- `CLAUDE_CODE_MAX_TEAMMATES` environment variable
 
 ##### TDD Workflow Mode (Item 6)
 - `WorkflowInstructions()` function returning structured instructions for "tdd" and "review-first" modes

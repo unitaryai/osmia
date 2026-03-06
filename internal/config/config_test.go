@@ -96,12 +96,12 @@ plugin_health:
 				Secrets: SecretsConfig{Backend: "aws-secrets-manager"},
 				Engines: EnginesConfig{Default: "codex"},
 				GuardRails: GuardRailsConfig{
-					MaxCostPerJob:                10.0,
-					MaxConcurrentJobs:            5,
-					MaxJobDurationMinutes:        120,
-					AllowedRepos:                 []string{"github.com/example/repo"},
-					BlockedFilePatterns:          []string{"*.env", "secrets/**"},
-					AllowedTaskTypes:             []string{"dependency-update", "bug-fix"},
+					MaxCostPerJob:         10.0,
+					MaxConcurrentJobs:     5,
+					MaxJobDurationMinutes: 120,
+					AllowedRepos:          []string{"github.com/example/repo"},
+					BlockedFilePatterns:   []string{"*.env", "secrets/**"},
+					AllowedTaskTypes:      []string{"dependency-update", "bug-fix"},
 				},
 				PluginHealth: PluginHealthConfig{
 					MaxPluginRestarts: 3,
@@ -414,10 +414,10 @@ guardrails:
 
 func TestLoad_GovernanceConfig(t *testing.T) {
 	tests := []struct {
-		name           string
-		yaml           string
-		wantGates      []string
-		wantThreshold  float64
+		name             string
+		yaml             string
+		wantGates        []string
+		wantThreshold    float64
 		wantStoreBackend string
 	}{
 		{
@@ -523,7 +523,7 @@ func TestLoad_AgentTeamsConfig(t *testing.T) {
 		want AgentTeamsConfig
 	}{
 		{
-			name: "agent teams with custom agents",
+			name: "agent teams with mode and max teammates",
 			yaml: `
 ticketing:
   backend: github
@@ -536,14 +536,6 @@ engines:
       enabled: true
       mode: in-process
       max_teammates: 4
-      agents:
-        coder:
-          role: Write code to fix the issue
-          model: opus
-        reviewer:
-          role: Review code changes for correctness
-          model: haiku
-          instructions: Focus on security and performance
 guardrails:
   max_cost_per_job: 5.0
   max_concurrent_jobs: 10
@@ -553,17 +545,6 @@ guardrails:
 				Enabled:      true,
 				Mode:         "in-process",
 				MaxTeammates: 4,
-				Agents: map[string]AgentDef{
-					"coder": {
-						Role:  "Write code to fix the issue",
-						Model: "opus",
-					},
-					"reviewer": {
-						Role:         "Review code changes for correctness",
-						Model:        "haiku",
-						Instructions: "Focus on security and performance",
-					},
-				},
 			},
 		},
 		{

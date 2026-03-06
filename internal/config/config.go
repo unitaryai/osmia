@@ -311,7 +311,9 @@ type SubAgentConfig struct {
 type ClaudeCodeEngineConfig struct {
 	Image string     `yaml:"image,omitempty"`
 	Auth  AuthConfig `yaml:"auth"`
-	// Deprecated: use SubAgents instead.
+	// AgentTeams enables Claude Code's experimental agent teams feature,
+	// which spawns multiple independent Claude Code instances that collaborate
+	// via shared task lists and inter-agent messaging.
 	AgentTeams           AgentTeamsConfig `yaml:"agent_teams"`
 	FallbackModel        string           `yaml:"fallback_model,omitempty"`
 	ToolWhitelist        []string         `yaml:"tool_whitelist,omitempty"`
@@ -323,7 +325,8 @@ type ClaudeCodeEngineConfig struct {
 	// Each skill is written to ~/.claude/skills/<name>.md before the agent starts.
 	Skills []SkillConfig `yaml:"skills,omitempty"`
 	// SubAgents defines sub-agents that the main Claude Code agent can delegate
-	// to during task execution. Replaces the deprecated agent_teams feature.
+	// to during task execution. Sub-agents are lightweight helpers within a
+	// single session — distinct from agent teams, which spawn independent instances.
 	SubAgents []SubAgentConfig `yaml:"sub_agents,omitempty"`
 }
 
@@ -348,18 +351,13 @@ type AuthConfig struct {
 }
 
 // AgentTeamsConfig configures experimental agent teams for Claude Code.
+// Agent teams spawn multiple independent Claude Code instances that collaborate
+// via shared task lists and inter-agent messaging. The team lead dynamically
+// creates teammates based on the task — agents are not pre-defined.
 type AgentTeamsConfig struct {
-	Enabled      bool                `yaml:"enabled"`
-	Mode         string              `yaml:"mode"` // "in-process"
-	MaxTeammates int                 `yaml:"max_teammates"`
-	Agents       map[string]AgentDef `yaml:"agents,omitempty"`
-}
-
-// AgentDef defines a single agent within an agent team configuration.
-type AgentDef struct {
-	Role         string `yaml:"role"`
-	Model        string `yaml:"model,omitempty"`
-	Instructions string `yaml:"instructions,omitempty"`
+	Enabled      bool   `yaml:"enabled"`
+	Mode         string `yaml:"mode"` // "in-process" (default) or "tmux"
+	MaxTeammates int    `yaml:"max_teammates"`
 }
 
 // GuardRailsConfig configures controller-level safety boundaries.

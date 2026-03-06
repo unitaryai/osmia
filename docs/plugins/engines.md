@@ -159,9 +159,9 @@ config:
         - name: architect
           description: "System architecture reviewer"
           configmap: architect-agent      # load prompt from ConfigMap
-      agent_teams:                       # deprecated — use sub_agents instead
+      agent_teams:                       # experimental multi-instance collaboration
         enabled: false
-        mode: in-process
+        mode: in-process                 # required for headless K8s containers
         max_teammates: 3
 ```
 
@@ -177,7 +177,7 @@ config:
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
 | `skills` | []SkillConfig | — | Custom skill files loaded into the agent — see [Skills](#skills) |
 | `sub_agents` | []SubAgentConfig | — | Sub-agent definitions — see [Sub-Agents](#sub-agents) |
-| `agent_teams` | AgentTeamsConfig | disabled | **Deprecated** — use `sub_agents` instead. See [Agent Teams](#agent-teams-deprecated) |
+| `agent_teams` | AgentTeamsConfig | disabled | Experimental multi-instance collaboration — see [Agent Teams](#agent-teams) |
 
 #### Command
 
@@ -243,8 +243,8 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 | `CLAUDE_SKILL_INLINE_<NAME>` | Engine | Base64-encoded inline skill content (see [Skills](#skills)) |
 | `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image or ConfigMap mount (see [Skills](#skills)) |
 | `CLAUDE_SUBAGENT_PATH_<NAME>` | Engine | Path to a ConfigMap-backed sub-agent file (see [Sub-Agents](#sub-agents)) |
-| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when deprecated agent teams are enabled |
-| `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (deprecated agent teams) |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when agent teams are enabled |
+| `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (agent teams) |
 
 #### Volume Mounts
 
@@ -391,12 +391,14 @@ kubectl create configmap architect-agent \
 
 The Markdown file can include YAML frontmatter for metadata (model, tools, etc.) following the [Claude Code sub-agents specification](https://code.claude.com/docs/en/sub-agents).
 
-#### Agent Teams (Deprecated)
+#### Agent Teams
 
-!!! warning "Deprecated"
-    Agent teams are deprecated. Use [Sub-Agents](#sub-agents) instead, which use the official Claude Code sub-agents format. The `agent_teams` configuration will be removed in a future release.
+!!! info "Experimental"
+    Agent teams are an experimental Claude Code feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`). The API may change in future Claude Code releases.
 
-Agent teams allow splitting a task across multiple Claude Code sub-agents running in-process within a single K8s Job pod.
+Agent teams spawn **multiple independent Claude Code instances** that collaborate via shared task lists and inter-agent messaging, coordinated by a team lead. The team lead dynamically creates teammates based on the task — you do not pre-define agents.
+
+This is fundamentally different from [Sub-Agents](#sub-agents), which are lightweight helpers within a **single** Claude Code session. Both features can be used simultaneously.
 
 **Configuration:**
 
@@ -405,18 +407,22 @@ engines:
   claude_code:
     agent_teams:
       enabled: true
-      mode: in-process
+      mode: in-process        # required for headless K8s containers (no tmux)
       max_teammates: 3
-      agents:
-        coder:
-          role: "Write code to implement the feature"
-          model: opus
-        reviewer:
-          role: "Review code changes for correctness"
-          model: haiku
 ```
 
-When enabled, the engine sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and `CLAUDE_CODE_MAX_TEAMMATES=<n>` in the container environment, and appends `--agents <JSON>` to the Claude CLI command with the agent definitions.
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Activate agent teams mode |
+| `mode` | string | `in-process` | Teammate execution mode. Use `in-process` for headless containers (no tmux required). Alternative: `tmux` for interactive environments |
+| `max_teammates` | int | `3` | Maximum number of teammate agents the team lead can spawn |
+
+When enabled, the engine:
+
+1. Sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and `CLAUDE_CODE_MAX_TEAMMATES=<n>` in the container environment.
+2. Appends `--teammate-mode <mode>` to the Claude CLI command.
+
+The team lead then autonomously decides how many teammates to create, what roles they should have, and how to distribute work across them.
 
 ---
 

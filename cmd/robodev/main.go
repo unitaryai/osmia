@@ -209,8 +209,16 @@ func main() {
 		claudeOpts = append(claudeOpts, claudecode.WithSubAgents(subAgents))
 		logger.Info("claude-code sub-agents configured", "count", len(subAgents))
 	}
-	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled { //nolint:staticcheck // intentional access to deprecated field for migration warning
-		logger.Warn("agent_teams is deprecated; use sub_agents instead")
+	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled {
+		claudeOpts = append(claudeOpts, claudecode.WithTeamsConfig(claudecode.TeamsConfig{
+			Enabled:      true,
+			Mode:         cfg.Engines.ClaudeCode.AgentTeams.Mode,
+			MaxTeammates: cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
+		}))
+		logger.Info("claude-code agent teams enabled",
+			"mode", cfg.Engines.ClaudeCode.AgentTeams.Mode,
+			"max_teammates", cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
+		)
 	}
 	claudeEngine := claudecode.New(claudeOpts...)
 	opts = append(opts, controller.WithEngine(claudeEngine))

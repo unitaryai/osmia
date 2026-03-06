@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Documentation
+
+- **Skills and agent teams documented.** The engine reference (`docs/plugins/engines.md`) now covers custom skills (inline and image-bundled), agent teams configuration (modes, default agents per task type), and all previously-undocumented Claude Code fields (`fallback_model`, `tool_whitelist`, `tool_blacklist`, `json_schema`, `no_session_persistence`, `append_system_prompt`). The configuration reference (`docs/getting-started/configuration.md`) includes expanded examples. The `setup-claude.sh` startup flow is also described.
+
 #### Approval Flow End-to-End
 
 - **Full approval flow wiring.** Slack approval buttons (`robodev_approval_{taskRunID}_{i}`) are now routed through a new `ApprovalHandler` interface on the webhook server, which delegates to `Reconciler.ResolveApproval`. Pre-start approval launches the job; pre-merge approval completes the task. Rejections transition to Failed and mark the ticket.

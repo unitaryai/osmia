@@ -124,26 +124,64 @@ config:
       max_turns: 50
       model: "claude-sonnet-4-6"
       timeout_seconds: 3600
+      fallback_model: haiku              # used when primary model is overloaded
+      no_session_persistence: true       # disable session state between turns
+      append_system_prompt: "Always run tests before committing."
+      tool_whitelist:                    # only these tools are available
+        - Bash
+        - Read
+        - Write
+        - Edit
+      tool_blacklist:                    # these tools are blocked
+        - WebSearch
+      json_schema: '{"type":"object","properties":{"success":{"type":"boolean"},"summary":{"type":"string"}},"required":["success","summary"]}'
       resource_requests:
         cpu: "500m"
         memory: "512Mi"
       resource_limits:
         cpu: "2"
         memory: "2Gi"
+      skills:                            # custom skills — see Skills section below
+        - name: create-changelog
+          inline: |
+            # Create Changelog
+            Generate a CHANGELOG.md entry for the changes made.
+        - name: review-checklist
+          path: /opt/robodev/skills/review-checklist.md
+      agent_teams:                       # experimental — see Agent Teams section below
+        enabled: false
+        mode: in-process
+        max_teammates: 3
 ```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `image` | string | `ghcr.io/unitaryai/engine-claude-code:latest` | Container image override |
+| `timeout_seconds` | int | `7200` | Active deadline for the K8s Job |
+| `fallback_model` | string | — | Model to use when the primary is overloaded (e.g. `haiku`) |
+| `no_session_persistence` | bool | `false` | Disable Claude Code session persistence between turns |
+| `append_system_prompt` | string | — | Extra text appended to Claude Code's system prompt |
+| `tool_whitelist` | []string | — | Only allow these Claude Code tools (via `--allowedTools`) |
+| `tool_blacklist` | []string | — | Block these Claude Code tools (via `--disallowedTools`) |
+| `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
+| `skills` | []SkillConfig | — | Custom skill files loaded into the agent — see [Skills](#skills) |
+| `agent_teams` | AgentTeamsConfig | disabled | Experimental agent teams — see [Agent Teams](#agent-teams-experimental) |
 
 #### Command
 
-The engine generates a `claude` CLI invocation in print mode with JSON output:
+The engine generates a `claude` CLI invocation in streaming JSON mode:
 
 ```bash
-claude \
-  --print \
-  --output-format json \
+setup-claude.sh \
+  -p "<prompt>" \
+  --output-format stream-json \
   --max-turns 50 \
-  --model claude-sonnet-4-6 \
-  "<prompt>"
+  --dangerously-skip-permissions \
+  --verbose \
+  --mcp-config /workspace/.mcp.json
 ```
+
+The `setup-claude.sh` wrapper runs before `claude` to initialise the writable home directory — writing `~/.claude/settings.json`, `/workspace/.mcp.json`, and any [skill files](#skills). It then `exec`s the real `claude` binary with the arguments above.
 
 #### Guard Rails (Hooks)
 
@@ -185,11 +223,15 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 
 | Variable | Source | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | K8s Secret `anthropic-api-key` | API authentication |
+| `ANTHROPIC_API_KEY` | K8s Secret `robodev-anthropic-key` | API authentication |
 | `ROBODEV_TASK_ID` | Controller | Unique task identifier |
 | `ROBODEV_TICKET_ID` | Controller | Source ticket identifier |
 | `ROBODEV_REPO_URL` | Ticket | Repository to work on |
-| `CLAUDE_CODE_MAX_TURNS` | Engine config | Maximum agentic turns |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Engine | Always set to `1` |
+| `CLAUDE_SKILL_INLINE_<NAME>` | Engine | Base64-encoded inline skill content (see [Skills](#skills)) |
+| `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image (see [Skills](#skills)) |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when agent teams are enabled |
+| `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (when teams are enabled) |
 
 #### Volume Mounts
 
@@ -197,6 +239,108 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 |---|---|---|---|
 | `workspace` | `/workspace` | Yes | Repository checkout and working directory |
 | `config` | `/config` | No | Guard rail hooks and configuration |
+| `home` | `/home/robodev` | Yes | Writable home directory (emptyDir) for `~/.claude/` config and skills |
+| `tmp` | `/tmp` | Yes | Writable tmp (emptyDir) for Claude Code subprocess shell directories |
+
+#### Skills
+
+Skills are custom Markdown instruction files that the agent can invoke via `/skill-name` in its prompts. They are written to `~/.claude/skills/<name>.md` before the agent starts.
+
+Each skill has a `name` (lowercase letters, digits, and hyphens only) and exactly one of:
+
+- **`inline`** — the Markdown content directly in the config. The controller base64-encodes it and passes it as the `CLAUDE_SKILL_INLINE_<NAME>` environment variable.
+- **`path`** — a path to a Markdown file on the container image (e.g. `/opt/robodev/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
+
+At container startup, `setup-claude.sh` reads these environment variables, decodes/copies the files, and writes them to `~/.claude/skills/`. The `<NAME>` suffix is converted to lowercase with hyphens (e.g. `CLAUDE_SKILL_INLINE_CREATE_CHANGELOG` → `~/.claude/skills/create-changelog.md`).
+
+**Example — inline skill:**
+
+```yaml
+engines:
+  claude_code:
+    skills:
+      - name: create-changelog
+        inline: |
+          # Create Changelog
+
+          When asked to create a changelog entry:
+          1. Read the existing CHANGELOG.md
+          2. Determine the next version number from git tags
+          3. Add a new section with today's date
+          4. List all changes since the last release
+```
+
+**Example — image-bundled skill:**
+
+```yaml
+engines:
+  claude_code:
+    skills:
+      - name: security-review
+        path: /opt/robodev/skills/security-review.md
+```
+
+To bundle skills into the container image, add them to your custom Dockerfile:
+
+```dockerfile
+FROM ghcr.io/unitaryai/engine-claude-code:latest
+COPY skills/ /opt/robodev/skills/
+```
+
+#### Agent Teams (Experimental)
+
+Agent teams allow splitting a task across multiple Claude Code sub-agents running in-process within a single K8s Job pod. This is useful for large tasks where parallel work (e.g. one agent writes code while another writes tests) can reduce total execution time.
+
+!!! warning "Experimental feature"
+    Agent teams use Claude Code's experimental `--agents` flag. The feature may change or be removed in future Claude Code releases.
+
+**Configuration:**
+
+```yaml
+engines:
+  claude_code:
+    agent_teams:
+      enabled: true
+      mode: in-process           # only supported mode
+      max_teammates: 3           # cap on parallel agents
+      agents:                    # optional — overrides defaults
+        coder:
+          role: "Write code to implement the feature"
+          model: opus
+        reviewer:
+          role: "Review code changes for correctness"
+          model: haiku
+        tester:
+          role: "Write and run tests for the new feature"
+          model: sonnet
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Enable agent teams mode |
+| `mode` | string | `in-process` | Execution mode (only `in-process` is supported) |
+| `max_teammates` | int | `3` | Maximum number of teammate agents |
+| `agents` | map[string]AgentDef | — | Named agent definitions. When omitted, defaults are generated from task type |
+
+Each `AgentDef` has:
+
+| Field | Type | Description |
+|---|---|---|
+| `role` | string | Description of what the agent is responsible for |
+| `model` | string | Optional model override (e.g. `opus`, `haiku`, `sonnet`) |
+| `instructions` | string | Optional additional instructions for the agent |
+
+**Default agents by task type:**
+
+When no `agents` map is provided, RoboDev generates default teams based on the `task_type` metadata from the ticket:
+
+| Task Type | Agents |
+|---|---|
+| `bug_fix` | `coder` (opus) + `reviewer` (haiku) |
+| `feature` | `coder` (opus) + `reviewer` (haiku) + `tester` (sonnet) |
+| Other | No agents — runs as a single agent |
+
+When enabled, the engine sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and `CLAUDE_CODE_MAX_TEAMMATES=<n>` in the container environment, and appends `--agents <JSON>` to the Claude CLI command with the agent definitions.
 
 ---
 

@@ -29,7 +29,7 @@ graph TD
 | **Guard rails** | Hook-based (deterministic) | Prompt-based | Prompt-based | Prompt-based | Prompt-based |
 | **AI provider** | Anthropic | OpenAI | Anthropic or OpenAI | Anthropic, OpenAI, or Google | Anthropic, OpenAI, Google, or Bedrock |
 | **Heartbeat telemetry** | Built-in via hooks | Not built-in | Not built-in | Not built-in | Not built-in |
-| **Agent teams** | Yes (experimental) | No | No | No | No |
+| **Agent teams** | [Yes (experimental)](../plugins/engines.md#agent-teams-experimental) | No | No | No | No |
 | **MCP support** | Yes | No | No | No | Yes |
 | **Repo context file** | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
 | **Best for** | General-purpose, large refactors | OpenAI shops | Lightweight edits, cost-sensitive | BYOM flexibility | Bedrock, MCP integration |

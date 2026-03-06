@@ -136,12 +136,25 @@ engines:
   fallback_engines:        # Tried in order if the default fails
     - codex
     - aider
-  claude-code:
+  claude_code:
     auth:
       method: api_key
       api_key_secret: "robodev-anthropic-key"
     fallback_model: haiku
     no_session_persistence: true
+    append_system_prompt: "Always run the test suite before committing."
+    tool_whitelist: [Bash, Read, Write, Edit, Grep, Glob]
+    skills:                              # custom skills for the agent
+      - name: create-changelog
+        inline: |
+          # Create Changelog
+          Generate a CHANGELOG.md entry for the changes made.
+      - name: security-review
+        path: /opt/robodev/skills/security-review.md
+    agent_teams:                         # experimental parallel sub-agents
+      enabled: false
+      mode: in-process
+      max_teammates: 3
   codex:
     auth:
       method: api_key
@@ -154,7 +167,7 @@ engines:
   # cline: no pre-built image is published yet — see Engine Reference.
 ```
 
-See [Engine Comparison](../plugins/engines.md) for detailed per-engine configuration.
+See [Engine Reference](../plugins/engines.md) for the full list of Claude Code fields (skills, agent teams, tool whitelist/blacklist, JSON schema, etc.) and detailed per-engine configuration.
 
 ### Authentication Methods
 
@@ -180,7 +193,6 @@ guardrails:
     - "*.env"
     - "**/secrets/**"
     - "**/credentials/**"
-  require_human_approval_before_mr: false
   allowed_task_types:                 # Restrict to specific task categories
     - "bug_fix"
     - "documentation"

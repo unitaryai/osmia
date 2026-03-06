@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### AWS Secrets Manager Backend
+
+- **Built-in AWS Secrets Manager secrets backend.** New `aws-secrets-manager` backend (`pkg/plugin/secrets/awssm/`) reads secrets from AWS Secrets Manager via the AWS SDK v2 default credential chain. Supports IRSA on EKS, cross-account access via STS AssumeRole, configurable cache TTL (default 5 minutes), and the `secret-name#json-field` key format. URI scheme: `aws-sm://`. Configured via `secret_resolver.backends` in `robodev-config.yaml`.
+
 #### Session Continuation After Max Turns
 
 - **Retry jobs now continue from prior work rather than starting from scratch.** When a Claude Code agent hits `--max-turns` and the pod exits, the next retry agent clones the branch that was pushed during the previous session instead of re-cloning from the default branch.
@@ -102,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added note that only the `memory` TaskRun store backend is currently supported.
 - Fixed secondary docs overclaiming guardrails.md injection and task-profile file-pattern enforcement: `architecture.md`, `security.md`, `concepts/guardrails-overview.md`, `getting-started/kubernetes.md` all now accurately describe layers 3 & 4 as advisory/on-roadmap.
 - Fixed `docs/scaling.md` contradiction: KEDA note no longer claims leader election is active; multi-tenancy section notes that namespace-per-tenant runtime isolation is on the roadmap.
+- Fixed `docs/plugins/secrets.md` overclaiming: "Third-party plugins are available" replaced with accurate status. AWS SM, 1Password, and Azure KV backends are not implemented; documented as planned or community-implementable. Added built-in Vault backend documentation (was undocumented). Added External Secrets Operator integration guide for AWS Secrets Manager.
+- Added built-in AWS Secrets Manager backend to roadmap (`docs/roadmap.md`).
 - Fixed Slack webhook API docs: action ID prefix corrected from `robodev_approve_` to `robodev_approval_`; clarified that approval callbacks are routed to the approval handler, not forwarded as tickets.
 - Fixed `docs/concepts/engines.md`: tournament warning no longer calls `max_predicted_cost_per_job` an "approval gate" — it is an auto-rejection threshold.
 

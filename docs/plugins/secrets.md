@@ -181,19 +181,186 @@ rules:
 
 This Role is included in the Helm chart by default.
 
+## Built-in: HashiCorp Vault
+
+A built-in Vault backend (`pkg/plugin/secrets/vault/`) reads secrets from HashiCorp Vault using its HTTP API with Kubernetes authentication and KV v2 storage.
+
+### Configuration
+
+```yaml
+config:
+  secrets:
+    backend: vault
+    config:
+      address: "https://vault.internal:8200"
+      role: "robodev"
+      auth_method: "kubernetes"    # Currently the only supported method.
+      secrets_path: "secret"       # KV v2 mount path.
+```
+
+### Key Format
+
+Secret keys use the `path#field` format:
+
+- `stripe/test-key#api_key` reads the `api_key` field from the `secret/data/stripe/test-key` KV v2 path.
+- `db/production#url` reads the `url` field from the `secret/data/db/production` path.
+
+If no `#field` is provided, the entire data map is returned as JSON.
+
+## Built-in: AWS Secrets Manager
+
+A built-in AWS Secrets Manager backend (`pkg/plugin/secrets/awssm/`) reads secrets directly from AWS Secrets Manager using the AWS SDK for Go v2.
+
+### Authentication
+
+The backend uses the **AWS SDK default credential chain**, which automatically supports:
+
+- **IRSA (IAM Roles for Service Accounts)** on EKS — the recommended approach for production.
+- Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
+- Shared credentials file (`~/.aws/credentials`).
+- EC2 instance metadata / ECS task roles.
+
+No custom authentication code is needed. For cross-account access, configure `assume_role_arn` to use STS AssumeRole.
+
+### Configuration
+
+```yaml
+config:
+  secret_resolver:
+    backends:
+      - scheme: "aws-sm"
+        backend: "aws-secrets-manager"
+        config:
+          region: "eu-west-1"
+          assume_role_arn: "arn:aws:iam::123456789:role/robodev-secrets"  # Optional
+          cache_ttl: "5m"                                                 # Optional (default: 5m)
+```
+
+| Key | Type | Default | Description |
+|---|---|---|---|
+| `region` | string | SDK default | AWS region for the Secrets Manager client |
+| `assume_role_arn` | string | (none) | IAM role ARN to assume via STS before reading secrets |
+| `cache_ttl` | duration string | `5m` | How long to cache secret values in memory |
+
+### Key Format
+
+Secret keys use the `secret-name#json-field` format:
+
+- `myapp/api-keys#stripe_key` — reads the `stripe_key` field from the JSON-valued secret named `myapp/api-keys`.
+- `myapp/database-url` — reads the raw secret string (no JSON parsing).
+- `arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host` — uses a full ARN.
+
+### URI Format
+
+```
+aws-sm://myapp/api-keys#stripe_key
+aws-sm://arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host
+```
+
+### Behaviour
+
+| Method | AWS Action |
+|---|---|
+| `GetSecret` | Calls `GetSecretValue`, caches the result, optionally extracts a JSON field |
+| `GetSecrets` | Calls `GetSecret` per unique secret name (cache deduplicates) |
+| `BuildEnvVars` | Returns direct value `EnvVar` entries (secrets are fetched at resolution time) |
+
+### Required IAM Permissions
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": "arn:aws:secretsmanager:eu-west-1:123456789:secret:robodev/*"
+    }
+  ]
+}
+```
+
+For cross-account access, the target account's role must have this policy and a trust policy allowing the controller's IRSA role to assume it.
+
+## Using AWS Secrets Manager via External Secrets Operator
+
+The fastest path to AWS Secrets Manager integration is the [External Secrets Operator](https://external-secrets.io/) (ESO). ESO syncs secrets from AWS Secrets Manager into Kubernetes Secrets, which the built-in K8s backend already reads. No RoboDev code changes needed.
+
+### Setup
+
+1. Install ESO on your cluster:
+
+```bash
+helm repo add external-secrets https://charts.external-secrets.io
+helm install external-secrets external-secrets/external-secrets \
+  --namespace external-secrets --create-namespace
+```
+
+2. Create a `ClusterSecretStore` pointing to AWS Secrets Manager (authenticating via IRSA):
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: aws-secrets-manager
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: eu-west-1
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: external-secrets-sa
+            namespace: external-secrets
+```
+
+3. Create an `ExternalSecret` that syncs the secrets your agents need:
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: robodev-anthropic-key
+  namespace: robodev
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  target:
+    name: robodev-anthropic-key
+  data:
+    - secretKey: api_key
+      remoteRef:
+        key: robodev/anthropic-api-key
+        property: api_key
+```
+
+4. RoboDev's K8s secrets backend reads the synced Secret as normal:
+
+```yaml
+config:
+  secrets:
+    backend: k8s
+    config:
+      namespace: "robodev"
+```
+
+This approach works today with no changes to RoboDev.
+
 ## Other Backends
 
-Third-party plugins are available for external secret stores:
+The secrets plugin interface supports additional backends via gRPC plugins. The following are planned or can be implemented using the `SecretsBackend` protobuf service:
 
-| Backend | Description | Authentication |
-|---|---|---|
-| `vault` | HashiCorp Vault via API or Agent sidecar | Vault token, K8s auth, AppRole |
-| `aws-sm` | AWS Secrets Manager | IRSA (IAM Roles for Service Accounts) |
-| `1password` | 1Password Connect server or CLI | Connect token |
-| `external-secrets` | Kubernetes External Secrets Operator | Delegated to ESO |
-| `azure-kv` | Azure Key Vault | Workload identity federation |
+| Backend | Description | Authentication | Status |
+|---|---|---|---|
+| `aws-sm` | AWS Secrets Manager (native) | IRSA (IAM Roles for Service Accounts) | Built-in (see above) |
+| `1password` | 1Password Connect server or CLI | Connect token | Not implemented |
+| `external-secrets` | Kubernetes External Secrets Operator | Delegated to ESO | Use K8s backend (see above) |
+| `azure-kv` | Azure Key Vault | Workload identity federation | Not implemented |
 
-These backends are deployed as third-party gRPC plugins. See [Writing a Plugin](writing-a-plugin.md) for a TypeScript example implementing the `SecretsBackend` interface.
+See [Writing a Plugin](writing-a-plugin.md) for a TypeScript example implementing the `SecretsBackend` interface.
 
 ## Security Considerations
 

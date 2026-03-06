@@ -117,6 +117,27 @@ Lease objects would allow multiple replicas with automatic failover.
 
 ---
 
+### Built-in AWS Secrets Manager Backend
+
+**Priority:** Medium
+**Scope:** Medium
+**Dependencies:** Secrets plugin interface (complete), IRSA documentation
+
+A native `aws-sm` backend using the AWS SDK for Go v2 that resolves
+`aws-sm://secret-name#key` URIs directly against AWS Secrets Manager. On EKS
+with IRSA, authentication is automatic (no static credentials). This removes
+the need for a separate gRPC plugin binary or External Secrets Operator for
+teams that want direct AWS SM integration.
+
+- [x] `pkg/plugin/secrets/awssm/` — built-in backend implementation
+- [ ] IRSA service account annotation in Helm chart (opt-in)
+- [x] Secret caching with configurable TTL (avoid per-request API calls)
+- [x] Cross-account assume-role support for multi-tenant deployments
+- [ ] Integration tests with localstack
+- [x] Documentation in `docs/plugins/secrets.md`
+
+---
+
 ### Namespace-Per-Tenant Isolation
 
 **Priority:** Low
@@ -452,6 +473,7 @@ live controller and `main.go`:
 | — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
 | — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
 | — | Leader Election (Controller HA) | Low | 🚧 Not started |
+| — | Built-in AWS Secrets Manager Backend | Medium | 🚧 Core complete; IRSA Helm annotation + localstack tests remaining |
 | — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |
 | 20 | PR/MR Comment Response | High | ✅ Complete |
 | — | Cost & token usage in notifications | Low | ✅ Complete |

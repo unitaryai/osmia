@@ -65,6 +65,7 @@ import (
 
 	// Secrets backends.
 	k8ssecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/k8s"
+	awssmsecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/awssm"
 	vaultsecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/vault"
 
 	// Review backend.
@@ -1271,6 +1272,24 @@ func initSecretsResolver(cfg *config.Config, k8sClient kubernetes.Interface, nam
 			}
 			vaultOpts = append(vaultOpts, vaultsecrets.WithLogger(logger))
 			backend := vaultsecrets.NewVaultBackend(vaultOpts...)
+			opts = append(opts, secretresolver.WithBackend(ref.Scheme, backend))
+		case "aws-secrets-manager":
+			var awssmOpts []awssmsecrets.Option
+			if region, ok := ref.Config["region"].(string); ok && region != "" {
+				awssmOpts = append(awssmOpts, awssmsecrets.WithRegion(region))
+			}
+			if roleARN, ok := ref.Config["assume_role_arn"].(string); ok && roleARN != "" {
+				awssmOpts = append(awssmOpts, awssmsecrets.WithAssumeRoleARN(roleARN))
+			}
+			if ttlStr, ok := ref.Config["cache_ttl"].(string); ok && ttlStr != "" {
+				ttl, err := time.ParseDuration(ttlStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid cache_ttl %q for aws-secrets-manager: %w", ttlStr, err)
+				}
+				awssmOpts = append(awssmOpts, awssmsecrets.WithCacheTTL(ttl))
+			}
+			awssmOpts = append(awssmOpts, awssmsecrets.WithLogger(logger))
+			backend := awssmsecrets.NewBackend(awssmOpts...)
 			opts = append(opts, secretresolver.WithBackend(ref.Scheme, backend))
 		default:
 			return nil, fmt.Errorf("unsupported secret backend type %q (scheme %q)", ref.Backend, ref.Scheme)

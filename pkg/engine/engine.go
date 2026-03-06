@@ -29,21 +29,30 @@ type Resources struct {
 }
 
 // VolumeMount describes a volume to mount into the execution container.
+// When ConfigMapName is set, the volume uses a ConfigMap source instead of
+// the default emptyDir. SubPath allows mounting a single key as a specific
+// filename without shadowing the mount directory.
 type VolumeMount struct {
 	Name      string `json:"name"`
 	MountPath string `json:"mount_path"`
 	ReadOnly  bool   `json:"read_only,omitempty"`
+	// SubPath mounts a single entry from the volume instead of the whole volume.
+	SubPath string `json:"sub_path,omitempty"`
+	// ConfigMapName, when set, uses a ConfigMap as the volume source.
+	ConfigMapName string `json:"configmap_name,omitempty"`
+	// ConfigMapKey, when set alongside ConfigMapName, projects only this key.
+	ConfigMapKey string `json:"configmap_key,omitempty"`
 }
 
 // Task represents a unit of work to be performed by an engine.
 type Task struct {
-	ID            string            `json:"id"`
-	TicketID      string            `json:"ticket_id"`
-	Title         string            `json:"title"`
-	Description   string            `json:"description"`
-	RepoURL       string            `json:"repo_url"`
-	Labels        []string          `json:"labels,omitempty"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	ID          string            `json:"id"`
+	TicketID    string            `json:"ticket_id"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	RepoURL     string            `json:"repo_url"`
+	Labels      []string          `json:"labels,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
 	// MemoryContext is pre-formatted prior knowledge from episodic memory,
 	// injected into the prompt when memory is enabled.
 	MemoryContext string `json:"memory_context,omitempty"`
@@ -86,13 +95,13 @@ type SecretKeyRef struct {
 // ExecutionSpec is an engine-agnostic description of what to run.
 // The core JobBuilder translates this into a K8s Job (or Docker run, etc).
 type ExecutionSpec struct {
-	Image    string            `json:"image"`
-	Command  []string          `json:"command"`
-	Env      map[string]string `json:"env"`
+	Image   string            `json:"image"`
+	Command []string          `json:"command"`
+	Env     map[string]string `json:"env"`
 	// SecretEnv maps env var names to Kubernetes Secret names. The entire
 	// named secret is mounted via envFrom (all keys become env vars). Use
 	// SecretKeyRefs when the secret key name differs from the env var name.
-	SecretEnv             map[string]string       `json:"secret_env,omitempty"`
+	SecretEnv map[string]string `json:"secret_env,omitempty"`
 	// SecretKeyRefs maps env var names to specific keys within Kubernetes
 	// Secrets, generating env[].valueFrom.secretKeyRef entries.
 	SecretKeyRefs         map[string]SecretKeyRef `json:"secret_key_refs,omitempty"`

@@ -178,13 +178,39 @@ func main() {
 		skills := make([]claudecode.Skill, 0, len(cfg.Engines.ClaudeCode.Skills))
 		for _, sc := range cfg.Engines.ClaudeCode.Skills {
 			skills = append(skills, claudecode.Skill{
-				Name:   sc.Name,
-				Path:   sc.Path,
-				Inline: sc.Inline,
+				Name:      sc.Name,
+				Path:      sc.Path,
+				Inline:    sc.Inline,
+				ConfigMap: sc.ConfigMap,
+				Key:       sc.Key,
 			})
 		}
 		claudeOpts = append(claudeOpts, claudecode.WithSkills(skills))
 		logger.Info("claude-code skills configured", "count", len(skills))
+	}
+	if cfg.Engines.ClaudeCode != nil && len(cfg.Engines.ClaudeCode.SubAgents) > 0 {
+		subAgents := make([]claudecode.SubAgent, 0, len(cfg.Engines.ClaudeCode.SubAgents))
+		for _, sa := range cfg.Engines.ClaudeCode.SubAgents {
+			subAgents = append(subAgents, claudecode.SubAgent{
+				Name:            sa.Name,
+				Description:     sa.Description,
+				Prompt:          sa.Prompt,
+				Model:           sa.Model,
+				Tools:           sa.Tools,
+				DisallowedTools: sa.DisallowedTools,
+				PermissionMode:  sa.PermissionMode,
+				MaxTurns:        sa.MaxTurns,
+				Skills:          sa.Skills,
+				Background:      sa.Background,
+				ConfigMap:       sa.ConfigMap,
+				Key:             sa.Key,
+			})
+		}
+		claudeOpts = append(claudeOpts, claudecode.WithSubAgents(subAgents))
+		logger.Info("claude-code sub-agents configured", "count", len(subAgents))
+	}
+	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled { //nolint:staticcheck // intentional access to deprecated field for migration warning
+		logger.Warn("agent_teams is deprecated; use sub_agents instead")
 	}
 	claudeEngine := claudecode.New(claudeOpts...)
 	opts = append(opts, controller.WithEngine(claudeEngine))

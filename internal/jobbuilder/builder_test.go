@@ -262,3 +262,77 @@ func TestBuild_LongTaskRunID_Truncated(t *testing.T) {
 
 	assert.LessOrEqual(t, len(job.Name), 63, "job name must not exceed 63 characters")
 }
+
+func TestBuild_ConfigMapVolume(t *testing.T) {
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/robodev/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{
+				Name:          "skill-changelog",
+				MountPath:     "/skills/changelog.md",
+				ReadOnly:      true,
+				ConfigMapName: "my-skills-cm",
+			},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-cm", "claude-code", spec)
+	require.NoError(t, err)
+
+	require.Len(t, job.Spec.Template.Spec.Volumes, 1)
+	vol := job.Spec.Template.Spec.Volumes[0]
+	assert.Equal(t, "skill-changelog", vol.Name)
+	require.NotNil(t, vol.VolumeSource.ConfigMap, "volume should use ConfigMap source")
+	assert.Nil(t, vol.VolumeSource.EmptyDir, "volume should not use EmptyDir")
+	assert.Equal(t, "my-skills-cm", vol.VolumeSource.ConfigMap.Name)
+	assert.Empty(t, vol.VolumeSource.ConfigMap.Items, "no key projection without ConfigMapKey")
+}
+
+func TestBuild_ConfigMapVolumeWithKey(t *testing.T) {
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/robodev/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{
+				Name:          "skill-review",
+				MountPath:     "/skills/review.md",
+				ReadOnly:      true,
+				SubPath:       "review.md",
+				ConfigMapName: "review-cm",
+				ConfigMapKey:  "review.md",
+			},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-cmk", "claude-code", spec)
+	require.NoError(t, err)
+
+	vol := job.Spec.Template.Spec.Volumes[0]
+	require.NotNil(t, vol.VolumeSource.ConfigMap)
+	require.Len(t, vol.VolumeSource.ConfigMap.Items, 1)
+	assert.Equal(t, "review.md", vol.VolumeSource.ConfigMap.Items[0].Key)
+	assert.Equal(t, "review.md", vol.VolumeSource.ConfigMap.Items[0].Path)
+
+	vm := job.Spec.Template.Spec.Containers[0].VolumeMounts[0]
+	assert.Equal(t, "review.md", vm.SubPath)
+	assert.True(t, vm.ReadOnly)
+}
+
+func TestBuild_MixedVolumes(t *testing.T) {
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/robodev/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{Name: "workspace", MountPath: "/workspace"},
+			{Name: "skill-cm", MountPath: "/skills/s.md", ReadOnly: true, ConfigMapName: "skills-cm", ConfigMapKey: "s.md", SubPath: "s.md"},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-mix", "claude-code", spec)
+	require.NoError(t, err)
+
+	require.Len(t, job.Spec.Template.Spec.Volumes, 2)
+	assert.NotNil(t, job.Spec.Template.Spec.Volumes[0].VolumeSource.EmptyDir)
+	assert.NotNil(t, job.Spec.Template.Spec.Volumes[1].VolumeSource.ConfigMap)
+}

@@ -151,10 +151,16 @@ engines:
           Generate a CHANGELOG.md entry for the changes made.
       - name: security-review
         path: /opt/robodev/skills/security-review.md
-    agent_teams:                         # experimental parallel sub-agents
-      enabled: false
-      mode: in-process
-      max_teammates: 3
+      - name: deploy-guide
+        configmap: deploy-skills         # load from a K8s ConfigMap
+    sub_agents:                          # delegate subtasks to specialised agents
+      - name: reviewer
+        description: "Reviews code for correctness"
+        prompt: "You are a code reviewer."
+        model: haiku
+      - name: architect
+        description: "Architecture review"
+        configmap: architect-agent       # load prompt from ConfigMap
   codex:
     auth:
       method: api_key

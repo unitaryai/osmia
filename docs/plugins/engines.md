@@ -148,7 +148,18 @@ config:
             Generate a CHANGELOG.md entry for the changes made.
         - name: review-checklist
           path: /opt/robodev/skills/review-checklist.md
-      agent_teams:                       # experimental — see Agent Teams section below
+        - name: deploy-guide
+          configmap: deploy-skills       # load from a Kubernetes ConfigMap
+          key: deploy-guide.md           # optional — defaults to <name>.md
+      sub_agents:                        # see Sub-Agents section below
+        - name: reviewer
+          description: "Reviews code changes for correctness"
+          prompt: "You are a code reviewer. Check for bugs, security issues, and style."
+          model: haiku
+        - name: architect
+          description: "System architecture reviewer"
+          configmap: architect-agent      # load prompt from ConfigMap
+      agent_teams:                       # deprecated — use sub_agents instead
         enabled: false
         mode: in-process
         max_teammates: 3
@@ -165,7 +176,8 @@ config:
 | `tool_blacklist` | []string | — | Block these Claude Code tools (via `--disallowedTools`) |
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
 | `skills` | []SkillConfig | — | Custom skill files loaded into the agent — see [Skills](#skills) |
-| `agent_teams` | AgentTeamsConfig | disabled | Experimental agent teams — see [Agent Teams](#agent-teams-experimental) |
+| `sub_agents` | []SubAgentConfig | — | Sub-agent definitions — see [Sub-Agents](#sub-agents) |
+| `agent_teams` | AgentTeamsConfig | disabled | **Deprecated** — use `sub_agents` instead. See [Agent Teams](#agent-teams-deprecated) |
 
 #### Command
 
@@ -229,9 +241,10 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 | `ROBODEV_REPO_URL` | Ticket | Repository to work on |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Engine | Always set to `1` |
 | `CLAUDE_SKILL_INLINE_<NAME>` | Engine | Base64-encoded inline skill content (see [Skills](#skills)) |
-| `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image (see [Skills](#skills)) |
-| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when agent teams are enabled |
-| `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (when teams are enabled) |
+| `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image or ConfigMap mount (see [Skills](#skills)) |
+| `CLAUDE_SUBAGENT_PATH_<NAME>` | Engine | Path to a ConfigMap-backed sub-agent file (see [Sub-Agents](#sub-agents)) |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when deprecated agent teams are enabled |
+| `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (deprecated agent teams) |
 
 #### Volume Mounts
 
@@ -250,6 +263,7 @@ Each skill has a `name` (lowercase letters, digits, and hyphens only) and exactl
 
 - **`inline`** — the Markdown content directly in the config. The controller base64-encodes it and passes it as the `CLAUDE_SKILL_INLINE_<NAME>` environment variable.
 - **`path`** — a path to a Markdown file on the container image (e.g. `/opt/robodev/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
+- **`configmap`** — the name of a Kubernetes ConfigMap containing the skill. The controller mounts the ConfigMap as a volume at `/skills/<name>.md` and sets `CLAUDE_SKILL_PATH_<NAME>` to the mount path. Optionally specify `key` to select a specific key within the ConfigMap (defaults to `<name>.md`).
 
 At container startup, `setup-claude.sh` reads these environment variables, decodes/copies the files, and writes them to `~/.claude/skills/`. The `<NAME>` suffix is converted to lowercase with hyphens (e.g. `CLAUDE_SKILL_INLINE_CREATE_CHANGELOG` → `~/.claude/skills/create-changelog.md`).
 
@@ -280,6 +294,26 @@ engines:
         path: /opt/robodev/skills/security-review.md
 ```
 
+**Example — ConfigMap-backed skill:**
+
+```yaml
+engines:
+  claude_code:
+    skills:
+      - name: deploy-guide
+        configmap: deploy-skills    # K8s ConfigMap name
+        key: deploy-guide.md        # optional — defaults to <name>.md
+```
+
+Create the ConfigMap separately:
+
+```bash
+kubectl create configmap deploy-skills \
+  --from-file=deploy-guide.md=./skills/deploy-guide.md
+```
+
+ConfigMap skills are ideal for large skill files or when different teams manage their own skills independently of the controller configuration.
+
 To bundle skills into the container image, add them to your custom Dockerfile:
 
 ```dockerfile
@@ -287,12 +321,82 @@ FROM ghcr.io/unitaryai/engine-claude-code:latest
 COPY skills/ /opt/robodev/skills/
 ```
 
-#### Agent Teams (Experimental)
+#### Sub-Agents
 
-Agent teams allow splitting a task across multiple Claude Code sub-agents running in-process within a single K8s Job pod. This is useful for large tasks where parallel work (e.g. one agent writes code while another writes tests) can reduce total execution time.
+Sub-agents allow the main Claude Code agent to delegate specialised subtasks to other agents during execution. Each sub-agent has its own system prompt, model, tool restrictions, and permission mode. Sub-agents use Claude Code's official `--agents` flag and `~/.claude/agents/` directory.
 
-!!! warning "Experimental feature"
-    Agent teams use Claude Code's experimental `--agents` flag. The feature may change or be removed in future Claude Code releases.
+Sub-agents can be defined **inline** (prompt in the config) or loaded from a **Kubernetes ConfigMap** (for large prompts or independent management).
+
+**Configuration:**
+
+```yaml
+engines:
+  claude_code:
+    sub_agents:
+      # Inline sub-agent — prompt is in the config.
+      - name: reviewer
+        description: "Reviews code changes for correctness and style"
+        prompt: |
+          You are a code reviewer. Check for:
+          - Bugs and logic errors
+          - Security vulnerabilities
+          - Style and convention violations
+        model: haiku
+        tools:
+          - Read
+          - Grep
+          - Glob
+        max_turns: 10
+
+      # ConfigMap-backed sub-agent — prompt loaded from a volume.
+      - name: architect
+        description: "Reviews system architecture decisions"
+        configmap: architect-agent    # K8s ConfigMap name
+        key: architect.md             # optional — defaults to <name>.md
+        model: opus
+
+      # Background sub-agent.
+      - name: linter
+        description: "Runs linting in the background"
+        prompt: "Run the project linter and report issues."
+        background: true
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | Sub-agent identifier (required) |
+| `description` | string | — | Short summary of the sub-agent's purpose (required) |
+| `prompt` | string | — | Inline system prompt (mutually exclusive with `configmap`) |
+| `model` | string | inherit | Model to use: `sonnet`, `opus`, `haiku`, or `inherit` |
+| `tools` | []string | — | Tool allowlist |
+| `disallowed_tools` | []string | — | Tool denylist |
+| `permission_mode` | string | `default` | One of `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan` |
+| `max_turns` | int | — | Maximum agentic turns |
+| `skills` | []string | — | Skill names to preload |
+| `background` | bool | `false` | Run as a background process |
+| `configmap` | string | — | Load prompt from this Kubernetes ConfigMap |
+| `key` | string | `<name>.md` | Key within the ConfigMap |
+
+**How it works:**
+
+- **Inline sub-agents** are serialised as JSON and passed via `--agents '{"name": {"description":"...", "prompt":"...", ...}}'`.
+- **ConfigMap sub-agents** are volume-mounted at `/subagents/<name>.md` and copied to `~/.claude/agents/<name>.md` by `setup-claude.sh` at container startup. Claude Code automatically discovers agent files in this directory.
+
+**Creating a ConfigMap for a sub-agent:**
+
+```bash
+kubectl create configmap architect-agent \
+  --from-file=architect.md=./agents/architect.md
+```
+
+The Markdown file can include YAML frontmatter for metadata (model, tools, etc.) following the [Claude Code sub-agents specification](https://code.claude.com/docs/en/sub-agents).
+
+#### Agent Teams (Deprecated)
+
+!!! warning "Deprecated"
+    Agent teams are deprecated. Use [Sub-Agents](#sub-agents) instead, which use the official Claude Code sub-agents format. The `agent_teams` configuration will be removed in a future release.
+
+Agent teams allow splitting a task across multiple Claude Code sub-agents running in-process within a single K8s Job pod.
 
 **Configuration:**
 
@@ -301,44 +405,16 @@ engines:
   claude_code:
     agent_teams:
       enabled: true
-      mode: in-process           # only supported mode
-      max_teammates: 3           # cap on parallel agents
-      agents:                    # optional — overrides defaults
+      mode: in-process
+      max_teammates: 3
+      agents:
         coder:
           role: "Write code to implement the feature"
           model: opus
         reviewer:
           role: "Review code changes for correctness"
           model: haiku
-        tester:
-          role: "Write and run tests for the new feature"
-          model: sonnet
 ```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | bool | `false` | Enable agent teams mode |
-| `mode` | string | `in-process` | Execution mode (only `in-process` is supported) |
-| `max_teammates` | int | `3` | Maximum number of teammate agents |
-| `agents` | map[string]AgentDef | — | Named agent definitions. When omitted, defaults are generated from task type |
-
-Each `AgentDef` has:
-
-| Field | Type | Description |
-|---|---|---|
-| `role` | string | Description of what the agent is responsible for |
-| `model` | string | Optional model override (e.g. `opus`, `haiku`, `sonnet`) |
-| `instructions` | string | Optional additional instructions for the agent |
-
-**Default agents by task type:**
-
-When no `agents` map is provided, RoboDev generates default teams based on the `task_type` metadata from the ticket:
-
-| Task Type | Agents |
-|---|---|
-| `bug_fix` | `coder` (opus) + `reviewer` (haiku) |
-| `feature` | `coder` (opus) + `reviewer` (haiku) + `tester` (sonnet) |
-| Other | No agents — runs as a single agent |
 
 When enabled, the engine sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and `CLAUDE_CODE_MAX_TEAMMATES=<n>` in the container environment, and appends `--agents <JSON>` to the Claude CLI command with the agent definitions.
 
@@ -582,7 +658,7 @@ The controller selects engines in this order:
 | Criterion | Claude Code | Codex | Aider | OpenCode | Cline |
 |---|---|---|---|---|---|
 | Guard rail enforcement | Hook-based (deterministic) | Prompt-based (advisory) | Prompt-based (advisory) | Prompt-based (advisory) | Prompt-based (advisory) |
-| Agent teams support | Yes (experimental) | No | No | No | No |
+| Sub-agent support | Yes (official) | No | No | No | No |
 | Multi-model support | Anthropic only | OpenAI only | Anthropic + OpenAI | Anthropic + OpenAI + Google | Anthropic + OpenAI + Google + Bedrock |
 | Agentic turns limit | Configurable (`max_turns`) | N/A | N/A | N/A | N/A |
 | Repository context file | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |

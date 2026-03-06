@@ -50,4 +50,15 @@ if env | grep -q '^CLAUDE_SKILL_'; then
     done
 fi
 
+# Write ConfigMap-backed sub-agent files to ~/.claude/agents/.
+# Sub-agent env vars: CLAUDE_SUBAGENT_PATH_<NAME>=<path on volume>
+if env | grep -q '^CLAUDE_SUBAGENT_PATH_'; then
+    mkdir -p "${HOME}/.claude/agents"
+    for var in $(env | grep '^CLAUDE_SUBAGENT_PATH_' | sed 's/=.*//'); do
+        name=$(printf '%s' "$var" | sed 's/^CLAUDE_SUBAGENT_PATH_//' | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+        path=$(printenv "$var")
+        [ -f "$path" ] && cp "$path" "${HOME}/.claude/agents/${name}.md"
+    done
+fi
+
 exec claude "$@"

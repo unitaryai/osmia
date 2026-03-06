@@ -90,9 +90,20 @@ func WithJSONSchema(schema string) Option {
 // WithTeamsConfig sets the agent teams configuration. When enabled, the
 // engine appends --agents flags and team-related environment variables
 // to the execution spec.
+//
+// Deprecated: use WithSubAgents instead.
 func WithTeamsConfig(cfg TeamsConfig) Option {
 	return func(e *ClaudeCodeEngine) {
 		e.teamsConfig = cfg
+	}
+}
+
+// WithSubAgents sets the sub-agent definitions. Inline sub-agents are passed
+// via the --agents CLI flag; ConfigMap-backed sub-agents are written to
+// ~/.claude/agents/ via setup-claude.sh.
+func WithSubAgents(agents []SubAgent) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.subAgents = agents
 	}
 }
 
@@ -112,6 +123,7 @@ type ClaudeCodeEngine struct {
 	jsonSchema    string
 	teamsConfig   TeamsConfig
 	skills        []Skill
+	subAgents     []SubAgent
 }
 
 // New returns a new ClaudeCodeEngine with the given functional options applied.
@@ -174,7 +186,7 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		"--output-format", "stream-json",
 		"--max-turns", strconv.Itoa(defaultMaxTurns),
 		"--dangerously-skip-permissions",
-		"--verbose",                           // richer event data (tool calls, cost breakdowns)
+		"--verbose",                            // richer event data (tool calls, cost breakdowns)
 		"--mcp-config", "/workspace/.mcp.json", // explicit load path written by setup-claude.sh
 	}
 
@@ -239,6 +251,18 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		env[k] = v
 	}
 
+	// Append sub-agent flags for inline sub-agents.
+	agentFlags, err := SubAgentFlag(e.subAgents)
+	if err != nil {
+		return nil, fmt.Errorf("building sub-agent flags: %w", err)
+	}
+	command = append(command, agentFlags...)
+
+	// Merge sub-agent env vars (for ConfigMap-backed sub-agents).
+	for k, v := range SubAgentEnvVars(e.subAgents) {
+		env[k] = v
+	}
+
 	// Merge any extra environment variables from the engine config.
 	for k, v := range config.Env {
 		env[k] = v
@@ -275,6 +299,10 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 			MountPath: "/tmp",
 		},
 	}
+
+	// Append ConfigMap volumes for skills and sub-agents.
+	volumes = append(volumes, SkillVolumes(e.skills)...)
+	volumes = append(volumes, SubAgentVolumes(e.subAgents)...)
 
 	spec := &engine.ExecutionSpec{
 		Image:                 image,

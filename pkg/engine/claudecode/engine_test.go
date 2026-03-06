@@ -452,6 +452,85 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 		},
 
+		// --- ConfigMap skill volume tests ---
+
+		{
+			name: "configmap skill adds volume and env var",
+			opts: []Option{
+				WithSkills([]Skill{
+					{Name: "deploy", ConfigMap: "deploy-cm"},
+				}),
+			},
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				// Should have CLAUDE_SKILL_PATH pointing to mount.
+				assert.Equal(t, "/skills/deploy.md", spec.Env["CLAUDE_SKILL_PATH_DEPLOY"])
+				// Should have extra ConfigMap volume.
+				found := false
+				for _, v := range spec.Volumes {
+					if v.Name == "skill-deploy" {
+						found = true
+						assert.Equal(t, "/skills/deploy.md", v.MountPath)
+						assert.Equal(t, "deploy-cm", v.ConfigMapName)
+						assert.True(t, v.ReadOnly)
+					}
+				}
+				assert.True(t, found, "expected skill-deploy volume")
+			},
+		},
+
+		// --- Sub-agent tests ---
+
+		{
+			name: "inline sub-agent adds --agents flag",
+			opts: []Option{
+				WithSubAgents([]SubAgent{
+					{Name: "reviewer", Description: "Reviews code", Model: "haiku"},
+				}),
+			},
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Contains(t, spec.Command, "--agents")
+				// Find the agents JSON.
+				for i, c := range spec.Command {
+					if c == "--agents" {
+						var m map[string]any
+						require.NoError(t, json.Unmarshal([]byte(spec.Command[i+1]), &m))
+						assert.Contains(t, m, "reviewer")
+						break
+					}
+				}
+			},
+		},
+		{
+			name: "configmap sub-agent adds volume and env var",
+			opts: []Option{
+				WithSubAgents([]SubAgent{
+					{Name: "architect", Description: "System architect", ConfigMap: "architect-cm"},
+				}),
+			},
+			task:   baseTask,
+			config: engine.EngineConfig{TimeoutSeconds: 3600},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				// Should NOT have --agents flag (ConfigMap agents are file-based).
+				assert.NotContains(t, spec.Command, "--agents")
+				// Should have env var.
+				assert.Equal(t, "/subagents/architect.md", spec.Env["CLAUDE_SUBAGENT_PATH_ARCHITECT"])
+				// Should have ConfigMap volume.
+				found := false
+				for _, v := range spec.Volumes {
+					if v.Name == "subagent-architect" {
+						found = true
+						assert.Equal(t, "/subagents/architect.md", v.MountPath)
+						assert.Equal(t, "architect-cm", v.ConfigMapName)
+					}
+				}
+				assert.True(t, found, "expected subagent-architect volume")
+			},
+		},
+
 		// --- Streaming output tests ---
 
 		{

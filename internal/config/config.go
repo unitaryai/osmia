@@ -254,7 +254,7 @@ type ClineEngineConfig struct {
 
 // SkillConfig defines a custom skill to make available to the Claude Code agent.
 // Claude Code agents can invoke skills via /skill-name in their prompts.
-// Exactly one of Inline or Path must be set.
+// Exactly one of Inline, Path, or ConfigMap must be set.
 type SkillConfig struct {
 	// Name is the skill identifier used as the filename stem (e.g. "create-changelog").
 	// Use only lowercase letters, digits, and hyphens.
@@ -265,12 +265,53 @@ type SkillConfig struct {
 	// Inline contains the skill Markdown content directly in the config.
 	// Use for custom, operator-defined skills that do not require a pre-built image.
 	Inline string `yaml:"inline,omitempty"`
+	// ConfigMap is the name of a Kubernetes ConfigMap containing the skill Markdown.
+	// The ConfigMap is mounted as a volume and the content is copied to
+	// ~/.claude/skills/ at container startup. Use for large or independently
+	// managed skills that should not be inlined in the controller config.
+	ConfigMap string `yaml:"configmap,omitempty"`
+	// Key is the key within the ConfigMap that holds the skill content.
+	// Defaults to "<name>.md" when omitted.
+	Key string `yaml:"key,omitempty"`
+}
+
+// SubAgentConfig defines a Claude Code sub-agent that can be delegated to
+// during task execution. Sub-agents are passed via the --agents CLI flag
+// (for inline definitions) or written to ~/.claude/agents/ (for ConfigMap-backed).
+type SubAgentConfig struct {
+	// Name is the sub-agent identifier (used as the key in the --agents JSON map).
+	Name string `yaml:"name"`
+	// Description is a short summary of what this sub-agent does.
+	Description string `yaml:"description"`
+	// Prompt is the inline system prompt for the sub-agent.
+	Prompt string `yaml:"prompt,omitempty"`
+	// Model selects the model: "sonnet", "opus", "haiku", or "inherit".
+	Model string `yaml:"model,omitempty"`
+	// Tools is an allowlist of tools the sub-agent may use.
+	Tools []string `yaml:"tools,omitempty"`
+	// DisallowedTools is a denylist of tools the sub-agent must not use.
+	DisallowedTools []string `yaml:"disallowed_tools,omitempty"`
+	// PermissionMode controls the sub-agent's permission behaviour.
+	// One of "default", "acceptEdits", "dontAsk", "bypassPermissions", "plan".
+	PermissionMode string `yaml:"permission_mode,omitempty"`
+	// MaxTurns limits the number of agentic turns for this sub-agent.
+	MaxTurns int `yaml:"max_turns,omitempty"`
+	// Skills lists skill names to preload for this sub-agent.
+	Skills []string `yaml:"skills,omitempty"`
+	// Background runs the sub-agent as a background process.
+	Background bool `yaml:"background,omitempty"`
+	// ConfigMap loads the sub-agent prompt from a Kubernetes ConfigMap
+	// instead of inline. The file is mounted and written to ~/.claude/agents/.
+	ConfigMap string `yaml:"configmap,omitempty"`
+	// Key is the key within the ConfigMap (defaults to "<name>.md").
+	Key string `yaml:"key,omitempty"`
 }
 
 // ClaudeCodeEngineConfig holds Claude Code-specific engine settings.
 type ClaudeCodeEngineConfig struct {
-	Image                string           `yaml:"image,omitempty"`
-	Auth                 AuthConfig       `yaml:"auth"`
+	Image string     `yaml:"image,omitempty"`
+	Auth  AuthConfig `yaml:"auth"`
+	// Deprecated: use SubAgents instead.
 	AgentTeams           AgentTeamsConfig `yaml:"agent_teams"`
 	FallbackModel        string           `yaml:"fallback_model,omitempty"`
 	ToolWhitelist        []string         `yaml:"tool_whitelist,omitempty"`
@@ -281,6 +322,9 @@ type ClaudeCodeEngineConfig struct {
 	// Skills lists custom skill files to make available to the agent.
 	// Each skill is written to ~/.claude/skills/<name>.md before the agent starts.
 	Skills []SkillConfig `yaml:"skills,omitempty"`
+	// SubAgents defines sub-agents that the main Claude Code agent can delegate
+	// to during task execution. Replaces the deprecated agent_teams feature.
+	SubAgents []SubAgentConfig `yaml:"sub_agents,omitempty"`
 }
 
 // CodexEngineConfig holds OpenAI Codex-specific engine settings.

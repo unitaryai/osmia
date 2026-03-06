@@ -188,6 +188,8 @@ func buildEnvFromSources(secretEnv map[string]string) []corev1.EnvFromSource {
 }
 
 // buildVolumes converts engine VolumeMount specs into K8s Volumes and VolumeMounts.
+// When a mount specifies a ConfigMapName, the volume uses a ConfigMap source
+// instead of emptyDir. When ConfigMapKey is also set, only that key is projected.
 func buildVolumes(mounts []engine.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
 	if len(mounts) == 0 {
 		return nil, nil
@@ -195,17 +197,31 @@ func buildVolumes(mounts []engine.VolumeMount) ([]corev1.Volume, []corev1.Volume
 	volumes := make([]corev1.Volume, 0, len(mounts))
 	volumeMounts := make([]corev1.VolumeMount, 0, len(mounts))
 	for _, m := range mounts {
-		volumes = append(volumes, corev1.Volume{
-			Name: m.Name,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		vol := corev1.Volume{Name: m.Name}
+		if m.ConfigMapName != "" {
+			cmSource := &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: m.ConfigMapName},
+			}
+			if m.ConfigMapKey != "" {
+				cmSource.Items = []corev1.KeyToPath{
+					{Key: m.ConfigMapKey, Path: m.ConfigMapKey},
+				}
+			}
+			vol.VolumeSource = corev1.VolumeSource{ConfigMap: cmSource}
+		} else {
+			vol.VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}
+		}
+		volumes = append(volumes, vol)
+
+		vm := corev1.VolumeMount{
 			Name:      m.Name,
 			MountPath: m.MountPath,
 			ReadOnly:  m.ReadOnly,
-		})
+		}
+		if m.SubPath != "" {
+			vm.SubPath = m.SubPath
+		}
+		volumeMounts = append(volumeMounts, vm)
 	}
 	return volumes, volumeMounts
 }

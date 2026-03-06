@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### ConfigMap-Backed Skills
+
+- **Skills can now be loaded from Kubernetes ConfigMaps.** Set `configmap` (and optionally `key`) on a skill config entry instead of `inline` or `path`. The ConfigMap is volume-mounted into the agent container and copied to `~/.claude/skills/` at startup. This avoids bloating the controller config with large Markdown files and allows teams to manage skills independently.
+
+#### Sub-Agent Support
+
+- **New `sub_agents` configuration** replaces the broken `agent_teams` feature. Sub-agents use the official Claude Code sub-agents specification with the correct `--agents` flag format (`{"name": {"description":"...", ...}}`). Supports inline prompts and ConfigMap-backed prompts (mounted to `~/.claude/agents/`). Full feature set: model selection, tool allow/deny lists, permission modes, max turns, skills, and background mode.
+
+#### ConfigMap Volume Support
+
+- **`engine.VolumeMount` now supports ConfigMap sources.** New `ConfigMapName`, `ConfigMapKey`, and `SubPath` fields allow the jobbuilder to emit ConfigMap volume sources instead of emptyDir. This is the foundation for ConfigMap-backed skills and sub-agents.
+
+### Deprecated
+
+- **`agent_teams` configuration is deprecated.** Use `sub_agents` instead. The old agent teams format produced an incorrect `--agents` flag (JSON array instead of object map) and was never wired in `main.go`. A deprecation warning is logged when `agent_teams.enabled` is set.
+
 #### Documentation
 
 - **Skills and agent teams documented.** The engine reference (`docs/plugins/engines.md`) now covers custom skills (inline and image-bundled), agent teams configuration (modes, default agents per task type), and all previously-undocumented Claude Code fields (`fallback_model`, `tool_whitelist`, `tool_blacklist`, `json_schema`, `no_session_persistence`, `append_system_prompt`). The configuration reference (`docs/getting-started/configuration.md`) includes expanded examples. The `setup-claude.sh` startup flow is also described.

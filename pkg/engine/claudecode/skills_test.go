@@ -109,6 +109,60 @@ func TestSkillEnvVars_InlineContentRoundTrip(t *testing.T) {
 	assert.Equal(t, content, string(decoded))
 }
 
+func TestSkillEnvVars_ConfigMapSkill(t *testing.T) {
+	skills := []Skill{
+		{Name: "deploy-guide", ConfigMap: "deploy-cm"},
+	}
+	result := SkillEnvVars(skills)
+	require.NotNil(t, result)
+
+	path, ok := result["CLAUDE_SKILL_PATH_DEPLOY_GUIDE"]
+	require.True(t, ok, "expected CLAUDE_SKILL_PATH_DEPLOY_GUIDE in result")
+	assert.Equal(t, "/skills/deploy-guide.md", path)
+}
+
+func TestSkillVolumes_ConfigMap(t *testing.T) {
+	skills := []Skill{
+		{Name: "changelog", ConfigMap: "changelog-cm"},
+		{Name: "review", ConfigMap: "review-cm", Key: "custom-key.md"},
+	}
+
+	vols := SkillVolumes(skills)
+	require.Len(t, vols, 2)
+
+	assert.Equal(t, "skill-changelog", vols[0].Name)
+	assert.Equal(t, "/skills/changelog.md", vols[0].MountPath)
+	assert.Equal(t, "changelog.md", vols[0].SubPath)
+	assert.True(t, vols[0].ReadOnly)
+	assert.Equal(t, "changelog-cm", vols[0].ConfigMapName)
+	assert.Equal(t, "changelog.md", vols[0].ConfigMapKey)
+
+	assert.Equal(t, "skill-review", vols[1].Name)
+	assert.Equal(t, "custom-key.md", vols[1].SubPath)
+	assert.Equal(t, "custom-key.md", vols[1].ConfigMapKey)
+}
+
+func TestSkillVolumes_NoConfigMap(t *testing.T) {
+	skills := []Skill{
+		{Name: "inline-skill", Inline: "content"},
+		{Name: "path-skill", Path: "/opt/skills/s.md"},
+	}
+
+	vols := SkillVolumes(skills)
+	assert.Nil(t, vols)
+}
+
+func TestSkillVolumes_DefaultKey(t *testing.T) {
+	skills := []Skill{
+		{Name: "my-skill", ConfigMap: "skills-cm"},
+	}
+
+	vols := SkillVolumes(skills)
+	require.Len(t, vols, 1)
+	assert.Equal(t, "my-skill.md", vols[0].ConfigMapKey)
+	assert.Equal(t, "my-skill.md", vols[0].SubPath)
+}
+
 func TestToSafeEnvName(t *testing.T) {
 	tests := []struct {
 		input string

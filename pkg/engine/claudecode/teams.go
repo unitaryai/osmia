@@ -1,5 +1,6 @@
 // Package claudecode provides the Claude Code execution engine for RoboDev.
-// This file implements experimental agent teams configuration for Claude Code.
+// This file implements the agent teams configuration for Claude Code.
+// Agent teams are deprecated; use subagents.go and the SubAgent type instead.
 package claudecode
 
 import (
@@ -24,6 +25,8 @@ type AgentDef struct {
 // TeamsConfig configures the experimental agent teams feature for Claude Code.
 // Agent teams allow splitting a task across multiple Claude Code instances
 // running in-process within a single K8s Job pod.
+//
+// Deprecated: use SubAgent and WithSubAgents instead.
 type TeamsConfig struct {
 	// Enabled controls whether agent teams mode is active. Defaults to false.
 	Enabled bool `json:"enabled" yaml:"enabled"`
@@ -61,6 +64,9 @@ type agentFlagEntry struct {
 // enabled, it generates an --agents flag with a JSON array of agent definitions.
 // If no agents are explicitly configured, default agents are generated based
 // on the task type.
+//
+// Deprecated: use SubAgentFlag instead, which produces the correct --agents
+// format (object map, not array).
 func BuildAgentFlags(cfg TeamsConfig, taskType string) ([]string, error) {
 	if !cfg.Enabled {
 		return nil, nil
@@ -107,6 +113,8 @@ func BuildAgentFlags(cfg TeamsConfig, taskType string) ([]string, error) {
 
 // TeamsEnvVars returns the environment variables required to enable agent
 // teams mode inside the execution container.
+//
+// Deprecated: use SubAgentEnvVars instead.
 func TeamsEnvVars(cfg TeamsConfig) map[string]string {
 	if !cfg.Enabled {
 		return nil

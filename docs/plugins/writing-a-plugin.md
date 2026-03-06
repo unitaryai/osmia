@@ -306,7 +306,7 @@ Every interface carries an `interface_version`. Compatibility is enforced via a 
 1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `robodev-config.yaml` against its expected version for the plugin type. A mismatch is rejected immediately with a structured error, without spawning the binary.
 2. **Transport handshake** — hashicorp/go-plugin verifies the magic cookie when the subprocess connects, confirming it is a valid RoboDev plugin binary.
 
-On a version mismatch, the controller refuses to load the plugin and marks it permanently unhealthy. It will **not** attempt restarts, since restarting cannot resolve an incompatibility.
+On a version mismatch, the controller refuses to load the plugin — `LoadPlugin` returns an error and no plugin instance is stored. The plugin is simply never registered, so there is no health state to track. Restarts are not attempted, since restarting cannot resolve a version incompatibility.
 
 !!! note "Handshake RPC"
     The `Handshake` RPC defined in each protobuf service is **required** — external plugins must implement it. The controller will call it at startup once generated proto stubs are available. Until then, enforcement is config-level: you must set `interface_version` in your plugin config to match the version your binary implements.

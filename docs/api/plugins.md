@@ -54,7 +54,7 @@ rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
 
 The protobuf `Handshake` RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure `interface_version` in config matches the binary they deploy.
 
-If the declared `interface_version` does not match what the controller expects, loading is refused, a structured error is logged, and the plugin is marked permanently unhealthy. Restarting cannot resolve a version mismatch.
+If the declared `interface_version` does not match what the controller expects, `LoadPlugin` returns an error and no plugin instance is created or stored. The plugin is simply never registered — there is no health state to mark. Restarting cannot resolve a version mismatch.
 
 The current `interface_version` for most services is **1**. SCM is version **2** (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` were added).
 

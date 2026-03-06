@@ -1743,6 +1743,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#session-continuation-after-max-turns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Continuation After Max Turns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#configurable-max-turns-for-claude-code" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2808,6 +2819,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#session-continuation-after-max-turns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session Continuation After Max Turns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#configurable-max-turns-for-claude-code" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3837,6 +3859,13 @@
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<h4 id="session-continuation-after-max-turns">Session Continuation After Max Turns<a class="headerlink" href="#session-continuation-after-max-turns" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Retry jobs now continue from prior work rather than starting from scratch.</strong> When a Claude Code agent hits <code>--max-turns</code> and the pod exits, the next retry agent clones the branch that was pushed during the previous session instead of re-cloning from the default branch.</li>
+<li><strong>Deterministic branch naming.</strong> The base prompt now instructs the agent to create and push to <code>robodev/&lt;ticket-id&gt;</code> throughout execution, committing frequently rather than waiting until the end. This branch name is predictable even if <code>result.json</code> was never written (e.g. pod killed before the stop hook ran).</li>
+<li><strong><code>Task.PriorBranchName</code> field.</strong> The <code>engine.Task</code> struct has a new <code>PriorBranchName</code> field. When set, <code>BuildPrompt</code> emits a <code>## Continuation</code> section that clones that branch with <code>--depth=50</code> and asks the agent to review prior commits before continuing.</li>
+<li><strong><code>launchRetryJob</code> branch propagation.</strong> The controller now sets <code>PriorBranchName</code> from <code>tr.Result.BranchName</code> when available, or falls back to <code>robodev/&lt;ticketID&gt;</code> for retries where the pod was killed before writing <code>result.json</code>.</li>
+</ul>
 <h4 id="configurable-max-turns-for-claude-code">Configurable Max Turns for Claude Code<a class="headerlink" href="#configurable-max-turns-for-claude-code" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong><code>max_turns</code> is now configurable</strong> for the Claude Code engine. Set <code>engines.claude_code.max_turns</code> in your config to override the default of 50 turns. Increase this for tasks that require more steps, such as large refactors or multi-file changes. The value is passed directly to Claude Code's <code>--max-turns</code> flag.</li>

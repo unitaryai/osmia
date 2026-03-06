@@ -49,7 +49,90 @@ Run with: `make e2e-live-test` (requires `make live-up` + valid secrets)
 
 ---
 
-## 2. High-Priority Upcoming
+## 2. Unimplemented — Claimed in Docs
+
+These items have config schema and infrastructure code in place but are **not
+wired into the live execution path**. They were previously documented as
+complete or as behaving differently from the actual implementation.
+
+---
+
+### Task-Scoped Secret References
+
+**Priority:** Medium
+**Scope:** Medium
+
+The `secretresolver` package (`internal/secretresolver/`) and the `secret_resolver`
+config block exist. The `agentSecretKeyRefs()` function in the controller
+currently merges only SCM and Slack credentials. Ticket-level secret references
+(parsed from ticket descriptions and resolved per-task) are not wired into
+`ProcessTicket`.
+
+- [ ] Wire ticket secret parser into `ProcessTicket`
+- [ ] Inject resolved per-task refs into `engine.EngineConfig.SecretKeyRefs`
+- [ ] Policy enforcement and structured audit logging per-task
+
+---
+
+### Guardrails.md Prompt Injection
+
+**Priority:** Medium
+**Scope:** Small
+
+The promptbuilder package exists but the controller builds `engine.Task` directly
+from ticket fields without calling through the promptbuilder. A `guardrails.md`
+ConfigMap is not currently mounted or injected.
+
+- [ ] Wire `promptbuilder.BuildPrompt` (or equivalent) into `ProcessTicket`
+- [ ] Mount operator-provided `guardrails.md` ConfigMap into agent pods
+- [ ] Append content to every agent prompt before `BuildExecutionSpec`
+
+---
+
+### Task-Profile File Pattern Enforcement
+
+**Priority:** Medium
+**Scope:** Medium
+
+`TaskProfileConfig` (`allowed_file_patterns`, `blocked_file_patterns`) is parsed
+and stored but not enforced. The controller reads `AllowedTaskTypes` for early
+rejection but does not translate profile constraints into agent pod configuration.
+
+- [ ] Translate `blocked_file_patterns` into hook environment variables or engine config
+- [ ] Apply per-profile cost and duration overrides at job creation time
+
+---
+
+### Leader Election (Controller HA)
+
+**Priority:** Low
+**Scope:** Medium
+**Dependencies:** controller-runtime Lease support (already in the dependency tree)
+
+The controller currently runs as a single replica. Leader election via Kubernetes
+Lease objects would allow multiple replicas with automatic failover.
+
+- [ ] Add `--leader-elect` flag and Lease RBAC to the Helm chart
+- [ ] Wire `leaderElect` option in `main.go` controller startup
+
+---
+
+### Namespace-Per-Tenant Isolation
+
+**Priority:** Low
+**Scope:** Large
+
+`TenancyConfig` and `TenantConfig` are defined in the config schema but have no
+runtime effect. Namespace-per-tenant isolation (dedicated RBAC, secrets, quotas
+per tenant) is not implemented.
+
+- [ ] Implement tenant namespace routing in the reconciler
+- [ ] Per-tenant ticketing and secrets config dispatch
+- [ ] RBAC generation in the Helm chart
+
+---
+
+## 3. High-Priority Upcoming
 
 ---
 
@@ -335,7 +418,7 @@ live controller and `main.go`:
 
 ---
 
-### Original 13-Item Improvements Plan — 12/13 complete
+### Original 13-Item Improvements Plan — 11/13 complete
 
 | # | Feature | Status |
 |---|---------|--------|
@@ -348,9 +431,9 @@ live controller and `main.go`:
 | 7 | Linear Ticketing Backend | ✅ |
 | 8 | Discord Notification Channel | ✅ |
 | 9 | HashiCorp Vault Secrets Backend | ✅ |
-| 10 | Task-Scoped Secret Resolution | ✅ |
-| 11 | NetworkPolicy & Security Hardening | ✅ |
-| 12 | Plugin SDKs (Python, Go, TypeScript) | 🚧 In progress |
+| 10 | Task-Scoped Secret Resolution | 🚧 Infrastructure in place; per-task ticket references not wired — see Section 2 |
+| 11 | NetworkPolicy & Security Hardening | ✅ (opt-in; disabled by default) |
+| 12 | Plugin SDKs (Python, Go, TypeScript) | 🚧 Helper libraries checked in; generated stubs require `make sdk-gen` |
 | 13 | Local Development Mode (Docker Compose) | ✅ |
 
 ---
@@ -365,6 +448,11 @@ live controller and `main.go`:
 | 9 | Plugin SDKs | Medium | 🚧 In progress |
 | 11 | Documentation Site | High | Partially complete |
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
+| — | Task-Scoped Secret References (per-task) | Medium | 🚧 Not wired |
+| — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
+| — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
+| — | Leader Election (Controller HA) | Low | 🚧 Not started |
+| — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |
 | 20 | PR/MR Comment Response | High | ✅ Complete |
 | — | Cost & token usage in notifications | Low | ✅ Complete |
 | — | E2E workflow suite (fake-agent, 7 tests) | High | ✅ Complete |

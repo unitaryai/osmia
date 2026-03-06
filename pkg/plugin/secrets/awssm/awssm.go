@@ -45,9 +45,9 @@ type Backend struct {
 	logger     *slog.Logger
 
 	// smClient is set either by ensureClient (lazy) or WithSMClient (testing).
-	smClient *secretsmanager.Client
-	initOnce sync.Once
-	initErr  error
+	smClient    *secretsmanager.Client
+	initMu      sync.Mutex
+	initialised bool
 
 	mu    sync.RWMutex
 	cache map[string]cacheEntry
@@ -98,8 +98,7 @@ func WithHTTPClient(client *http.Client) Option {
 func WithSMClient(client *secretsmanager.Client) Option {
 	return func(b *Backend) {
 		b.smClient = client
-		// Mark init as done so ensureClient is a no-op.
-		b.initOnce.Do(func() {})
+		b.initialised = true
 	}
 }
 
@@ -117,37 +116,48 @@ func NewBackend(opts ...Option) *Backend {
 	return b
 }
 
-// ensureClient initialises the AWS SDK client on first use.
+// ensureClient initialises the AWS SDK client on first use. Unlike sync.Once,
+// this retries on transient failures so that a temporary network issue during
+// startup does not permanently disable the backend.
 func (b *Backend) ensureClient(ctx context.Context) error {
-	b.initOnce.Do(func() {
-		var cfgOpts []func(*awsconfig.LoadOptions) error
+	b.initMu.Lock()
+	defer b.initMu.Unlock()
 
-		if b.region != "" {
-			cfgOpts = append(cfgOpts, awsconfig.WithRegion(b.region))
-		}
-		if b.httpClient != nil {
-			cfgOpts = append(cfgOpts, awsconfig.WithHTTPClient(b.httpClient))
-		}
+	if b.initialised {
+		return nil
+	}
 
-		cfg, err := awsconfig.LoadDefaultConfig(ctx, cfgOpts...)
-		if err != nil {
-			b.initErr = fmt.Errorf("loading AWS config: %w", err)
-			return
-		}
+	var cfgOpts []func(*awsconfig.LoadOptions) error
 
-		// If a cross-account role is configured, wrap credentials with STS AssumeRole.
-		if b.assumeRole != "" {
-			stsClient := sts.NewFromConfig(cfg)
-			cfg.Credentials = stscreds.NewAssumeRoleProvider(stsClient, b.assumeRole)
-			b.logger.Info("configured cross-account role assumption",
-				"role_arn", b.assumeRole)
-		}
+	if b.region != "" {
+		cfgOpts = append(cfgOpts, awsconfig.WithRegion(b.region))
+	}
+	if b.httpClient != nil {
+		cfgOpts = append(cfgOpts, awsconfig.WithHTTPClient(b.httpClient))
+	}
 
-		b.smClient = secretsmanager.NewFromConfig(cfg)
-		b.logger.Info("initialised AWS Secrets Manager client",
-			"region", cfg.Region)
-	})
-	return b.initErr
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, cfgOpts...)
+	if err != nil {
+		return fmt.Errorf("loading AWS config: %w", err)
+	}
+
+	// If a cross-account role is configured, wrap credentials with a cached
+	// STS AssumeRole provider so temporary credentials are reused across calls.
+	if b.assumeRole != "" {
+		stsClient := sts.NewFromConfig(cfg)
+		cfg.Credentials = aws.NewCredentialsCache(
+			stscreds.NewAssumeRoleProvider(stsClient, b.assumeRole),
+		)
+		b.logger.Info("configured cross-account role assumption",
+			"role_arn", b.assumeRole)
+	}
+
+	b.smClient = secretsmanager.NewFromConfig(cfg)
+	b.initialised = true
+	b.logger.Info("initialised AWS Secrets Manager client",
+		"region", cfg.Region)
+
+	return nil
 }
 
 // GetSecret retrieves a single secret value from AWS Secrets Manager. The key

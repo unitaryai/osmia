@@ -140,10 +140,12 @@ The default backend reads secrets directly from Kubernetes Secret objects in the
 
 ```yaml
 config:
-  secrets:
-    backend: k8s
-    config:
-      namespace: "robodev"    # Optional — defaults to the controller's namespace.
+  secret_resolver:
+    backends:
+      - scheme: "k8s"
+        backend: "k8s"
+        config:
+          namespace: "robodev"    # Optional — defaults to the controller's namespace.
 ```
 
 No additional configuration is required. The backend uses the controller's service account credentials to read Secrets.
@@ -189,13 +191,15 @@ A built-in Vault backend (`pkg/plugin/secrets/vault/`) reads secrets from HashiC
 
 ```yaml
 config:
-  secrets:
-    backend: vault
-    config:
-      address: "https://vault.internal:8200"
-      role: "robodev"
-      auth_method: "kubernetes"    # Currently the only supported method.
-      secrets_path: "secret"       # KV v2 mount path.
+  secret_resolver:
+    backends:
+      - scheme: "vault"
+        backend: "vault"
+        config:
+          address: "https://vault.internal:8200"
+          role: "robodev"
+          auth_method: "kubernetes"    # Currently the only supported method.
+          secrets_path: "secret"       # KV v2 mount path.
 ```
 
 ### Key Format
@@ -220,7 +224,16 @@ The backend uses the **AWS SDK default credential chain**, which automatically s
 - Shared credentials file (`~/.aws/credentials`).
 - EC2 instance metadata / ECS task roles.
 
-No custom authentication code is needed. For cross-account access, configure `assume_role_arn` to use STS AssumeRole.
+No custom authentication code is needed, but IRSA requires prior EKS/IAM setup:
+
+1. Create an IAM role with `secretsmanager:GetSecretValue` permission (see Required IAM Permissions below).
+2. Annotate the RoboDev controller's ServiceAccount with the role ARN:
+   ```yaml
+   metadata:
+     annotations:
+       eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/robodev-secrets
+   ```
+3. For cross-account access, ensure the source role has `sts:AssumeRole` permission and configure `assume_role_arn` in the backend config. The target account's role must have a trust policy allowing the source role to assume it.
 
 ### Configuration
 
@@ -252,7 +265,7 @@ Secret keys use the `secret-name#json-field` format:
 
 ### URI Format
 
-```
+```text
 aws-sm://myapp/api-keys#stripe_key
 aws-sm://arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host
 ```
@@ -341,10 +354,12 @@ spec:
 
 ```yaml
 config:
-  secrets:
-    backend: k8s
-    config:
-      namespace: "robodev"
+  secret_resolver:
+    backends:
+      - scheme: "k8s"
+        backend: "k8s"
+        config:
+          namespace: "robodev"
 ```
 
 This approach works today with no changes to RoboDev.

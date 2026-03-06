@@ -433,6 +433,113 @@ func TestCodexEngineConfigField(t *testing.T) {
 	assert.NotNil(t, cfg.Engines.Codex, "codex engine config should be non-nil when set")
 }
 
+// ── configStringSlice ─────────────────────────────────────────────────────────
+
+func TestConfigStringSlice(t *testing.T) {
+	tests := []struct {
+		name    string
+		m       map[string]any
+		key     string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "[]any with strings",
+			m:    map[string]any{"labels": []any{"bug", "robodev"}},
+			key:  "labels",
+			want: []string{"bug", "robodev"},
+		},
+		{
+			name: "[]string value",
+			m:    map[string]any{"labels": []string{"a", "b"}},
+			key:  "labels",
+			want: []string{"a", "b"},
+		},
+		{
+			name: "missing key returns nil",
+			m:    map[string]any{},
+			key:  "labels",
+			want: nil,
+		},
+		{
+			name:    "wrong type returns error",
+			m:       map[string]any{"labels": 42},
+			key:     "labels",
+			wantErr: true,
+		},
+		{
+			name:    "[]any with non-string element returns error",
+			m:       map[string]any{"labels": []any{"ok", 99}},
+			key:     "labels",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := configStringSlice(tt.m, tt.key)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestTriggerLabelDerivation verifies the logic that auto-derives webhook
+// trigger labels from ticketing config when trigger_labels is not explicitly
+// set and the ticketing backend is "github".
+func TestTriggerLabelDerivation(t *testing.T) {
+	tests := []struct {
+		name           string
+		explicitLabels []string
+		backend        string
+		ticketingCfg   map[string]any
+		wantLabels     []string
+	}{
+		{
+			name:           "explicit labels take precedence",
+			explicitLabels: []string{"deploy"},
+			backend:        "github",
+			ticketingCfg:   map[string]any{"labels": []any{"robodev"}},
+			wantLabels:     []string{"deploy"},
+		},
+		{
+			name:         "derived from ticketing config",
+			backend:      "github",
+			ticketingCfg: map[string]any{"labels": []any{"robodev", "auto"}},
+			wantLabels:   []string{"robodev", "auto"},
+		},
+		{
+			name:         "non-github backend does not derive",
+			backend:      "linear",
+			ticketingCfg: map[string]any{"labels": []any{"robodev"}},
+			wantLabels:   nil,
+		},
+		{
+			name:         "no labels in ticketing config",
+			backend:      "github",
+			ticketingCfg: map[string]any{},
+			wantLabels:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Replicate the derivation logic from main.go.
+			triggerLabels := tt.explicitLabels
+			if len(triggerLabels) == 0 && tt.backend == "github" {
+				if labels, err := configStringSlice(tt.ticketingCfg, "labels"); err == nil && len(labels) > 0 {
+					triggerLabels = labels
+				}
+			}
+			assert.Equal(t, tt.wantLabels, triggerLabels)
+		})
+	}
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 func testLogger() *slog.Logger {

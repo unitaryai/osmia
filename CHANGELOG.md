@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Real Diff for Code Review Gate
 
-- **`GetDiff` added to `scm.Backend` interface.** GitHub and GitLab SCM backends now implement `GetDiff` using their respective compare APIs. The `baseBranch` parameter is resolved automatically: GitHub uses `HEAD` (the repo's default branch) when empty; GitLab fetches the project's `default_branch` from the API. The review gate fetches the actual diff before calling `ReviewDiff`, instead of passing an empty string.
+- **`GetDiff` added to `scm.Backend` interface.** GitHub and GitLab SCM backends now implement `GetDiff` using their respective compare APIs. The `baseBranch` parameter is resolved automatically: GitHub uses `HEAD` (the repo's default branch) when empty; GitLab fetches the project's `default_branch` from the API. The review gate fetches the actual diff before calling `ReviewDiff`, instead of passing an empty string. `scm.InterfaceVersion` bumped from 1 to 2 to signal the contract change to external plugins.
 
 #### Runtime Cost Enforcement
 

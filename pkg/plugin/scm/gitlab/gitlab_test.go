@@ -277,6 +277,74 @@ func TestGitLabSCMBackend_AuthHeader(t *testing.T) {
 	assert.Equal(t, "my-secret-token", authHeader)
 }
 
+func TestGitLabSCMBackend_GetDiff(t *testing.T) {
+	tests := []struct {
+		name             string
+		baseBranch       string
+		wantProjectFetch bool // whether the test server should expect a project API call
+		wantFrom         string
+	}{
+		{
+			name:             "explicit base branch",
+			baseBranch:       "develop",
+			wantProjectFetch: false,
+			wantFrom:         "develop",
+		},
+		{
+			name:             "empty base fetches default branch",
+			baseBranch:       "",
+			wantProjectFetch: true,
+			wantFrom:         "trunk", // returned by the mock project endpoint
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var projectFetched bool
+			var capturedFrom string
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch {
+				case r.URL.EscapedPath() == "/projects/acme%2Fwidgets" && r.Method == http.MethodGet:
+					projectFetched = true
+					_ = json.NewEncoder(w).Encode(map[string]string{"default_branch": "trunk"})
+				case r.URL.EscapedPath() == "/projects/acme%2Fwidgets/repository/compare":
+					capturedFrom = r.URL.Query().Get("from")
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"diffs": []map[string]string{
+							{"old_path": "a.go", "new_path": "a.go", "diff": "@@ -1 +1 @@\n-old\n+new"},
+						},
+					})
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer srv.Close()
+
+			b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+			diff, err := b.GetDiff(context.Background(), "https://gitlab.com/acme/widgets", tt.baseBranch, "feature/x")
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantProjectFetch, projectFetched)
+			assert.Equal(t, tt.wantFrom, capturedFrom)
+			assert.Contains(t, diff, "--- a/a.go")
+			assert.Contains(t, diff, "+++ b/a.go")
+		})
+	}
+}
+
+func TestGitLabSCMBackend_GetDiff_APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	_, err := b.GetDiff(context.Background(), "https://gitlab.com/acme/widgets", "main", "nonexistent")
+	require.Error(t, err)
+}
+
 func TestGitLabSCMBackend_SubgroupProject(t *testing.T) {
 	var receivedPath string
 

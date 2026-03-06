@@ -263,6 +263,61 @@ func TestGitHubSCMBackend_GetPullRequestStatus_APIError(t *testing.T) {
 	assert.Contains(t, err.Error(), "unexpected status 404")
 }
 
+func TestGitHubSCMBackend_GetDiff(t *testing.T) {
+	tests := []struct {
+		name           string
+		baseBranch     string
+		wantCompareSeg string // expected "base...head" segment in the URL path
+	}{
+		{
+			name:           "explicit base branch",
+			baseBranch:     "develop",
+			wantCompareSeg: "develop...feature/x",
+		},
+		{
+			name:           "empty base defaults to HEAD",
+			baseBranch:     "",
+			wantCompareSeg: "HEAD...feature/x",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const fakeDiff = "diff --git a/f.go b/f.go\n--- a/f.go\n+++ b/f.go\n@@ -1 +1 @@\n-old\n+new\n"
+			var capturedPath string
+			var capturedAccept string
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				capturedPath = r.URL.Path
+				capturedAccept = r.Header.Get("Accept")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(fakeDiff))
+			}))
+			defer srv.Close()
+
+			b := NewGitHubSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+			diff, err := b.GetDiff(context.Background(), "https://github.com/acme/widgets", tt.baseBranch, "feature/x")
+			require.NoError(t, err)
+
+			assert.Equal(t, "/repos/acme/widgets/compare/"+tt.wantCompareSeg, capturedPath)
+			assert.Equal(t, "application/vnd.github.v3.diff", capturedAccept)
+			assert.Equal(t, fakeDiff, diff)
+		})
+	}
+}
+
+func TestGitHubSCMBackend_GetDiff_APIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	b := NewGitHubSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	_, err := b.GetDiff(context.Background(), "https://github.com/acme/widgets", "main", "nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected status 404")
+}
+
 func TestGitHubSCMBackend_AuthHeader(t *testing.T) {
 	var authHeader string
 

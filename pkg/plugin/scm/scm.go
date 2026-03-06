@@ -10,7 +10,7 @@ import (
 )
 
 // InterfaceVersion is the current version of the SCMBackend interface.
-const InterfaceVersion = 1
+const InterfaceVersion = 2
 
 // ReviewComment is a comment posted on a pull or merge request.
 type ReviewComment struct {

@@ -308,17 +308,28 @@ func (b *GitLabSCMBackend) ResolveThread(ctx context.Context, prURL string, thre
 	return b.doPut(ctx, apiURL, map[string]bool{"resolved": true})
 }
 
-// GetDiff returns the unified diff between the repository's default branch
-// and the named branch using the GitLab compare API.
-func (b *GitLabSCMBackend) GetDiff(ctx context.Context, repoURL string, branchName string) (string, error) {
+// GetDiff returns the unified diff between baseBranch and branchName using
+// the GitLab compare API. When baseBranch is empty, the compare endpoint
+// uses the project's default branch.
+func (b *GitLabSCMBackend) GetDiff(ctx context.Context, repoURL string, baseBranch string, branchName string) (string, error) {
 	projectPath, err := parseProjectPath(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("parsing repository URL: %w", err)
 	}
 
 	encodedPath := url.PathEscape(projectPath)
-	compareURL := fmt.Sprintf("%s/projects/%s/repository/compare?from=main&to=%s",
-		b.baseURL, encodedPath, url.QueryEscape(branchName))
+
+	// When baseBranch is empty, fetch the project's default branch first.
+	if baseBranch == "" {
+		defaultBranch, dbErr := b.getDefaultBranch(ctx, encodedPath)
+		if dbErr != nil {
+			return "", fmt.Errorf("fetching default branch: %w", dbErr)
+		}
+		baseBranch = defaultBranch
+	}
+
+	compareURL := fmt.Sprintf("%s/projects/%s/repository/compare?from=%s&to=%s",
+		b.baseURL, encodedPath, url.QueryEscape(baseBranch), url.QueryEscape(branchName))
 
 	body, err := b.doGet(ctx, compareURL)
 	if err != nil {
@@ -343,6 +354,27 @@ func (b *GitLabSCMBackend) GetDiff(ctx context.Context, repoURL string, branchNa
 	}
 
 	return buf.String(), nil
+}
+
+// getDefaultBranch fetches the project's default branch name from the GitLab API.
+func (b *GitLabSCMBackend) getDefaultBranch(ctx context.Context, encodedPath string) (string, error) {
+	apiURL := fmt.Sprintf("%s/projects/%s", b.baseURL, encodedPath)
+	body, err := b.doGet(ctx, apiURL)
+	if err != nil {
+		return "", fmt.Errorf("fetching project: %w", err)
+	}
+	defer body.Close()
+
+	var project struct {
+		DefaultBranch string `json:"default_branch"`
+	}
+	if err := json.NewDecoder(body).Decode(&project); err != nil {
+		return "", fmt.Errorf("decoding project response: %w", err)
+	}
+	if project.DefaultBranch == "" {
+		return "main", nil
+	}
+	return project.DefaultBranch, nil
 }
 
 // doPut performs a PUT request with a JSON body, discarding the response.

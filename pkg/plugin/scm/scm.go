@@ -85,11 +85,12 @@ type Backend interface {
 	// return nil silently.
 	ResolveThread(ctx context.Context, prURL string, threadID string) error
 
-	// GetDiff returns the unified diff between the repository's default branch
-	// and the named branch. Implementations should return the diff as a string
-	// suitable for code review. Returns an empty string and nil error when no
-	// diff is available.
-	GetDiff(ctx context.Context, repoURL string, branchName string) (string, error)
+	// GetDiff returns the unified diff between baseBranch and branchName.
+	// When baseBranch is empty, the implementation should use the
+	// repository's default branch. Implementations should return the diff
+	// as a string suitable for code review. Returns an empty string and
+	// nil error when no diff is available.
+	GetDiff(ctx context.Context, repoURL string, baseBranch string, branchName string) (string, error)
 
 	// Name returns the unique identifier for this backend (e.g. "github", "gitlab").
 	Name() string

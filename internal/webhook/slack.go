@@ -143,6 +143,10 @@ func (s *Server) handleSlack(w http.ResponseWriter, r *http.Request) {
 						slog.String("task_run_id", taskRunID),
 						slog.String("error", err.Error()),
 					)
+					// Return 500 so Slack retries the delivery rather than
+					// silently losing the approval callback.
+					http.Error(w, "approval handler error", http.StatusInternalServerError)
+					return
 				}
 			} else {
 				s.logger.Info("received approval callback but no handler configured",

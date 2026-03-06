@@ -92,7 +92,7 @@ func (m *mockSCMBackend) ResolveThread(_ context.Context, prURL, threadID string
 	return nil
 }
 
-func (m *mockSCMBackend) GetDiff(_ context.Context, _, _ string) (string, error) {
+func (m *mockSCMBackend) GetDiff(_ context.Context, _, _, _ string) (string, error) {
 	return "", nil
 }
 

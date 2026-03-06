@@ -641,10 +641,12 @@ func (w *Watchdog) ConsumeStreamEvent(tr *taskrun.TaskRun, event *agentstream.St
 
 	case *agentstream.CostEvent:
 		tr.TokensConsumed = ev.InputTokens + ev.OutputTokens
+		tr.CostUSD = ev.CostUSD
 		w.logger.Debug("stream: cost update consumed",
 			"task_run_id", tr.ID,
 			"input_tokens", ev.InputTokens,
 			"output_tokens", ev.OutputTokens,
+			"cost_usd", ev.CostUSD,
 		)
 
 	case *agentstream.ContentDeltaEvent:

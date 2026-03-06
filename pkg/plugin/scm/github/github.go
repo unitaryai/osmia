@@ -322,16 +322,21 @@ func (b *GitHubSCMBackend) ResolveThread(_ context.Context, _ string, _ string) 
 	return nil
 }
 
-// GetDiff returns the unified diff between the repository's default branch
-// and the named branch using the GitHub compare API.
-func (b *GitHubSCMBackend) GetDiff(ctx context.Context, repoURL string, branchName string) (string, error) {
+// GetDiff returns the unified diff between baseBranch and branchName using
+// the GitHub compare API. When baseBranch is empty, "HEAD" is used, which
+// resolves to the repository's default branch.
+func (b *GitHubSCMBackend) GetDiff(ctx context.Context, repoURL string, baseBranch string, branchName string) (string, error) {
 	owner, repo, err := parseOwnerRepo(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("parsing repository URL: %w", err)
 	}
 
+	if baseBranch == "" {
+		baseBranch = "HEAD"
+	}
+
 	// Use the compare endpoint with diff media type.
-	compareURL := fmt.Sprintf("%s/repos/%s/%s/compare/main...%s", b.baseURL, owner, repo, branchName)
+	compareURL := fmt.Sprintf("%s/repos/%s/%s/compare/%s...%s", b.baseURL, owner, repo, baseBranch, branchName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, compareURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating compare request: %w", err)

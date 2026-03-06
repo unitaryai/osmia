@@ -22,11 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Real Diff for Code Review Gate
 
-- **`GetDiff` added to `scm.Backend` interface.** GitHub and GitLab SCM backends now implement `GetDiff` using their respective compare APIs. The review gate fetches the actual diff before calling `ReviewDiff`, instead of passing an empty string.
+- **`GetDiff` added to `scm.Backend` interface.** GitHub and GitLab SCM backends now implement `GetDiff` using their respective compare APIs. The `baseBranch` parameter is resolved automatically: GitHub uses `HEAD` (the repo's default branch) when empty; GitLab fetches the project's `default_branch` from the API. The review gate fetches the actual diff before calling `ReviewDiff`, instead of passing an empty string.
 
 #### Runtime Cost Enforcement
 
-- **`max_cost_per_job` watchdog rule.** A new `checkTotalCost` rule in the watchdog terminates jobs whose cumulative cost exceeds `guardrails.max_cost_per_job`. Wired from the existing config field.
+- **`max_cost_per_job` watchdog rule.** A new `checkTotalCost` rule in the watchdog terminates jobs whose cumulative cost exceeds `guardrails.max_cost_per_job`. Cost data is fed from the live stream: `CostEvent.CostUSD` is propagated to `TaskRun.CostUSD` via `ConsumeStreamEvent`, and `buildHeartbeat` uses it for each watchdog tick. Falls back to the result-level cost for agents that do not emit live cost events.
+
+- **Slack approval callback failures now return 500.** When `ResolveApproval` fails, the webhook returns a non-2xx status so Slack retries the delivery instead of silently losing the callback.
 
 ### Fixed
 
@@ -36,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **GitHub polling no longer picks up pull requests.** The `/issues` endpoint returns both issues and pull requests. Items with a non-nil `pull_request` field are now filtered out before the polling backend emits tickets, preventing RoboDev from treating a labelled PR as a task.
 
-- **Webhook trigger labels auto-derived from ticketing config.** When `webhook.github.trigger_labels` is not explicitly set, the webhook now falls back to the `labels` list from the GitHub ticketing backend config, preventing unfiltered issue processing in webhook-only deployments.
+- **Webhook trigger labels auto-derived from ticketing config.** When `webhook.github.trigger_labels` is not explicitly set and `ticketing.backend` is `"github"`, the webhook now falls back to the `labels` list from the GitHub ticketing backend config. Deployments that do not use the GitHub polling backend must set `trigger_labels` explicitly if label gating is desired.
 
 - **Webhook adapter propagates processing errors.** `HandleWebhookEvent` now returns the first error encountered rather than always returning `nil`. This causes the webhook server to respond with a non-2xx status so senders (GitHub, GitLab) will retry the delivery.
 

@@ -848,9 +848,12 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		defer reviewCancel()
 		var diff string
 		if tr.Result != nil && tr.Result.BranchName != "" {
-			scmBackend, scmErr := r.scmFor(r.ticketCacheRepoURL(tr.TicketID))
+			repoURL := r.ticketCacheRepoURL(tr.TicketID)
+			scmBackend, scmErr := r.scmFor(repoURL)
 			if scmErr == nil {
-				if d, fetchErr := scmBackend.GetDiff(reviewCtx, r.ticketCacheRepoURL(tr.TicketID), tr.Result.BranchName); fetchErr == nil {
+				// Pass empty baseBranch so the SCM backend resolves the
+				// repository's actual default branch rather than assuming "main".
+				if d, fetchErr := scmBackend.GetDiff(reviewCtx, repoURL, "", tr.Result.BranchName); fetchErr == nil {
 					diff = d
 				} else {
 					r.logger.WarnContext(ctx, "failed to fetch diff for review gate", "error", fetchErr)
@@ -2356,8 +2359,10 @@ func (r *Reconciler) buildHeartbeat(tr *taskrun.TaskRun, seq int64) *watchdog.He
 		ToolCallsTotal:            tr.ToolCallsTotal,
 		LastToolName:              tr.LastToolName,
 		ConsecutiveIdenticalCalls: tr.ConsecutiveIdenticalTools,
+		CostEstimateUSD:           tr.CostUSD,
 	}
-	if tr.Result != nil {
+	// Fall back to the result cost when live stream cost is not yet available.
+	if hb.CostEstimateUSD == 0 && tr.Result != nil {
 		hb.CostEstimateUSD = tr.Result.CostEstimateUSD
 	}
 	return hb

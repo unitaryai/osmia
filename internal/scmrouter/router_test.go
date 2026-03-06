@@ -47,7 +47,7 @@ func (s *stubBackend) ResolveThread(_ context.Context, _, _ string) error {
 	panic("stubBackend.ResolveThread not implemented")
 }
 
-func (s *stubBackend) GetDiff(_ context.Context, _, _ string) (string, error) {
+func (s *stubBackend) GetDiff(_ context.Context, _, _, _ string) (string, error) {
 	panic("stubBackend.GetDiff not implemented")
 }
 

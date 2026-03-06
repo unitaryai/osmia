@@ -75,6 +75,7 @@ type TaskRun struct {
 	ToolCallsTotal            int                `json:"tool_calls_total"`
 	LastToolName              string             `json:"last_tool_name,omitempty"`
 	ConsecutiveIdenticalTools int                `json:"consecutive_identical_tools"`
+	CostUSD                   float64            `json:"cost_usd"`
 	DiagnosisHistory          []DiagnosisRecord  `json:"diagnosis_history,omitempty"`
 	TournamentID              string             `json:"tournament_id,omitempty"`
 	CandidateIndex            int                `json:"candidate_index,omitempty"`

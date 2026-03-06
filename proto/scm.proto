@@ -38,6 +38,27 @@ service SCMBackend {
   // GetPullRequestStatus retrieves the current status of a pull/merge
   // request, including CI checks, review state, and mergeability.
   rpc GetPullRequestStatus(GetPullRequestStatusRequest) returns (GetPullRequestStatusResponse);
+
+  // ListReviewComments returns all review and general comments on the
+  // pull or merge request identified by its URL.
+  // Added in interface version 2.
+  rpc ListReviewComments(ListReviewCommentsRequest) returns (ListReviewCommentsResponse);
+
+  // ReplyToComment posts a reply to an existing comment on a pull or
+  // merge request.
+  // Added in interface version 2.
+  rpc ReplyToComment(ReplyToCommentRequest) returns (ReplyToCommentResponse);
+
+  // ResolveThread marks a review thread as resolved. Implementations
+  // that do not support thread resolution (e.g. GitHub REST) should
+  // return OK silently.
+  // Added in interface version 2.
+  rpc ResolveThread(ResolveThreadRequest) returns (ResolveThreadResponse);
+
+  // GetDiff returns the unified diff between two branches. Used by the
+  // code review gate to feed the actual diff to the review backend.
+  // Added in interface version 2.
+  rpc GetDiff(GetDiffRequest) returns (GetDiffResponse);
 }
 
 // CreateBranchRequest specifies the branch to create.
@@ -168,4 +189,88 @@ enum ReviewStatus {
 
   // REVIEW_STATUS_CHANGES_REQUESTED indicates a reviewer has requested changes.
   REVIEW_STATUS_CHANGES_REQUESTED = 3;
+}
+
+// --- Messages added in interface version 2 ---
+
+// ListReviewCommentsRequest identifies the pull request to list comments for.
+message ListReviewCommentsRequest {
+  // pr_url is the web URL of the pull/merge request.
+  string pr_url = 1;
+}
+
+// ListReviewCommentsResponse contains the review comments.
+message ListReviewCommentsResponse {
+  // comments are the review and general comments on the pull request.
+  repeated ReviewCommentProto comments = 1;
+}
+
+// ReviewCommentProto is the protobuf representation of a review comment.
+message ReviewCommentProto {
+  // id is the unique comment identifier.
+  string id = 1;
+
+  // thread_id is the discussion or thread identifier.
+  string thread_id = 2;
+
+  // author is the username of the comment author.
+  string author = 3;
+
+  // body is the text content of the comment.
+  string body = 4;
+
+  // file_path is the file the comment is attached to. Empty for general comments.
+  string file_path = 5;
+
+  // line is the line number the comment is attached to. 0 for general comments.
+  int32 line = 6;
+
+  // created_unix is the Unix timestamp when the comment was created.
+  int64 created_unix = 7;
+}
+
+// ReplyToCommentRequest specifies the comment to reply to.
+message ReplyToCommentRequest {
+  // pr_url is the web URL of the pull/merge request.
+  string pr_url = 1;
+
+  // comment_id is the identifier of the comment to reply to.
+  string comment_id = 2;
+
+  // body is the reply text.
+  string body = 3;
+}
+
+// ReplyToCommentResponse is intentionally empty; errors use gRPC status codes.
+message ReplyToCommentResponse {}
+
+// ResolveThreadRequest identifies the thread to resolve.
+message ResolveThreadRequest {
+  // pr_url is the web URL of the pull/merge request.
+  string pr_url = 1;
+
+  // thread_id is the discussion or thread identifier.
+  string thread_id = 2;
+}
+
+// ResolveThreadResponse is intentionally empty; errors use gRPC status codes.
+message ResolveThreadResponse {}
+
+// GetDiffRequest specifies the branches to diff.
+message GetDiffRequest {
+  // repo_url is the repository URL.
+  string repo_url = 1;
+
+  // base_branch is the base branch for the diff. When empty, the
+  // implementation should use the repository's default branch.
+  string base_branch = 2;
+
+  // branch_name is the branch containing the changes.
+  string branch_name = 3;
+}
+
+// GetDiffResponse contains the unified diff.
+message GetDiffResponse {
+  // diff is the unified diff string.
+  string diff = 1;
 }

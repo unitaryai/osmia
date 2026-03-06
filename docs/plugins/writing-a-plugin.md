@@ -37,10 +37,10 @@ Third-party plugins use the **hashicorp/go-plugin subprocess model**. The contro
 
 ### Lifecycle
 
-1. **Startup** -- The `Host` spawns each plugin binary via `exec.Command` and establishes a gRPC connection.
-2. **Handshake** -- The controller sends its expected `interface_version`. If the plugin responds with an incompatible version, loading is refused.
+1. **Version check** -- Before spawning the subprocess, the `Host` validates the plugin's declared `interface_version` (from config) against the controller's expected version for that plugin type. If they do not match, loading is refused immediately with a structured error. This avoids spawning a subprocess that cannot satisfy the controller's contract.
+2. **Startup** -- The `Host` spawns each plugin binary via `exec.Command` and establishes a gRPC connection with a transport-level handshake (magic cookie verification via hashicorp/go-plugin).
 3. **Health monitoring** -- The `Host` tracks health status. Unresponsive plugins are marked unhealthy.
-4. **Restart with backoff** -- Failed plugins are restarted up to `max_plugin_restarts` times (default: 3) with configurable backoff (default: 1s, 5s, 30s). After the maximum, the plugin is permanently unhealthy.
+4. **Restart with backoff** -- Failed plugins are restarted up to `max_plugin_restarts` times (default: 3) with configurable backoff (default: 1s, 5s, 30s). After the maximum, the plugin is permanently unhealthy. Version mismatches are **not** retried, since restarting cannot resolve an incompatibility.
 5. **Shutdown** -- `Host.Shutdown()` kills all plugin subprocesses.
 
 The controller verifies plugin identity using a magic cookie:
@@ -141,7 +141,7 @@ Implement every RPC in the protobuf service. Errors are conveyed via gRPC status
 
 Every plugin **must** implement `Handshake`. Your `HandshakeResponse` must include:
 
-- `interface_version` -- currently `1` for all interfaces.
+- `interface_version` -- the version your plugin implements. Must match the controller's expected version for that interface type (see [Interface Versioning](#interface-versioning) below).
 - `plugin_name` -- e.g. `"jira"`, `"slack"`.
 - `plugin_version` -- semver of your binary, e.g. `"1.2.0"`.
 
@@ -313,4 +313,15 @@ Every interface carries an `interface_version`. The handshake protocol enforces 
 - **Minor releases** may add optional fields to messages but do not bump `interface_version`.
 - **Major bumps** to `interface_version` indicate breaking changes (renamed RPCs, removed fields, changed semantics). Plugins must be updated.
 
-The current `interface_version` for all six interfaces is **1**, defined as a constant in each Go package (e.g. `ticketing.InterfaceVersion = 1`).
+The current `interface_version` for each interface is defined as a constant in the corresponding Go package:
+
+| Interface | Version | Constant |
+|-----------|---------|----------|
+| Ticketing | 1 | `ticketing.InterfaceVersion` |
+| Notifications | 1 | `notifications.InterfaceVersion` |
+| Approval | 1 | `approval.InterfaceVersion` |
+| Secrets | 1 | `secrets.InterfaceVersion` |
+| Review | 1 | `review.InterfaceVersion` |
+| SCM | 2 | `scm.InterfaceVersion` |
+
+SCM was bumped to 2 when `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` were added.

@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`engine.VolumeMount` now supports ConfigMap sources.** New `ConfigMapName`, `ConfigMapKey`, and `SubPath` fields allow the jobbuilder to emit ConfigMap volume sources instead of emptyDir. This is the foundation for ConfigMap-backed skills and sub-agents.
 
+#### Proto/Plugin Consistency
+
+- **`proto/scm.proto` updated to match Go interface.** Added `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` RPCs with their request/response message types. Third-party SCM plugins written against the protobuf API can now implement the full v2 contract.
+- **Plugin host now validates interface versions at load time.** `LoadPlugin` checks the plugin's declared `interface_version` against the controller's expected version before spawning the subprocess. Mismatched plugins are rejected immediately with a structured error instead of silently loading.
+
 ### Deprecated
 
 - **`agent_teams` configuration is deprecated.** Use `sub_agents` instead. The old agent teams format produced an incorrect `--agents` flag (JSON array instead of object map) and was never wired in `main.go`. A deprecation warning is logged when `agent_teams.enabled` is set.

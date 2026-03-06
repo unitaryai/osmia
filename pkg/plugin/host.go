@@ -89,16 +89,42 @@ func NewHost(healthCfg HealthConfig, logger *slog.Logger) *Host {
 	}
 }
 
+// knownInterfaceVersions maps plugin types to the current interface version
+// expected by the controller. External plugins declaring a different version
+// are refused at load time.
+var knownInterfaceVersions = map[PluginType]int{
+	PluginTypeTicketing:     1,
+	PluginTypeNotifications: 1,
+	PluginTypeApproval:      1,
+	PluginTypeSecrets:       1,
+	PluginTypeReview:        1,
+	PluginTypeSCM:           2,
+}
+
 // LoadPlugin spawns an external plugin subprocess and establishes a gRPC
-// connection. It performs a version handshake and health check before
-// returning. If the plugin fails to respond or declares an incompatible
-// version, an error is returned.
+// connection. It validates the configured interface version against the
+// controller's expected version for the plugin type, then performs a
+// transport-level handshake. If the version is incompatible or the plugin
+// fails to respond, an error is returned and the plugin is not loaded.
 func (h *Host) LoadPlugin(cfg PluginConfig) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	if _, exists := h.plugins[cfg.Name]; exists {
 		return fmt.Errorf("plugin %q already loaded", cfg.Name)
+	}
+
+	// Validate interface version before spawning the subprocess.
+	expected, ok := knownInterfaceVersions[cfg.Type]
+	if ok && cfg.InterfaceVersion != expected {
+		h.logger.Error("plugin interface version mismatch",
+			"plugin", cfg.Name,
+			"type", cfg.Type,
+			"expected_version", expected,
+			"declared_version", cfg.InterfaceVersion,
+		)
+		return fmt.Errorf("plugin %q declares interface version %d but controller expects %d for %s plugins; update the plugin or controller",
+			cfg.Name, cfg.InterfaceVersion, expected, cfg.Type)
 	}
 
 	instance, err := h.startPlugin(cfg)

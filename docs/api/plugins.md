@@ -54,7 +54,7 @@ If the plugin's `interface_version` does not match what the controller expects,
 the controller refuses to load the plugin, logs a structured error, and marks it
 permanently unhealthy. Restarting cannot resolve a version mismatch.
 
-The current `interface_version` for all services is **1**.
+The current `interface_version` for most services is **1**. SCM is version **2** (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` were added).
 
 ---
 
@@ -304,12 +304,16 @@ changes without coupling to a specific provider.
 
 ### RPCs
 
-| Method | Request | Response | Description |
-|---|---|---|---|
-| `Handshake` | `HandshakeRequest` | `HandshakeResponse` | Version negotiation at startup. |
-| `CreateBranch` | `CreateBranchRequest` | `CreateBranchResponse` | Creates a new git branch in the remote repository. |
-| `CreatePullRequest` | `CreatePullRequestRequest` | `CreatePullRequestResponse` | Opens a pull request (GitHub) or merge request (GitLab) for the agent's changes. |
-| `GetPullRequestStatus` | `GetPullRequestStatusRequest` | `GetPullRequestStatusResponse` | Retrieves the current state of a pull/merge request, including CI and review status. |
+| Method | Request | Response | Description | Since |
+|---|---|---|---|---|
+| `Handshake` | `HandshakeRequest` | `HandshakeResponse` | Version negotiation at startup. | v1 |
+| `CreateBranch` | `CreateBranchRequest` | `CreateBranchResponse` | Creates a new git branch in the remote repository. | v1 |
+| `CreatePullRequest` | `CreatePullRequestRequest` | `CreatePullRequestResponse` | Opens a pull request (GitHub) or merge request (GitLab) for the agent's changes. | v1 |
+| `GetPullRequestStatus` | `GetPullRequestStatusRequest` | `GetPullRequestStatusResponse` | Retrieves the current state of a pull/merge request, including CI and review status. | v1 |
+| `ListReviewComments` | `ListReviewCommentsRequest` | `ListReviewCommentsResponse` | Returns all review and general comments on a pull/merge request. | v2 |
+| `ReplyToComment` | `ReplyToCommentRequest` | `ReplyToCommentResponse` | Posts a reply to an existing comment. | v2 |
+| `ResolveThread` | `ResolveThreadRequest` | `ResolveThreadResponse` | Marks a review thread as resolved. No-op where unsupported (e.g. GitHub REST). | v2 |
+| `GetDiff` | `GetDiffRequest` | `GetDiffResponse` | Returns the unified diff between two branches for code review. | v2 |
 
 ### Key message types
 

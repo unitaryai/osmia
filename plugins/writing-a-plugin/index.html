@@ -2668,12 +2668,16 @@
 <a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="interface-versioning">Interface Versioning<a class="headerlink" href="#interface-versioning" title="Permanent link">&para;</a></h2>
-<p>Every interface carries an <code>interface_version</code>. The handshake protocol enforces compatibility:</p>
+<p>Every interface carries an <code>interface_version</code>. Compatibility is enforced via a two-level check:</p>
 <ol>
-<li>The controller calls <code>Handshake</code> with its expected version.</li>
-<li>The plugin responds with the version it implements.</li>
-<li>On mismatch, the controller refuses to load the plugin, logs a structured error, and marks it unhealthy. It will <strong>not</strong> attempt restarts, since restarting cannot resolve an incompatibility.</li>
+<li><strong>Pre-spawn config check</strong> — before starting the subprocess, the controller compares the <code>interface_version</code> declared in <code>robodev-config.yaml</code> against its expected version for the plugin type. A mismatch is rejected immediately with a structured error, without spawning the binary.</li>
+<li><strong>Transport handshake</strong> — hashicorp/go-plugin verifies the magic cookie when the subprocess connects, confirming it is a valid RoboDev plugin binary.</li>
 </ol>
+<p>On a version mismatch, the controller refuses to load the plugin and marks it permanently unhealthy. It will <strong>not</strong> attempt restarts, since restarting cannot resolve an incompatibility.</p>
+<div class="admonition note">
+<p class="admonition-title">Handshake RPC</p>
+<p>The <code>Handshake</code> RPC defined in each protobuf service is <strong>required</strong> — external plugins must implement it. The controller will call it at startup once generated proto stubs are available. Until then, enforcement is config-level: you must set <code>interface_version</code> in your plugin config to match the version your binary implements.</p>
+</div>
 <h3 id="compatibility-expectations">Compatibility Expectations<a class="headerlink" href="#compatibility-expectations" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Patch releases</strong> never change <code>interface_version</code>.</li>

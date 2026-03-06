@@ -2506,9 +2506,8 @@ and TypeScript stubs are all derived from them. Do not edit generated files
 directly; regenerate them with <code>make sdk-gen</code> instead.</p>
 <p>Plugins communicate with the controller over gRPC using the
 <a href="https://github.com/hashicorp/go-plugin">hashicorp/go-plugin</a> subprocess
-model. Each plugin binary is spawned as a child process, connects over a local
-Unix socket, and negotiates its interface version via the <code>Handshake</code> RPC
-before any other calls are made.</p>
+model. Each plugin binary is spawned as a child process and connects over a
+local Unix socket.</p>
 <p>For a guide on writing and deploying plugins, see
 <a href="../../plugins/writing-a-plugin/">Writing a Plugin</a>.</p>
 <hr />
@@ -2571,9 +2570,7 @@ before any other calls are made.</p>
 <code>github.com/unitaryai/robodev/proto/v1</code>.</p>
 <hr />
 <h2 id="handshake-pattern">Handshake pattern<a class="headerlink" href="#handshake-pattern" title="Permanent link">&para;</a></h2>
-<p>Every service includes a <code>Handshake</code> RPC. The controller calls it at startup
-and after any plugin restart to negotiate the interface version before making
-any functional calls.</p>
+<p>Every service includes a <code>Handshake</code> RPC that external plugins must implement:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">rpc</span><span class="w"> </span><span class="n">Handshake</span><span class="p">(</span><span class="n">HandshakeRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">HandshakeResponse</span><span class="p">);</span>
 </code></pre></div>
 <table>
@@ -2612,9 +2609,13 @@ any functional calls.</p>
 </tr>
 </tbody>
 </table>
-<p>If the plugin's <code>interface_version</code> does not match what the controller expects,
-the controller refuses to load the plugin, logs a structured error, and marks it
-permanently unhealthy. Restarting cannot resolve a version mismatch.</p>
+<p><strong>Current version enforcement</strong> uses a two-level check — not a live <code>Handshake</code> RPC call:</p>
+<ol>
+<li><strong>Pre-spawn config check</strong> — before starting the subprocess, the controller compares the <code>interface_version</code> declared in <code>robodev-config.yaml</code> against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.</li>
+<li><strong>Transport handshake</strong> — hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid RoboDev plugin binary.</li>
+</ol>
+<p>The protobuf <code>Handshake</code> RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure <code>interface_version</code> in config matches the binary they deploy.</p>
+<p>If the declared <code>interface_version</code> does not match what the controller expects, loading is refused, a structured error is logged, and the plugin is marked permanently unhealthy. Restarting cannot resolve a version mismatch.</p>
 <p>The current <code>interface_version</code> for most services is <strong>1</strong>. SCM is version <strong>2</strong> (bumped when <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code>, and <code>GetDiff</code> were added).</p>
 <hr />
 <h2 id="shared-message-types-protocommonproto">Shared message types (<code>proto/common.proto</code>)<a class="headerlink" href="#shared-message-types-protocommonproto" title="Permanent link">&para;</a></h2>

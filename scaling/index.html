@@ -2155,11 +2155,15 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="nt">config</span><span class="p">:</span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">          </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;alpha-org/repos&quot;</span>
 </code></pre></div>
-<p>Each tenant receives:
+<p>When namespace-per-tenant isolation is implemented, each tenant will receive:
 - Dedicated namespace with its own RBAC, NetworkPolicies, and ResourceQuotas
 - Separate Kubernetes Secrets (no cross-tenant secret access)
 - Independent job limits and cost budgets
 - Isolated Karpenter NodePool (optional, for compute isolation)</p>
+<div class="admonition note">
+<p class="admonition-title">Tenancy runtime isolation is on the roadmap</p>
+<p>The <code>tenancy</code> config block is parsed and stored but has no runtime effect today. All jobs currently run in the controller's own namespace regardless of tenant configuration.</p>
+</div>
 <h2 id="observability">Observability<a class="headerlink" href="#observability" title="Permanent link">&para;</a></h2>
 <h3 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
 <p>The controller exposes the following metrics:</p>

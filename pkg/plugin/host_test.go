@@ -11,7 +11,6 @@ import (
 
 func TestLoadPlugin_VersionMismatch(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	host := NewHost(DefaultHealthConfig(), logger)
 
 	tests := []struct {
 		name       string
@@ -23,7 +22,6 @@ func TestLoadPlugin_VersionMismatch(t *testing.T) {
 			name: "SCM plugin with version 1 is rejected (controller expects 2)",
 			cfg: PluginConfig{
 				Name:             "old-scm",
-				Command:          "/bin/false",
 				Type:             PluginTypeSCM,
 				InterfaceVersion: 1,
 			},
@@ -34,30 +32,24 @@ func TestLoadPlugin_VersionMismatch(t *testing.T) {
 			name: "SCM plugin with version 2 passes version check",
 			cfg: PluginConfig{
 				Name:             "good-scm",
-				Command:          "/bin/false", // will fail to connect, but that's after version check
 				Type:             PluginTypeSCM,
 				InterfaceVersion: 2,
 			},
-			// Will fail on subprocess start, not on version check.
-			wantErr:    true,
-			errContain: "starting plugin",
+			wantErr: false,
 		},
 		{
 			name: "ticketing plugin with version 1 passes version check",
 			cfg: PluginConfig{
 				Name:             "good-ticketing",
-				Command:          "/bin/false",
 				Type:             PluginTypeTicketing,
 				InterfaceVersion: 1,
 			},
-			wantErr:    true,
-			errContain: "starting plugin",
+			wantErr: false,
 		},
 		{
 			name: "ticketing plugin with version 2 is rejected (controller expects 1)",
 			cfg: PluginConfig{
 				Name:             "future-ticketing",
-				Command:          "/bin/false",
 				Type:             PluginTypeTicketing,
 				InterfaceVersion: 2,
 			},
@@ -68,7 +60,7 @@ func TestLoadPlugin_VersionMismatch(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := host.LoadPlugin(tt.cfg)
+			err := validateInterfaceVersion(logger, tt.cfg)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContain)

@@ -127,17 +127,8 @@ func (h *Host) LoadPlugin(cfg PluginConfig) error {
 		return fmt.Errorf("plugin %q already loaded", cfg.Name)
 	}
 
-	// Validate interface version before spawning the subprocess.
-	expected, ok := knownInterfaceVersions[cfg.Type]
-	if ok && cfg.InterfaceVersion != expected {
-		h.logger.Error("plugin interface version mismatch",
-			"plugin", cfg.Name,
-			"type", cfg.Type,
-			"expected_version", expected,
-			"declared_version", cfg.InterfaceVersion,
-		)
-		return fmt.Errorf("plugin %q declares interface version %d but controller expects %d for %s plugins; update the plugin or controller",
-			cfg.Name, cfg.InterfaceVersion, expected, cfg.Type)
+	if err := validateInterfaceVersion(h.logger, cfg); err != nil {
+		return err
 	}
 
 	instance, err := h.startPlugin(cfg)
@@ -151,6 +142,24 @@ func (h *Host) LoadPlugin(cfg PluginConfig) error {
 		"type", cfg.Type,
 		"interface_version", cfg.InterfaceVersion,
 	)
+
+	return nil
+}
+
+// validateInterfaceVersion enforces the controller's expected interface version
+// for a plugin before any subprocess is started.
+func validateInterfaceVersion(logger *slog.Logger, cfg PluginConfig) error {
+	expected, ok := knownInterfaceVersions[cfg.Type]
+	if ok && cfg.InterfaceVersion != expected {
+		logger.Error("plugin interface version mismatch",
+			"plugin", cfg.Name,
+			"type", cfg.Type,
+			"expected_version", expected,
+			"declared_version", cfg.InterfaceVersion,
+		)
+		return fmt.Errorf("plugin %q declares interface version %d but controller expects %d for %s plugins; update the plugin or controller",
+			cfg.Name, cfg.InterfaceVersion, expected, cfg.Type)
+	}
 
 	return nil
 }

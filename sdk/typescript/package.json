@@ -1,7 +1,7 @@
 {
-  "name": "@unitaryai/robodev-plugin-sdk",
+  "name": "@unitaryai/osmia-plugin-sdk",
   "version": "0.1.0",
-  "description": "TypeScript SDK for building RoboDev plugins",
+  "description": "TypeScript SDK for building Osmia plugins",
   "license": "Apache-2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

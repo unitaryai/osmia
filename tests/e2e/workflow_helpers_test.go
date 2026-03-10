@@ -18,11 +18,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // -----------------------------------------------------------------------------
@@ -68,7 +68,7 @@ func (e *workflowFakeEngine) BuildExecutionSpec(task engine.Task, _ engine.Engin
 	return &engine.ExecutionSpec{
 		Image:                 fakeAgentImage(),
 		Command:               []string{"/fake-agent"},
-		Env:                   map[string]string{"ROBODEV_SCENARIO": scenario},
+		Env:                   map[string]string{"OSMIA_SCENARIO": scenario},
 		ActiveDeadlineSeconds: 120,
 	}, nil
 }
@@ -102,7 +102,7 @@ func (e *workflowSecondEngine) BuildExecutionSpec(_ engine.Task, _ engine.Engine
 	return &engine.ExecutionSpec{
 		Image:                 fakeAgentImage(),
 		Command:               []string{"/fake-agent"},
-		Env:                   map[string]string{"ROBODEV_SCENARIO": "tournament_b"},
+		Env:                   map[string]string{"OSMIA_SCENARIO": "tournament_b"},
 		ActiveDeadlineSeconds: 120,
 	}, nil
 }
@@ -209,10 +209,10 @@ func fakeAgentImage() string {
 
 // workflowNamespace returns the namespace for workflow E2E tests.
 func workflowNamespace() string {
-	if ns := os.Getenv("ROBODEV_WORKFLOW_NAMESPACE"); ns != "" {
+	if ns := os.Getenv("OSMIA_WORKFLOW_NAMESPACE"); ns != "" {
 		return ns
 	}
-	return "robodev-e2e-workflow"
+	return "osmia-e2e-workflow"
 }
 
 // workflowConfig returns a base controller config suitable for workflow tests.
@@ -237,7 +237,7 @@ func workflowTicket(id string) ticketing.Ticket {
 		Description: "E2E workflow test ticket",
 		TicketType:  "issue",
 		RepoURL:     "https://github.com/org/repo",
-		Labels:      []string{"robodev"},
+		Labels:      []string{"osmia"},
 	}
 }
 

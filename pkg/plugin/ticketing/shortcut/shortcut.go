@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -74,10 +74,10 @@ type scMemberProfile struct {
 // MarkInProgress will transition it to InProgressState within its own workflow.
 type WorkflowMapping struct {
 	// TriggerState is the human-readable name of the state that signals a story
-	// is ready for RoboDev to pick up, e.g. "Ready for Development".
+	// is ready for Osmia to pick up, e.g. "Ready for Development".
 	TriggerState string
 	// InProgressState is the human-readable name of the state that the story
-	// should be transitioned to once RoboDev begins work, e.g. "In Development".
+	// should be transitioned to once Osmia begins work, e.g. "In Development".
 	InProgressState string
 	// triggerStateID is the resolved numeric Shortcut state ID. It is
 	// populated by Init and must not be set by callers.
@@ -95,7 +95,7 @@ type ShortcutBackend struct {
 	workflowStateName   string            // human-readable name; resolved to workflowStateID by Init
 	inProgressStateName string            // e.g. "In Development"; resolved per-story at runtime
 	workflowMappings    []WorkflowMapping // multi-workflow support; synthesised from legacy fields by Init
-	ownerMentionName    string            // mention name (e.g. "robodev"); resolved to ownerMemberID by Init
+	ownerMentionName    string            // mention name (e.g. "osmia"); resolved to ownerMemberID by Init
 	ownerMemberID       string            // resolved Shortcut member UUID for owner filtering
 	excludeLabels       []string
 	completedStateName  string       // if set, MarkComplete moves stories here instead of the first done-type state
@@ -137,7 +137,7 @@ func WithWorkflowStateName(name string) Option {
 }
 
 // WithInProgressStateName sets the human-readable workflow state name that
-// stories are moved into when RoboDev picks them up (e.g. "In Development").
+// stories are moved into when Osmia picks them up (e.g. "In Development").
 // Init must be called to resolve it to a numeric ID. When set, MarkInProgress
 // transitions the story's state rather than adding a label, which provides
 // cleaner visibility in the Shortcut board.
@@ -148,7 +148,7 @@ func WithInProgressStateName(name string) Option {
 }
 
 // WithCompletedStateName sets the workflow state name that stories are moved to
-// when RoboDev successfully completes a task (e.g. "Ready for Review"). When
+// when Osmia successfully completes a task (e.g. "Ready for Review"). When
 // not set, MarkComplete uses the first done-type state in the story's workflow.
 func WithCompletedStateName(name string) Option {
 	return func(b *ShortcutBackend) {
@@ -171,7 +171,7 @@ func WithWorkflowMappings(mappings []WorkflowMapping) Option {
 }
 
 // WithOwnerMentionName sets the Shortcut mention name of the user that stories
-// must be assigned to in order to be picked up (e.g. "robodev"). Init must be
+// must be assigned to in order to be picked up (e.g. "osmia"). Init must be
 // called to resolve it to a member UUID before polling.
 func WithOwnerMentionName(name string) Option {
 	return func(b *ShortcutBackend) {
@@ -199,7 +199,7 @@ func NewShortcutBackend(token string, workflowStateID int64, logger *slog.Logger
 		httpClient:      http.DefaultClient,
 		logger:          logger,
 		workflowStateID: workflowStateID,
-		excludeLabels:   []string{"in-progress", "robodev-failed"},
+		excludeLabels:   []string{"in-progress", "osmia-failed"},
 	}
 	for _, opt := range opts {
 		opt(b)
@@ -630,14 +630,14 @@ func (b *ShortcutBackend) resolveInProgressStateName(ctx context.Context, ticket
 	return fallback, nil
 }
 
-// MarkInProgress signals that RoboDev has started working on the story. It
+// MarkInProgress signals that Osmia has started working on the story. It
 // posts a start comment for visibility, then transitions the story to the
 // in-progress state determined by the matching WorkflowMapping. When multiple
 // mappings are configured the correct mapping is selected by comparing the
 // story's current workflow_state_id to each mapping's triggerStateID.
 func (b *ShortcutBackend) MarkInProgress(ctx context.Context, ticketID string) error {
 	// Post a start comment so humans can see progress on the Shortcut board.
-	startComment := "🤖 RoboDev has picked up this story and is working on it. A pull request will be opened when the task is complete."
+	startComment := "🤖 Osmia has picked up this story and is working on it. A pull request will be opened when the task is complete."
 	if err := b.AddComment(ctx, ticketID, startComment); err != nil {
 		// Non-fatal: log and continue — the agent should not be blocked by a
 		// comment failure.
@@ -720,10 +720,10 @@ func (b *ShortcutBackend) MarkComplete(ctx context.Context, ticketID string, res
 	return nil
 }
 
-// MarkFailed adds a "robodev-failed" label and posts the failure reason
+// MarkFailed adds a "osmia-failed" label and posts the failure reason
 // as a comment.
 func (b *ShortcutBackend) MarkFailed(ctx context.Context, ticketID string, reason string) error {
-	if err := b.addLabel(ctx, ticketID, "robodev-failed"); err != nil {
+	if err := b.addLabel(ctx, ticketID, "osmia-failed"); err != nil {
 		return fmt.Errorf("adding failed label: %w", err)
 	}
 	comment := fmt.Sprintf("Task failed.\n\n**Reason:** %s", reason)

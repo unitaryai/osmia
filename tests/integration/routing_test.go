@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/routing"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/routing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // TestIntelligentRoutingEndToEnd feeds 20 task outcomes and verifies

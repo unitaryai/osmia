@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# Claude Code execution environment for RoboDev agent jobs.
+# Claude Code execution environment for Osmia agent jobs.
 FROM node:22-slim
 
 # Install system dependencies.
@@ -35,12 +35,12 @@ RUN GLAB_VERSION="1.79.0" \
 RUN npm install -g @anthropic-ai/claude-code
 
 # Create non-root user (GID/UID 10000 to avoid conflicts with node base image).
-RUN groupadd --gid 10000 robodev \
-    && useradd --uid 10000 --gid robodev --create-home robodev
+RUN groupadd --gid 10000 osmia \
+    && useradd --uid 10000 --gid osmia --create-home osmia
 
 # Copy entrypoint, hooks, MCP server, and setup wrapper.
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY hooks/ /opt/robodev/hooks/
+COPY hooks/ /opt/osmia/hooks/
 COPY slack_mcp.py /usr/local/bin/slack_mcp.py
 COPY setup-claude.sh /usr/local/bin/setup-claude.sh
 
@@ -52,13 +52,13 @@ COPY mcp.json /etc/claude-code/mcp.json
 COPY settings.json /etc/claude-code/settings.json
 
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && chmod +x /opt/robodev/hooks/*.sh \
+    && chmod +x /opt/osmia/hooks/*.sh \
     && chmod +x /usr/local/bin/slack_mcp.py \
     && chmod +x /usr/local/bin/setup-claude.sh
 
 WORKDIR /workspace
-RUN chown robodev:robodev /workspace
+RUN chown osmia:osmia /workspace
 
-USER robodev
+USER osmia
 
 ENTRYPOINT ["entrypoint.sh"]

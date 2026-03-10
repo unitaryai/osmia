@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "robodev.fullname" . }}-metrics
+  name: {{ include "osmia.fullname" . }}-metrics
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type | default "ClusterIP" }}
   ports:
@@ -16,5 +16,5 @@ spec:
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
   selector:
-    {{- include "robodev.selectorLabels" . | nindent 4 }}
+    {{- include "osmia.selectorLabels" . | nindent 4 }}
 {{- end }}

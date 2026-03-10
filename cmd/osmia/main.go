@@ -1,4 +1,4 @@
-// Package main is the entrypoint for the RoboDev controller binary.
+// Package main is the entrypoint for the Osmia controller binary.
 package main
 
 import (
@@ -19,75 +19,75 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/diagnosis"
-	"github.com/unitaryai/robodev/internal/estimator"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/localui"
-	"github.com/unitaryai/robodev/internal/memory"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/reviewpoller"
-	"github.com/unitaryai/robodev/internal/routing"
-	"github.com/unitaryai/robodev/internal/sandboxbuilder"
-	"github.com/unitaryai/robodev/internal/scmrouter"
-	"github.com/unitaryai/robodev/internal/secretresolver"
-	"github.com/unitaryai/robodev/internal/tournament"
-	"github.com/unitaryai/robodev/internal/watchdog"
-	"github.com/unitaryai/robodev/internal/webhook"
-	"github.com/unitaryai/robodev/pkg/plugin/transcript/local"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/diagnosis"
+	"github.com/unitaryai/osmia/internal/estimator"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/localui"
+	"github.com/unitaryai/osmia/internal/memory"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/reviewpoller"
+	"github.com/unitaryai/osmia/internal/routing"
+	"github.com/unitaryai/osmia/internal/sandboxbuilder"
+	"github.com/unitaryai/osmia/internal/scmrouter"
+	"github.com/unitaryai/osmia/internal/secretresolver"
+	"github.com/unitaryai/osmia/internal/tournament"
+	"github.com/unitaryai/osmia/internal/watchdog"
+	"github.com/unitaryai/osmia/internal/webhook"
+	"github.com/unitaryai/osmia/pkg/plugin/transcript/local"
 
 	// Execution engines.
-	"github.com/unitaryai/robodev/pkg/engine/aider"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/engine/cline"
-	"github.com/unitaryai/robodev/pkg/engine/codex"
-	"github.com/unitaryai/robodev/pkg/engine/opencode"
+	"github.com/unitaryai/osmia/pkg/engine/aider"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/engine/cline"
+	"github.com/unitaryai/osmia/pkg/engine/codex"
+	"github.com/unitaryai/osmia/pkg/engine/opencode"
 
 	// Ticketing backends.
-	ghticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/github"
-	linearticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/linear"
-	localticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/local"
-	noopticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/noop"
-	scticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/shortcut"
+	ghticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/github"
+	linearticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/linear"
+	localticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/local"
+	noopticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/noop"
+	scticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/shortcut"
 
 	// Notification backends.
-	discordnotify "github.com/unitaryai/robodev/pkg/plugin/notifications/discord"
-	slacknotify "github.com/unitaryai/robodev/pkg/plugin/notifications/slack"
-	telegramnotify "github.com/unitaryai/robodev/pkg/plugin/notifications/telegram"
+	discordnotify "github.com/unitaryai/osmia/pkg/plugin/notifications/discord"
+	slacknotify "github.com/unitaryai/osmia/pkg/plugin/notifications/slack"
+	telegramnotify "github.com/unitaryai/osmia/pkg/plugin/notifications/telegram"
 
 	// Approval backend.
-	approvalPkg "github.com/unitaryai/robodev/pkg/plugin/approval"
-	slackapproval "github.com/unitaryai/robodev/pkg/plugin/approval/slack"
+	approvalPkg "github.com/unitaryai/osmia/pkg/plugin/approval"
+	slackapproval "github.com/unitaryai/osmia/pkg/plugin/approval/slack"
 
 	// SCM backends.
-	scmPkg "github.com/unitaryai/robodev/pkg/plugin/scm"
-	ghscm "github.com/unitaryai/robodev/pkg/plugin/scm/github"
-	glscm "github.com/unitaryai/robodev/pkg/plugin/scm/gitlab"
+	scmPkg "github.com/unitaryai/osmia/pkg/plugin/scm"
+	ghscm "github.com/unitaryai/osmia/pkg/plugin/scm/github"
+	glscm "github.com/unitaryai/osmia/pkg/plugin/scm/gitlab"
 
 	// Secrets backends.
-	k8ssecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/k8s"
-	awssmsecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/awssm"
-	vaultsecrets "github.com/unitaryai/robodev/pkg/plugin/secrets/vault"
+	k8ssecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/k8s"
+	awssmsecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/awssm"
+	vaultsecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/vault"
 
 	// Review backend.
-	reviewPkg "github.com/unitaryai/robodev/pkg/plugin/review"
-	crreview "github.com/unitaryai/robodev/pkg/plugin/review/coderabbit"
+	reviewPkg "github.com/unitaryai/osmia/pkg/plugin/review"
+	crreview "github.com/unitaryai/osmia/pkg/plugin/review/coderabbit"
 
 	// Webhook event bridge.
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 
 	// Register metrics with the default Prometheus registry.
-	_ "github.com/unitaryai/robodev/internal/metrics"
+	_ "github.com/unitaryai/osmia/internal/metrics"
 )
 
 func main() {
 	var (
-		configPath   = flag.String("config", "/etc/robodev/config.yaml", "path to the RoboDev configuration file")
+		configPath   = flag.String("config", "/etc/osmia/config.yaml", "path to the Osmia configuration file")
 		localUIAddr  = flag.String("local-ui-addr", "127.0.0.1:8082", "address for the local ticketing UI when ticketing.backend=local")
 		metricsAddr  = flag.String("metrics-addr", ":8080", "address for the Prometheus metrics and health endpoints")
 		pollInterval = flag.Duration("poll-interval", 30*time.Second, "interval between ticketing backend polls")
-		namespace    = flag.String("namespace", "robodev", "kubernetes namespace for job creation")
+		namespace    = flag.String("namespace", "osmia", "kubernetes namespace for job creation")
 	)
 	flag.Parse()
 
@@ -96,7 +96,7 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
-	logger.Info("starting robodev controller",
+	logger.Info("starting osmia controller",
 		"config", *configPath,
 		"local_ui_addr", *localUIAddr,
 		"metrics_addr", *metricsAddr,
@@ -588,7 +588,7 @@ func main() {
 	if cfg.Memory.Enabled {
 		storePath := cfg.Memory.StorePath
 		if storePath == "" {
-			storePath = "/var/lib/robodev/memory.db"
+			storePath = "/var/lib/osmia/memory.db"
 		}
 
 		var storeErr error
@@ -837,7 +837,7 @@ func main() {
 		}
 	}
 
-	logger.Info("robodev controller stopped")
+	logger.Info("osmia controller stopped")
 }
 
 // buildK8sClient creates a Kubernetes clientset, trying in-cluster config

@@ -2,9 +2,9 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "robodev.fullname" . }}
+  name: {{ include "osmia.fullname" . }}
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 spec:
   {{- if .Values.pdb.minAvailable }}
   minAvailable: {{ .Values.pdb.minAvailable }}
@@ -15,5 +15,5 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "robodev.selectorLabels" . | nindent 6 }}
+      {{- include "osmia.selectorLabels" . | nindent 6 }}
 {{- end }}

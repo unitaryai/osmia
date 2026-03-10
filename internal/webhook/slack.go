@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -116,7 +116,7 @@ func (s *Server) handleSlack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Separate approval/rejection callbacks from other interactions.
-	// Approval callbacks use action IDs like robodev_approval_{taskRunID}_{i}.
+	// Approval callbacks use action IDs like osmia_approval_{taskRunID}_{i}.
 	// These must NOT be forwarded to ProcessTicket — doing so would create a
 	// spurious task run. Instead they are routed to the ApprovalHandler when
 	// configured, or acknowledged and logged otherwise.
@@ -125,7 +125,7 @@ func (s *Server) handleSlack(w http.ResponseWriter, r *http.Request) {
 		Value    string `json:"value"`
 	}
 	for _, action := range payload.Actions {
-		if strings.HasPrefix(action.ActionID, "robodev_approval_") {
+		if strings.HasPrefix(action.ActionID, "osmia_approval_") {
 			// Extract taskRunID: split on "_" and rejoin segments [2..len-1].
 			parts := strings.Split(action.ActionID, "_")
 			var taskRunID string

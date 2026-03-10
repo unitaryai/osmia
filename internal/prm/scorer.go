@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/agentstream"
 )
 
 // StepScore represents a single evaluation of the agent's recent behaviour.

@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -134,7 +134,7 @@ func NewLinearBackend(token string, teamID string, logger *slog.Logger, opts ...
 		httpClient:    http.DefaultClient,
 		logger:        logger,
 		teamID:        teamID,
-		excludeLabels: []string{"in-progress", "robodev-failed"},
+		excludeLabels: []string{"in-progress", "osmia-failed"},
 	}
 	for _, opt := range opts {
 		opt(b)
@@ -277,7 +277,7 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 	return nil
 }
 
-// MarkFailed adds a "robodev-failed" label and posts the failure reason
+// MarkFailed adds a "osmia-failed" label and posts the failure reason
 // as a comment.
 func (b *LinearBackend) MarkFailed(ctx context.Context, ticketID string, reason string) error {
 	const addLabelMutation = `mutation($id: String!, $labelName: String!) {
@@ -287,7 +287,7 @@ func (b *LinearBackend) MarkFailed(ctx context.Context, ticketID string, reason 
 }`
 	_, err := b.doGraphQL(ctx, addLabelMutation, map[string]any{
 		"id":        ticketID,
-		"labelName": "robodev-failed",
+		"labelName": "osmia-failed",
 	})
 	if err != nil {
 		return fmt.Errorf("adding failed label to ticket %s: %w", ticketID, err)

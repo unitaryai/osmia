@@ -1,17 +1,17 @@
 [project]
-name = "robodev-plugin-jira"
+name = "osmia-plugin-jira"
 version = "0.1.0"
-description = "Jira ticketing backend plugin for RoboDev"
+description = "Jira ticketing backend plugin for Osmia"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 dependencies = [
-    "robodev-plugin-sdk>=0.1.0",
+    "osmia-plugin-sdk>=0.1.0",
     "requests>=2.31.0",
 ]
 
 [project.scripts]
-robodev-plugin-jira = "robodev_plugin_jira.__main__:main"
+osmia-plugin-jira = "osmia_plugin_jira.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

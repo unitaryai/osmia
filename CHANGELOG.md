@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Project Renamed from RoboDev to Osmia
+
+The project has been renamed from **RoboDev** to **Osmia** (the mason bee genus — solitary but incredibly efficient builders). All identifiers, paths, and references have been updated throughout the codebase:
+
+- Go module path: `github.com/unitaryai/robodev` → `github.com/unitaryai/osmia`
+- Kubernetes label domain: `robodev.io/` → `osmia.io/`
+- Environment variable prefix: `ROBODEV_` → `OSMIA_`
+- Prometheus metrics namespace: `robodev_` → `osmia_`
+- Container image paths: `ghcr.io/unitaryai/robodev/` → `ghcr.io/unitaryai/osmia/`
+- Binary name: `robodev` → `osmia`
+- Helm chart: `charts/robodev/` → `charts/osmia/`
+- Python SDK package: `robodev-plugin-sdk` / `from robodev.plugin` → `osmia-plugin-sdk` / `from osmia.plugin`
+- TypeScript SDK package: `@unitaryai/robodev-plugin-sdk` → `@unitaryai/osmia-plugin-sdk`
+- Config file: `robodev-config.yaml` → `osmia-config.yaml`
+- Hint file: `.robodev-hint.md` → `.osmia-hint.md`
+
 ### Added
 
 #### AWS Secrets Manager Backend
@@ -16,9 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Session Continuation After Max Turns
 
 - **Retry jobs now continue from prior work rather than starting from scratch.** When a Claude Code agent hits `--max-turns` and the pod exits, the next retry agent clones the branch that was pushed during the previous session instead of re-cloning from the default branch.
-- **Deterministic branch naming.** The base prompt now instructs the agent to create and push to `robodev/<ticket-id>` throughout execution, committing frequently rather than waiting until the end. This branch name is predictable even if `result.json` was never written (e.g. pod killed before the stop hook ran).
+- **Deterministic branch naming.** The base prompt now instructs the agent to create and push to `osmia/<ticket-id>` throughout execution, committing frequently rather than waiting until the end. This branch name is predictable even if `result.json` was never written (e.g. pod killed before the stop hook ran).
 - **`Task.PriorBranchName` field.** The `engine.Task` struct has a new `PriorBranchName` field. When set, `BuildPrompt` emits a `## Continuation` section that clones that branch with `--depth=50` and asks the agent to review prior commits before continuing.
-- **`launchRetryJob` branch propagation.** The controller now sets `PriorBranchName` from `tr.Result.BranchName` when available, or falls back to `robodev/<ticketID>` for retries where the pod was killed before writing `result.json`.
+- **`launchRetryJob` branch propagation.** The controller now sets `PriorBranchName` from `tr.Result.BranchName` when available, or falls back to `osmia/<ticketID>` for retries where the pod was killed before writing `result.json`.
 
 #### Configurable Max Turns for Claude Code
 
@@ -51,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Approval Flow End-to-End
 
-- **Full approval flow wiring.** Slack approval buttons (`robodev_approval_{taskRunID}_{i}`) are now routed through a new `ApprovalHandler` interface on the webhook server, which delegates to `Reconciler.ResolveApproval`. Pre-start approval launches the job; pre-merge approval completes the task. Rejections transition to Failed and mark the ticket.
+- **Full approval flow wiring.** Slack approval buttons (`osmia_approval_{taskRunID}_{i}`) are now routed through a new `ApprovalHandler` interface on the webhook server, which delegates to `Reconciler.ResolveApproval`. Pre-start approval launches the job; pre-merge approval completes the task. Rejections transition to Failed and mark the ticket.
 - **`RequestApproval` called at both gates.** The controller now calls the approval backend's `RequestApproval` at both the pre-start and pre-merge gates so humans actually receive the notification.
 - **`NeedsHuman → Failed` state transition.** The TaskRun state machine now allows rejection from the NeedsHuman state.
 - **Watchdog monitors NeedsHuman task runs.** The watchdog loop now iterates NeedsHuman runs (for unanswered-human timeout) and cancels pending approval requests on termination.
@@ -74,13 +92,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Local Development
 
-- **`make local-up` now boots cleanly on kind without extra Helm overrides.** The local controller image is built and loaded under the chart's `ghcr.io/unitaryai/robodev/controller` repository, and the dev Helm overlay now leaves ticketing unconfigured so the controller falls back to the built-in noop backend for credential-free smoke testing.
+- **`make local-up` now boots cleanly on kind without extra Helm overrides.** The local controller image is built and loaded under the chart's `ghcr.io/unitaryai/osmia/controller` repository, and the dev Helm overlay now leaves ticketing unconfigured so the controller falls back to the built-in noop backend for credential-free smoke testing.
 
 #### Security / Correctness
 
-- **Slack approval action ID mismatch resolved.** The webhook previously filtered `robodev_approve_*` / `robodev_reject_*` prefixes, which never matched the actual `robodev_approval_*` format generated by the Slack approval backend. Callbacks are now correctly detected, parsed, and routed.
+- **Slack approval action ID mismatch resolved.** The webhook previously filtered `osmia_approve_*` / `osmia_reject_*` prefixes, which never matched the actual `osmia_approval_*` format generated by the Slack approval backend. Callbacks are now correctly detected, parsed, and routed.
 
-- **GitHub polling no longer picks up pull requests.** The `/issues` endpoint returns both issues and pull requests. Items with a non-nil `pull_request` field are now filtered out before the polling backend emits tickets, preventing RoboDev from treating a labelled PR as a task.
+- **GitHub polling no longer picks up pull requests.** The `/issues` endpoint returns both issues and pull requests. Items with a non-nil `pull_request` field are now filtered out before the polling backend emits tickets, preventing Osmia from treating a labelled PR as a task.
 
 - **Webhook trigger labels auto-derived from ticketing config.** When `webhook.github.trigger_labels` is not explicitly set and `ticketing.backend` is `"github"`, the webhook now falls back to the `labels` list from the GitHub ticketing backend config. Deployments that do not use the GitHub polling backend must set `trigger_labels` explicitly if label gating is desired.
 
@@ -108,7 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `docs/scaling.md` contradiction: KEDA note no longer claims leader election is active; multi-tenancy section notes that namespace-per-tenant runtime isolation is on the roadmap.
 - Fixed `docs/plugins/secrets.md` overclaiming: "Third-party plugins are available" replaced with accurate status. 1Password and Azure KV backends are not implemented; documented as planned or community-implementable. Added built-in Vault backend documentation (was undocumented). Added External Secrets Operator integration guide for AWS Secrets Manager.
 - Added built-in AWS Secrets Manager backend to roadmap (`docs/roadmap.md`).
-- Fixed Slack webhook API docs: action ID prefix corrected from `robodev_approve_` to `robodev_approval_`; clarified that approval callbacks are routed to the approval handler, not forwarded as tickets.
+- Fixed Slack webhook API docs: action ID prefix corrected from `osmia_approve_` to `osmia_approval_`; clarified that approval callbacks are routed to the approval handler, not forwarded as tickets.
 - Fixed `docs/concepts/engines.md`: tournament warning no longer calls `max_predicted_cost_per_job` an "approval gate" — it is an auto-rejection threshold.
 
 ---
@@ -201,7 +219,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `handleFollowUpComplete` (posts ticket comment, replies to review comment, resolves
   thread), `processFollowUpTask` (builds and launches a K8s follow-up Job), and
   `scmFor` helper; drain in `reconcileOnce`; register in `handleJobComplete`.
-- **`cmd/robodev/main.go`** — review response subsystem wiring under `review_response.enabled`.
+- **`cmd/osmia/main.go`** — review response subsystem wiring under `review_response.enabled`.
 - **`tests/integration/review_response_test.go`** — 9 integration tests covering
   bot-ignore, requires-action, informational, follow-up emission, processed-ID
   idempotency, max-follow-up limit, merged-PR untracking, reply-on-action, and
@@ -210,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### E2E Workflow Pipeline Tests
 
 - **`hack/fake-agent/`** — standalone Go module with a pure-stdlib fake agent binary.
-  Reads `ROBODEV_SCENARIO` and emits a pre-scripted NDJSON event stream, then exits with the
+  Reads `OSMIA_SCENARIO` and emits a pre-scripted NDJSON event stream, then exits with the
   appropriate code. Scenarios: `success`, `loop`, `thrash`, `fail`, `tournament_a`,
   `tournament_b`, `judge`. Built into a scratch container image (UID 10000, read-only
   root FS) via `hack/fake-agent/Dockerfile`.
@@ -243,7 +261,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All three stores use WAL mode, `INSERT OR REPLACE` upserts, and `modernc.org/sqlite` (no CGO).
 - Config: `StoragePath` added to `RoutingConfig` and `EstimatorConfig`; `CalibrationStorePath`
   added to `AdaptiveCalibrationConfig`. When empty the existing in-memory store is used.
-- `cmd/robodev/main.go` conditionally constructs SQLite stores when the path is non-empty.
+- `cmd/osmia/main.go` conditionally constructs SQLite stores when the path is non-empty.
 - Unit tests (`sqlite_test.go` in each package) cover save/get round-trips, upsert semantics,
   full-scan `List`, and persistence across close/reopen using `t.TempDir()`.
 
@@ -345,7 +363,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `buildK8sClient()` in `main.go` now returns `*rest.Config` alongside the client;
   `WithRestConfig(cfg)` option passes it to the controller.
 
-#### Tournament Coordinator Wiring (`internal/controller/controller.go`, `cmd/robodev/main.go`)
+#### Tournament Coordinator Wiring (`internal/controller/controller.go`, `cmd/osmia/main.go`)
 
 - `ProcessTicket` now detects tournament-eligible tasks: when `tournamentCoordinator` is set,
   `competitive_execution.enabled=true`, `default_candidates >= 2`, and `len(engines) >= 2`,
@@ -391,7 +409,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   writes the corresponding Markdown files to `~/.claude/skills/<name>.md` before starting
   the agent, making them available as `/skill-name` invocations
 
-**Main wiring** (`cmd/robodev/main.go`)
+**Main wiring** (`cmd/osmia/main.go`)
 - `cfg.Engines.ClaudeCode.Skills` translated to `claudecode.Skill{}` slice and passed to
   `claudecode.New(claudecode.WithSkills(...))` at startup
 
@@ -449,7 +467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `WorkflowStateID()` returns the first mapping's resolved trigger state ID (for webhook filtering)
 - New `WorkflowMappings() []WorkflowMapping` accessor
 - New `pollQuery` helper to avoid duplicating query-build/parse logic across multiple trigger states
-- `cmd/robodev/main.go` `initShortcutBackend` reads the `workflows` array from the Shortcut config map and calls `WithWorkflowMappings`; the legacy `workflow_state_name` / `in_progress_state_name` keys continue to work unchanged
+- `cmd/osmia/main.go` `initShortcutBackend` reads the `workflows` array from the Shortcut config map and calls `WithWorkflowMappings`; the legacy `workflow_state_name` / `in_progress_state_name` keys continue to work unchanged
 - New tests: multi-mapping Init, multi-workflow poll merge, overlap deduplication, mapping selection in `MarkInProgress`
 
 #### Configurable Code Review Gate (`internal/config/config.go`, `internal/controller/controller.go`)
@@ -462,7 +480,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Phase L (longer-term) items 24–25: Non-Standard Task Types (requires design doc), Supervisor Agent (requires design doc)
 - Updated summary table
 
-#### All Plugin Backends Wired into Controller (`cmd/robodev/main.go`)
+#### All Plugin Backends Wired into Controller (`cmd/osmia/main.go`)
 - **Linear ticketing**: `initLinearBackend` reads token secret, team_id, state_filter, labels, and exclude_labels from config
 - **Discord notifications**: `initDiscordChannel` reads webhook_url from config
 - **Telegram notifications**: `initTelegramChannel` reads token secret, chat_id, and optional thread_id from config
@@ -473,9 +491,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Aider/Codex engines**: wired in when `cfg.Engines.Aider` / `cfg.Engines.Codex` are non-nil
 - **`config.ApprovalConfig`** struct added to top-level `Config` (mirrors ReviewConfig / SCMConfig pattern)
 - Notifications loop refactored from if/else chain to switch so Discord and Telegram have equal first-class handling
-- **Startup wiring test** added (`cmd/robodev/init_test.go`, 20 tests) — calls every init function directly with a fake Kubernetes client to verify that all supported backend strings reach their init function rather than falling through to the unsupported-backend error branch
+- **Startup wiring test** added (`cmd/osmia/init_test.go`, 20 tests) — calls every init function directly with a fake Kubernetes client to verify that all supported backend strings reach their init function rather than falling through to the unsupported-backend error branch
 
-#### Shortcut Backend Wired into Controller (`cmd/robodev/main.go`)
+#### Shortcut Backend Wired into Controller (`cmd/osmia/main.go`)
 - `initShortcutBackend` helper function reads `token_secret`, `workflow_state_name`, `in_progress_state_name`, `owner_mention_name`, and `exclude_labels` from config, fetches the API token from a Kubernetes Secret, and calls `Init()` to resolve human-readable names to Shortcut API identifiers at startup
 - `"shortcut"` case added to the ticketing backend selection block — previously only `"github"` was wired in
 - Webhook server automatically configured with `WithShortcutTargetStateID` when the Shortcut backend is active, so only story transitions to the trigger state generate webhook events
@@ -517,7 +535,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `internal/prm/` package: rule-based step scoring from tool call patterns, trajectory tracking with pattern detection (sustained decline, plateau, oscillation, recovery), and intervention decision logic (continue/nudge/escalate)
 - `Scorer` evaluates rolling windows of tool calls: penalises repetition, rewards productive patterns (read→edit, edit→test), and tracks tool diversity
 - `Trajectory` detects patterns across score history with configurable window length
-- `InterventionDecider` triggers soft nudges (hint file at `/workspace/.robodev-hint.md`) or watchdog escalation based on score thresholds and trajectory patterns
+- `InterventionDecider` triggers soft nudges (hint file at `/workspace/.osmia-hint.md`) or watchdog escalation based on score thresholds and trajectory patterns
 - `Evaluator` ties scoring, trajectory, and intervention into a single entry point wired into the streaming pipeline via `WithEventProcessor`
 - `PRMConfig` in controller config: `evaluation_interval`, `window_size`, `score_threshold_nudge`, `score_threshold_escalate`, `hint_file_path`, `max_budget_usd`
 - Prometheus metrics: `prm_step_scores` histogram, `prm_interventions_total` counter by action, `prm_trajectory_patterns_total` counter by pattern
@@ -590,7 +608,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ##### Engine Fallback Chains (Item 3)
 - `EngineSelector` interface with `DefaultEngineSelector` implementation
-- Ticket label override (`robodev:engine:<name>`) for per-ticket engine selection
+- Ticket label override (`osmia:engine:<name>`) for per-ticket engine selection
 - `FallbackEngines []string` in `EnginesConfig` for ordered fallback chain
 - `EngineAttempts` and `CurrentEngine` tracking on TaskRun
 - Automatic fallback to next engine in `handleJobFailed` before exhausting retries
@@ -620,12 +638,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `MemoryStore` thread-safe in-memory implementation
 - Pre-start and pre-merge approval gates in controller
 - Queued → NeedsHuman state transition for approval holds
-- Slack approval callback parsing (`robodev_approve_*` / `robodev_reject_*` actions)
+- Slack approval callback parsing (`osmia_approve_*` / `osmia_reject_*` actions)
 - `ApprovalGates` and `ApprovalCostThresholdUSD` in guard rails config
 
 #### Local Development Mode (Docker Compose)
-- DockerBuilder (`internal/jobbuilder/docker.go`) implementing `controller.JobBuilder` for local Docker execution — produces K8s Job objects annotated with `robodev.io/execution-backend: local`
-- Builder selection in `cmd/robodev/main.go`: reads `execution.backend` config to choose between standard ("job"), sandbox, or local Docker builder
+- DockerBuilder (`internal/jobbuilder/docker.go`) implementing `controller.JobBuilder` for local Docker execution — produces K8s Job objects annotated with `osmia.io/execution-backend: local`
+- Builder selection in `cmd/osmia/main.go`: reads `execution.backend` config to choose between standard ("job"), sandbox, or local Docker builder
 - Noop ticketing file-watcher mode: `NewWithTaskFile` constructor reads tasks from a local YAML file, enabling local development without a real ticketing provider
 - `FileTask` struct for YAML task definitions with ID, title, description, repo URL, and labels
 - `docker-compose.yaml` for running the controller outside Kubernetes with config and workspace volume mounts
@@ -642,7 +660,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TaskRunStoreConfig with backend selection ("memory", "sqlite", "postgres") and SQLite path configuration — future durable backends can implement the TaskRunStore interface
 - Reconciler now persists TaskRun state to the store after every state transition (creation, approval hold, running, completion, failure, retry)
 - `WithTaskRunStore` reconciler option; defaults to MemoryStore when not provided
-- Slack webhook handler now parses `robodev_approve_*` and `robodev_reject_*` action IDs from approval callbacks, extracting task run IDs and logging structured approval/rejection events (stub for future resolution wiring)
+- Slack webhook handler now parses `osmia_approve_*` and `osmia_reject_*` action IDs from approval callbacks, extracting task run IDs and logging structured approval/rejection events (stub for future resolution wiring)
 - Queued → NeedsHuman added as a valid state transition in the TaskRun state machine
 - Table-driven tests for MemoryStore (save/get, list, filter by ticket ID, not-found error)
 - Controller tests for pre-start approval gate blocking job creation, pre-merge gate holding completion, and store persistence verification
@@ -665,11 +683,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Slack signing secret validation (`X-Slack-Signature`) with 5-minute replay attack prevention
 - Shortcut webhook handler with optional HMAC signature validation and story state change parsing
 - Generic webhook handler with configurable HMAC or bearer token auth and dot-notation JSON field mapping
-- Webhook server wired into `cmd/robodev/main.go` with graceful shutdown support
+- Webhook server wired into `cmd/osmia/main.go` with graceful shutdown support
 - New `WebhookConfig` in controller configuration for per-source secrets
 
 #### Task-Scoped Secret Resolution
-- Secret resolver (`internal/secretresolver/`) parsing `<!-- robodev:secrets -->` HTML comment blocks and `robodev:secret:` label prefixes
+- Secret resolver (`internal/secretresolver/`) parsing `<!-- osmia:secrets -->` HTML comment blocks and `osmia:secret:` label prefixes
 - Policy engine validating environment variable names against allowed/blocked glob patterns, URI scheme restrictions, and tenant scoping
 - Multi-backend resolver dispatching secrets by URI scheme (`vault://`, `k8s://`, `alias://`) to registered backends
 - Structured audit logging (secret names only, never values) for compliance and debugging
@@ -730,13 +748,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### GitHub Backend Filtering
 - GitHub ticketing backend now supports filtering by assignee, milestone, and issue state in addition to labels
-- Added client-side label exclusion to prevent re-pickup of in-progress and failed issues (default: `in-progress`, `robodev-failed`)
+- Added client-side label exclusion to prevent re-pickup of in-progress and failed issues (default: `in-progress`, `osmia-failed`)
 - New functional options: `WithAssignee`, `WithMilestone`, `WithState`, `WithExcludeLabels`
 - Labels filter is now optional — omitting it enables assignee-only or milestone-only workflows
 - Refactored `PollReadyTickets` URL construction to use `url.Values` for safer query parameter encoding
 
 #### Live End-to-End Testing
-- Wired up `cmd/robodev/main.go` with full backend initialisation: K8s client, GitHub ticketing, Claude Code engine, job builder, and Slack notifications
+- Wired up `cmd/osmia/main.go` with full backend initialisation: K8s client, GitHub ticketing, Claude Code engine, job builder, and Slack notifications
 - Controller now reads secrets from Kubernetes at startup (GitHub token, Slack token) using config-driven secret references
 - Added `hack/setup-secrets.sh` interactive script for provisioning K8s secrets (GitHub token, Anthropic API key, Slack bot token)
 - Added `hack/values-live.yaml` Helm values overlay for live testing with real backends (conservative guardrails: $10 cost cap, 30min timeout, max 2 jobs)
@@ -802,7 +820,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KEDA ScaledObject example (examples/keda/) for Prometheus-based scaling
 - Example configurations: github-slack, gitlab-teams, enterprise (with full feature set)
 - Example third-party plugins: Jira (Python) and Microsoft Teams (TypeScript)
-- Grafana dashboard JSON (charts/robodev/dashboards/)
+- Grafana dashboard JSON (charts/osmia/dashboards/)
 - Scaling documentation (docs/scaling.md)
 
 #### Phase 5: Community & Documentation
@@ -823,7 +841,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MkDocs Material documentation site with deep purple/amber theme, dark mode, search, and code copy
 - Landing page with feature cards, Mermaid architecture diagram, and full project layout reference
 - Dual quick start paths: Docker Compose (K8s newbies) and Kubernetes (experienced users)
-- Four newcomer-facing concept pages: What is RoboDev?, TaskRun Lifecycle, Engines Explained, Guard Rails Overview
+- Four newcomer-facing concept pages: What is Osmia?, TaskRun Lifecycle, Engines Explained, Guard Rails Overview
 - Full configuration reference page documenting all config sections from `internal/config/config.go`
 - Troubleshooting guide covering controller, agent, webhook, notification, and watchdog issues
 - Mermaid diagrams: system architecture, TaskRun state machine, job lifecycle sequence, guard rail layers, engine decision tree

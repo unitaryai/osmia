@@ -1,8 +1,8 @@
 # Guide: Linear + Slack
 
-This guide walks you through connecting RoboDev to a Linear workspace and a Slack workspace so that:
+This guide walks you through connecting Osmia to a Linear workspace and a Slack workspace so that:
 
-- Issues labelled **robodev** and in the configured state are automatically picked up by the agent
+- Issues labelled **osmia** and in the configured state are automatically picked up by the agent
 - The issue receives an `in-progress` label when work begins
 - You receive a Slack message when work starts, completes, or fails
 
@@ -12,7 +12,7 @@ This guide walks you through connecting RoboDev to a Linear workspace and a Slac
 |---|---|
 | Kubernetes cluster | [Set one up first](kubernetes.md) if you don't have one |
 | `kubectl` configured | Pointing at the target cluster and namespace |
-| `helm` 3+ | For deploying RoboDev |
+| `helm` 3+ | For deploying Osmia |
 | Linear workspace | With admin access to create API keys and labels |
 | Anthropic API key | For the Claude Code engine |
 
@@ -21,16 +21,16 @@ This guide walks you through connecting RoboDev to a Linear workspace and a Slac
 ## Step 1 — Create a Linear API key
 
 1. In Linear, go to **Settings → API → Personal API keys**.
-2. Click **Create key**, name it `robodev`, and copy the value.
+2. Click **Create key**, name it `osmia`, and copy the value.
 
 !!! tip "Service accounts"
-    For production use, create a dedicated Linear member for RoboDev and generate the API key under that account, so activity is clearly attributed and the key can be revoked independently.
+    For production use, create a dedicated Linear member for Osmia and generate the API key under that account, so activity is clearly attributed and the key can be revoked independently.
 
 ---
 
 ## Step 2 — Find your team ID
 
-RoboDev needs the Linear team UUID (not the team name) to scope its queries.
+Osmia needs the Linear team UUID (not the team name) to scope its queries.
 
 ```bash
 curl -s -H "Authorization: YOUR_LINEAR_API_KEY" \
@@ -53,11 +53,11 @@ Copy the `id` value — you will need it for the config.
 
 ## Step 3 — Create the required labels
 
-RoboDev uses two labels to track issue state:
+Osmia uses two labels to track issue state:
 
 1. In Linear, go to **Settings → Labels**.
-2. Create a label named `robodev` — this is the trigger label you add to issues you want the agent to pick up.
-3. Create a label named `robodev-failed` — RoboDev adds this when a task fails so the issue is not retried automatically.
+2. Create a label named `osmia` — this is the trigger label you add to issues you want the agent to pick up.
+3. Create a label named `osmia-failed` — Osmia adds this when a task fails so the issue is not retried automatically.
 
 The `in-progress` label is typically already present in Linear. If not, create it too.
 
@@ -66,11 +66,11 @@ The `in-progress` label is typically already present in Linear. If not, create i
 ## Step 4 — Create a Slack bot
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**.
-2. Name it `RoboDev` and select your workspace.
+2. Name it `Osmia` and select your workspace.
 3. Under **OAuth & Permissions → Bot Token Scopes**, add: `chat:write`.
 4. Click **Install to Workspace** and copy the **Bot User OAuth Token** (starts with `xoxb-`).
 5. In the Slack sidebar, right-click the target channel and copy the **Channel ID** from the channel details panel.
-6. Invite the bot to the channel: `/invite @RoboDev`.
+6. Invite the bot to the channel: `/invite @Osmia`.
 
 ---
 
@@ -78,51 +78,51 @@ The `in-progress` label is typically already present in Linear. If not, create i
 
 ```bash
 # Linear API key
-kubectl create secret generic robodev-linear-token \
-  --namespace robodev \
+kubectl create secret generic osmia-linear-token \
+  --namespace osmia \
   --from-literal=token=YOUR_LINEAR_API_KEY
 
 # Anthropic API key (for Claude Code)
-kubectl create secret generic robodev-anthropic-key \
-  --namespace robodev \
+kubectl create secret generic osmia-anthropic-key \
+  --namespace osmia \
   --from-literal=api_key=sk-ant-YOUR_KEY_HERE
 
 # Slack bot token
-kubectl create secret generic robodev-slack-token \
-  --namespace robodev \
+kubectl create secret generic osmia-slack-token \
+  --namespace osmia \
   --from-literal=token=xoxb-YOUR_SLACK_TOKEN_HERE
 ```
 
 ---
 
-## Step 6 — Write `robodev-config.yaml`
+## Step 6 — Write `osmia-config.yaml`
 
 ```yaml
 ticketing:
   backend: linear
   config:
-    token_secret: robodev-linear-token
+    token_secret: osmia-linear-token
     team_id: "a1b2c3d4-..."          # team UUID from Step 2
     state_filter: "Todo"             # only pick up issues in this state
     labels:
-      - "robodev"                    # issues must have this label
+      - "osmia"                    # issues must have this label
     exclude_labels:
       - "in-progress"                # skip issues already being worked on
-      - "robodev-failed"             # skip issues that previously failed
+      - "osmia-failed"             # skip issues that previously failed
 
 notifications:
   channels:
     - backend: slack
       config:
         channel_id: "C0XXXXXXXXX"   # channel ID from Step 4
-        token_secret: robodev-slack-token
+        token_secret: osmia-slack-token
 
 engines:
   default: claude-code
   claude-code:
     auth:
       method: api_key
-      api_key_secret: robodev-anthropic-key
+      api_key_secret: osmia-anthropic-key
 
 execution:
   backend: kubernetes
@@ -133,27 +133,27 @@ guardrails:
 ```
 
 !!! tip "State filter"
-    Set `state_filter` to the exact name of the Linear workflow state you want RoboDev to poll (e.g. `"Todo"`, `"Backlog"`, `"Ready"`). Issues in any other state are ignored even if they have the `robodev` label.
+    Set `state_filter` to the exact name of the Linear workflow state you want Osmia to poll (e.g. `"Todo"`, `"Backlog"`, `"Ready"`). Issues in any other state are ignored even if they have the `osmia` label.
 
 ---
 
 ## Step 7 — Deploy with Helm
 
 ```bash
-helm repo add robodev https://unitaryai.github.io/RoboDev
+helm repo add osmia https://unitaryai.github.io/Osmia
 helm repo update
 
-kubectl create namespace robodev
+kubectl create namespace osmia
 
-helm install robodev robodev/robodev \
-  --namespace robodev \
-  --set-file config=robodev-config.yaml
+helm install osmia osmia/osmia \
+  --namespace osmia \
+  --set-file config=osmia-config.yaml
 ```
 
 Verify the controller started cleanly:
 
 ```bash
-kubectl logs -n robodev -l app=robodev --tail=20
+kubectl logs -n osmia -l app=osmia --tail=20
 ```
 
 You should see:
@@ -174,7 +174,7 @@ You should see:
     >
     > **Description:** The handler does not validate the `email` field. Reject requests with a missing or malformed email with a 400 and a descriptive error message. Include unit tests.
 
-2. Add the **robodev** label to the issue.
+2. Add the **osmia** label to the issue.
 3. Ensure the issue is in the `state_filter` state you configured (e.g. `"Todo"`).
 
 Within 30 seconds (the default poll interval) the controller will pick it up:
@@ -191,8 +191,8 @@ Within 30 seconds (the default poll interval) the controller will pick it up:
 
 - Confirm the label name exactly matches what you configured in `labels`.
 - Confirm the issue is in the workflow state named in `state_filter`.
-- Check `exclude_labels` — if the issue has `in-progress` or `robodev-failed` it will be skipped.
-- Run `kubectl logs -n robodev -l app=robodev --tail=50` and look for polling errors.
+- Check `exclude_labels` — if the issue has `in-progress` or `osmia-failed` it will be skipped.
+- Run `kubectl logs -n osmia -l app=osmia --tail=50` and look for polling errors.
 
 **Authentication errors.**
 
@@ -208,7 +208,7 @@ Within 30 seconds (the default poll interval) the controller will pick it up:
 
 **No Slack message received.**
 
-- Confirm the bot is invited to the channel (`/invite @RoboDev`).
+- Confirm the bot is invited to the channel (`/invite @Osmia`).
 - Verify the channel ID is correct — it looks like `C0XXXXXXXXX`, not the channel name.
 - Check logs for `"failed to send slack notification"`.
 

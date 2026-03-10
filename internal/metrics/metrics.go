@@ -1,4 +1,4 @@
-// Package metrics defines Prometheus metrics for the RoboDev controller.
+// Package metrics defines Prometheus metrics for the Osmia controller.
 package metrics
 
 import (
@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-const namespace = "robodev"
+const namespace = "osmia"
 
 // Core controller metrics.
 var (

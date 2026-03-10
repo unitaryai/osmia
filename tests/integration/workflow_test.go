@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/promptbuilder"
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/internal/promptbuilder"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // workflowTestTask is the canonical task used across workflow tests.

@@ -22,13 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // reconcilerTestLogger returns a quiet logger for test use.
@@ -107,7 +107,7 @@ func standardTicket(id string) ticketing.Ticket {
 		Description: "Integration test ticket",
 		TicketType:  "issue",
 		RepoURL:     "https://github.com/org/repo",
-		Labels:      []string{"robodev"},
+		Labels:      []string{"osmia"},
 	}
 }
 
@@ -143,9 +143,9 @@ func TestReconcilerFullCycle(t *testing.T) {
 	job := jobs.Items[0]
 
 	// Verify labels.
-	assert.Equal(t, "robodev-agent", job.Labels["app"], "Job must carry app=robodev-agent label")
-	assert.Equal(t, "claude-code", job.Labels["robodev.io/engine"], "Job must carry engine label")
-	assert.NotEmpty(t, job.Labels["robodev.io/task-run-id"], "Job must have task-run-id label")
+	assert.Equal(t, "osmia-agent", job.Labels["app"], "Job must carry app=osmia-agent label")
+	assert.Equal(t, "claude-code", job.Labels["osmia.io/engine"], "Job must carry engine label")
+	assert.NotEmpty(t, job.Labels["osmia.io/task-run-id"], "Job must have task-run-id label")
 
 	// Verify container security context.
 	require.Len(t, job.Spec.Template.Spec.Containers, 1)

@@ -1,4 +1,4 @@
-module github.com/unitaryai/robodev
+module github.com/unitaryai/osmia
 
 go 1.24.0
 

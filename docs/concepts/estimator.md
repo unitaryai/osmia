@@ -1,6 +1,6 @@
 # Predictive Cost Estimation
 
-Before RoboDev launches a task, the cost estimator predicts how much it will cost and how long it will take. This gives operators visibility into expensive tasks before they run — and optionally blocks tasks that exceed a configured threshold until a human approves them.
+Before Osmia launches a task, the cost estimator predicts how much it will cost and how long it will take. This gives operators visibility into expensive tasks before they run — and optionally blocks tasks that exceed a configured threshold until a human approves them.
 
 ## How It Works
 
@@ -68,9 +68,9 @@ estimator:
 
 | Metric | Description |
 |---|---|
-| `robodev_estimator_predictions_total` | Total predictions issued |
-| `robodev_estimator_predicted_cost` | Histogram of midpoint predicted costs |
-| `robodev_estimator_auto_rejections_total` | Tasks auto-rejected for exceeding the cost threshold |
+| `osmia_estimator_predictions_total` | Total predictions issued |
+| `osmia_estimator_predicted_cost` | Histogram of midpoint predicted costs |
+| `osmia_estimator_auto_rejections_total` | Tasks auto-rejected for exceeding the cost threshold |
 
 ## Further Reading
 

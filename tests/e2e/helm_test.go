@@ -20,50 +20,50 @@ func TestHelmResourcesExist(t *testing.T) {
 	ns := testNamespace()
 	ctx := context.Background()
 
-	t.Run("deployment/robodev", func(t *testing.T) {
-		_, err := client.AppsV1().Deployments(ns).Get(ctx, "robodev", metav1.GetOptions{})
-		require.NoError(t, err, "Deployment robodev should exist")
+	t.Run("deployment/osmia", func(t *testing.T) {
+		_, err := client.AppsV1().Deployments(ns).Get(ctx, "osmia", metav1.GetOptions{})
+		require.NoError(t, err, "Deployment osmia should exist")
 	})
 
-	t.Run("service/robodev-metrics", func(t *testing.T) {
-		_, err := client.CoreV1().Services(ns).Get(ctx, "robodev-metrics", metav1.GetOptions{})
-		require.NoError(t, err, "Service robodev-metrics should exist")
+	t.Run("service/osmia-metrics", func(t *testing.T) {
+		_, err := client.CoreV1().Services(ns).Get(ctx, "osmia-metrics", metav1.GetOptions{})
+		require.NoError(t, err, "Service osmia-metrics should exist")
 	})
 
-	t.Run("service/robodev-webhook", func(t *testing.T) {
-		_, err := client.CoreV1().Services(ns).Get(ctx, "robodev-webhook", metav1.GetOptions{})
-		require.NoError(t, err, "Service robodev-webhook should exist")
+	t.Run("service/osmia-webhook", func(t *testing.T) {
+		_, err := client.CoreV1().Services(ns).Get(ctx, "osmia-webhook", metav1.GetOptions{})
+		require.NoError(t, err, "Service osmia-webhook should exist")
 	})
 
-	t.Run("configmap/robodev-config", func(t *testing.T) {
-		_, err := client.CoreV1().ConfigMaps(ns).Get(ctx, "robodev-config", metav1.GetOptions{})
-		require.NoError(t, err, "ConfigMap robodev-config should exist")
+	t.Run("configmap/osmia-config", func(t *testing.T) {
+		_, err := client.CoreV1().ConfigMaps(ns).Get(ctx, "osmia-config", metav1.GetOptions{})
+		require.NoError(t, err, "ConfigMap osmia-config should exist")
 	})
 
-	t.Run("serviceaccount/robodev", func(t *testing.T) {
-		_, err := client.CoreV1().ServiceAccounts(ns).Get(ctx, "robodev", metav1.GetOptions{})
-		require.NoError(t, err, "ServiceAccount robodev should exist")
+	t.Run("serviceaccount/osmia", func(t *testing.T) {
+		_, err := client.CoreV1().ServiceAccounts(ns).Get(ctx, "osmia", metav1.GetOptions{})
+		require.NoError(t, err, "ServiceAccount osmia should exist")
 	})
 
-	t.Run("clusterrole/robodev", func(t *testing.T) {
-		_, err := client.RbacV1().ClusterRoles().Get(ctx, "robodev", metav1.GetOptions{})
-		require.NoError(t, err, "ClusterRole robodev should exist")
+	t.Run("clusterrole/osmia", func(t *testing.T) {
+		_, err := client.RbacV1().ClusterRoles().Get(ctx, "osmia", metav1.GetOptions{})
+		require.NoError(t, err, "ClusterRole osmia should exist")
 	})
 
-	t.Run("clusterrolebinding/robodev", func(t *testing.T) {
-		_, err := client.RbacV1().ClusterRoleBindings().Get(ctx, "robodev", metav1.GetOptions{})
-		require.NoError(t, err, "ClusterRoleBinding robodev should exist")
+	t.Run("clusterrolebinding/osmia", func(t *testing.T) {
+		_, err := client.RbacV1().ClusterRoleBindings().Get(ctx, "osmia", metav1.GetOptions{})
+		require.NoError(t, err, "ClusterRoleBinding osmia should exist")
 	})
 }
 
-// TestHelmConfigMapContent verifies that the robodev-config ConfigMap contains
+// TestHelmConfigMapContent verifies that the osmia-config ConfigMap contains
 // the expected engine and guardrail configuration.
 func TestHelmConfigMapContent(t *testing.T) {
 	client := newK8sClient(t)
 	ns := testNamespace()
 
 	cm, err := client.CoreV1().ConfigMaps(ns).Get(
-		context.Background(), "robodev-config", metav1.GetOptions{},
+		context.Background(), "osmia-config", metav1.GetOptions{},
 	)
 	require.NoError(t, err)
 
@@ -82,7 +82,7 @@ func TestHelmClusterRolePermissions(t *testing.T) {
 	client := newK8sClient(t)
 
 	role, err := client.RbacV1().ClusterRoles().Get(
-		context.Background(), "robodev", metav1.GetOptions{},
+		context.Background(), "osmia", metav1.GetOptions{},
 	)
 	require.NoError(t, err)
 
@@ -131,7 +131,7 @@ func TestHelmWebhookServicePort(t *testing.T) {
 	ns := testNamespace()
 
 	svc, err := client.CoreV1().Services(ns).Get(
-		context.Background(), "robodev-webhook", metav1.GetOptions{},
+		context.Background(), "osmia-webhook", metav1.GetOptions{},
 	)
 	require.NoError(t, err)
 

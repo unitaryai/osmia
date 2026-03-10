@@ -1,18 +1,18 @@
-# RoboDev
+# Osmia
 
 **Kubernetes-native AI coding agent harness with a real-time intelligence layer.**
 
-RoboDev orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
+Osmia orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
 
-![RoboDev Architecture](docs/images/RoboDev-architecture.png)
+![Osmia Architecture](docs/images/Osmia-architecture.png)
 
-**[Documentation →](https://unitaryai.github.io/RoboDev/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
+**[Documentation →](https://unitaryai.github.io/Osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
 
 ---
 
-## What Makes RoboDev Different
+## What Makes Osmia Different
 
-Most agent orchestrators are job launchers — they dispatch a task and wait for success or failure. RoboDev adds an **intelligence layer** that actively monitors, coaches, and learns from every running agent:
+Most agent orchestrators are job launchers — they dispatch a task and wait for success or failure. Osmia adds an **intelligence layer** that actively monitors, coaches, and learns from every running agent:
 
 | Capability | What it does |
 |---|---|
@@ -23,7 +23,7 @@ Most agent orchestrators are job launchers — they dispatch a task and wait for
 | **Intelligent engine routing** | Historical success rates, cost, and task-type affinity guide which engine handles each task. Poor-performing engines are penalised; good ones accumulate positive signal. The selection updates continuously |
 | **Predictive cost estimation** | Before a task launches, a k-NN model estimates cost and duration from similar historical outcomes. Tasks projected to exceed `max_predicted_cost_per_job` are automatically rejected before the job starts |
 | **Competitive execution** | Multiple engines run the same task simultaneously. A judge engine evaluates all outputs and selects the best result — useful for critical tasks where quality matters more than cost |
-| **Review-response loop** | RoboDev monitors PRs it opens, classifies incoming review comments, and automatically spawns follow-up jobs to address actionable feedback — turning a single-pass agent into a review-responsive loop |
+| **Review-response loop** | Osmia monitors PRs it opens, classifies incoming review comments, and automatically spawns follow-up jobs to address actionable feedback — turning a single-pass agent into a review-responsive loop |
 
 An adaptive **watchdog** detects repetitive tool-call loops, cost-velocity spikes, thrashing between files, and idle stalls — intervening with targeted actions (nudge, escalate, or terminate) rather than waiting for a blunt timeout.
 
@@ -45,18 +45,18 @@ An adaptive **watchdog** detects repetitive tool-call loops, cost-velocity spike
 ## Quick Start
 
 ```bash
-kubectl create namespace robodev
+kubectl create namespace osmia
 
-kubectl create secret generic robodev-github-token \
-  -n robodev --from-literal=token=ghp_YOUR_TOKEN
-kubectl create secret generic robodev-anthropic-key \
-  -n robodev --from-literal=api_key=sk-ant-YOUR_KEY
+kubectl create secret generic osmia-github-token \
+  -n osmia --from-literal=token=ghp_YOUR_TOKEN
+kubectl create secret generic osmia-anthropic-key \
+  -n osmia --from-literal=api_key=sk-ant-YOUR_KEY
 
-helm repo add robodev https://unitaryai.github.io/RoboDev/charts
-helm install robodev robodev/robodev -n robodev -f robodev-config.yaml
+helm repo add osmia https://unitaryai.github.io/Osmia/charts
+helm install osmia osmia/osmia -n osmia -f osmia-config.yaml
 ```
 
-Minimal `robodev-config.yaml`:
+Minimal `osmia-config.yaml`:
 
 ```yaml
 ticketing:
@@ -64,15 +64,15 @@ ticketing:
   config:
     owner: "your-org"
     repo:  "your-repo"
-    token_secret: robodev-github-token
-    labels: ["robodev"]
+    token_secret: osmia-github-token
+    labels: ["osmia"]
 
 engines:
   default: claude-code
   claude-code:
     auth:
       method: api_key
-      api_key_secret: robodev-anthropic-key
+      api_key_secret: osmia-anthropic-key
 
 guardrails:
   max_cost_per_job: 5.00
@@ -81,9 +81,9 @@ guardrails:
     - "github.com/your-org/your-repo"
 ```
 
-Label a GitHub issue `robodev` and the controller picks it up, launches a Claude Code agent, and opens a pull request with the changes.
+Label a GitHub issue `osmia` and the controller picks it up, launches a Claude Code agent, and opens a pull request with the changes.
 
-For step-by-step setup guides, the full configuration reference, and instructions for enabling the intelligence layer features, see the **[documentation](https://unitaryai.github.io/RoboDev/)**.
+For step-by-step setup guides, the full configuration reference, and instructions for enabling the intelligence layer features, see the **[documentation](https://unitaryai.github.io/Osmia/)**.
 
 ---
 
@@ -101,7 +101,7 @@ All external integrations are pluggable. Built-in plugins are compiled into the 
 | Review | CodeRabbit | Custom |
 | Engine | Claude Code, Codex, Aider, OpenCode | Custom |
 
-SDK helper libraries for Python, Go, and TypeScript are in `sdk/`. Generated proto stubs are not checked in — run `make sdk-gen` to generate them from the proto definitions. See the [plugin docs](https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/) for details.
+SDK helper libraries for Python, Go, and TypeScript are in `sdk/`. Generated proto stubs are not checked in — run `make sdk-gen` to generate them from the proto definitions. See the [plugin docs](https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/) for details.
 
 ---
 

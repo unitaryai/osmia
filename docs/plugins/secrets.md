@@ -145,7 +145,7 @@ config:
       - scheme: "k8s"
         backend: "k8s"
         config:
-          namespace: "robodev"    # Optional — defaults to the controller's namespace.
+          namespace: "osmia"    # Optional — defaults to the controller's namespace.
 ```
 
 No additional configuration is required. The backend uses the controller's service account credentials to read Secrets.
@@ -154,7 +154,7 @@ No additional configuration is required. The backend uses the controller's servi
 
 Secret keys use the format `secretName/key`:
 
-- `robodev-anthropic-key/api_key` reads the `api_key` data key from the `robodev-anthropic-key` Secret.
+- `osmia-anthropic-key/api_key` reads the `api_key` data key from the `osmia-anthropic-key` Secret.
 - `github-token/token` reads the `token` data key from the `github-token` Secret.
 
 ### Behaviour
@@ -173,8 +173,8 @@ The controller's service account needs read access to Secrets in its namespace:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: robodev-secrets-reader
-  namespace: robodev
+  name: osmia-secrets-reader
+  namespace: osmia
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -379,7 +379,7 @@ See [Writing a Plugin](writing-a-plugin.md) for a TypeScript example implementin
 
 ## Security Considerations
 
-Secrets handling is the most security-sensitive area of RoboDev. Follow these principles:
+Secrets handling is the most security-sensitive area of Osmia. Follow these principles:
 
 ### Never Log Secret Values
 

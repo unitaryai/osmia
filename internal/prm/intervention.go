@@ -38,7 +38,7 @@ type InterventionDecider struct {
 // escalateThreshold with a sustained decline trigger escalation.
 func NewInterventionDecider(nudgeThreshold, escalateThreshold int, hintFilePath string) *InterventionDecider {
 	if hintFilePath == "" {
-		hintFilePath = "/workspace/.robodev-hint.md"
+		hintFilePath = "/workspace/.osmia-hint.md"
 	}
 	return &InterventionDecider{
 		nudgeThreshold:    nudgeThreshold,
@@ -106,7 +106,7 @@ func (d *InterventionDecider) HintFilePath() string {
 // buildHintContent generates guidance for the agent based on the current
 // score and trajectory pattern.
 func (d *InterventionDecider) buildHintContent(latest *StepScore, pattern TrajectoryPattern) string {
-	hint := "# RoboDev Agent Guidance\n\n"
+	hint := "# Osmia Agent Guidance\n\n"
 	hint += fmt.Sprintf("Your recent approach scored %d/10. ", latest.Score)
 
 	switch pattern {

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // Skill describes a custom skill file to be made available to the agent.
@@ -24,7 +24,7 @@ type Skill struct {
 	Inline string
 
 	// Path is the path to a skill file on the container image
-	// (e.g. "/opt/robodev/skills/create-changelog.md").
+	// (e.g. "/opt/osmia/skills/create-changelog.md").
 	// The container's setup-claude.sh copies it to ~/.claude/skills/ at startup.
 	Path string
 

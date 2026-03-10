@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "robodev.fullname" . }}-config
+  name: {{ include "osmia.fullname" . }}-config
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 data:
   config.yaml: |
     {{- toYaml .Values.config | nindent 4 }}

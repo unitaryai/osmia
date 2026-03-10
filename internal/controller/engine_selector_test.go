@@ -5,9 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func TestDefaultEngineSelector_SelectEngines(t *testing.T) {
@@ -30,7 +30,7 @@ func TestDefaultEngineSelector_SelectEngines(t *testing.T) {
 					Default: "claude-code",
 				},
 			},
-			ticket:   ticketing.Ticket{ID: "T-1", Labels: []string{"robodev"}},
+			ticket:   ticketing.Ticket{ID: "T-1", Labels: []string{"osmia"}},
 			expected: []string{"claude-code"},
 		},
 		{
@@ -41,7 +41,7 @@ func TestDefaultEngineSelector_SelectEngines(t *testing.T) {
 					FallbackEngines: []string{"cline", "aider"},
 				},
 			},
-			ticket:   ticketing.Ticket{ID: "T-2", Labels: []string{"robodev"}},
+			ticket:   ticketing.Ticket{ID: "T-2", Labels: []string{"osmia"}},
 			expected: []string{"claude-code", "cline", "aider"},
 		},
 		{
@@ -52,7 +52,7 @@ func TestDefaultEngineSelector_SelectEngines(t *testing.T) {
 					FallbackEngines: []string{"cline", "aider"},
 				},
 			},
-			ticket:   ticketing.Ticket{ID: "T-3", Labels: []string{"robodev", "robodev:engine:aider"}},
+			ticket:   ticketing.Ticket{ID: "T-3", Labels: []string{"osmia", "osmia:engine:aider"}},
 			expected: []string{"aider"},
 		},
 		{
@@ -63,7 +63,7 @@ func TestDefaultEngineSelector_SelectEngines(t *testing.T) {
 					FallbackEngines: []string{"cline"},
 				},
 			},
-			ticket:   ticketing.Ticket{ID: "T-4", Labels: []string{"robodev:engine:unknown"}},
+			ticket:   ticketing.Ticket{ID: "T-4", Labels: []string{"osmia:engine:unknown"}},
 			expected: []string{"claude-code", "cline"},
 		},
 		{

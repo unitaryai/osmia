@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/sandboxbuilder"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/sandboxbuilder"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
 )
 
 // sandboxTestSpec returns a standard ExecutionSpec for sandbox builder tests.
@@ -105,7 +105,7 @@ func TestSandboxBuilderEnvStrippingAnnotation(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job)
 
-	assert.Equal(t, "true", job.Spec.Template.ObjectMeta.Annotations["robodev.io/env-stripping"],
+	assert.Equal(t, "true", job.Spec.Template.ObjectMeta.Annotations["osmia.io/env-stripping"],
 		"env stripping annotation must be present when enabled")
 }
 

@@ -26,13 +26,13 @@ import (
 )
 
 // testNamespace returns the namespace used for e2e tests.
-// It reads from the ROBODEV_E2E_NAMESPACE environment variable,
-// defaulting to "robodev".
+// It reads from the OSMIA_E2E_NAMESPACE environment variable,
+// defaulting to "osmia".
 func testNamespace() string {
-	if ns := os.Getenv("ROBODEV_E2E_NAMESPACE"); ns != "" {
+	if ns := os.Getenv("OSMIA_E2E_NAMESPACE"); ns != "" {
 		return ns
 	}
-	return "robodev"
+	return "osmia"
 }
 
 // newK8sClient creates a real Kubernetes client from the current KUBECONFIG.
@@ -166,7 +166,7 @@ func portForwardService(t *testing.T, ns, svcName string, svcPort int) (string, 
 }
 
 // webhookServiceName returns the name of the webhook receiver Service.
-func webhookServiceName() string { return "robodev-webhook" }
+func webhookServiceName() string { return "osmia-webhook" }
 
 // webhookSecret returns the HMAC secret used in e2e tests for the given source.
 func webhookSecret(source string) string {

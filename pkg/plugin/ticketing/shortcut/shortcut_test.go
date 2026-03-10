@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func testLogger() *slog.Logger {
@@ -190,7 +190,7 @@ func TestShortcutBackend_Init_BothStateNamesFetchWorkflowsOnce(t *testing.T) {
 func TestShortcutBackend_Init_ResolvesMemberByMentionName(t *testing.T) {
 	members := []scMember{
 		{ID: "uuid-human", Profile: scMemberProfile{MentionName: "alice"}},
-		{ID: "uuid-bot", Profile: scMemberProfile{MentionName: "robodev"}},
+		{ID: "uuid-bot", Profile: scMemberProfile{MentionName: "osmia"}},
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +207,7 @@ func TestShortcutBackend_Init_ResolvesMemberByMentionName(t *testing.T) {
 	b := NewShortcutBackend("tok", 500, testLogger(),
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
-		WithOwnerMentionName("robodev"),
+		WithOwnerMentionName("osmia"),
 	)
 
 	require.NoError(t, b.Init(context.Background()))
@@ -216,9 +216,9 @@ func TestShortcutBackend_Init_ResolvesMemberByMentionName(t *testing.T) {
 
 func TestShortcutBackend_Init_OwnerAtPrefixStripped(t *testing.T) {
 	b := NewShortcutBackend("tok", 500, testLogger(),
-		WithOwnerMentionName("@robodev"),
+		WithOwnerMentionName("@osmia"),
 	)
-	assert.Equal(t, "robodev", b.ownerMentionName)
+	assert.Equal(t, "osmia", b.ownerMentionName)
 }
 
 func TestShortcutBackend_Init_MemberNotFound(t *testing.T) {
@@ -236,12 +236,12 @@ func TestShortcutBackend_Init_MemberNotFound(t *testing.T) {
 	b := NewShortcutBackend("tok", 500, testLogger(),
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
-		WithOwnerMentionName("robodev"),
+		WithOwnerMentionName("osmia"),
 	)
 
 	err := b.Init(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "robodev")
+	assert.Contains(t, err.Error(), "osmia")
 }
 
 // --- ListWorkflowStates ---
@@ -316,7 +316,7 @@ func TestShortcutBackend_PollReadyTickets_NoOwnerFilter(t *testing.T) {
 func TestShortcutBackend_PollReadyTickets_WithOwnerFilter(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("query")
-		assert.Contains(t, q, "owner:robodev")
+		assert.Contains(t, q, "owner:osmia")
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(searchResponse{Data: []scStory{}})
 	}))
@@ -326,7 +326,7 @@ func TestShortcutBackend_PollReadyTickets_WithOwnerFilter(t *testing.T) {
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
 	)
-	b.ownerMentionName = "robodev" // set directly, bypassing Init
+	b.ownerMentionName = "osmia" // set directly, bypassing Init
 
 	_, err := b.PollReadyTickets(context.Background())
 	require.NoError(t, err)
@@ -385,7 +385,7 @@ func TestShortcutBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 			ID:     3,
 			Name:   "Failed story",
 			AppURL: "https://app.shortcut.com/org/story/3",
-			Labels: []scLabel{{Name: "robodev-failed"}},
+			Labels: []scLabel{{Name: "osmia-failed"}},
 		},
 		{
 			ID:     4,
@@ -405,7 +405,7 @@ func TestShortcutBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 		},
 		{
 			name:          "custom excludeLabels override",
-			opts:          []Option{WithExcludeLabels([]string{"robodev-failed"})},
+			opts:          []Option{WithExcludeLabels([]string{"osmia-failed"})},
 			wantTicketIDs: []string{"1", "2", "4"},
 		},
 		{
@@ -506,7 +506,7 @@ func TestShortcutBackend_MarkInProgress_LabelFallback(t *testing.T) {
 
 	assert.Contains(t, calls, "POST /stories/42/comments")
 	assert.Contains(t, calls, "POST /stories/42/labels")
-	assert.Contains(t, commentText, "RoboDev")
+	assert.Contains(t, commentText, "Osmia")
 }
 
 func TestShortcutBackend_MarkInProgress_StateTransition(t *testing.T) {
@@ -648,7 +648,7 @@ func TestShortcutBackend_MarkFailed(t *testing.T) {
 	err := b.MarkFailed(context.Background(), "7", "timeout exceeded")
 	require.NoError(t, err)
 
-	assert.Equal(t, "robodev-failed", labelPayload["name"])
+	assert.Equal(t, "osmia-failed", labelPayload["name"])
 	assert.Contains(t, commentPayload["text"], "timeout exceeded")
 }
 

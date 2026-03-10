@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func testLogger() *slog.Logger {
@@ -76,7 +76,7 @@ func TestLinearBackend_PollReadyTickets(t *testing.T) {
 			Labels: struct {
 				Nodes []linearLabel `json:"nodes"`
 			}{
-				Nodes: []linearLabel{{Name: "robodev"}, {Name: "bug"}},
+				Nodes: []linearLabel{{Name: "osmia"}, {Name: "bug"}},
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestLinearBackend_PollReadyTickets(t *testing.T) {
 			Labels: struct {
 				Nodes []linearLabel `json:"nodes"`
 			}{
-				Nodes: []linearLabel{{Name: "robodev"}},
+				Nodes: []linearLabel{{Name: "osmia"}},
 			},
 		},
 	}
@@ -99,7 +99,7 @@ func TestLinearBackend_PollReadyTickets(t *testing.T) {
 			assert.Contains(t, gqlReq.Query, "issues(filter:")
 			assert.Equal(t, "team-1", gqlReq.Variables["teamId"])
 			assert.Equal(t, "Todo", gqlReq.Variables["stateFilter"])
-			assert.Equal(t, []any{"robodev"}, gqlReq.Variables["labels"])
+			assert.Equal(t, []any{"osmia"}, gqlReq.Variables["labels"])
 		},
 		respData,
 	))
@@ -108,7 +108,7 @@ func TestLinearBackend_PollReadyTickets(t *testing.T) {
 	b := NewLinearBackend("test-token", "team-1", testLogger(),
 		WithAPIURL(srv.URL),
 		WithHTTPClient(srv.Client()),
-		WithLabels([]string{"robodev"}),
+		WithLabels([]string{"osmia"}),
 		WithStateFilter("Todo"),
 	)
 
@@ -120,7 +120,7 @@ func TestLinearBackend_PollReadyTickets(t *testing.T) {
 	assert.Equal(t, "Fix login bug", tickets[0].Title)
 	assert.Equal(t, "The login page crashes", tickets[0].Description)
 	assert.Equal(t, "issue", tickets[0].TicketType)
-	assert.Equal(t, []string{"robodev", "bug"}, tickets[0].Labels)
+	assert.Equal(t, []string{"osmia", "bug"}, tickets[0].Labels)
 	assert.Equal(t, "https://linear.app/org/issue/ENG-123", tickets[0].ExternalURL)
 
 	assert.Equal(t, "ENG-456", tickets[1].ID)
@@ -134,7 +134,7 @@ func TestLinearBackend_PollReadyTickets_EmptyResponse(t *testing.T) {
 
 	b := NewLinearBackend("tok", "team-1", testLogger(),
 		WithAPIURL(srv.URL),
-		WithLabels([]string{"robodev"}),
+		WithLabels([]string{"osmia"}),
 	)
 	tickets, err := b.PollReadyTickets(context.Background())
 	require.NoError(t, err)
@@ -149,7 +149,7 @@ func TestLinearBackend_PollReadyTickets_APIError(t *testing.T) {
 
 	b := NewLinearBackend("tok", "team-1", testLogger(),
 		WithAPIURL(srv.URL),
-		WithLabels([]string{"robodev"}),
+		WithLabels([]string{"osmia"}),
 	)
 	_, err := b.PollReadyTickets(context.Background())
 	require.Error(t, err)
@@ -183,28 +183,28 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 				URL: "https://linear.app/org/issue/ENG-1",
 				Labels: struct {
 					Nodes []linearLabel `json:"nodes"`
-				}{Nodes: []linearLabel{{Name: "robodev"}}},
+				}{Nodes: []linearLabel{{Name: "osmia"}}},
 			},
 			{
 				ID: "id-2", Identifier: "ENG-2", Title: "In-progress",
 				URL: "https://linear.app/org/issue/ENG-2",
 				Labels: struct {
 					Nodes []linearLabel `json:"nodes"`
-				}{Nodes: []linearLabel{{Name: "robodev"}, {Name: "in-progress"}}},
+				}{Nodes: []linearLabel{{Name: "osmia"}, {Name: "in-progress"}}},
 			},
 			{
 				ID: "id-3", Identifier: "ENG-3", Title: "Failed",
 				URL: "https://linear.app/org/issue/ENG-3",
 				Labels: struct {
 					Nodes []linearLabel `json:"nodes"`
-				}{Nodes: []linearLabel{{Name: "robodev"}, {Name: "robodev-failed"}}},
+				}{Nodes: []linearLabel{{Name: "osmia"}, {Name: "osmia-failed"}}},
 			},
 			{
 				ID: "id-4", Identifier: "ENG-4", Title: "Clean",
 				URL: "https://linear.app/org/issue/ENG-4",
 				Labels: struct {
 					Nodes []linearLabel `json:"nodes"`
-				}{Nodes: []linearLabel{{Name: "robodev"}}},
+				}{Nodes: []linearLabel{{Name: "osmia"}}},
 			},
 		}
 		return resp
@@ -221,7 +221,7 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 		},
 		{
 			name:          "custom excludeLabels override",
-			opts:          []Option{WithExcludeLabels([]string{"robodev-failed"})},
+			opts:          []Option{WithExcludeLabels([]string{"osmia-failed"})},
 			wantTicketIDs: []string{"ENG-1", "ENG-2", "ENG-4"},
 		},
 		{
@@ -239,7 +239,7 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 			allOpts := append([]Option{
 				WithAPIURL(srv.URL),
 				WithHTTPClient(srv.Client()),
-				WithLabels([]string{"robodev"}),
+				WithLabels([]string{"osmia"}),
 			}, tc.opts...)
 			b := NewLinearBackend("tok", "team-1", testLogger(), allOpts...)
 
@@ -344,7 +344,7 @@ func TestLinearBackend_MarkFailed(t *testing.T) {
 
 	// First call: add failed label.
 	assert.Contains(t, calls[0].Query, "issueAddLabel")
-	assert.Equal(t, "robodev-failed", calls[0].Variables["labelName"])
+	assert.Equal(t, "osmia-failed", calls[0].Variables["labelName"])
 
 	// Second call: failure comment.
 	assert.Contains(t, calls[1].Query, "commentCreate")

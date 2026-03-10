@@ -35,7 +35,7 @@ type hooksSection struct {
 // against a list of blocked commands and exits non-zero if a match is found.
 func blockedCommandsScript(commands []string) string {
 	if len(commands) == 0 {
-		return "/opt/robodev/hooks/block-dangerous-commands.sh"
+		return "/opt/osmia/hooks/block-dangerous-commands.sh"
 	}
 
 	// Build a grep pattern from blocked commands.
@@ -45,7 +45,7 @@ func blockedCommandsScript(commands []string) string {
 	}
 
 	return fmt.Sprintf(
-		"/opt/robodev/hooks/block-dangerous-commands.sh '%s'",
+		"/opt/osmia/hooks/block-dangerous-commands.sh '%s'",
 		strings.Join(escaped, "|"),
 	)
 }
@@ -54,7 +54,7 @@ func blockedCommandsScript(commands []string) string {
 // against a list of blocked file patterns and exits non-zero if a match is found.
 func blockedFilesScript(patterns []string) string {
 	if len(patterns) == 0 {
-		return "/opt/robodev/hooks/block-sensitive-files.sh"
+		return "/opt/osmia/hooks/block-sensitive-files.sh"
 	}
 
 	escaped := make([]string, len(patterns))
@@ -63,7 +63,7 @@ func blockedFilesScript(patterns []string) string {
 	}
 
 	return fmt.Sprintf(
-		"/opt/robodev/hooks/block-sensitive-files.sh '%s'",
+		"/opt/osmia/hooks/block-sensitive-files.sh '%s'",
 		strings.Join(escaped, "|"),
 	)
 }
@@ -106,7 +106,7 @@ func GenerateHooksConfig(blockedCommands, blockedFilePatterns []string) ([]byte,
 					Hooks: []hookEntry{
 						{
 							Type:    "command",
-							Command: "/opt/robodev/hooks/heartbeat.sh",
+							Command: "/opt/osmia/hooks/heartbeat.sh",
 						},
 					},
 				},
@@ -116,7 +116,7 @@ func GenerateHooksConfig(blockedCommands, blockedFilePatterns []string) ([]byte,
 					Hooks: []hookEntry{
 						{
 							Type:    "command",
-							Command: "/opt/robodev/hooks/on-complete.sh",
+							Command: "/opt/osmia/hooks/on-complete.sh",
 						},
 					},
 				},

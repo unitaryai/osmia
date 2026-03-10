@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
-	localticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/local"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
+	localticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/local"
 )
 
 type stubService struct {

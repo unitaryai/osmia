@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // mockFallback implements FallbackSelector for testing.
@@ -187,8 +187,8 @@ func TestExtractLanguageLabel(t *testing.T) {
 		labels   []string
 		expected string
 	}{
-		{"with lang label", []string{"robodev", "lang:python"}, "python"},
-		{"no lang label", []string{"robodev", "priority:high"}, ""},
+		{"with lang label", []string{"osmia", "lang:python"}, "python"},
+		{"no lang label", []string{"osmia", "priority:high"}, ""},
 		{"empty labels", nil, ""},
 		{"short label", []string{"lang"}, ""},
 	}

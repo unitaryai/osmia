@@ -121,7 +121,7 @@ plugin_health:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Write the YAML to a temporary file.
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -223,7 +223,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -305,7 +305,7 @@ streaming:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -423,7 +423,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -481,7 +481,7 @@ guardrails:
 taskrun_store:
   backend: sqlite
   sqlite:
-    path: /var/lib/robodev/taskruns.db
+    path: /var/lib/osmia/taskruns.db
 `,
 			wantStoreBackend: "sqlite",
 		},
@@ -525,7 +525,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -615,7 +615,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -752,7 +752,7 @@ guardrails:
 }
 
 func TestLoad_FileNotFound(t *testing.T) {
-	_, err := Load("/nonexistent/path/robodev-config.yaml")
+	_, err := Load("/nonexistent/path/osmia-config.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading config file")
 }

@@ -1,6 +1,6 @@
 # Webhook API Reference
 
-RoboDev optionally runs an HTTP webhook server that accepts events from GitHub,
+Osmia optionally runs an HTTP webhook server that accepts events from GitHub,
 GitLab, Shortcut, and Slack. When an event is received, it is validated,
 parsed into one or more `Ticket` records, and forwarded to the controller's
 reconciliation loop for processing.
@@ -34,7 +34,7 @@ POST /webhooks/github
 ### Authentication
 
 GitHub signs every delivery using HMAC-SHA256. The signature is sent in the
-`X-Hub-Signature-256` header in the format `sha256=<hex-digest>`. RoboDev
+`X-Hub-Signature-256` header in the format `sha256=<hex-digest>`. Osmia
 rejects requests that do not carry a valid signature for the configured secret.
 The signature is validated **before** the JSON body is parsed (fail-fast).
 
@@ -57,7 +57,7 @@ The signature is validated **before** the JSON body is parsed (fail-fast).
     "body": "The `AuthMiddleware` panics when the `Authorization` header is absent.",
     "html_url": "https://github.com/example/repo/issues/42",
     "labels": [
-      { "name": "robodev" },
+      { "name": "osmia" },
       { "name": "bug" }
     ]
   },
@@ -83,7 +83,7 @@ POST /webhooks/gitlab
 
 ### Authentication
 
-GitLab sends a shared secret in the `X-Gitlab-Token` header. RoboDev performs
+GitLab sends a shared secret in the `X-Gitlab-Token` header. Osmia performs
 a constant-time string comparison of this header value against the configured
 secret. The token is validated **before** the request body is read (fail-fast).
 
@@ -113,7 +113,7 @@ secret. The token is validated **before** the request body is read (fail-fast).
     "path_with_namespace": "group/project"
   },
   "labels": [
-    { "title": "robodev" }
+    { "title": "osmia" }
   ]
 }
 ```
@@ -144,7 +144,7 @@ strongly recommended to configure a secret in production.
 
 ### Supported events
 
-Shortcut delivers a list of `actions` in each webhook payload. RoboDev
+Shortcut delivers a list of `actions` in each webhook payload. Osmia
 processes actions where:
 
 - `entity_type` is `"story"`, and
@@ -200,7 +200,7 @@ Slack uses a versioned HMAC-SHA256 scheme. The signature is computed over the
 string `v0:<X-Slack-Request-Timestamp>:<raw-body>` using the signing secret,
 and sent in `X-Slack-Signature` as `v0=<hex-digest>`.
 
-RoboDev additionally validates that the `X-Slack-Request-Timestamp` is within
+Osmia additionally validates that the `X-Slack-Request-Timestamp` is within
 **5 minutes** of the current server time. Requests with older timestamps are
 rejected to prevent replay attacks.
 
@@ -212,7 +212,7 @@ arrive as:
 - JSON body (`Content-Type: application/json`)
 - URL-encoded form data with a `payload` field (`Content-Type: application/x-www-form-urlencoded`)
 
-Actions with an `action_id` prefixed `robodev_approval_` are recognised as
+Actions with an `action_id` prefixed `osmia_approval_` are recognised as
 approval callbacks and routed directly to the approval handler. They are **not**
 forwarded as tickets — doing so would create spurious task runs. Only
 non-approval Slack interactions (slash commands, other button actions) are
@@ -225,7 +225,7 @@ forwarded as tickets with `ticket_type: "slack_interaction"`.
   "type": "block_actions",
   "actions": [
     {
-      "action_id": "robodev_approval_42-1_0",
+      "action_id": "osmia_approval_42-1_0",
       "value": "approved"
     }
   ],

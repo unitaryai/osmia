@@ -5,7 +5,7 @@
 
 ## Overview
 
-The ticketing backend is the primary input source for RoboDev. It polls an issue tracker for tickets ready to be processed, manages their lifecycle state transitions (in-progress, complete, failed), and posts progress comments. The controller calls `PollReadyTickets` on every reconciliation cycle to discover new work.
+The ticketing backend is the primary input source for Osmia. It polls an issue tracker for tickets ready to be processed, manages their lifecycle state transitions (in-progress, complete, failed), and posts progress comments. The controller calls `PollReadyTickets` on every reconciliation cycle to discover new work.
 
 ## Interface Summary
 
@@ -79,7 +79,7 @@ message PollReadyTicketsResponse {
 
 **Implementation guidance:**
 
-- Return only tickets in a "ready" state (e.g., open issues with the `robodev` label that have not already been picked up).
+- Return only tickets in a "ready" state (e.g., open issues with the `osmia` label that have not already been picked up).
 - Respect `max_results` to avoid overwhelming the controller when there is a large backlog.
 - The controller handles deduplication via idempotency keys, but filtering already-in-progress tickets at the source is more efficient and reduces unnecessary API calls.
 - Consider caching the last poll result to avoid redundant API requests when the source system has not changed.
@@ -100,7 +100,7 @@ message MarkInProgressRequest {
 
 - Typically this adds a label (e.g., `in-progress`) or moves the ticket to a "doing" column/status.
 - This operation must be **idempotent** — calling it twice for the same ticket must not fail or produce side effects.
-- Remove the trigger label (e.g., `robodev`) if appropriate, so the ticket is not picked up again on the next poll.
+- Remove the trigger label (e.g., `osmia`) if appropriate, so the ticket is not picked up again on the next poll.
 
 ### MarkComplete
 
@@ -149,7 +149,7 @@ message MarkFailedRequest {
 **Implementation guidance:**
 
 - Post the failure reason as a comment on the ticket so humans can investigate.
-- Consider adding a label (e.g., `robodev-failed`) rather than closing the ticket, so it can be retried manually by re-adding the trigger label.
+- Consider adding a label (e.g., `osmia-failed`) rather than closing the ticket, so it can be retried manually by re-adding the trigger label.
 - Include enough context in the reason for a human to understand what went wrong without consulting controller logs.
 
 ### AddComment
@@ -185,18 +185,18 @@ config:
       owner: "your-org"
       repo: "your-repo"
       labels:
-        - "robodev"
-      token_secret: "robodev-github-token"
+        - "osmia"
+      token_secret: "osmia-github-token"
 ```
 
 ### Behaviour
 
 | Method | GitHub Action |
 |---|---|
-| `PollReadyTickets` | `GET /repos/{owner}/{repo}/issues?labels=robodev&state=open` |
-| `MarkInProgress` | Adds the `robodev-in-progress` label, removes the `robodev` label |
+| `PollReadyTickets` | `GET /repos/{owner}/{repo}/issues?labels=osmia&state=open` |
+| `MarkInProgress` | Adds the `osmia-in-progress` label, removes the `osmia` label |
 | `MarkComplete` | Posts a comment with the PR link and summary, then closes the issue |
-| `MarkFailed` | Posts a comment with the failure reason, adds the `robodev-failed` label |
+| `MarkFailed` | Posts a comment with the failure reason, adds the `osmia-failed` label |
 | `AddComment` | `POST /repos/{owner}/{repo}/issues/{number}/comments` |
 
 ### Required Permissions
@@ -222,13 +222,13 @@ config:
   ticketing:
     backend: shortcut
     config:
-      token_secret: "robodev-shortcut-token"
+      token_secret: "osmia-shortcut-token"
       workflow_state_name: "Ready for Development"
       in_progress_state_name: "In Development"
       completed_state_name: "Ready for Review"     # optional
-      owner_mention_name: "robodev"
+      owner_mention_name: "osmia"
       exclude_labels:
-        - "robodev-failed"
+        - "osmia-failed"
 ```
 
 For workspaces with multiple workflows, use the `workflows` array instead of the flat state name keys (see the [Configuration Reference](../getting-started/configuration.md#shortcut)).
@@ -240,7 +240,7 @@ For workspaces with multiple workflows, use the `workflows` array instead of the
 | `PollReadyTickets` | Lists stories in the configured trigger state, optionally filtered by assignee |
 | `MarkInProgress` | Moves the story to `in_progress_state_name` |
 | `MarkComplete` | Posts a comment with the PR link, summary, cost, and token usage; moves the story to `completed_state_name` (or the first done-type state if not configured) |
-| `MarkFailed` | Posts a comment with the failure reason; adds the `robodev-failed` label |
+| `MarkFailed` | Posts a comment with the failure reason; adds the `osmia-failed` label |
 | `AddComment` | `POST /api/v3/stories/{id}/comments` |
 
 ### Required Permissions
@@ -260,14 +260,14 @@ config:
   ticketing:
     backend: linear
     config:
-      token_secret: "robodev-linear-token"
+      token_secret: "osmia-linear-token"
       team_id: "YOUR_TEAM_UUID"
       state_filter: "Todo"
       labels:
-        - "robodev"
+        - "osmia"
       exclude_labels:
         - "in-progress"
-        - "robodev-failed"
+        - "osmia-failed"
 ```
 
 ### Behaviour
@@ -277,7 +277,7 @@ config:
 | `PollReadyTickets` | GraphQL `issues` query filtered by team, state name, and labels |
 | `MarkInProgress` | Adds the `in-progress` label to the issue |
 | `MarkComplete` | Posts a comment with the PR link and summary; transitions the issue to the completed state |
-| `MarkFailed` | Adds the `robodev-failed` label; posts a comment with the failure reason |
+| `MarkFailed` | Adds the `osmia-failed` label; posts a comment with the failure reason |
 | `AddComment` | `commentCreate` GraphQL mutation |
 
 ### Required Permissions
@@ -344,7 +344,7 @@ All state transition methods (`MarkInProgress`, `MarkComplete`, `MarkFailed`) mu
 
 Return only actionable tickets from `PollReadyTickets`. The more precise your filtering, the less work the controller does. For example:
 
-- Exclude tickets that already have an `in-progress` or `robodev-failed` label.
+- Exclude tickets that already have an `in-progress` or `osmia-failed` label.
 - Only return tickets from repositories in the allowed list (if your backend supports server-side filtering).
 - Limit results to recent tickets to avoid processing stale backlog.
 

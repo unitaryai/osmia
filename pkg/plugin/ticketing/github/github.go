@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -58,7 +58,7 @@ type GitHubBackend struct {
 	assignee      string   // GitHub username filter (optional)
 	milestone     string   // milestone number filter (optional)
 	state         string   // "open" (default), "closed", "all"
-	excludeLabels []string // client-side exclusion (default: ["in-progress", "robodev-failed"])
+	excludeLabels []string // client-side exclusion (default: ["in-progress", "osmia-failed"])
 }
 
 // Option is a functional option for configuring a GitHubBackend.
@@ -118,7 +118,7 @@ func NewGitHubBackend(owner, repo string, labels []string, token string, logger 
 		client:        http.DefaultClient,
 		logger:        logger,
 		state:         "open",
-		excludeLabels: []string{"in-progress", "robodev-failed"},
+		excludeLabels: []string{"in-progress", "osmia-failed"},
 	}
 	for _, opt := range opts {
 		opt(b)
@@ -240,10 +240,10 @@ func (b *GitHubBackend) MarkComplete(ctx context.Context, ticketID string, resul
 	return nil
 }
 
-// MarkFailed adds a "robodev-failed" label and posts the failure reason
+// MarkFailed adds a "osmia-failed" label and posts the failure reason
 // as a comment.
 func (b *GitHubBackend) MarkFailed(ctx context.Context, ticketID string, reason string) error {
-	if err := b.addLabels(ctx, ticketID, []string{"robodev-failed"}); err != nil {
+	if err := b.addLabels(ctx, ticketID, []string{"osmia-failed"}); err != nil {
 		return fmt.Errorf("adding failed label: %w", err)
 	}
 	comment := fmt.Sprintf("Task failed.\n\n**Reason:** %s", reason)

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/metrics"
+	"github.com/unitaryai/osmia/internal/metrics"
 )
 
 // Coordinator manages the lifecycle of tournaments, from creation through

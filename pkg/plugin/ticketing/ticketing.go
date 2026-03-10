@@ -7,7 +7,7 @@ package ticketing
 import (
 	"context"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // InterfaceVersion is the current version of the TicketingBackend interface.

@@ -1,24 +1,24 @@
-# RoboDev Go Plugin SDK
+# Osmia Go Plugin SDK
 
 The Go SDK is the controller's own `pkg/plugin/` packages, importable directly
 from the main module. There is no separate package to install — third-party
 consumers import the interfaces directly from:
 
 ```
-github.com/unitaryai/robodev
+github.com/unitaryai/osmia
 ```
 
 ## Built-in plugins (compiled into the controller)
 
 Import the relevant interface package and implement it. Register your
-implementation in `cmd/robodev/main.go` when constructing the controller.
+implementation in `cmd/osmia/main.go` when constructing the controller.
 
 ```go
 import (
     "context"
 
-    "github.com/unitaryai/robodev/pkg/engine"
-    "github.com/unitaryai/robodev/pkg/plugin/ticketing"
+    "github.com/unitaryai/osmia/pkg/engine"
+    "github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // MyTicketingBackend implements ticketing.Backend.
@@ -57,7 +57,7 @@ Steps:
 2. Implement the generated gRPC server interface.
 3. Call `plugin.Serve` from `github.com/hashicorp/go-plugin` with the
    appropriate `GRPCPlugin` wrapper.
-4. Configure the controller to load your binary via `robodev-config.yaml`.
+4. Configure the controller to load your binary via `osmia-config.yaml`.
 
 Every plugin service exposes a `Handshake` RPC (defined in `proto/common.proto`)
 that the controller calls on start-up to verify interface compatibility.
@@ -65,4 +65,4 @@ that the controller calls on start-up to verify interface compatibility.
 ## Further reading
 
 Full plugin authoring guide:
-<https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/>
+<https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/>

@@ -1,6 +1,6 @@
 # Guard Rails Overview
 
-Guard rails are safety boundaries that prevent AI agents from doing things they shouldn't. RoboDev has **six independent layers** of protection — if one layer fails, the others still catch the problem.
+Guard rails are safety boundaries that prevent AI agents from doing things they shouldn't. Osmia has **six independent layers** of protection — if one layer fails, the others still catch the problem.
 
 ## The Six Layers
 
@@ -150,7 +150,7 @@ graph TD
 The Process Reward Model (PRM) operates on the NDJSON event stream from Claude Code. It scores each evaluation window of tool calls on a 1-10 scale, tracks the score trajectory over time, and decides interventions:
 
 - **Score ≥ 7:** Agent is productive, continue.
-- **Score 4-6 with negative trend:** Write a hint file (`/workspace/.robodev-hint.md`) with targeted guidance — "Your approach appears to be oscillating. Try committing to a single strategy."
+- **Score 4-6 with negative trend:** Write a hint file (`/workspace/.osmia-hint.md`) with targeted guidance — "Your approach appears to be oscillating. Try committing to a single strategy."
 - **Score ≤ 3 with sustained decline:** Escalate to the watchdog for termination.
 
 Unlike the watchdog (which detects anomalies in raw telemetry), the PRM evaluates *productivity patterns* — whether the agent is making meaningful progress toward the goal, not just whether it's alive.

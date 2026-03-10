@@ -28,7 +28,7 @@ func TestHandleGitLab(t *testing.T) {
 			WebURL: "https://gitlab.com/owner/repo",
 			PathNS: "owner/repo",
 		},
-		Labels: []glLabel{{Title: "robodev"}, {Title: "ci"}},
+		Labels: []glLabel{{Title: "osmia"}, {Title: "ci"}},
 	}
 
 	mrPayload := glWebhookPayload{

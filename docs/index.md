@@ -3,7 +3,7 @@ hide:
   - navigation
 ---
 
-# RoboDev
+# Osmia
 
 **Kubernetes-native AI coding agent harness.** Orchestrate Claude Code, OpenAI Codex, Aider, and OpenCode to perform maintenance and development tasks on your codebases — autonomously, at scale, with enterprise-grade guard rails.
 
@@ -13,7 +13,7 @@ hide:
 
     ---
 
-    Get RoboDev running locally with Docker Compose — no Kubernetes required.
+    Get Osmia running locally with Docker Compose — no Kubernetes required.
 
     [:octicons-arrow-right-24: Docker Compose quick start](getting-started/docker-compose.md)
 
@@ -47,7 +47,7 @@ hide:
 
 ```mermaid
 graph LR
-    A["🎫 Issue Tracker<br/>(GitHub / GitLab / Jira)"] --> B["🎛️ RoboDev Controller"]
+    A["🎫 Issue Tracker<br/>(GitHub / GitLab / Jira)"] --> B["🎛️ Osmia Controller"]
     B --> C["🛡️ Guard Rails"]
     C --> D["⚙️ Engine Selector"]
     D --> E["📦 K8s Job<br/>(AI Agent Pod)"]
@@ -55,7 +55,7 @@ graph LR
     F --> G["✅ Review & Merge"]
 ```
 
-RoboDev watches your issue tracker for labelled tickets, validates them against configurable guard rails, spins up a sandboxed AI coding agent in a Kubernetes Job, and opens a pull request with the result. The entire flow is automated, observable, and safe.
+Osmia watches your issue tracker for labelled tickets, validates them against configurable guard rails, spins up a sandboxed AI coding agent in a Kubernetes Job, and opens a pull request with the result. The entire flow is automated, observable, and safe.
 
 ## Key Features
 
@@ -71,7 +71,7 @@ RoboDev watches your issue tracker for labelled tickets, validates them against 
 
 ## Intelligent Agent Management
 
-RoboDev goes beyond basic orchestration with integrated intelligence systems that improve agent performance over time:
+Osmia goes beyond basic orchestration with integrated intelligence systems that improve agent performance over time:
 
 | Subsystem | Status | What It Does |
 |---|---|---|
@@ -89,7 +89,7 @@ RoboDev goes beyond basic orchestration with integrated intelligence systems tha
 The repository is organised as follows:
 
 ```
-cmd/robodev/              — Main entrypoint for the controller binary
+cmd/osmia/              — Main entrypoint for the controller binary
 internal/                 — Private packages used only by the controller
   controller/             — controller-runtime reconciler (reconciliation loop)
   jobbuilder/             — Translates ExecutionSpecs into Kubernetes Jobs
@@ -112,7 +112,7 @@ pkg/                      — Public packages importable by plugins and SDKs
   engine/                 — ExecutionEngine interface and built-in engine implementations
   plugin/                 — gRPC plugin host and all six plugin interfaces
 proto/                    — Protobuf definitions (source of truth for all interfaces)
-charts/robodev/           — Helm chart for deploying RoboDev on Kubernetes
+charts/osmia/           — Helm chart for deploying Osmia on Kubernetes
 docker/                   — Dockerfiles for the controller and each engine
   controller/             — Multi-stage build producing a distroless controller image
   engine-claude-code/     — Claude Code engine container image
@@ -142,4 +142,4 @@ docs/                     — Documentation source (this site)
 
 ## Licence
 
-RoboDev is released under the [Apache 2.0 licence](https://www.apache.org/licenses/LICENSE-2.0).
+Osmia is released under the [Apache 2.0 licence](https://www.apache.org/licenses/LICENSE-2.0).

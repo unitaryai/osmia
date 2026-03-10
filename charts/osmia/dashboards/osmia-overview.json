@@ -18,7 +18,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
       "title": "Active Jobs",
       "type": "stat",
-      "targets": [{ "expr": "robodev_active_jobs", "legendFormat": "Active", "refId": "A" }]
+      "targets": [{ "expr": "osmia_active_jobs", "legendFormat": "Active", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -30,7 +30,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "textMode": "auto" },
       "title": "Total Task Runs",
       "type": "stat",
-      "targets": [{ "expr": "sum(robodev_taskruns_total)", "legendFormat": "Total", "refId": "A" }]
+      "targets": [{ "expr": "sum(osmia_taskruns_total)", "legendFormat": "Total", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -42,7 +42,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
       "title": "Succeeded",
       "type": "stat",
-      "targets": [{ "expr": "robodev_taskruns_total{state=\"Succeeded\"}", "legendFormat": "Succeeded", "refId": "A" }]
+      "targets": [{ "expr": "osmia_taskruns_total{state=\"Succeeded\"}", "legendFormat": "Succeeded", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -54,7 +54,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto" },
       "title": "Failed",
       "type": "stat",
-      "targets": [{ "expr": "robodev_taskruns_total{state=\"Failed\"}", "legendFormat": "Failed", "refId": "A" }]
+      "targets": [{ "expr": "osmia_taskruns_total{state=\"Failed\"}", "legendFormat": "Failed", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -62,7 +62,7 @@
       "id": 5,
       "title": "Task Run Duration",
       "type": "timeseries",
-      "targets": [{ "expr": "histogram_quantile(0.50, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p50", "refId": "A" }, { "expr": "histogram_quantile(0.95, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p95", "refId": "B" }, { "expr": "histogram_quantile(0.99, rate(robodev_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p99", "refId": "C" }]
+      "targets": [{ "expr": "histogram_quantile(0.50, rate(osmia_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p50", "refId": "A" }, { "expr": "histogram_quantile(0.95, rate(osmia_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p95", "refId": "B" }, { "expr": "histogram_quantile(0.99, rate(osmia_taskrun_duration_seconds_bucket[5m]))", "legendFormat": "p99", "refId": "C" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -70,7 +70,7 @@
       "id": 6,
       "title": "Task Runs by State",
       "type": "timeseries",
-      "targets": [{ "expr": "rate(robodev_taskruns_total[5m])", "legendFormat": "{{ state }}", "refId": "A" }]
+      "targets": [{ "expr": "rate(osmia_taskruns_total[5m])", "legendFormat": "{{ state }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -78,7 +78,7 @@
       "id": 7,
       "title": "Plugin Errors",
       "type": "timeseries",
-      "targets": [{ "expr": "rate(robodev_plugin_errors_total[5m])", "legendFormat": "{{ plugin }}", "refId": "A" }]
+      "targets": [{ "expr": "rate(osmia_plugin_errors_total[5m])", "legendFormat": "{{ plugin }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -86,11 +86,11 @@
       "id": 8,
       "title": "Active Jobs Over Time",
       "type": "timeseries",
-      "targets": [{ "expr": "robodev_active_jobs", "legendFormat": "Active Jobs", "refId": "A" }]
+      "targets": [{ "expr": "osmia_active_jobs", "legendFormat": "Active Jobs", "refId": "A" }]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["robodev", "kubernetes"],
+  "tags": ["osmia", "kubernetes"],
   "templating": {
     "list": [
       {
@@ -106,6 +106,6 @@
     ]
   },
   "time": { "from": "now-6h", "to": "now" },
-  "title": "RoboDev Overview",
-  "uid": "robodev-overview"
+  "title": "Osmia Overview",
+  "uid": "osmia-overview"
 }

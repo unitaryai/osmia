@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/unitaryai/robodev/pkg/plugin/secrets"
+	"github.com/unitaryai/osmia/pkg/plugin/secrets"
 )
 
 const backendName = "aws-secrets-manager"

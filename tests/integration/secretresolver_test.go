@@ -8,15 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/secretresolver"
+	"github.com/unitaryai/osmia/internal/secretresolver"
 )
 
-// TestSecretResolverHTMLCommentParsing verifies that a <!-- robodev:secrets -->
+// TestSecretResolverHTMLCommentParsing verifies that a <!-- osmia:secrets -->
 // HTML comment block embedded in a ticket description is correctly parsed into
 // a SecretRequest with the expected EnvName and URI fields.
 func TestSecretResolverHTMLCommentParsing(t *testing.T) {
 	body := "Some description text.\n" +
-		"<!-- robodev:secrets\n" +
+		"<!-- osmia:secrets\n" +
 		"- ref: vault://secret/path\n" +
 		"  env: MY_SECRET\n" +
 		"-->\n" +
@@ -34,7 +34,7 @@ func TestSecretResolverHTMLCommentParsing(t *testing.T) {
 // TestSecretResolverHTMLCommentParsing_MultipleEntries verifies that a block
 // containing multiple secret entries is parsed into the correct number of requests.
 func TestSecretResolverHTMLCommentParsing_MultipleEntries(t *testing.T) {
-	body := "<!-- robodev:secrets\n" +
+	body := "<!-- osmia:secrets\n" +
 		"- ref: k8s://ns/secret/key\n" +
 		"  env: DB_URL\n" +
 		"- ref: vault://kv/data/token\n" +
@@ -52,18 +52,18 @@ func TestSecretResolverHTMLCommentParsing_MultipleEntries(t *testing.T) {
 	assert.Equal(t, "vault://kv/data/token", requests[1].URI)
 }
 
-// TestSecretResolverLabelParsing verifies that robodev:secret:ENV=URI labels
+// TestSecretResolverLabelParsing verifies that osmia:secret:ENV=URI labels
 // are parsed correctly and that unrelated labels are silently ignored.
 func TestSecretResolverLabelParsing(t *testing.T) {
 	labels := []string{
-		"robodev:secret:API_KEY=k8s://ns/secret/key",
+		"osmia:secret:API_KEY=k8s://ns/secret/key",
 		"other-label",
-		"robodev",
+		"osmia",
 	}
 
 	requests, err := secretresolver.ParseLabels(labels)
 	require.NoError(t, err)
-	require.Len(t, requests, 1, "only the robodev:secret label should produce a request")
+	require.Len(t, requests, 1, "only the osmia:secret label should produce a request")
 
 	req := requests[0]
 	assert.Equal(t, "API_KEY", req.EnvName)

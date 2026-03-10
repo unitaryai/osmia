@@ -19,9 +19,9 @@ func TestNetworkPolicyControllerExists(t *testing.T) {
 	ns := testNamespace()
 
 	_, err := client.NetworkingV1().NetworkPolicies(ns).Get(
-		context.Background(), "robodev-controller", metav1.GetOptions{},
+		context.Background(), "osmia-controller", metav1.GetOptions{},
 	)
-	require.NoError(t, err, "NetworkPolicy robodev-controller should exist")
+	require.NoError(t, err, "NetworkPolicy osmia-controller should exist")
 }
 
 // TestNetworkPolicyControllerRules verifies that the controller NetworkPolicy
@@ -32,7 +32,7 @@ func TestNetworkPolicyControllerRules(t *testing.T) {
 	ns := testNamespace()
 
 	netpol, err := client.NetworkingV1().NetworkPolicies(ns).Get(
-		context.Background(), "robodev-controller", metav1.GetOptions{},
+		context.Background(), "osmia-controller", metav1.GetOptions{},
 	)
 	require.NoError(t, err)
 
@@ -76,9 +76,9 @@ func TestNetworkPolicyAgentExists(t *testing.T) {
 	ns := testNamespace()
 
 	_, err := client.NetworkingV1().NetworkPolicies(ns).Get(
-		context.Background(), "robodev-agent", metav1.GetOptions{},
+		context.Background(), "osmia-agent", metav1.GetOptions{},
 	)
-	require.NoError(t, err, "NetworkPolicy robodev-agent should exist")
+	require.NoError(t, err, "NetworkPolicy osmia-agent should exist")
 }
 
 // TestNetworkPolicyAgentRules verifies that the agent NetworkPolicy denies
@@ -89,7 +89,7 @@ func TestNetworkPolicyAgentRules(t *testing.T) {
 	ns := testNamespace()
 
 	netpol, err := client.NetworkingV1().NetworkPolicies(ns).Get(
-		context.Background(), "robodev-agent", metav1.GetOptions{},
+		context.Background(), "osmia-agent", metav1.GetOptions{},
 	)
 	require.NoError(t, err)
 

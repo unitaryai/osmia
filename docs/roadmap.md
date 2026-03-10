@@ -1,4 +1,4 @@
-# RoboDev Feature Roadmap
+# Osmia Feature Roadmap
 
 This document tracks what to work on next, in priority order. Completed work is
 archived at the bottom.
@@ -29,7 +29,7 @@ a staging environment is available.
 - [x] Graceful clone failure — invalid repo URL → Claude Code handles error → story done with failure description (`TestLiveGracefulCloneFailure`)
 
 Key finding from initial live testing: Claude Code handles clone failures at the
-application level (exits 0, writes error description). `MarkFailed` / `robodev-failed`
+application level (exits 0, writes error description). `MarkFailed` / `osmia-failed`
 label is triggered by K8s-level failures only (watchdog termination, OOM kill, etc.).
 
 Run with: `make e2e-live-test` (requires `make live-up` + valid secrets)
@@ -181,13 +181,13 @@ A web dashboard for real-time agent observability and control.
 - [ ] Engine health overview
 
 **If custom UI:**
-- [ ] `cmd/robodev-dashboard/` — separate binary or embedded in controller
+- [ ] `cmd/osmia-dashboard/` — separate binary or embedded in controller
 - [ ] `/api/v1/` REST endpoints: `GET /taskruns`, `POST /taskruns/:id/approve`,
   `GET /taskruns/:id/stream` (SSE)
 - [ ] Frontend: React + Tailwind or equivalent
 
 **If Grafana-based:**
-- [ ] Dashboard JSON provisioning in `charts/robodev/dashboards/`
+- [ ] Dashboard JSON provisioning in `charts/osmia/dashboards/`
 - [ ] Loki log aggregation for structured slog output
 - [ ] Alert rules for cost velocity, stalled agents, failed tasks
 
@@ -216,7 +216,7 @@ as output rather than a merge request.
    `api_read` (no workspace, just SCM API access)
 2. **Result handler taxonomy**: `open_mr` (today) | `comment_and_notify` (post summary as
    ticket comment + notify channels)
-3. **Profile dispatch**: label-based (`robodev:analysis`) or story-type-based?
+3. **Profile dispatch**: label-based (`osmia:analysis`) or story-type-based?
 4. **Prompt design**: what system prompt makes a read-only analysis task produce a
    well-structured summary?
 
@@ -266,11 +266,11 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 **Dependencies:** Protobuf definitions (complete in `proto/`)
 
 - [ ] Configure `buf.gen.yaml` for multi-language stub generation
-- [ ] **Python SDK** (`unitaryai/robodev-plugin-sdk-python`) — gRPC stubs, base classes,
+- [ ] **Python SDK** (`unitaryai/osmia-plugin-sdk-python`) — gRPC stubs, base classes,
   `scaffold`/`serve`/`test` CLI, example plugins
-- [ ] **Go SDK** (`unitaryai/robodev-plugin-sdk-go`) — gRPC stubs (separate module),
+- [ ] **Go SDK** (`unitaryai/osmia-plugin-sdk-go`) — gRPC stubs (separate module),
   hashicorp/go-plugin boilerplate, example plugins
-- [ ] **TypeScript SDK** (`unitaryai/robodev-plugin-sdk-ts`) — gRPC stubs, grpc-js wrapper,
+- [ ] **TypeScript SDK** (`unitaryai/osmia-plugin-sdk-ts`) — gRPC stubs, grpc-js wrapper,
   example plugins
 - [ ] Publish SDK documentation to `docs/plugins/`
 
@@ -288,7 +288,7 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 - [x] `make docs-serve` / `make docs-build` targets
 - [ ] API reference (webhook endpoints, protobuf service definitions)
 - [ ] Changelog and migration guides
-- [ ] Custom domain (`docs.robodev.dev` or similar)
+- [ ] Custom domain (`docs.osmia.dev` or similar)
 
 ---
 
@@ -300,7 +300,7 @@ Everything below is implemented and merged.
 
 ### Item 20: PR/MR Comment Response ✅ (2026-03-04)
 
-RoboDev now monitors open pull/merge requests it creates and spawns follow-up
+Osmia now monitors open pull/merge requests it creates and spawns follow-up
 jobs to address actionable review feedback.
 
 **Implemented:**
@@ -324,10 +324,10 @@ jobs to address actionable review feedback.
 - `internal/controller` — `reviewPoller` field, `WithReviewPoller` option,
   `handleFollowUpComplete`, `processFollowUpTask`, `scmFor` helper; drain in
   `reconcileOnce`; register in `handleJobComplete`
-- `cmd/robodev/main.go` — review response subsystem wiring
+- `cmd/osmia/main.go` — review response subsystem wiring
 - `tests/integration/review_response_test.go` — 9 integration tests
 
-**Configuration** (`robodev-config.yaml`):
+**Configuration** (`osmia-config.yaml`):
 
 ```yaml
 review_response:

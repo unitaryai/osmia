@@ -156,7 +156,7 @@ func (m *mockApprovalHandler) HandleApprovalCallback(_ context.Context, taskRunI
 }
 
 func TestHandleSlack_ApprovalCallbacks(t *testing.T) {
-	// Approval callbacks (robodev_approval_*) must be acknowledged with 200 OK
+	// Approval callbacks (osmia_approval_*) must be acknowledged with 200 OK
 	// but must NOT be forwarded to the event handler as synthetic tickets.
 	// When an ApprovalHandler is configured, it receives the callback instead.
 	secret := "test-secret"
@@ -190,7 +190,7 @@ func TestHandleSlack_ApprovalCallbacks(t *testing.T) {
 	}{
 		{
 			name:              "approval callback routed to handler",
-			actionID:          "robodev_approval_tr-42-1_0",
+			actionID:          "osmia_approval_tr-42-1_0",
 			value:             "approve",
 			wantEventCalls:    0,
 			wantApprovalCalls: 1,
@@ -199,7 +199,7 @@ func TestHandleSlack_ApprovalCallbacks(t *testing.T) {
 		},
 		{
 			name:              "rejection callback routed to handler",
-			actionID:          "robodev_approval_tr-42-1_0",
+			actionID:          "osmia_approval_tr-42-1_0",
 			value:             "reject",
 			wantEventCalls:    0,
 			wantApprovalCalls: 1,
@@ -208,7 +208,7 @@ func TestHandleSlack_ApprovalCallbacks(t *testing.T) {
 		},
 		{
 			name:              "deny value treated as rejection",
-			actionID:          "robodev_approval_tr-99_0",
+			actionID:          "osmia_approval_tr-99_0",
 			value:             "deny",
 			wantEventCalls:    0,
 			wantApprovalCalls: 1,
@@ -272,7 +272,7 @@ func TestHandleSlack_ApprovalCallbackWithoutHandler(t *testing.T) {
 			ActionID string `json:"action_id"`
 			Value    string `json:"value"`
 		}{
-			{ActionID: "robodev_approval_tr-1_0", Value: "approve"},
+			{ActionID: "osmia_approval_tr-1_0", Value: "approve"},
 		},
 		User: struct {
 			ID       string `json:"id"`

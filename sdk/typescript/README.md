@@ -1,6 +1,6 @@
-# RoboDev TypeScript Plugin SDK
+# Osmia TypeScript Plugin SDK
 
-Use this SDK to build external RoboDev plugins in TypeScript/Node.js. Plugins
+Use this SDK to build external Osmia plugins in TypeScript/Node.js. Plugins
 run as out-of-process gRPC servers; the controller connects to them over the
 hashicorp/go-plugin transport.
 
@@ -25,7 +25,7 @@ npm run build
 Once published, installation will be:
 
 ```bash
-npm install @unitaryai/robodev-plugin-sdk
+npm install @unitaryai/osmia-plugin-sdk
 ```
 
 ## Generating protobuf stubs
@@ -43,7 +43,7 @@ them by hand — they are overwritten on every `make sdk-gen` run.
 ## Quick-start — notifications plugin
 
 ```typescript
-import { PluginBase } from "@unitaryai/robodev-plugin-sdk";
+import { PluginBase } from "@unitaryai/osmia-plugin-sdk";
 
 // Generated stubs — run `make sdk-gen` first.
 // import { NotificationChannelService } from "./proto/notifications_pb.js";
@@ -60,4 +60,4 @@ plugin.serve();
 ## Further reading
 
 Full plugin authoring guide:
-<https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/>
+<https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/>

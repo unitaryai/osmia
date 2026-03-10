@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
-	localticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/local"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
+	localticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/local"
 )
 
 // maxRequestBodyBytes caps the size of JSON request bodies to prevent

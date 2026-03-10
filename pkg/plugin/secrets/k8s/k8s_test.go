@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/unitaryai/robodev/pkg/plugin/secrets"
+	"github.com/unitaryai/osmia/pkg/plugin/secrets"
 )
 
 func testLogger() *slog.Logger {

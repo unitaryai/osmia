@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# entrypoint.sh — OpenAI Codex execution entrypoint for RoboDev agent jobs.
+# entrypoint.sh — OpenAI Codex execution entrypoint for Osmia agent jobs.
 #
 # Environment variables:
 #   REPO_URL           — Git repository URL to clone (required)
@@ -19,8 +19,8 @@ TASK_PROMPT_FILE="${TASK_PROMPT_FILE:-/config/task-prompt.md}"
 RESULT_FILE="/workspace/result.json"
 
 # ---- Git configuration ----
-git config --global user.name "RoboDev"
-git config --global user.email "robodev@localhost"
+git config --global user.name "Osmia"
+git config --global user.email "osmia@localhost"
 git config --global init.defaultBranch main
 
 # ---- Clone the target repository ----

@@ -1,6 +1,6 @@
 # API Reference
 
-RoboDev exposes two distinct API surfaces:
+Osmia exposes two distinct API surfaces:
 
 | API | Description | Reference |
 |---|---|---|

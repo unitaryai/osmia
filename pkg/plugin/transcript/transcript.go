@@ -7,7 +7,7 @@ package transcript
 import (
 	"context"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/agentstream"
 )
 
 // TranscriptSink receives agent stream events and stores them as an

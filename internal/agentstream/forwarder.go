@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
 )
 
 // StreamEventProcessor processes a single stream event. It is used to hook

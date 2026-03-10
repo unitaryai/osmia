@@ -94,7 +94,7 @@ def handle_ask_human(question: str) -> dict[str, Any]:
     log(f"Asking human: {question}")
 
     # Post the question
-    result = send_slack_message(f"🤖 *RoboDev needs your input:*\n\n{question}")
+    result = send_slack_message(f"🤖 *Osmia needs your input:*\n\n{question}")
 
     if not result.get("ok"):
         return {"error": f"Failed to post to Slack: {result.get('error', 'unknown')}"}
@@ -121,7 +121,7 @@ def handle_notify_human(message: str) -> dict[str, Any]:
     """Send a notification to humans via Slack (no response expected)."""
     log(f"Notifying human: {message}")
 
-    result = send_slack_message(f"📢 *RoboDev notification:*\n\n{message}")
+    result = send_slack_message(f"📢 *Osmia notification:*\n\n{message}")
 
     if result.get("ok"):
         return {"status": "sent"}
@@ -130,10 +130,10 @@ def handle_notify_human(message: str) -> dict[str, Any]:
 
 
 def handle_notify_start(story_id: str, story_title: str) -> dict[str, Any]:
-    """Notify Slack that RoboDev is starting work on a story."""
+    """Notify Slack that Osmia is starting work on a story."""
     log(f"Starting work on story {story_id}: {story_title}")
 
-    message = f"🚀 *RoboDev is starting work on sc-{story_id}*\n\n*{story_title}*"
+    message = f"🚀 *Osmia is starting work on sc-{story_id}*\n\n*{story_title}*"
     result = send_slack_message(message)
 
     if result.get("ok"):
@@ -429,7 +429,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any]:
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "robodev-slack", "version": "1.0.0"},
+                "serverInfo": {"name": "osmia-slack", "version": "1.0.0"},
             },
         }
 
@@ -469,7 +469,7 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any]:
                     },
                     {
                         "name": "notify_start",
-                        "description": "Notify humans that RoboDev is starting work on a Shortcut story. Call this at the beginning of each task.",
+                        "description": "Notify humans that Osmia is starting work on a Shortcut story. Call this at the beginning of each task.",
                         "inputSchema": {
                             "type": "object",
                             "properties": {

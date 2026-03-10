@@ -1,10 +1,10 @@
-# RoboDev OSS Plan
+# Osmia OSS Plan
 
 ## Executive Summary
 
-RoboDev is a Kubernetes-native AI coding agent harness that orchestrates autonomous developer agents (Claude Code, OpenAI Codex) to perform maintenance and development tasks on codebases at scale. It differentiates from tools like OpenClaw by being enterprise-grade, security-first, and built on Kubernetes primitives for isolation, observability, and scaling.
+Osmia is a Kubernetes-native AI coding agent harness that orchestrates autonomous developer agents (Claude Code, OpenAI Codex) to perform maintenance and development tasks on codebases at scale. It differentiates from tools like OpenClaw by being enterprise-grade, security-first, and built on Kubernetes primitives for isolation, observability, and scaling.
 
-This plan covers the transformation of Unitary's internal RoboDev into an open-source project (Apache 2.0), including technical architecture, plugin system design, implementation phases, and community bootstrapping.
+This plan covers the transformation of Unitary's internal Osmia into an open-source project (Apache 2.0), including technical architecture, plugin system design, implementation phases, and community bootstrapping.
 
 ### Key Decisions
 
@@ -14,7 +14,7 @@ This plan covers the transformation of Unitary's internal RoboDev into an open-s
 | LLM support | Agnostic from day one | Abstract execution engine interface; ship with Claude Code + Codex |
 | Licence | Apache 2.0 | Enterprise-friendly, patent grant, CNCF-aligned |
 | Agent teams | Experiment with in-process mode | Try Claude Code's experimental agent teams inside K8s Jobs |
-| Project name | RoboDev | No major conflicts; direct, descriptive |
+| Project name | Osmia | No major conflicts; direct, descriptive |
 | MVP scope | Core + GitHub Issues + Slack | Lowest barrier to entry for OSS contributors |
 | Plan scope | Technical + community | Cover architecture, implementation, and OSS bootstrapping |
 | Language | Go controller + polyglot plugins | K8s operators are Go's home ground; plugins via gRPC for language-agnostic extensibility |
@@ -33,7 +33,7 @@ This plan covers the transformation of Unitary's internal RoboDev into an open-s
                                         |
                                         v
 +-------------------+    +------------------------------+    +---------------------+
-|  Notification     |<-->|    RoboDev Controller        |<-->|  Secrets Backend     |
+|  Notification     |<-->|    Osmia Controller        |<-->|  Secrets Backend     |
 |  Channels         |    |  (controller-runtime operator)|    | (K8s, Vault, AWS SM) |
 | (Slack, Discord,  |    |                              |    +---------------------+
 |  Teams, etc)      |    |  - Polls ticketing backend   |
@@ -126,7 +126,7 @@ class TaskRun(BaseModel):
 
 ### 1.3 Language Decision: Go Controller, Polyglot Plugins
 
-The initial assumption was Python for everything — it's what the Unitary team knows best, and the existing internal RoboDev is Python. However, the controller is a Kubernetes operator, and that changes the calculus significantly.
+The initial assumption was Python for everything — it's what the Unitary team knows best, and the existing internal Osmia is Python. However, the controller is a Kubernetes operator, and that changes the calculus significantly.
 
 **What the controller actually does:**
 - Runs a K8s operator reconciliation loop (poll ticketing, reconcile TaskRuns, create/monitor Jobs)
@@ -178,13 +178,13 @@ Controller (Go binary, single static image)
 │   ├── External plugin: Teams (TypeScript)
 │   └── External plugin: Vault secrets (Go)
 └── Plugin SDKs (generated from protobuf)
-    ├── robodev-plugin-sdk-python   # pip install robodev-plugin-sdk
-    ├── robodev-plugin-sdk-go       # go get github.com/robodev/plugin-sdk-go
-    └── robodev-plugin-sdk-ts       # npm install @robodev/plugin-sdk
+    ├── osmia-plugin-sdk-python   # pip install osmia-plugin-sdk
+    ├── osmia-plugin-sdk-go       # go get github.com/osmia/plugin-sdk-go
+    └── osmia-plugin-sdk-ts       # npm install @osmia/plugin-sdk
 ```
 
 **Impact on Unitary:**
-- Unitary's `robodev-plugin-shortcut` (Phase 6) can be written in Python using the Python SDK. No need for the Unitary team to learn Go for plugin development.
+- Unitary's `osmia-plugin-shortcut` (Phase 6) can be written in Python using the Python SDK. No need for the Unitary team to learn Go for plugin development.
 - The controller itself will be built by Claude, which is equally capable in Go and Python.
 
 ### 1.4 Plugin Architecture
@@ -192,8 +192,8 @@ Controller (Go binary, single static image)
 The core innovation for OSS is a plugin system that makes every external integration swappable. First-party plugins are compiled into the controller binary. Third-party plugins run as separate processes communicating over gRPC (via hashicorp/go-plugin), allowing plugin authors to use any language with gRPC support.
 
 ```
-robodev/
-  cmd/robodev/        # Main entrypoint
+osmia/
+  cmd/osmia/        # Main entrypoint
   internal/
     controller/       # Reconciliation loop (controller-runtime)
     jobbuilder/       # ExecutionSpec -> K8s Job translation
@@ -232,21 +232,21 @@ robodev/
 
 **Built-in plugins** are compiled into the controller binary and require no external process. They are registered in Go code at build time and always available.
 
-**External plugins** run as separate processes communicating over gRPC (hashicorp/go-plugin). They are configured in `robodev-config.yaml`:
+**External plugins** run as separate processes communicating over gRPC (hashicorp/go-plugin). They are configured in `osmia-config.yaml`:
 
 ```yaml
-# robodev-config.yaml
+# osmia-config.yaml
 plugins:
   ticketing:
     jira:
-      command: "/opt/robodev/plugins/robodev-plugin-jira"  # Go binary
+      command: "/opt/osmia/plugins/osmia-plugin-jira"  # Go binary
       interface_version: 1
     shortcut:
-      command: "python -m robodev_plugin_shortcut"  # Python via SDK
+      command: "python -m osmia_plugin_shortcut"  # Python via SDK
       interface_version: 1
   notifications:
     teams:
-      command: "node /opt/robodev/plugins/robodev-plugin-teams/index.js"  # TypeScript
+      command: "node /opt/osmia/plugins/osmia-plugin-teams/index.js"  # TypeScript
       interface_version: 1
 ```
 
@@ -256,28 +256,28 @@ The controller spawns each external plugin as a subprocess, establishes a gRPC c
 
 External plugin binaries must be available on the controller pod's filesystem. There are three supported approaches, in order of preference:
 
-1. **Custom controller image** (recommended for production): Build a Dockerfile that starts `FROM ghcr.io/robodev/controller:latest` and copies plugin binaries into `/opt/robodev/plugins/`. This produces a single self-contained image with all plugins baked in.
+1. **Custom controller image** (recommended for production): Build a Dockerfile that starts `FROM ghcr.io/osmia/controller:latest` and copies plugin binaries into `/opt/osmia/plugins/`. This produces a single self-contained image with all plugins baked in.
    ```dockerfile
-   FROM ghcr.io/robodev/controller:latest
-   COPY --from=ghcr.io/myorg/robodev-plugin-jira:latest /plugin /opt/robodev/plugins/robodev-plugin-jira
-   COPY --from=ghcr.io/myorg/robodev-plugin-pagerduty:latest /plugin /opt/robodev/plugins/robodev-plugin-pagerduty
+   FROM ghcr.io/osmia/controller:latest
+   COPY --from=ghcr.io/myorg/osmia-plugin-jira:latest /plugin /opt/osmia/plugins/osmia-plugin-jira
+   COPY --from=ghcr.io/myorg/osmia-plugin-pagerduty:latest /plugin /opt/osmia/plugins/osmia-plugin-pagerduty
    ```
 
 2. **Init containers** (recommended for Helm-based deployments): Each external plugin ships as a container image containing its binary. Init containers copy the binary into a shared `emptyDir` volume before the controller starts.
    ```yaml
    initContainers:
      - name: plugin-jira
-       image: ghcr.io/myorg/robodev-plugin-jira:v1.2.0
-       command: ["cp", "/plugin", "/plugins/robodev-plugin-jira"]
+       image: ghcr.io/myorg/osmia-plugin-jira:v1.2.0
+       command: ["cp", "/plugin", "/plugins/osmia-plugin-jira"]
        volumeMounts:
          - name: plugins
            mountPath: /plugins
    containers:
      - name: controller
-       image: ghcr.io/robodev/controller:latest
+       image: ghcr.io/osmia/controller:latest
        volumeMounts:
          - name: plugins
-           mountPath: /opt/robodev/plugins
+           mountPath: /opt/osmia/plugins
    volumes:
      - name: plugins
        emptyDir: {}
@@ -290,10 +290,10 @@ The Helm chart includes a `plugins` values section for configuring init containe
 # values.yaml
 plugins:
   - name: jira
-    image: ghcr.io/myorg/robodev-plugin-jira:v1.2.0
+    image: ghcr.io/myorg/osmia-plugin-jira:v1.2.0
     binaryPath: /plugin
   - name: pagerduty
-    image: ghcr.io/myorg/robodev-plugin-pagerduty:v0.3.1
+    image: ghcr.io/myorg/osmia-plugin-pagerduty:v0.3.1
     binaryPath: /plugin
 ```
 
@@ -304,10 +304,10 @@ External plugins run as gRPC subprocesses managed by hashicorp/go-plugin. If a p
 1. **Detection**: The controller detects the crash via the gRPC connection dropping. hashicorp/go-plugin surfaces this as an error on the next RPC call.
 2. **Restart**: The controller attempts to restart the plugin subprocess up to `max_plugin_restarts` times (default: 3) with exponential backoff (1s, 5s, 30s). On restart, the version handshake is re-performed.
 3. **Degraded mode**: If restarts are exhausted, the controller enters degraded mode for that plugin category. For non-critical plugins (notifications, review), the controller continues operating and logs warnings. For critical plugins (ticketing, secrets), the controller stops processing new tickets and raises an alert.
-4. **Metrics**: Plugin health is exposed via Prometheus metrics (`robodev_plugin_restarts_total`, `robodev_plugin_healthy` gauge).
+4. **Metrics**: Plugin health is exposed via Prometheus metrics (`osmia_plugin_restarts_total`, `osmia_plugin_healthy` gauge).
 
 ```yaml
-# robodev-config.yaml
+# osmia-config.yaml
 plugin_health:
   max_plugin_restarts: 3
   restart_backoff: [1, 5, 30]  # seconds
@@ -322,18 +322,18 @@ plugin_health:
 
 ```bash
 # Python plugin author
-pip install robodev-plugin-sdk
-robodev-plugin scaffold --interface ticketing --name my-jira-plugin
+pip install osmia-plugin-sdk
+osmia-plugin scaffold --interface ticketing --name my-jira-plugin
 # Creates a working skeleton with tests, Dockerfile, and CI config
 # Implement the TicketingBackend gRPC service, then run:
-robodev-plugin serve --port 0  # Port allocated by hashicorp/go-plugin
+osmia-plugin serve --port 0  # Port allocated by hashicorp/go-plugin
 
 # Go plugin author
-go get github.com/robodev/plugin-sdk-go
+go get github.com/osmia/plugin-sdk-go
 # Implement the TicketingBackend interface, compile, done.
 
 # Test locally without a controller
-robodev-plugin test --interface ticketing --binary ./my-plugin
+osmia-plugin test --interface ticketing --binary ./my-plugin
 ```
 
 ### 1.6 Plugin Interface Versioning
@@ -364,12 +364,12 @@ message HandshakeResponse {
 The controller loads plugins at startup from configuration:
 
 ```yaml
-# robodev-config.yaml (mounted as ConfigMap)
+# osmia-config.yaml (mounted as ConfigMap)
 ticketing:
   backend: github  # or "jira", "shortcut", "linear"
   config:
     repo: "org/repo"
-    labels: ["robodev"]
+    labels: ["osmia"]
 
 notifications:
   channels:
@@ -383,9 +383,9 @@ secrets:
 engines:
   default: claude-code  # or "codex"
   claude-code:
-    image: ghcr.io/robodev/engine-claude-code:latest
+    image: ghcr.io/osmia/engine-claude-code:latest
   codex:
-    image: ghcr.io/robodev/engine-codex:latest
+    image: ghcr.io/osmia/engine-codex:latest
 
 review:
   backend: coderabbit  # or "native", "none"
@@ -520,11 +520,11 @@ type SecretsBackend interface {
 
 ## 3. Guard Rails System
 
-Enterprises need configurable safety boundaries. RoboDev provides guard rails at three levels, plus an optional quality gate and progress watchdog for defence in depth:
+Enterprises need configurable safety boundaries. Osmia provides guard rails at three levels, plus an optional quality gate and progress watchdog for defence in depth:
 
 ### 3.1 Controller-Level Guards
 
-Applied before a job is created. Configured in `robodev-config.yaml`:
+Applied before a job is created. Configured in `osmia-config.yaml`:
 
 ```yaml
 guardrails:
@@ -566,7 +566,7 @@ Applied inside the execution container via Claude Code hooks. These are injected
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/block-dangerous-commands.sh"
+            "command": "/opt/osmia/hooks/block-dangerous-commands.sh"
           }
         ]
       },
@@ -575,7 +575,7 @@ Applied inside the execution container via Claude Code hooks. These are injected
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/block-sensitive-files.sh"
+            "command": "/opt/osmia/hooks/block-sensitive-files.sh"
           }
         ]
       }
@@ -585,7 +585,7 @@ Applied inside the execution container via Claude Code hooks. These are injected
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/on-complete.sh"
+            "command": "/opt/osmia/hooks/on-complete.sh"
           }
         ]
       }
@@ -654,7 +654,7 @@ The controller selects the profile based on ticket labels or type field from the
 
 ### 3.5 Quality Gate
 
-Inspired by CI/CD quality gates and Gas Town's "Mayor" and "Witness" roles, RoboDev supports an optional quality gate that reviews the work of execution agents before it is finalised. The quality gate runs as a separate, lightweight K8s Job after the main agent completes — a pass/fail check between agent output and MR creation.
+Inspired by CI/CD quality gates and Gas Town's "Mayor" and "Witness" roles, Osmia supports an optional quality gate that reviews the work of execution agents before it is finalised. The quality gate runs as a separate, lightweight K8s Job after the main agent completes — a pass/fail check between agent output and MR creation.
 
 **Architecture:**
 
@@ -891,20 +891,20 @@ class WatchdogReason(BaseModel):
 
 Claude Code supports MCP (Model Context Protocol) servers via stdio and HTTP (streamable) transports. Project-scoped servers are configured in `.mcp.json` at the repository root (committed to source control), while user-scoped servers go in `~/.claude.json`. Enterprise-managed servers can be deployed via `/etc/claude-code/managed-mcp.json` (Linux) or `/Library/Application Support/ClaudeCode/managed-mcp.json` (macOS). Environment variable expansion (`${VAR}` and `${VAR:-default}`) is supported in all fields.
 
-For RoboDev, MCP servers serve two purposes:
+For Osmia, MCP servers serve two purposes:
 
-1. **Built-in MCP server**: RoboDev ships a notification/interaction MCP server that runs inside each job pod, providing `notify_human`, `ask_human`, and `wait_for_pipeline` tools to the agent.
+1. **Built-in MCP server**: Osmia ships a notification/interaction MCP server that runs inside each job pod, providing `notify_human`, `ask_human`, and `wait_for_pipeline` tools to the agent.
 
 2. **User-configured MCP servers**: Operators can bundle additional MCP servers into the container image or mount them, giving agents access to domain-specific tools (databases, internal APIs, monitoring systems).
 
 ```yaml
-# robodev-config.yaml
+# osmia-config.yaml
 engines:
   claude-code:
     mcp_servers:
       # Built-in (always present)
-      robodev:
-        command: "/opt/robodev/mcp/server"
+      osmia:
+        command: "/opt/osmia/mcp/server"
         args: ["--mode", "stdio"]
       # User-configured (optional)
       database:
@@ -924,9 +924,9 @@ The engine translates this into a `.mcp.json` file at the workspace root:
 ```json
 {
   "mcpServers": {
-    "robodev": {
+    "osmia": {
       "type": "stdio",
-      "command": "/opt/robodev/mcp/server",
+      "command": "/opt/osmia/mcp/server",
       "args": ["--mode", "stdio"]
     },
     "database": {
@@ -951,7 +951,7 @@ Project-scoped servers in `.mcp.json` normally require approval before use. In h
 ```yaml
 guardrails:
   allowed_mcp_servers:
-    - "robodev"       # Always allowed
+    - "osmia"       # Always allowed
     - "database"
     - "sentry"
   # Any MCP server not in this list will be stripped from settings.json
@@ -966,11 +966,11 @@ There are three marketplace sources:
 2. **Custom team marketplaces**: Any Git repository or URL containing a `.claude-plugin/marketplace.json`. Configured via `extraKnownMarketplaces` in settings.
 3. **Community marketplace** (`claudecodemarketplace.com`): Unofficial, aggregates third-party plugins.
 
-For RoboDev containers, plugins can be loaded in three ways:
+For Osmia containers, plugins can be loaded in three ways:
 
 1. **`--plugin-dir` flag** (recommended for K8s): Point at plugin directories baked into the image. No formal installation needed.
    ```bash
-   claude --plugin-dir /opt/robodev/plugins/security-tools -p "your prompt"
+   claude --plugin-dir /opt/osmia/plugins/security-tools -p "your prompt"
    ```
 
 2. **Mounted from a ConfigMap/volume**: Plugin directories mounted at runtime, allowing per-deployment customisation without image rebuilds.
@@ -978,12 +978,12 @@ For RoboDev containers, plugins can be loaded in three ways:
 3. **Pre-enabled via settings.json**: The `enabledPlugins` field in `.claude/settings.json` specifies which marketplace plugins are active.
 
 ```yaml
-# robodev-config.yaml
+# osmia-config.yaml
 engines:
   claude-code:
     plugins:
       # Loaded via --plugin-dir (pre-baked in image)
-      - path: "/opt/robodev/plugins/security-tools"
+      - path: "/opt/osmia/plugins/security-tools"
       # Enabled from team marketplace
       - name: "coderabbit-integration@unitary-tools"
     # Team marketplace configuration
@@ -1003,10 +1003,10 @@ Claude Code supports two equivalent mechanisms for custom slash commands:
 
 Both create `/command-name` slash commands. Skills also support dynamic context injection via the `!`command`` syntax, which executes shell commands before the skill content is sent to Claude.
 
-For task-type-specific behaviour, RoboDev bundles skills into the container and copies them into the workspace:
+For task-type-specific behaviour, Osmia bundles skills into the container and copies them into the workspace:
 
 ```
-/opt/robodev/skills/
+/opt/osmia/skills/
   dependency-upgrade/
     SKILL.md               # "Upgrade the specified dependency..."
   test-fix/
@@ -1019,7 +1019,7 @@ Example SKILL.md with frontmatter:
 
 ```yaml
 ---
-name: robodev-dependency-upgrade
+name: osmia-dependency-upgrade
 description: Upgrade a specified dependency following project conventions
 allowed-tools: Bash(uv *), Bash(git *), Read, Edit, Write
 ---
@@ -1074,7 +1074,7 @@ Users on Anthropic Teams, Enterprise, or Max plans have included usage allowance
 - `ANTHROPIC_API_KEY` via env var works reliably in headless mode but uses API billing, not plan allowances
 - The `apiKeyHelper` TTL cache has a known bug (GitHub issue #11639) where the helper is called more frequently than configured
 
-**RoboDev's approach:**
+**Osmia's approach:**
 1. **Default: API key** - Works reliably today. Recommend `apiKeyHelper` for rotation.
 2. **setup-token (workaround)**: For Teams/Max plans, an admin can run `claude setup-token` on a desktop machine to generate a long-lived token. This token is stored as a K8s Secret and set via `CLAUDE_CODE_OAUTH_TOKEN` env var. Note: the `sk-ant-oat01-` format is non-standard and not accepted by all tools (GitHub issue #18340).
 3. **Track upstream**: Monitor the device-code flow RFC 8628 request. When implemented, add native support.
@@ -1087,11 +1087,11 @@ engines:
     auth:
       method: api_key  # "api_key" | "setup_token" | "bedrock" | "vertex" | "credentials_file"
       # For api_key:
-      api_key_secret: "robodev-anthropic-key"
+      api_key_secret: "osmia-anthropic-key"
       # For bedrock:
       bedrock_region: "us-east-1"
       # For credentials_file (experimental, fragile):
-      credentials_secret: "robodev-claude-credentials"
+      credentials_secret: "osmia-claude-credentials"
 ```
 
 ### 5.3 apiKeyHelper Integration
@@ -1100,16 +1100,16 @@ For enterprise deployments with secret rotation requirements:
 
 ```bash
 #!/bin/bash
-# /opt/robodev/get-api-key.sh
+# /opt/osmia/get-api-key.sh
 # Called by Claude Code every 5 minutes (configurable via CLAUDE_CODE_API_KEY_HELPER_TTL_MS)
 
 # Option 1: AWS Secrets Manager
 aws secretsmanager get-secret-value \
-  --secret-id robodev/anthropic-api-key \
+  --secret-id osmia/anthropic-api-key \
   --query SecretString --output text
 
 # Option 2: HashiCorp Vault
-vault kv get -field=api_key secret/robodev/anthropic
+vault kv get -field=api_key secret/osmia/anthropic
 
 # Option 3: 1Password CLI
 op read "op://Infrastructure/Anthropic/api-key"
@@ -1224,7 +1224,7 @@ func (e *CodexEngine) BuildPrompt(task Task) (string, error) {
 
 ### 7.1 Karpenter Integration
 
-RoboDev jobs are ephemeral, CPU-bound workloads. Karpenter provisions nodes on-demand when jobs are created.
+Osmia jobs are ephemeral, CPU-bound workloads. Karpenter provisions nodes on-demand when jobs are created.
 
 **Recommended NodePool:**
 
@@ -1232,7 +1232,7 @@ RoboDev jobs are ephemeral, CPU-bound workloads. Karpenter provisions nodes on-d
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: robodev
+  name: osmia
 spec:
   disruption:
     consolidateAfter: 2m
@@ -1256,14 +1256,14 @@ spec:
             - m6i.xlarge    # 4 vCPU, 16 GiB (if memory needed)
       taints:
         - effect: NoSchedule
-          key: robodev.io/agent
+          key: osmia.io/agent
           value: "true"
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: robodev
+        name: osmia
   limits:
-    cpu: "64"              # Max 64 vCPU across all robodev nodes
+    cpu: "64"              # Max 64 vCPU across all osmia nodes
     memory: "128Gi"
 ```
 
@@ -1293,13 +1293,13 @@ For higher scale deployments, consider:
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `robodev_jobs_total` | Counter | Total jobs created, by status |
-| `robodev_jobs_active` | Gauge | Currently running jobs |
-| `robodev_job_duration_seconds` | Histogram | Job execution duration |
-| `robodev_tokens_total` | Counter | Total tokens consumed, by engine |
-| `robodev_cost_usd_total` | Counter | Estimated cost in USD |
-| `robodev_tickets_processed_total` | Counter | Tickets processed, by status |
-| `robodev_human_interactions_total` | Counter | Human questions asked |
+| `osmia_jobs_total` | Counter | Total jobs created, by status |
+| `osmia_jobs_active` | Gauge | Currently running jobs |
+| `osmia_job_duration_seconds` | Histogram | Job execution duration |
+| `osmia_tokens_total` | Counter | Total tokens consumed, by engine |
+| `osmia_cost_usd_total` | Counter | Estimated cost in USD |
+| `osmia_tickets_processed_total` | Counter | Tickets processed, by status |
+| `osmia_human_interactions_total` | Counter | Human questions asked |
 
 **Structured logging** via Go's `slog` (standard library, structured, JSON output):
 
@@ -1318,7 +1318,7 @@ slog.Info("job created",
 ## 8. Repository Structure
 
 ```
-robodev/
+osmia/
   .github/
     workflows/
       ci.yaml               # Lint, test, build (golangci-lint, go test)
@@ -1329,7 +1329,7 @@ robodev/
       plugin_request.md
     PULL_REQUEST_TEMPLATE.md
   charts/
-    robodev/                 # Helm chart
+    osmia/                 # Helm chart
       Chart.yaml
       values.yaml
       templates/
@@ -1339,7 +1339,7 @@ robodev/
         secret.yaml          # Optional, for simple setups
         servicemonitor.yaml  # Prometheus ServiceMonitor
   cmd/
-    robodev/
+    osmia/
       main.go               # Controller entrypoint
   docs/
     getting-started.md
@@ -1443,9 +1443,9 @@ robodev/
     scm.proto
     engine.proto
   sdk/                       # Generated plugin SDKs
-    python/                  # robodev-plugin-sdk (PyPI)
-    go/                      # github.com/robodev/plugin-sdk-go
-    typescript/              # @robodev/plugin-sdk (npm)
+    python/                  # osmia-plugin-sdk (PyPI)
+    go/                      # github.com/osmia/plugin-sdk-go
+    typescript/              # @osmia/plugin-sdk (npm)
   tests/
     e2e/                     # End-to-end tests (kind cluster)
     integration/
@@ -1487,7 +1487,7 @@ robodev/
 - Extract and generalise the controller (remove Shortcut-specific code)
 - Extract and generalise the job manager (structured result via `/workspace/result.json`)
 - Extract and generalise the cost tracker
-- Implement configuration loading from `robodev-config.yaml`
+- Implement configuration loading from `osmia-config.yaml`
 - Implement Prometheus metrics endpoint from the start
 - Set up CI pipeline (golangci-lint, go test, buf lint for protobufs)
 - Set up container builds (GitHub Actions) with:
@@ -1515,8 +1515,8 @@ robodev/
 - Implement `guardrails.md` injection into prompts
 - Write integration tests with mocked GitHub/Slack APIs
 - Create example third-party plugin in Python (example-jira-python) using the SDK
-- Implement `robodev-plugin scaffold` CLI (generates working plugin skeleton with tests, Dockerfile, and CI config)
-- Implement `robodev-plugin test` CLI (local testing harness that exercises the plugin interface without a running controller)
+- Implement `osmia-plugin scaffold` CLI (generates working plugin skeleton with tests, Dockerfile, and CI config)
+- Implement `osmia-plugin test` CLI (local testing harness that exercises the plugin interface without a running controller)
 - Document plugin deployment patterns (custom image, init containers, Python pip)
 - Implement plugin crash detection and restart with exponential backoff
 - Create the Helm chart (basic, with multi-tenancy support and plugin init container support)
@@ -1574,7 +1574,7 @@ robodev/
 **Goal:** Migrate Unitary's internal deployment to use the OSS framework with Shortcut/Slack plugins.
 
 **Work items:**
-- Create `robodev-plugin-shortcut` Python package using the plugin SDK
+- Create `osmia-plugin-shortcut` Python package using the plugin SDK
 - Migrate existing `shortcut_watcher.py` logic into the gRPC plugin
 - Migrate existing `coderabbit_watcher.py` into `ReviewBackend` plugin
 - Create Unitary-specific Helm values
@@ -1625,11 +1625,11 @@ The default NetworkPolicy restricts agent pods to HTTPS and SSH egress only. How
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: robodev-agent-egress
+  name: osmia-agent-egress
 spec:
   podSelector:
     matchLabels:
-      app: robodev-agent
+      app: osmia-agent
   policyTypes: ["Egress"]
   egress:
     - ports:
@@ -1644,11 +1644,11 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: robodev-agent-egress-strict
+  name: osmia-agent-egress-strict
 spec:
   endpointSelector:
     matchLabels:
-      app: robodev-agent
+      app: osmia-agent
   egress:
     - toFQDNs:
         - matchName: "api.anthropic.com"
@@ -1680,13 +1680,13 @@ All release images are signed and accompanied by provenance attestations. This i
 
 ```bash
 # Users can verify image signatures
-cosign verify ghcr.io/robodev/controller:v1.0.0
-cosign verify-attestation ghcr.io/robodev/engine-claude-code:v1.0.0
+cosign verify ghcr.io/osmia/controller:v1.0.0
+cosign verify-attestation ghcr.io/osmia/engine-claude-code:v1.0.0
 ```
 
 ### 10.5 Multi-Tenancy
 
-For shared clusters serving multiple teams or organisations, RoboDev supports namespace-per-tenant isolation:
+For shared clusters serving multiple teams or organisations, Osmia supports namespace-per-tenant isolation:
 
 ```yaml
 # Helm values for tenant isolation
@@ -1694,21 +1694,21 @@ tenancy:
   mode: "namespace-per-tenant"  # or "shared" (default)
   tenants:
     - name: "team-alpha"
-      namespace: "robodev-alpha"
+      namespace: "osmia-alpha"
       ticketing:
         backend: github
         config:
           repo: "alpha-org/repos"
       secrets:
-        secret_name: "robodev-alpha-secrets"
+        secret_name: "osmia-alpha-secrets"
     - name: "team-beta"
-      namespace: "robodev-beta"
+      namespace: "osmia-beta"
       ticketing:
         backend: jira
         config:
           project: "BETA"
       secrets:
-        secret_name: "robodev-beta-secrets"
+        secret_name: "osmia-beta-secrets"
 ```
 
 Each tenant gets:
@@ -1723,7 +1723,7 @@ Each tenant gets:
 
 ### 11.1 vs OpenClaw
 
-| Aspect | OpenClaw | RoboDev |
+| Aspect | OpenClaw | Osmia |
 |--------|----------|---------|
 | Architecture | Local-first, single machine | Kubernetes-native, distributed |
 | Isolation | Shared process, local files | Container per job, namespace isolation |
@@ -1735,7 +1735,7 @@ Each tenant gets:
 
 ### 11.2 vs Gas Town
 
-| Aspect | Gas Town | RoboDev |
+| Aspect | Gas Town | Osmia |
 |--------|----------|---------|
 | Multi-agent | 20-30 agents, complex role system | Single agent per job (teams experimental) |
 | State management | Git-backed "Beads" | K8s Jobs + ConfigMaps |
@@ -1745,7 +1745,7 @@ Each tenant gets:
 
 ### 11.3 vs OpenAI Codex (cloud)
 
-| Aspect | Codex (cloud) | RoboDev |
+| Aspect | Codex (cloud) | Osmia |
 |--------|---------------|---------|
 | Infrastructure | OpenAI-managed | Self-hosted K8s |
 | Data residency | OpenAI's cloud | Your cluster, your data |
@@ -1791,14 +1791,14 @@ Key sections:
 
 1. **Soft launch**: Publish repo, share in a few Slack/Discord communities for early feedback
 2. **Blog post**: Technical deep-dive on the architecture and security model
-3. **Hacker News**: "Show HN: RoboDev - Kubernetes-native harness for AI coding agents"
+3. **Hacker News**: "Show HN: Osmia - Kubernetes-native harness for AI coding agents"
 4. **Reddit**: r/kubernetes, r/devops, r/MachineLearning
 5. **X/Twitter**: Thread explaining the problem and approach, with demo GIF
 6. **Conference talks**: KubeCon, PyCon UK (submit CFPs)
 
 ### 12.5 First-Party Plugins vs Community
 
-**Ships with core (maintained by RoboDev team):**
+**Ships with core (maintained by Osmia team):**
 - GitHub Issues ticketing
 - Slack notifications
 - K8s Secrets
@@ -1828,7 +1828,7 @@ Key sections:
 3. **Multi-repo tickets**: How should we handle tickets that span multiple repositories? (Gas Town's approach of parallel agents on the same repo is one option; another is sequential jobs.)
 4. **Cost attribution**: Should the controller integrate with cloud billing APIs (AWS Cost Explorer, etc) for actual cost tracking beyond token estimates?
 5. **Plugin capability manifests**: Should we require plugins to declare their permission requirements (e.g. "needs K8s API access", "needs egress to api.jira.com") so operators can audit what a plugin does before enabling it?
-6. **Managed offering**: Is there a future where Unitary offers RoboDev as a managed SaaS? This would influence licence choice (Apache 2.0 allows competitors to do this too).
+6. **Managed offering**: Is there a future where Unitary offers Osmia as a managed SaaS? This would influence licence choice (Apache 2.0 allows competitors to do this too).
 7. **CRD vs in-memory state**: Should `TaskRun` be a proper Kubernetes CRD (survives controller restarts, visible via `kubectl`) or an in-memory structure backed by ConfigMaps/annotations (simpler to implement, no CRD installation required)?
 
 ---
@@ -1853,9 +1853,9 @@ Key sections:
 
 | SDK | Language | Package |
 |-----|----------|---------|
-| robodev-plugin-sdk | Python | `pip install robodev-plugin-sdk` |
-| plugin-sdk-go | Go | `go get github.com/robodev/plugin-sdk-go` |
-| @robodev/plugin-sdk | TypeScript | `npm install @robodev/plugin-sdk` |
+| osmia-plugin-sdk | Python | `pip install osmia-plugin-sdk` |
+| plugin-sdk-go | Go | `go get github.com/osmia/plugin-sdk-go` |
+| @osmia/plugin-sdk | TypeScript | `npm install @osmia/plugin-sdk` |
 
 ---
 

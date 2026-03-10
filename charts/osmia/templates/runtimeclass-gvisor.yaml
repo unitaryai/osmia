@@ -4,6 +4,6 @@ kind: RuntimeClass
 metadata:
   name: {{ .Values.sandbox.runtimeClass | default "gvisor" }}
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 handler: runsc
 {{- end }}

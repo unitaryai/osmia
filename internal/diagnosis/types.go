@@ -7,9 +7,9 @@ package diagnosis
 import (
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // FailureMode identifies the class of failure diagnosed from a TaskRun.

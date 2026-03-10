@@ -16,17 +16,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/diagnosis"
-	"github.com/unitaryai/robodev/internal/estimator"
-	"github.com/unitaryai/robodev/internal/memory"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/routing"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/internal/tournament"
-	"github.com/unitaryai/robodev/internal/watchdog"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/diagnosis"
+	"github.com/unitaryai/osmia/internal/estimator"
+	"github.com/unitaryai/osmia/internal/memory"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/routing"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/tournament"
+	"github.com/unitaryai/osmia/internal/watchdog"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func allFeaturesLogger() *slog.Logger {
@@ -108,7 +108,7 @@ func TestAllFeaturesEnabled(t *testing.T) {
 		WindowSize:             10,
 		ScoreThresholdNudge:    7,
 		ScoreThresholdEscalate: 3,
-		HintFilePath:           "/tmp/robodev-allfeatures-hint.md",
+		HintFilePath:           "/tmp/osmia-allfeatures-hint.md",
 		MaxTrajectoryLength:    50,
 	}
 

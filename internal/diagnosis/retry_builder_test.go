@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
 func TestRetryBuilder_Build(t *testing.T) {

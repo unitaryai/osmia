@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
 // Extractor performs post-task heuristic knowledge extraction from completed

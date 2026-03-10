@@ -33,20 +33,20 @@ func TestSkillEnvVars_InlineSkill(t *testing.T) {
 
 func TestSkillEnvVars_PathSkill(t *testing.T) {
 	skills := []Skill{
-		{Name: "my-skill", Path: "/opt/robodev/skills/my-skill.md"},
+		{Name: "my-skill", Path: "/opt/osmia/skills/my-skill.md"},
 	}
 	result := SkillEnvVars(skills)
 	require.NotNil(t, result)
 
 	path, ok := result["CLAUDE_SKILL_PATH_MY_SKILL"]
 	require.True(t, ok, "expected CLAUDE_SKILL_PATH_MY_SKILL in result")
-	assert.Equal(t, "/opt/robodev/skills/my-skill.md", path)
+	assert.Equal(t, "/opt/osmia/skills/my-skill.md", path)
 }
 
 func TestSkillEnvVars_MultipleMixed(t *testing.T) {
 	skills := []Skill{
 		{Name: "changelog", Inline: "# Changelog\n\nContent."},
-		{Name: "review", Path: "/opt/robodev/skills/review.md"},
+		{Name: "review", Path: "/opt/osmia/skills/review.md"},
 	}
 	result := SkillEnvVars(skills)
 	require.NotNil(t, result)

@@ -1,6 +1,6 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-name: robodev
+name: osmia
 nodes:
   - role: control-plane
     extraPortMappings:
@@ -9,4 +9,4 @@ nodes:
         protocol: TCP
   - role: worker
     labels:
-      robodev.io/agent: "true"
+      osmia.io/agent: "true"

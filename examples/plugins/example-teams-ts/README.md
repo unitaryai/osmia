@@ -1,6 +1,6 @@
 # Example Microsoft Teams Notification Plugin (TypeScript)
 
-This is an example third-party notification plugin for RoboDev, written in TypeScript using the RoboDev Plugin SDK.
+This is an example third-party notification plugin for Osmia, written in TypeScript using the Osmia Plugin SDK.
 
 ## Overview
 
@@ -9,7 +9,7 @@ This plugin implements the `NotificationChannel` gRPC interface to send notifica
 ## Prerequisites
 
 - Node.js 20+
-- `@robodev/plugin-sdk` (npm install @robodev/plugin-sdk)
+- `@osmia/plugin-sdk` (npm install @osmia/plugin-sdk)
 - Microsoft Teams incoming webhook URL
 
 ## Getting Started
@@ -25,18 +25,18 @@ npm run build
 node dist/index.js
 
 # Test locally
-robodev-plugin test --interface notifications --binary "node dist/index.js"
+osmia-plugin test --interface notifications --binary "node dist/index.js"
 ```
 
 ## Configuration
 
-Add to your `robodev-config.yaml`:
+Add to your `osmia-config.yaml`:
 
 ```yaml
 plugins:
   notifications:
     teams:
-      command: "node /opt/robodev/plugins/robodev-plugin-teams/dist/index.js"
+      command: "node /opt/osmia/plugins/osmia-plugin-teams/dist/index.js"
       interface_version: 1
 ```
 

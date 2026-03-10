@@ -9,8 +9,8 @@ import (
 	"slices"
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const ticketSelectColumns = `id, title, description, ticket_type, labels_json, repo_url, external_url, raw_json,

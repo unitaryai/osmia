@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/plugin/secrets"
+	"github.com/unitaryai/osmia/pkg/plugin/secrets"
 )
 
 // Resolver performs multi-backend secret resolution. It validates requests

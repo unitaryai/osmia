@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
 // RetrySpec describes a retry attempt enriched with diagnostic information.

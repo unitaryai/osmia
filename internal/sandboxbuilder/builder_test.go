@@ -8,13 +8,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 func validSpec() *engine.ExecutionSpec {
 	return &engine.ExecutionSpec{
-		Image:   "ghcr.io/robodev/agent:latest",
+		Image:   "ghcr.io/osmia/agent:latest",
 		Command: []string{"claude", "--task", "fix bug"},
 		Env: map[string]string{
 			"REPO_URL": "https://github.com/example/repo",
@@ -75,7 +75,7 @@ func TestBuild(t *testing.T) {
 			taskRunID:  "tr-123",
 			engineName: "claude-code",
 			spec: &engine.ExecutionSpec{
-				Image: "ghcr.io/robodev/agent:latest",
+				Image: "ghcr.io/osmia/agent:latest",
 			},
 			cfg:        defaultSandboxConfig(),
 			wantErr:    true,
@@ -86,7 +86,7 @@ func TestBuild(t *testing.T) {
 			taskRunID:  "tr-minimal",
 			engineName: "codex",
 			spec: &engine.ExecutionSpec{
-				Image:   "ghcr.io/robodev/codex:latest",
+				Image:   "ghcr.io/osmia/codex:latest",
 				Command: []string{"codex", "run"},
 			},
 			cfg: defaultSandboxConfig(),
@@ -260,11 +260,11 @@ func TestBuild_Resources(t *testing.T) {
 }
 
 func TestBuild_Namespace(t *testing.T) {
-	builder := New("robodev-agents", defaultSandboxConfig())
+	builder := New("osmia-agents", defaultSandboxConfig())
 	job, err := builder.Build("tr-ns", "codex", validSpec())
 	require.NoError(t, err)
 
-	assert.Equal(t, "robodev-agents", job.Namespace)
+	assert.Equal(t, "osmia-agents", job.Namespace)
 }
 
 func TestBuild_JobName(t *testing.T) {
@@ -272,7 +272,7 @@ func TestBuild_JobName(t *testing.T) {
 	job, err := builder.Build("tr-123", "claude-code", validSpec())
 	require.NoError(t, err)
 
-	assert.Equal(t, "robodev-tr-123", job.Name)
+	assert.Equal(t, "osmia-tr-123", job.Name)
 }
 
 func TestBuild_LongTaskRunID_Truncated(t *testing.T) {
@@ -291,7 +291,7 @@ func TestBuild_Tolerations(t *testing.T) {
 
 	tolerations := job.Spec.Template.Spec.Tolerations
 	require.Len(t, tolerations, 1)
-	assert.Equal(t, "robodev.io/agent", tolerations[0].Key)
+	assert.Equal(t, "osmia.io/agent", tolerations[0].Key)
 	assert.Equal(t, corev1.TolerationOpExists, tolerations[0].Operator)
 	assert.Equal(t, corev1.TaintEffectNoSchedule, tolerations[0].Effect)
 }
@@ -307,7 +307,7 @@ func TestBuild_ActiveDeadline(t *testing.T) {
 
 func TestBuild_ActiveDeadline_ZeroOmitted(t *testing.T) {
 	spec := &engine.ExecutionSpec{
-		Image:   "ghcr.io/robodev/agent:latest",
+		Image:   "ghcr.io/osmia/agent:latest",
 		Command: []string{"run"},
 	}
 	builder := New("default", defaultSandboxConfig())

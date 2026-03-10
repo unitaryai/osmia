@@ -4,15 +4,15 @@
 #
 # Prerequisites:
 # - KEDA installed in the cluster
-# - Prometheus collecting RoboDev metrics
+# - Prometheus collecting Osmia metrics
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: robodev-ticket-scaler
-  namespace: robodev
+  name: osmia-ticket-scaler
+  namespace: osmia
 spec:
   scaleTargetRef:
-    name: robodev-controller
+    name: osmia-controller
   pollingInterval: 30
   cooldownPeriod: 300
   minReplicaCount: 1
@@ -21,15 +21,15 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://prometheus-server.monitoring.svc.cluster.local
-        metricName: robodev_active_jobs
-        query: robodev_active_jobs
+        metricName: osmia_active_jobs
+        query: osmia_active_jobs
         threshold: "10"
 ---
 # TriggerAuthentication for Prometheus (if authentication is required).
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
-  name: robodev-prometheus-auth
-  namespace: robodev
+  name: osmia-prometheus-auth
+  namespace: osmia
 spec:
   secretTargetRef: []

@@ -8,20 +8,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// secretCommentPattern matches <!-- robodev:secrets ... --> HTML comment blocks.
-var secretCommentPattern = regexp.MustCompile(`(?s)<!--\s*robodev:secrets\s*\n(.*?)-->`)
+// secretCommentPattern matches <!-- osmia:secrets ... --> HTML comment blocks.
+var secretCommentPattern = regexp.MustCompile(`(?s)<!--\s*osmia:secrets\s*\n(.*?)-->`)
 
-// labelPattern matches robodev:secret:ENV_NAME=URI label prefixes.
-var labelPattern = regexp.MustCompile(`^robodev:secret:([A-Za-z_][A-Za-z0-9_]*)=(.+)$`)
+// labelPattern matches osmia:secret:ENV_NAME=URI label prefixes.
+var labelPattern = regexp.MustCompile(`^osmia:secret:([A-Za-z_][A-Za-z0-9_]*)=(.+)$`)
 
-// secretEntry represents a single entry inside a robodev:secrets YAML block.
+// secretEntry represents a single entry inside a osmia:secrets YAML block.
 type secretEntry struct {
 	Ref   string `yaml:"ref"`
 	Env   string `yaml:"env"`
 	Alias string `yaml:"alias"`
 }
 
-// ParseCommentBlock extracts secret requests from <!-- robodev:secrets --> HTML
+// ParseCommentBlock extracts secret requests from <!-- osmia:secrets --> HTML
 // comment blocks in a ticket description. The block contents are parsed as YAML.
 func ParseCommentBlock(body string) ([]SecretRequest, error) {
 	matches := secretCommentPattern.FindAllStringSubmatch(body, -1)
@@ -35,7 +35,7 @@ func ParseCommentBlock(body string) ([]SecretRequest, error) {
 
 		var entries []secretEntry
 		if err := yaml.Unmarshal([]byte(yamlContent), &entries); err != nil {
-			return nil, fmt.Errorf("parsing robodev:secrets YAML block: %w", err)
+			return nil, fmt.Errorf("parsing osmia:secrets YAML block: %w", err)
 		}
 
 		for _, entry := range entries {
@@ -51,7 +51,7 @@ func ParseCommentBlock(body string) ([]SecretRequest, error) {
 }
 
 // ParseLabels extracts secret requests from labels using the
-// robodev:secret:ENV_NAME=URI format.
+// osmia:secret:ENV_NAME=URI format.
 func ParseLabels(labels []string) ([]SecretRequest, error) {
 	var requests []SecretRequest
 	for _, label := range labels {

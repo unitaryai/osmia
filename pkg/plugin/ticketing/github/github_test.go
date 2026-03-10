@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func testLogger() *slog.Logger {
@@ -38,14 +38,14 @@ func TestGitHubBackend_PollReadyTickets(t *testing.T) {
 			Title:   "Fix login bug",
 			Body:    "The login page crashes",
 			HTMLURL: "https://github.com/owner/repo/issues/42",
-			Labels:  []ghLabel{{Name: "robodev"}, {Name: "bug"}},
+			Labels:  []ghLabel{{Name: "osmia"}, {Name: "bug"}},
 		},
 		{
 			Number:  99,
 			Title:   "Refactor auth",
 			Body:    "Clean up the auth module",
 			HTMLURL: "https://github.com/owner/repo/issues/99",
-			Labels:  []ghLabel{{Name: "robodev"}},
+			Labels:  []ghLabel{{Name: "osmia"}},
 		},
 	}
 
@@ -53,7 +53,7 @@ func TestGitHubBackend_PollReadyTickets(t *testing.T) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Contains(t, r.URL.Path, "/repos/owner/repo/issues")
 		assert.Equal(t, "open", r.URL.Query().Get("state"))
-		assert.Equal(t, "robodev", r.URL.Query().Get("labels"))
+		assert.Equal(t, "osmia", r.URL.Query().Get("labels"))
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 		w.Header().Set("Content-Type", "application/json")
@@ -61,7 +61,7 @@ func TestGitHubBackend_PollReadyTickets(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b := NewGitHubBackend("owner", "repo", []string{"robodev"}, "test-token", testLogger(),
+	b := NewGitHubBackend("owner", "repo", []string{"osmia"}, "test-token", testLogger(),
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
 	)
@@ -74,7 +74,7 @@ func TestGitHubBackend_PollReadyTickets(t *testing.T) {
 	assert.Equal(t, "Fix login bug", tickets[0].Title)
 	assert.Equal(t, "The login page crashes", tickets[0].Description)
 	assert.Equal(t, "issue", tickets[0].TicketType)
-	assert.Equal(t, []string{"robodev", "bug"}, tickets[0].Labels)
+	assert.Equal(t, []string{"osmia", "bug"}, tickets[0].Labels)
 	assert.Equal(t, "https://github.com/owner/repo", tickets[0].RepoURL)
 
 	assert.Equal(t, "99", tickets[1].ID)
@@ -87,7 +87,7 @@ func TestGitHubBackend_PollReadyTickets_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b := NewGitHubBackend("o", "r", []string{"robodev"}, "tok", testLogger(), WithBaseURL(srv.URL))
+	b := NewGitHubBackend("o", "r", []string{"osmia"}, "tok", testLogger(), WithBaseURL(srv.URL))
 	tickets, err := b.PollReadyTickets(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, tickets)
@@ -99,7 +99,7 @@ func TestGitHubBackend_PollReadyTickets_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b := NewGitHubBackend("o", "r", []string{"robodev"}, "tok", testLogger(), WithBaseURL(srv.URL))
+	b := NewGitHubBackend("o", "r", []string{"osmia"}, "tok", testLogger(), WithBaseURL(srv.URL))
 	_, err := b.PollReadyTickets(context.Background())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status 500")
@@ -117,7 +117,7 @@ func TestGitHubBackend_MarkInProgress(t *testing.T) {
 			_ = json.NewDecoder(r.Body).Decode(&payload)
 			assert.Equal(t, []string{"in-progress"}, payload["labels"])
 			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/labels/robodev"):
+		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/labels/osmia"):
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.WriteHeader(http.StatusOK)
@@ -125,12 +125,12 @@ func TestGitHubBackend_MarkInProgress(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b := NewGitHubBackend("owner", "repo", []string{"robodev"}, "tok", testLogger(), WithBaseURL(srv.URL))
+	b := NewGitHubBackend("owner", "repo", []string{"osmia"}, "tok", testLogger(), WithBaseURL(srv.URL))
 	err := b.MarkInProgress(context.Background(), "42")
 	require.NoError(t, err)
 
 	assert.Contains(t, calls, "POST /repos/owner/repo/issues/42/labels")
-	assert.Contains(t, calls, "DELETE /repos/owner/repo/issues/42/labels/robodev")
+	assert.Contains(t, calls, "DELETE /repos/owner/repo/issues/42/labels/osmia")
 }
 
 func TestGitHubBackend_MarkComplete(t *testing.T) {
@@ -192,7 +192,7 @@ func TestGitHubBackend_MarkFailed(t *testing.T) {
 	err := b.MarkFailed(context.Background(), "7", "timeout exceeded")
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"robodev-failed"}, labelPayload["labels"])
+	assert.Equal(t, []string{"osmia-failed"}, labelPayload["labels"])
 	assert.Contains(t, commentPayload["body"], "timeout exceeded")
 }
 
@@ -221,28 +221,28 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 			Title:   "Normal issue",
 			Body:    "body",
 			HTMLURL: "https://github.com/o/r/issues/1",
-			Labels:  []ghLabel{{Name: "robodev"}},
+			Labels:  []ghLabel{{Name: "osmia"}},
 		},
 		{
 			Number:  2,
 			Title:   "In-progress issue",
 			Body:    "body",
 			HTMLURL: "https://github.com/o/r/issues/2",
-			Labels:  []ghLabel{{Name: "robodev"}, {Name: "in-progress"}},
+			Labels:  []ghLabel{{Name: "osmia"}, {Name: "in-progress"}},
 		},
 		{
 			Number:  3,
 			Title:   "Failed issue",
 			Body:    "body",
 			HTMLURL: "https://github.com/o/r/issues/3",
-			Labels:  []ghLabel{{Name: "robodev"}, {Name: "robodev-failed"}},
+			Labels:  []ghLabel{{Name: "osmia"}, {Name: "osmia-failed"}},
 		},
 		{
 			Number:  4,
 			Title:   "Clean issue",
 			Body:    "body",
 			HTMLURL: "https://github.com/o/r/issues/4",
-			Labels:  []ghLabel{{Name: "robodev"}},
+			Labels:  []ghLabel{{Name: "osmia"}},
 		},
 	}
 
@@ -257,10 +257,10 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 	}{
 		{
 			name:   "labels only (backward compat)",
-			labels: []string{"robodev"},
+			labels: []string{"osmia"},
 			wantParams: map[string]string{
 				"state":  "open",
-				"labels": "robodev",
+				"labels": "osmia",
 			},
 			absentParams:  []string{"assignee", "milestone"},
 			wantTicketIDs: []string{"1", "4"}, // issues 2,3 excluded by default excludeLabels
@@ -268,13 +268,13 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 		{
 			name:   "assignee only, no labels",
 			labels: nil,
-			opts:   []Option{WithAssignee("robodev-bot")},
+			opts:   []Option{WithAssignee("osmia-bot")},
 			issues: []ghIssue{
 				{Number: 10, Title: "Assigned issue", Body: "b", HTMLURL: "https://github.com/o/r/issues/10"},
 			},
 			wantParams: map[string]string{
 				"state":    "open",
-				"assignee": "robodev-bot",
+				"assignee": "osmia-bot",
 			},
 			absentParams:  []string{"labels"},
 			wantTicketIDs: []string{"10"},
@@ -294,14 +294,14 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 		},
 		{
 			name:   "state override to all",
-			labels: []string{"robodev"},
+			labels: []string{"osmia"},
 			opts:   []Option{WithState("all")},
 			issues: []ghIssue{
 				{Number: 30, Title: "Any state", Body: "b", HTMLURL: "https://github.com/o/r/issues/30"},
 			},
 			wantParams: map[string]string{
 				"state":  "all",
-				"labels": "robodev",
+				"labels": "osmia",
 			},
 			wantTicketIDs: []string{"30"},
 		},
@@ -326,18 +326,18 @@ func TestGitHubBackend_PollReadyTickets_FilterCombinations(t *testing.T) {
 		},
 		{
 			name:          "default exclusion filters out in-progress and failed",
-			labels:        []string{"robodev"},
-			wantTicketIDs: []string{"1", "4"}, // issues 2 (in-progress) and 3 (robodev-failed) excluded
+			labels:        []string{"osmia"},
+			wantTicketIDs: []string{"1", "4"}, // issues 2 (in-progress) and 3 (osmia-failed) excluded
 		},
 		{
 			name:          "custom excludeLabels override",
-			labels:        []string{"robodev"},
-			opts:          []Option{WithExcludeLabels([]string{"robodev-failed"})},
-			wantTicketIDs: []string{"1", "2", "4"}, // only issue 3 (robodev-failed) excluded; in-progress passes through
+			labels:        []string{"osmia"},
+			opts:          []Option{WithExcludeLabels([]string{"osmia-failed"})},
+			wantTicketIDs: []string{"1", "2", "4"}, // only issue 3 (osmia-failed) excluded; in-progress passes through
 		},
 		{
 			name:          "empty excludeLabels disables exclusion",
-			labels:        []string{"robodev"},
+			labels:        []string{"osmia"},
 			opts:          []Option{WithExcludeLabels([]string{})},
 			wantTicketIDs: []string{"1", "2", "3", "4"}, // no client-side exclusion applied
 		},
@@ -400,7 +400,7 @@ func TestGitHubBackend_PollReadyTickets_SkipsPullRequests(t *testing.T) {
 			Title:   "Improve tests",
 			Body:    "Add more coverage",
 			HTMLURL: "https://github.com/o/r/pull/5",
-			Labels:  []ghLabel{{Name: "robodev"}},
+			Labels:  []ghLabel{{Name: "osmia"}},
 			// PullRequest non-nil → must be skipped.
 			PullRequest: &raw,
 		},
@@ -409,7 +409,7 @@ func TestGitHubBackend_PollReadyTickets_SkipsPullRequests(t *testing.T) {
 			Title:   "Fix crash",
 			Body:    "Body",
 			HTMLURL: "https://github.com/o/r/issues/6",
-			Labels:  []ghLabel{{Name: "robodev"}},
+			Labels:  []ghLabel{{Name: "osmia"}},
 		},
 	}
 
@@ -419,7 +419,7 @@ func TestGitHubBackend_PollReadyTickets_SkipsPullRequests(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b := NewGitHubBackend("o", "r", []string{"robodev"}, "tok", testLogger(),
+	b := NewGitHubBackend("o", "r", []string{"osmia"}, "tok", testLogger(),
 		WithBaseURL(srv.URL),
 		WithHTTPClient(srv.Client()),
 	)

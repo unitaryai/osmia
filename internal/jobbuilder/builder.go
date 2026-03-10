@@ -10,22 +10,22 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // LabelTaskRunID is the Kubernetes label key used to identify Jobs and Pods
 // belonging to a given task run. It is exported so that the controller can
 // list pods by this label when resolving pod names for log streaming.
-const LabelTaskRunID = "robodev.io/task-run-id"
+const LabelTaskRunID = "osmia.io/task-run-id"
 
 const (
 	labelApp      = "app"
-	labelAppValue = "robodev-agent"
-	labelEngine   = "robodev.io/engine"
+	labelAppValue = "osmia-agent"
+	labelEngine   = "osmia.io/engine"
 
 	defaultRunAsUser int64 = 10000
 	containerName          = "agent"
-	taintKey               = "robodev.io/agent"
+	taintKey               = "osmia.io/agent"
 )
 
 // JobBuilder constructs Kubernetes Jobs from engine ExecutionSpecs.
@@ -64,7 +64,7 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
-	jobName := fmt.Sprintf("robodev-%s", taskRunID)
+	jobName := fmt.Sprintf("osmia-%s", taskRunID)
 	if len(jobName) > 63 {
 		jobName = jobName[:63]
 	}

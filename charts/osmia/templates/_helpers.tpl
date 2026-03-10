@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "robodev.name" -}}
+{{- define "osmia.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "robodev.fullname" -}}
+{{- define "osmia.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,9 +24,9 @@ Create a default fully qualified app name.
 {{/*
 Common labels.
 */}}
-{{- define "robodev.labels" -}}
-helm.sh/chart: {{ include "robodev.chart" . }}
-{{ include "robodev.selectorLabels" . }}
+{{- define "osmia.labels" -}}
+helm.sh/chart: {{ include "osmia.chart" . }}
+{{ include "osmia.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
@@ -34,24 +34,24 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels.
 */}}
-{{- define "robodev.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "robodev.name" . }}
+{{- define "osmia.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "osmia.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Chart label.
 */}}
-{{- define "robodev.chart" -}}
+{{- define "osmia.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Service account name.
 */}}
-{{- define "robodev.serviceAccountName" -}}
+{{- define "osmia.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "robodev.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "osmia.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

@@ -1,4 +1,4 @@
-// Package claudecode provides the Claude Code execution engine for RoboDev.
+// Package claudecode provides the Claude Code execution engine for Osmia.
 // This file implements the agent teams configuration for Claude Code.
 // Agent teams are a distinct feature from sub-agents: they spawn multiple
 // independent Claude Code instances with shared task lists and inter-agent

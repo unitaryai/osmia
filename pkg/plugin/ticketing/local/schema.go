@@ -90,7 +90,7 @@ func ensureStoreDirectory(path string) error {
 	return nil
 }
 
-func (b *Backend) migrate() error {
+func (b *Backend) initialiseSchema() error {
 	statements := []string{
 		createTicketsTable,
 		createCommentsTable,
@@ -103,88 +103,6 @@ func (b *Backend) migrate() error {
 	for _, statement := range statements {
 		if _, err := b.db.Exec(statement); err != nil {
 			return fmt.Errorf("executing migration: %w", err)
-		}
-	}
-
-	if err := ensureTicketColumn(b.db, "run_state", "TEXT NOT NULL DEFAULT 'idle'"); err != nil {
-		return err
-	}
-	if err := migrateTrackerStates(b.db); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func ensureTicketColumn(db *sql.DB, name, definition string) error {
-	exists, err := ticketColumnExists(db, name)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return nil
-	}
-
-	statement := fmt.Sprintf("ALTER TABLE tickets ADD COLUMN %s %s", name, definition)
-	if _, err := db.Exec(statement); err != nil {
-		return fmt.Errorf("adding tickets.%s column: %w", name, err)
-	}
-
-	return nil
-}
-
-func ticketColumnExists(db *sql.DB, name string) (bool, error) {
-	rows, err := db.Query(`PRAGMA table_info(tickets)`)
-	if err != nil {
-		return false, fmt.Errorf("querying tickets table info: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			cid        int
-			columnName string
-			columnType string
-			notNull    int
-			defaultVal sql.NullString
-			primaryKey int
-		)
-		if err := rows.Scan(&cid, &columnName, &columnType, &notNull, &defaultVal, &primaryKey); err != nil {
-			return false, fmt.Errorf("scanning tickets table info: %w", err)
-		}
-		if columnName == name {
-			return true, nil
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return false, fmt.Errorf("iterating tickets table info: %w", err)
-	}
-
-	return false, nil
-}
-
-func migrateTrackerStates(db *sql.DB) error {
-	statements := []string{
-		`UPDATE tickets
-		 SET run_state = CASE
-			 WHEN run_state IN ('idle', 'running', 'succeeded', 'failed') THEN run_state
-			 WHEN state = 'in_progress' THEN 'running'
-			 WHEN state = 'completed' THEN 'succeeded'
-			 WHEN state = 'failed' THEN 'failed'
-			 ELSE 'idle'
-		 END`,
-		`UPDATE tickets
-		 SET state = CASE
-			 WHEN state = 'ready' THEN 'todo'
-			 WHEN state = 'completed' THEN 'done'
-			 WHEN state = 'failed' THEN 'in_progress'
-			 ELSE state
-		 END`,
-	}
-
-	for _, statement := range statements {
-		if _, err := db.Exec(statement); err != nil {
-			return fmt.Errorf("migrating tracker state model: %w", err)
 		}
 	}
 

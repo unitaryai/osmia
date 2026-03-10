@@ -29,7 +29,7 @@ type Backend struct {
 
 var _ ticketing.Backend = (*Backend)(nil)
 
-// New opens the SQLite store, runs migrations, and imports any seed file.
+// New opens the SQLite store, initialises the schema, and imports any seed file.
 func New(cfg Config, logger *slog.Logger) (*Backend, error) {
 	if cfg.StorePath == "" {
 		return nil, fmt.Errorf("store path must not be empty")
@@ -47,9 +47,9 @@ func New(cfg Config, logger *slog.Logger) (*Backend, error) {
 		db:     db,
 		logger: logger,
 	}
-	if err := backend.migrate(); err != nil {
+	if err := backend.initialiseSchema(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("running migrations: %w", err)
+		return nil, fmt.Errorf("initialising schema: %w", err)
 	}
 	if err := backend.importSeedFile(context.Background(), cfg.SeedFile); err != nil {
 		db.Close()

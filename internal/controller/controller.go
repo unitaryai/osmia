@@ -589,6 +589,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	task := engine.Task{
 		ID:            ticket.ID,
 		TicketID:      ticket.ID,
+		TaskRunID:     tr.ID,
 		Title:         ticket.Title,
 		Description:   ticket.Description,
 		RepoURL:       ticket.RepoURL,
@@ -1123,6 +1124,7 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	task := engine.Task{
 		ID:          ticket.ID,
 		TicketID:    ticket.ID,
+		TaskRunID:   tr.ID,
 		Title:       ticket.Title,
 		Description: ticket.Description,
 		RepoURL:     ticket.RepoURL,
@@ -1420,8 +1422,9 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	}
 
 	task := engine.Task{
-		ID:       tr.TicketID,
-		TicketID: tr.TicketID,
+		ID:        tr.TicketID,
+		TicketID:  tr.TicketID,
+		TaskRunID: tr.ID,
 	}
 
 	engineCfg := engine.EngineConfig{
@@ -1615,6 +1618,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 	task := engine.Task{
 		ID:            cachedTicket.ID,
 		TicketID:      cachedTicket.ID,
+		TaskRunID:     tr.ID,
 		Title:         cachedTicket.Title,
 		Description:   cachedTicket.Description,
 		RepoURL:       cachedTicket.RepoURL,
@@ -2178,8 +2182,9 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	}
 
 	task := engine.Task{
-		ID:       tr.TicketID,
-		TicketID: tr.TicketID,
+		ID:        tr.TicketID,
+		TicketID:  tr.TicketID,
+		TaskRunID: tr.ID,
 	}
 	if hasTicket {
 		task.Title = cachedTicket.Title
@@ -2674,9 +2679,29 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			continue
 		}
 
+		// Use the standard idempotency key for the first candidate so the
+		// per-ticket idempotency check in ProcessTicket works correctly when
+		// the ticket is polled again before the tournament completes.
+		var idempotencyKey string
+		if i == 0 {
+			idempotencyKey = fmt.Sprintf("%s-1", ticket.ID)
+		} else {
+			idempotencyKey = fmt.Sprintf("%s-t%d", ticket.ID, i)
+		}
+
+		tr := taskrun.New(
+			fmt.Sprintf("tr-%s-%s-%d", ticket.ID, engineName, time.Now().UnixMilli()),
+			idempotencyKey,
+			ticket.ID,
+			engineName,
+		)
+		tr.CurrentEngine = engineName
+		tr.EngineAttempts = []string{engineName}
+
 		task := engine.Task{
 			ID:            ticket.ID,
 			TicketID:      ticket.ID,
+			TaskRunID:     tr.ID,
 			Title:         ticket.Title,
 			Description:   ticket.Description,
 			RepoURL:       ticket.RepoURL,
@@ -2700,25 +2725,6 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			)
 			continue
 		}
-
-		// Use the standard idempotency key for the first candidate so the
-		// per-ticket idempotency check in ProcessTicket works correctly when
-		// the ticket is polled again before the tournament completes.
-		var idempotencyKey string
-		if i == 0 {
-			idempotencyKey = fmt.Sprintf("%s-1", ticket.ID)
-		} else {
-			idempotencyKey = fmt.Sprintf("%s-t%d", ticket.ID, i)
-		}
-
-		tr := taskrun.New(
-			fmt.Sprintf("tr-%s-%s-%d", ticket.ID, engineName, time.Now().UnixMilli()),
-			idempotencyKey,
-			ticket.ID,
-			engineName,
-		)
-		tr.CurrentEngine = engineName
-		tr.EngineAttempts = []string{engineName}
 
 		if err := r.taskRunStore.Save(ctx, tr); err != nil {
 			r.logger.ErrorContext(ctx, "failed to save tournament candidate task run",

@@ -133,25 +133,26 @@ func (c *Cleaner) sweepSharedPVC(ctx context.Context) {
 	}
 }
 
-// newestModTime returns the most recent modification time among the immediate
-// children of dir. Writes under subdirectories like claude/ or workspace/ do
-// not update the parent directory's mtime, so checking children gives a more
-// accurate picture of when the session was last active.
+// newestModTime walks dir recursively and returns the most recent modification
+// time among all files and directories. A recursive walk is necessary because
+// directory mtime only updates when entries are added or removed — not when
+// existing files within them are modified (e.g. appending to JSONL session
+// files). By checking actual file mtimes we get an accurate activity signal.
 func newestModTime(dir string) time.Time {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return time.Time{}
-	}
 	var newest time.Time
-	for _, e := range entries {
-		info, err := e.Info()
+	_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
 		if err != nil {
-			continue
+			return nil // skip entries we cannot stat
+		}
+		info, infoErr := d.Info()
+		if infoErr != nil {
+			return nil
 		}
 		if info.ModTime().After(newest) {
 			newest = info.ModTime()
 		}
-	}
+		return nil
+	})
 	return newest
 }
 

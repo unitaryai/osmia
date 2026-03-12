@@ -38,8 +38,12 @@ engines:
 New Helm values: `sessionPersistence.enabled`, `sessionPersistence.backend`,
 `sessionPersistence.sharedPVC`, `sessionPersistence.perTaskRunPVC`, `sessionPersistence.ttlMinutes`.
 
-New package: `internal/sessionstore` (`SessionStore` interface, `SharedPVCStore`,
-`PerTaskRunPVCStore`, `S3Store`, `Cleaner`).
+New package: `internal/sessionstore` (`SharedPVCStore`, `PerTaskRunPVCStore`,
+`S3Store`, `Cleaner`).
+New interface: `pkg/engine.SessionStore`.
+
+New field: `Task.TaskRunID` — isolates session storage per execution attempt so
+retries of the same ticket do not share session data.
 
 New field: `Task.SessionID` — set by the controller on retry jobs so the engine
 knows to use `--resume` rather than `--session-id`.
@@ -47,7 +51,7 @@ knows to use `--resume` rather than `--session-id`.
 New field: `TaskRun.SessionID` — stores the session ID assigned to the first job.
 
 New event type: `agentstream.SystemEvent` — parses the system init event emitted
-by Claude Code at startup, capturing the session ID for belt-and-suspenders tracking.
+by Claude Code at startup, capturing the session ID for belt-and-braces tracking.
 
 New field: `VolumeMount.PVCName` — allows the jobbuilder to back a volume with a
 PersistentVolumeClaim instead of emptyDir or ConfigMap.

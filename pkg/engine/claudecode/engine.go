@@ -345,15 +345,20 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	volumes = append(volumes, SubAgentVolumes(e.subAgents)...)
 
 	// Merge session store volumes and environment variables when persistence
-	// is configured. The task run ID is derived from the task ID since it is
-	// the stable identifier available at spec-build time.
+	// is configured. TaskRunID isolates storage per execution attempt so
+	// retries of the same ticket do not share session data.
 	if e.sessionStore != nil {
+		taskRunID := task.TaskRunID
+		if taskRunID == "" {
+			// Fallback for callers that don't set TaskRunID (e.g. tests).
+			taskRunID = task.ID
+		}
 		sessionID := task.SessionID
 		if sessionID == "" {
-			sessionID = sessionIDForTask(task.ID)
+			sessionID = sessionIDForTask(taskRunID)
 		}
-		volumes = append(volumes, e.sessionStore.VolumeMounts(task.ID)...)
-		for k, v := range e.sessionStore.Env(task.ID, sessionID) {
+		volumes = append(volumes, e.sessionStore.VolumeMounts(taskRunID)...)
+		for k, v := range e.sessionStore.Env(taskRunID, sessionID) {
 			env[k] = v
 		}
 	}

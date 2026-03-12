@@ -53,6 +53,10 @@ type VolumeMount struct {
 type Task struct {
 	ID          string            `json:"id"`
 	TicketID    string            `json:"ticket_id"`
+	// TaskRunID uniquely identifies this execution attempt. Multiple retries
+	// of the same ticket produce different TaskRunIDs. Used by the session
+	// store to isolate per-run storage paths.
+	TaskRunID string `json:"task_run_id,omitempty"`
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	RepoURL     string            `json:"repo_url"`

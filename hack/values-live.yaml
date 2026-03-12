@@ -32,25 +32,25 @@ config:
     backend: github
     config:
       owner: "<GITHUB_OWNER>"
-      repo: "robodev-test-target"
+      repo: "osmia-test-target"
       labels:
-        - "robodev"
+        - "osmia"
       # Optional filters (combine as needed):
-      # assignee: "robodev-bot"
+      # assignee: "osmia-bot"
       # milestone: "1"              # Must be milestone number, not title
       # state: "open"               # "open" (default), "closed", or "all"
       # exclude_labels:             # Overrides default exclusion of in-progress/failed
       #   - "in-progress"
-      #   - "robodev-failed"
+      #   - "osmia-failed"
       #   - "wontfix"
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
   notifications:
     channels:
       - backend: slack
         config:
           channel_id: "<SLACK_CHANNEL_ID>"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
 
   secrets:
     backend: k8s

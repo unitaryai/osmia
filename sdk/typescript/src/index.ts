@@ -1,9 +1,9 @@
 /**
- * RoboDev TypeScript Plugin SDK — public API surface.
+ * Osmia TypeScript Plugin SDK — public API surface.
  *
- * Import from this module to build a RoboDev plugin:
+ * Import from this module to build a Osmia plugin:
  * ```typescript
- * import { PluginBase, SDK_VERSION } from "@unitaryai/robodev-plugin-sdk";
+ * import { PluginBase, SDK_VERSION } from "@unitaryai/osmia-plugin-sdk";
  * ```
  *
  * @module index

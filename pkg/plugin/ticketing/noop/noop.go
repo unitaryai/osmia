@@ -8,8 +8,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // Backend is a no-op implementation of the ticketing.Backend interface.

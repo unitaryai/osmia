@@ -2,7 +2,7 @@
 
 ## Overview
 
-RoboDev orchestrates autonomous AI coding agents — software that can read, write,
+Osmia orchestrates autonomous AI coding agents — software that can read, write,
 and execute code against production repositories with minimal human supervision.
 This makes security not merely a feature but a foundational design constraint.
 
@@ -34,7 +34,7 @@ agents against live codebases.
 
 ## Defence in Depth — The Six Guard Rail Layers
 
-RoboDev enforces safety through six independent layers. Layers 1, 2, 5, and 6
+Osmia enforces safety through six independent layers. Layers 1, 2, 5, and 6
 are enforced by the controller at runtime. Layers 3 and 4 are advisory or
 partially implemented — see the notes under each layer.
 
@@ -141,7 +141,7 @@ securityContext:
 Key properties:
 
 - **runAsNonRoot / runAsUser: 10000** — containers never run as root. The agent
-  user (`robodev`, UID 10000) has no elevated privileges.
+  user (`osmia`, UID 10000) has no elevated privileges.
 - **readOnlyRootFilesystem** — prevents the agent from modifying the container
   filesystem outside of explicitly mounted writable volumes.
 - **Drop ALL capabilities** — removes every Linux capability, including
@@ -157,18 +157,18 @@ Key properties:
 
 ## Network Isolation
 
-Agent pods should have tightly restricted network access. RoboDev recommends a
+Agent pods should have tightly restricted network access. Osmia recommends a
 **deny-all-by-default** NetworkPolicy with explicit egress allow-lists:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: robodev-agent-netpol
+  name: osmia-agent-netpol
 spec:
   podSelector:
     matchLabels:
-      app: robodev-agent
+      app: osmia-agent
   policyTypes:
     - Ingress
     - Egress
@@ -292,7 +292,7 @@ The controller (`docker/controller/Dockerfile`) uses a **multi-stage build**:
 The Claude Code engine image (`docker/engine-claude-code/Dockerfile`) uses
 `node:22-slim` as a base (required for the Claude Code CLI), installs only
 essential tools (`git`, `jq`, `gh`), and creates a dedicated non-root user
-(`robodev`, UID 10000).
+(`osmia`, UID 10000).
 
 ### Image Signing and Provenance
 
@@ -338,7 +338,7 @@ leakage and resource contention.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: robodev-tenant-quota
+  name: osmia-tenant-quota
   namespace: tenant-a
 spec:
   hard:
@@ -363,7 +363,7 @@ spec:
   template:
     spec:
       taints:
-        - key: robodev.io/agent
+        - key: osmia.io/agent
           effect: NoSchedule
       requirements:
         - key: kubernetes.io/arch
@@ -371,14 +371,14 @@ spec:
           values: ["amd64"]
 ```
 
-The JobBuilder automatically adds a toleration for `robodev.io/agent`, so agent
+The JobBuilder automatically adds a toleration for `osmia.io/agent`, so agent
 pods will schedule onto dedicated nodes when available.
 
 ---
 
 ## RBAC
 
-The controller's service account (`charts/robodev/templates/rbac.yaml`) follows
+The controller's service account (`charts/osmia/templates/rbac.yaml`) follows
 the **principle of least privilege**:
 
 | API Group | Resources | Verbs | Rationale |
@@ -403,7 +403,7 @@ Key constraints:
 
 ## Audit Logging
 
-RoboDev uses Go's standard `slog` package with structured JSON output for all
+Osmia uses Go's standard `slog` package with structured JSON output for all
 controller logs. Every significant action is logged with contextual fields:
 
 ```json
@@ -413,7 +413,7 @@ controller logs. Every significant action is logged with contextual fields:
   "msg": "job created",
   "ticket_id": "TICKET-1234",
   "engine": "claude-code",
-  "job": "robodev-tr-TICKET-1234-1740564930000",
+  "job": "osmia-tr-TICKET-1234-1740564930000",
   "task_run_id": "tr-TICKET-1234-1740564930000"
 }
 ```
@@ -441,7 +441,7 @@ Logged events include:
 
 ## Vulnerability Disclosure
 
-If you discover a security vulnerability in RoboDev, please report it
+If you discover a security vulnerability in Osmia, please report it
 responsibly. See the [Security Policy](security-policy.md) for our disclosure process.
 
 Do not open public issues for security vulnerabilities.

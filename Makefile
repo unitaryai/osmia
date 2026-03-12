@@ -12,19 +12,19 @@
        docs-serve docs-build \
        fake-agent-image fake-agent-load
 
-BINARY := bin/robodev
+BINARY := bin/osmia
 GO := go
 GOFLAGS := -v
 REGISTRY ?= ghcr.io/unitaryai
-CONTROLLER_IMAGE ?= $(REGISTRY)/robodev/controller
+CONTROLLER_IMAGE ?= $(REGISTRY)/osmia/controller
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # Local development settings
-KIND_CLUSTER_NAME ?= robodev
+KIND_CLUSTER_NAME ?= osmia
 FAKE_AGENT_IMAGE  ?= fake-agent:e2e
 KIND_CONFIG       ?= hack/kind-config.yaml
-HELM_RELEASE      ?= robodev
-HELM_NAMESPACE    ?= robodev
+HELM_RELEASE      ?= osmia
+HELM_NAMESPACE    ?= osmia
 DEV_TAG           ?= dev
 VALUES_LIVE       ?= hack/values-live.yaml
 
@@ -32,7 +32,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build the controller binary
-	$(GO) build $(GOFLAGS) -o $(BINARY) ./cmd/robodev/
+	$(GO) build $(GOFLAGS) -o $(BINARY) ./cmd/osmia/
 
 test: ## Run all unit tests
 	$(GO) test $(GOFLAGS) ./...
@@ -108,7 +108,7 @@ docker-build-dev: docker-build-dev-controller docker-build-dev-engine-claude-cod
 # ---------------------------------------------------------------------------
 
 helm-lint: ## Lint the Helm chart
-	helm lint charts/robodev/
+	helm lint charts/osmia/
 
 # ---------------------------------------------------------------------------
 # Local development (kind)
@@ -144,9 +144,9 @@ kind-load: ## Load dev images into the kind cluster
 	fi
 
 deploy: ## Deploy to kind cluster via Helm
-	helm upgrade --install $(HELM_RELEASE) charts/robodev/ \
+	helm upgrade --install $(HELM_RELEASE) charts/osmia/ \
 		--namespace $(HELM_NAMESPACE) \
-		-f charts/robodev/values.yaml \
+		-f charts/osmia/values.yaml \
 		-f hack/values-dev.yaml \
 		--set-string image.repository=$(CONTROLLER_IMAGE) \
 		--set-string image.tag=$(DEV_TAG) \
@@ -157,7 +157,7 @@ undeploy: ## Remove the Helm release
 
 local-up: build docker-build-dev-controller kind-create kind-load deploy ## Full local setup: build, create cluster, deploy
 	@echo ""
-	@echo "RoboDev is running. Useful commands:"
+	@echo "Osmia is running. Useful commands:"
 	@echo "  make logs            — stream controller logs"
 	@echo "  make e2e-test        — run end-to-end tests"
 	@echo "  make local-redeploy  — rebuild and redeploy (reuses cluster)"
@@ -168,9 +168,9 @@ local-down: undeploy kind-delete ## Tear down: uninstall release and delete clus
 local-redeploy: build docker-build-dev-controller kind-load deploy ## Fast rebuild and redeploy (reuses existing cluster)
 
 deploy-test: ## Deploy to kind cluster with test values overlay
-	helm upgrade --install $(HELM_RELEASE) charts/robodev/ \
+	helm upgrade --install $(HELM_RELEASE) charts/osmia/ \
 		--namespace $(HELM_NAMESPACE) \
-		-f charts/robodev/values.yaml \
+		-f charts/osmia/values.yaml \
 		-f hack/values-dev.yaml \
 		-f hack/values-test.yaml \
 		--set-string image.repository=$(CONTROLLER_IMAGE) \
@@ -193,9 +193,9 @@ e2e-workflow-test-verbose: ## Run E2E workflow pipeline tests with verbose loggi
 	FAKE_AGENT_IMAGE=$(FAKE_AGENT_IMAGE) \
 	$(GO) test -tags=e2e -count=1 -v -timeout=600s ./tests/e2e/ -run TestWorkflow
 
-e2e-live-test: ## Run live E2E tests against the running controller (requires kind-robodev + live secrets)
+e2e-live-test: ## Run live E2E tests against the running controller (requires kind-osmia + live secrets)
 	@kubectl config use-context kind-$(KIND_CLUSTER_NAME) >/dev/null 2>&1 || true
-	ROBODEV_LIVE_NAMESPACE=robodev \
+	OSMIA_LIVE_NAMESPACE=osmia \
 	$(GO) test -tags=live -count=1 -v -timeout=1200s ./tests/e2e/ -run TestLive
 
 e2e-test: ## Run end-to-end tests against the kind cluster
@@ -211,7 +211,7 @@ test-report: ## Full orchestrated test run with markdown report
 test-all: test integration-test ## Run unit + integration tests (no cluster needed)
 
 logs: ## Stream controller logs
-	kubectl logs -f -n $(HELM_NAMESPACE) -l app.kubernetes.io/name=robodev
+	kubectl logs -f -n $(HELM_NAMESPACE) -l app.kubernetes.io/name=osmia
 
 # ---------------------------------------------------------------------------
 # Live end-to-end testing (kind + real backends)
@@ -221,9 +221,9 @@ setup-secrets: ## Provision K8s secrets for live testing (interactive)
 	@bash hack/setup-secrets.sh
 
 live-deploy: ## Deploy to kind cluster with live values overlay
-	helm upgrade --install $(HELM_RELEASE) charts/robodev/ \
+	helm upgrade --install $(HELM_RELEASE) charts/osmia/ \
 		--namespace $(HELM_NAMESPACE) \
-		-f charts/robodev/values.yaml \
+		-f charts/osmia/values.yaml \
 		-f $(VALUES_LIVE) \
 		--set-string image.repository=$(CONTROLLER_IMAGE) \
 		--set-string image.tag=$(DEV_TAG) \
@@ -231,7 +231,7 @@ live-deploy: ## Deploy to kind cluster with live values overlay
 
 live-up: build docker-build-dev-controller docker-build-dev-engine-claude-code kind-create kind-load setup-secrets live-deploy ## Full live setup: build, cluster, secrets, deploy with real backends
 	@echo ""
-	@echo "RoboDev is running with live backends. Useful commands:"
+	@echo "Osmia is running with live backends. Useful commands:"
 	@echo "  make logs            — stream controller logs"
 	@echo "  make live-redeploy   — rebuild and redeploy (reuses cluster + secrets)"
 	@echo "  make local-down      — tear everything down"

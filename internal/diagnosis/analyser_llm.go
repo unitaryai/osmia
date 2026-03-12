@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/llm"
+	"github.com/unitaryai/osmia/internal/llm"
 )
 
 // classifyFailureSignature defines the LLM signature for failure classification.

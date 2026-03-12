@@ -8,11 +8,11 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in RoboDev, please report it responsibly.
+If you discover a security vulnerability in Osmia, please report it responsibly.
 
 **Do not open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email: **security@robodev.dev** (placeholder)
+Instead, please email: **security@osmia.dev** (placeholder)
 
 ### What to Include
 
@@ -29,4 +29,4 @@ Instead, please email: **security@robodev.dev** (placeholder)
 
 ## Security Design
 
-RoboDev follows a defence-in-depth approach. See [docs/security.md](docs/security.md) for the full security model and threat analysis.
+Osmia follows a defence-in-depth approach. See [docs/security.md](docs/security.md) for the full security model and threat analysis.

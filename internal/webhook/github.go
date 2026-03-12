@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // ghWebhookPayload is the subset of a GitHub webhook delivery we parse.

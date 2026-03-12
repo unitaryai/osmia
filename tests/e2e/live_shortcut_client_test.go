@@ -81,7 +81,7 @@ type liveMemberProfile struct {
 // -----------------------------------------------------------------------------
 
 // newShortcutTestClient reads the Shortcut API token from the
-// robodev-shortcut-token K8s Secret in the live namespace and returns a
+// osmia-shortcut-token K8s Secret in the live namespace and returns a
 // configured test client. The live controller must be deployed and its
 // kubeconfig must be accessible from the test runner.
 func newShortcutTestClient(t *testing.T) *shortcutTestClient {
@@ -105,13 +105,13 @@ func newShortcutTestClient(t *testing.T) *shortcutTestClient {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	secret, err := k8s.CoreV1().Secrets(ns).Get(ctx, "robodev-shortcut-token", metav1.GetOptions{})
+	secret, err := k8s.CoreV1().Secrets(ns).Get(ctx, "osmia-shortcut-token", metav1.GetOptions{})
 	if err != nil {
-		t.Fatalf("failed to read robodev-shortcut-token secret from namespace %q: %v", ns, err)
+		t.Fatalf("failed to read osmia-shortcut-token secret from namespace %q: %v", ns, err)
 	}
 
 	token := string(secret.Data["token"])
-	require.NotEmpty(t, token, "robodev-shortcut-token secret must have a non-empty 'token' key")
+	require.NotEmpty(t, token, "osmia-shortcut-token secret must have a non-empty 'token' key")
 
 	return &shortcutTestClient{
 		token: token,
@@ -120,12 +120,12 @@ func newShortcutTestClient(t *testing.T) *shortcutTestClient {
 }
 
 // liveNamespace returns the namespace where the live controller is deployed.
-// Reads ROBODEV_LIVE_NAMESPACE; defaults to "robodev".
+// Reads OSMIA_LIVE_NAMESPACE; defaults to "osmia".
 func liveNamespace() string {
-	if ns := os.Getenv("ROBODEV_LIVE_NAMESPACE"); ns != "" {
+	if ns := os.Getenv("OSMIA_LIVE_NAMESPACE"); ns != "" {
 		return ns
 	}
-	return "robodev"
+	return "osmia"
 }
 
 // liveReadyStateName returns the Shortcut workflow state that triggers the
@@ -140,12 +140,12 @@ func liveReadyStateName() string {
 
 // liveOwnerMentionName returns the Shortcut mention name that stories must be
 // assigned to for the controller to pick them up. Reads
-// SHORTCUT_OWNER_MENTION; defaults to "robodev".
+// SHORTCUT_OWNER_MENTION; defaults to "osmia".
 func liveOwnerMentionName() string {
 	if v := os.Getenv("SHORTCUT_OWNER_MENTION"); v != "" {
 		return v
 	}
-	return "robodev"
+	return "osmia"
 }
 
 // liveTestRepoURL returns the GitLab repo URL that will be attached to test
@@ -156,7 +156,7 @@ func liveTestRepoURL() string {
 	if v := os.Getenv("SHORTCUT_TEST_REPO_URL"); v != "" {
 		return v
 	}
-	return "https://gitlab.com/unitaryai/internal/robodev_tests/customer1/customer1-common"
+	return "https://gitlab.com/unitaryai/internal/osmia_tests/customer1/customer1-common"
 }
 
 // -----------------------------------------------------------------------------
@@ -164,7 +164,7 @@ func liveTestRepoURL() string {
 // -----------------------------------------------------------------------------
 
 // createStory creates a test story in the configured "Ready for Development"
-// state, assigns it to the robodev Shortcut member so the controller will pick
+// state, assigns it to the osmia Shortcut member so the controller will pick
 // it up, and attaches repoURL as the external link the agent will clone.
 // Returns the story ID as a string (matching the format used by the ticketing
 // backend).
@@ -246,7 +246,7 @@ func (c *shortcutTestClient) storyComments(t *testing.T, id string) []string {
 // -----------------------------------------------------------------------------
 
 // waitForStoryDone polls until the story reaches a "done"-type workflow state.
-// It fails the test immediately if the story acquires a "robodev-failed" label
+// It fails the test immediately if the story acquires a "osmia-failed" label
 // before reaching done state.
 func (c *shortcutTestClient) waitForStoryDone(t *testing.T, id string, timeout time.Duration) {
 	t.Helper()
@@ -278,8 +278,8 @@ func (c *shortcutTestClient) waitForStoryDone(t *testing.T, id string, timeout t
 		}
 
 		for _, label := range story.Labels {
-			if label.Name == "robodev-failed" {
-				t.Fatalf("story #%s was labelled robodev-failed before reaching a done state", id)
+			if label.Name == "osmia-failed" {
+				t.Fatalf("story #%s was labelled osmia-failed before reaching a done state", id)
 			}
 		}
 
@@ -289,7 +289,7 @@ func (c *shortcutTestClient) waitForStoryDone(t *testing.T, id string, timeout t
 	t.Fatalf("timed out after %v waiting for story #%s to reach a done-type workflow state", timeout, id)
 }
 
-// waitForStoryFailed polls until the story is labelled "robodev-failed" by
+// waitForStoryFailed polls until the story is labelled "osmia-failed" by
 // the controller, indicating the task exhausted all retries.
 func (c *shortcutTestClient) waitForStoryFailed(t *testing.T, id string, timeout time.Duration) {
 	t.Helper()
@@ -298,16 +298,16 @@ func (c *shortcutTestClient) waitForStoryFailed(t *testing.T, id string, timeout
 	for time.Now().Before(deadline) {
 		story := c.getStory(t, id)
 		for _, label := range story.Labels {
-			if label.Name == "robodev-failed" {
-				t.Logf("story #%s confirmed robodev-failed", id)
+			if label.Name == "osmia-failed" {
+				t.Logf("story #%s confirmed osmia-failed", id)
 				return
 			}
 		}
-		t.Logf("story #%s: waiting for robodev-failed label (current labels: %v)", id, story.Labels)
+		t.Logf("story #%s: waiting for osmia-failed label (current labels: %v)", id, story.Labels)
 		time.Sleep(15 * time.Second)
 	}
 
-	t.Fatalf("timed out after %v waiting for story #%s to be labelled robodev-failed", timeout, id)
+	t.Fatalf("timed out after %v waiting for story #%s to be labelled osmia-failed", timeout, id)
 }
 
 // -----------------------------------------------------------------------------

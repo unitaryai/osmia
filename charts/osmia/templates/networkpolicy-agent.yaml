@@ -2,14 +2,14 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "robodev.fullname" . }}-agent
+  name: {{ include "osmia.fullname" . }}-agent
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/component: agent
-      app.kubernetes.io/managed-by: robodev
+      app.kubernetes.io/managed-by: osmia
   policyTypes:
     - Ingress
     - Egress

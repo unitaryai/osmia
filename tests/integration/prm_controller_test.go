@@ -18,12 +18,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func prmControllerLogger() *slog.Logger {
@@ -54,7 +54,7 @@ func TestPRMControllerWiring(t *testing.T) {
 		WindowSize:             10,
 		ScoreThresholdNudge:    7,
 		ScoreThresholdEscalate: 3,
-		HintFilePath:           "/workspace/.robodev-hint.md",
+		HintFilePath:           "/workspace/.osmia-hint.md",
 		MaxTrajectoryLength:    50,
 	}
 

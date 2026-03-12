@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // State represents the current state of a TaskRun.
@@ -87,7 +87,7 @@ type TaskRun struct {
 	ApprovalGateType string `json:"approval_gate_type,omitempty"`
 
 	// Review follow-up fields — populated for TaskRuns created in response
-	// to review comments on a PR/MR opened by a previous RoboDev task.
+	// to review comments on a PR/MR opened by a previous Osmia task.
 
 	// ParentTicketID is the original ticket ID. When set, handleJobComplete
 	// posts a comment on this ticket rather than calling MarkComplete.

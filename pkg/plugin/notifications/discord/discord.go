@@ -11,9 +11,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -93,7 +93,7 @@ func (d *DiscordChannel) Notify(ctx context.Context, message string, ticket tick
 // NotifyStart sends a notification that an agent has begun working on a ticket.
 func (d *DiscordChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
 	embed := discordEmbed{
-		Title:       "RoboDev Agent Started",
+		Title:       "Osmia Agent Started",
 		Description: ticket.Title,
 		Colour:      colourBlue,
 	}

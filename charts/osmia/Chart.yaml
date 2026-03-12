@@ -1,14 +1,14 @@
 apiVersion: v2
-name: robodev
+name: osmia
 description: A Kubernetes-native AI coding agent harness
 type: application
 version: 0.2.0
 appVersion: "0.2.0"
-home: https://github.com/unitaryai/robodev
+home: https://github.com/unitaryai/osmia
 sources:
-  - https://github.com/unitaryai/robodev
+  - https://github.com/unitaryai/osmia
 maintainers:
-  - name: RoboDev Authors
+  - name: Osmia Authors
 keywords:
   - ai
   - coding-agent

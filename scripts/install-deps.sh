@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-deps.sh — Install development dependencies for RoboDev
+# install-deps.sh — Install development dependencies for Osmia
 # Run with: sudo ./scripts/install-deps.sh (needs sudo for apt/system installs)
 set -euo pipefail
 
@@ -16,7 +16,7 @@ SYFT_VERSION="v1.20.0"
 ARCH=$(dpkg --print-architecture 2>/dev/null || echo "amd64")
 OS="linux"
 
-echo "=== RoboDev dependency installer ==="
+echo "=== Osmia dependency installer ==="
 echo "Architecture: ${ARCH}"
 echo ""
 

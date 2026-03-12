@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/aider"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/engine/cline"
-	"github.com/unitaryai/robodev/pkg/engine/codex"
-	"github.com/unitaryai/robodev/pkg/engine/opencode"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/aider"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/engine/cline"
+	"github.com/unitaryai/osmia/pkg/engine/codex"
+	"github.com/unitaryai/osmia/pkg/engine/opencode"
 )
 
 // standardTask is the canonical task used across all engine spec tests.

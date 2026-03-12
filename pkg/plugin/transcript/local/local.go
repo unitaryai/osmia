@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/pkg/plugin/transcript"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/pkg/plugin/transcript"
 )
 
 // Compile-time check that LocalSink implements transcript.TranscriptSink.

@@ -18,12 +18,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // approvalTestConfig returns a config with the specified approval gates enabled.

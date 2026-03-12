@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // compile-time check that CodexEngine implements ExecutionEngine.
@@ -83,9 +83,9 @@ func TestBuildExecutionSpec(t *testing.T) {
 				TimeoutSeconds: 3600,
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.Equal(t, "task-1", spec.Env["ROBODEV_TASK_ID"])
-				assert.Equal(t, "TICKET-42", spec.Env["ROBODEV_TICKET_ID"])
-				assert.Equal(t, "https://github.com/org/repo", spec.Env["ROBODEV_REPO_URL"])
+				assert.Equal(t, "task-1", spec.Env["OSMIA_TASK_ID"])
+				assert.Equal(t, "TICKET-42", spec.Env["OSMIA_TICKET_ID"])
+				assert.Equal(t, "https://github.com/org/repo", spec.Env["OSMIA_REPO_URL"])
 			},
 		},
 		{
@@ -100,7 +100,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				assert.Equal(t, "custom_value", spec.Env["CUSTOM_VAR"])
 				// Core env vars should still be present.
-				assert.Equal(t, "task-1", spec.Env["ROBODEV_TASK_ID"])
+				assert.Equal(t, "task-1", spec.Env["OSMIA_TASK_ID"])
 			},
 		},
 		{

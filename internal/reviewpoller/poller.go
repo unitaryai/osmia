@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/scmrouter"
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/scmrouter"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
-// Poller monitors open pull/merge requests created by RoboDev and emits
+// Poller monitors open pull/merge requests created by Osmia and emits
 // FollowUpRequests when actionable review comments are found.
 type Poller struct {
 	scmBackend scm.Backend       // non-nil when using a single backend
@@ -225,7 +225,7 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 		// Optionally reply to the comment to acknowledge it.
 		if p.cfg.ReplyToComments {
 			if replyErr := backend.ReplyToComment(ctx, prURL, comment.ID,
-				"👋 RoboDev is addressing this feedback."); replyErr != nil {
+				"👋 Osmia is addressing this feedback."); replyErr != nil {
 				p.logger.Warn("failed to reply to comment",
 					"pr_url", prURL,
 					"comment_id", comment.ID,

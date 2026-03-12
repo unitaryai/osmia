@@ -1,10 +1,10 @@
-# Karpenter NodePool for RoboDev agent workloads.
+# Karpenter NodePool for Osmia agent workloads.
 # This provisions dedicated compute nodes for AI coding agent jobs,
 # using spot instances for cost efficiency and taints for isolation.
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: robodev
+  name: osmia
 spec:
   disruption:
     consolidateAfter: 2m
@@ -28,21 +28,21 @@ spec:
             - m6i.xlarge     # 4 vCPU, 16 GiB (if memory needed)
       taints:
         - effect: NoSchedule
-          key: robodev.io/agent
+          key: osmia.io/agent
           value: "true"
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: robodev
+        name: osmia
   limits:
-    cpu: "64"            # Maximum 64 vCPU across all RoboDev nodes
+    cpu: "64"            # Maximum 64 vCPU across all Osmia nodes
     memory: "128Gi"
 ---
-# EC2NodeClass for RoboDev nodes (AWS-specific).
+# EC2NodeClass for Osmia nodes (AWS-specific).
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: robodev
+  name: osmia
 spec:
   amiSelectorTerms:
     - alias: "al2023@latest"
@@ -54,7 +54,7 @@ spec:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
   tags:
-    robodev.io/managed: "true"
+    osmia.io/managed: "true"
   blockDeviceMappings:
     - deviceName: /dev/xvda
       ebs:

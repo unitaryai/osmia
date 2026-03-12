@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/tournament"
+	"github.com/unitaryai/osmia/internal/tournament"
 )
 
 func tournamentTestLogger() *slog.Logger {

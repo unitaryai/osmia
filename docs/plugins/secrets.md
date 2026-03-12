@@ -145,7 +145,7 @@ config:
       - scheme: "k8s"
         backend: "k8s"
         config:
-          namespace: "robodev"    # Optional — defaults to the controller's namespace.
+          namespace: "osmia"    # Optional — defaults to the controller's namespace.
 ```
 
 No additional configuration is required. The backend uses the controller's service account credentials to read Secrets.
@@ -154,7 +154,7 @@ No additional configuration is required. The backend uses the controller's servi
 
 Secret keys use the format `secretName/key`:
 
-- `robodev-anthropic-key/api_key` reads the `api_key` data key from the `robodev-anthropic-key` Secret.
+- `osmia-anthropic-key/api_key` reads the `api_key` data key from the `osmia-anthropic-key` Secret.
 - `github-token/token` reads the `token` data key from the `github-token` Secret.
 
 ### Behaviour
@@ -173,8 +173,8 @@ The controller's service account needs read access to Secrets in its namespace:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: robodev-secrets-reader
-  namespace: robodev
+  name: osmia-secrets-reader
+  namespace: osmia
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -197,7 +197,7 @@ config:
         backend: "vault"
         config:
           address: "https://vault.internal:8200"
-          role: "robodev"
+          role: "osmia"
           auth_method: "kubernetes"    # Currently the only supported method.
           secrets_path: "secret"       # KV v2 mount path.
 ```
@@ -227,11 +227,11 @@ The backend uses the **AWS SDK default credential chain**, which automatically s
 No custom authentication code is needed, but IRSA requires prior EKS/IAM setup:
 
 1. Create an IAM role with `secretsmanager:GetSecretValue` permission (see Required IAM Permissions below).
-2. Annotate the RoboDev controller's ServiceAccount with the role ARN:
+2. Annotate the Osmia controller's ServiceAccount with the role ARN:
    ```yaml
    metadata:
      annotations:
-       eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/robodev-secrets
+       eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/osmia-secrets
    ```
 3. For cross-account access, ensure the source role has `sts:AssumeRole` permission and configure `assume_role_arn` in the backend config. The target account's role must have a trust policy allowing the source role to assume it.
 
@@ -245,7 +245,7 @@ config:
         backend: "aws-secrets-manager"
         config:
           region: "eu-west-1"
-          assume_role_arn: "arn:aws:iam::123456789:role/robodev-secrets"  # Optional
+          assume_role_arn: "arn:aws:iam::123456789:role/osmia-secrets"  # Optional
           cache_ttl: "5m"                                                 # Optional (default: 5m)
 ```
 
@@ -287,7 +287,7 @@ aws-sm://arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host
     {
       "Effect": "Allow",
       "Action": ["secretsmanager:GetSecretValue"],
-      "Resource": "arn:aws:secretsmanager:eu-west-1:123456789:secret:robodev/*"
+      "Resource": "arn:aws:secretsmanager:eu-west-1:123456789:secret:osmia/*"
     }
   ]
 }
@@ -297,7 +297,7 @@ For cross-account access, the target account's role must have this policy and a 
 
 ## Using AWS Secrets Manager via External Secrets Operator
 
-The fastest path to AWS Secrets Manager integration is the [External Secrets Operator](https://external-secrets.io/) (ESO). ESO syncs secrets from AWS Secrets Manager into Kubernetes Secrets, which the built-in K8s backend already reads. No RoboDev code changes needed.
+The fastest path to AWS Secrets Manager integration is the [External Secrets Operator](https://external-secrets.io/) (ESO). ESO syncs secrets from AWS Secrets Manager into Kubernetes Secrets, which the built-in K8s backend already reads. No Osmia code changes needed.
 
 ### Setup
 
@@ -334,23 +334,23 @@ spec:
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
-  name: robodev-anthropic-key
-  namespace: robodev
+  name: osmia-anthropic-key
+  namespace: osmia
 spec:
   refreshInterval: 1h
   secretStoreRef:
     name: aws-secrets-manager
     kind: ClusterSecretStore
   target:
-    name: robodev-anthropic-key
+    name: osmia-anthropic-key
   data:
     - secretKey: api_key
       remoteRef:
-        key: robodev/anthropic-api-key
+        key: osmia/anthropic-api-key
         property: api_key
 ```
 
-4. RoboDev's K8s secrets backend reads the synced Secret as normal:
+4. Osmia's K8s secrets backend reads the synced Secret as normal:
 
 ```yaml
 config:
@@ -359,10 +359,10 @@ config:
       - scheme: "k8s"
         backend: "k8s"
         config:
-          namespace: "robodev"
+          namespace: "osmia"
 ```
 
-This approach works today with no changes to RoboDev.
+This approach works today with no changes to Osmia.
 
 ## Other Backends
 
@@ -379,7 +379,7 @@ See [Writing a Plugin](writing-a-plugin.md) for a TypeScript example implementin
 
 ## Security Considerations
 
-Secrets handling is the most security-sensitive area of RoboDev. Follow these principles:
+Secrets handling is the most security-sensitive area of Osmia. Follow these principles:
 
 ### Never Log Secret Values
 

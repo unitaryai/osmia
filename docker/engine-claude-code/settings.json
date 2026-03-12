@@ -8,12 +8,12 @@
       "Read(*)",
       "WebFetch(*)",
       "Write(*)",
-      "mcp__robodev-slack__ask_human",
-      "mcp__robodev-slack__notify_human",
-      "mcp__robodev-slack__notify_start",
-      "mcp__robodev-slack__wait_for_pipeline",
-      "mcp__robodev-slack__wait_for_coderabbit_review",
-      "mcp__robodev-slack__get_coderabbit_comments"
+      "mcp__osmia-slack__ask_human",
+      "mcp__osmia-slack__notify_human",
+      "mcp__osmia-slack__notify_start",
+      "mcp__osmia-slack__wait_for_pipeline",
+      "mcp__osmia-slack__wait_for_coderabbit_review",
+      "mcp__osmia-slack__get_coderabbit_comments"
     ],
     "deny": []
   }

@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "robodev.fullname" . }}
+  name: {{ include "osmia.fullname" . }}
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "robodev.selectorLabels" . | nindent 6 }}
+      {{- include "osmia.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
-        {{- include "robodev.selectorLabels" . | nindent 8 }}
+        {{- include "osmia.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "robodev.serviceAccountName" . }}
+      serviceAccountName: {{ include "osmia.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       {{- if .Values.plugins }}
@@ -28,7 +28,7 @@ spec:
         {{- range .Values.plugins }}
         - name: plugin-{{ .name }}
           image: {{ .image }}
-          command: ["cp", {{ .binaryPath | quote }}, "/plugins/robodev-plugin-{{ .name }}"]
+          command: ["cp", {{ .binaryPath | quote }}, "/plugins/osmia-plugin-{{ .name }}"]
           volumeMounts:
             - name: plugins
               mountPath: /plugins
@@ -39,7 +39,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - --config=/etc/robodev/config.yaml
+            - --config=/etc/osmia/config.yaml
             - --metrics-addr=:{{ .Values.metrics.port }}
             {{- if .Values.leaderElection.enabled }}
             - --leader-elect=true
@@ -71,11 +71,11 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: /etc/robodev
+              mountPath: /etc/osmia
               readOnly: true
             {{- if .Values.plugins }}
             - name: plugins
-              mountPath: /opt/robodev/plugins
+              mountPath: /opt/osmia/plugins
               readOnly: true
             {{- end }}
             {{- if .Values.persistence.enabled }}
@@ -85,7 +85,7 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ include "robodev.fullname" . }}-config
+            name: {{ include "osmia.fullname" . }}-config
         {{- if .Values.plugins }}
         - name: plugins
           emptyDir: {}
@@ -93,7 +93,7 @@ spec:
         {{- if .Values.persistence.enabled }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "robodev.fullname" . }}-data
+            claimName: {{ include "osmia.fullname" . }}-data
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

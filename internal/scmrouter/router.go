@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
 // Entry pairs a host-pattern with an SCM backend.

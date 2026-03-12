@@ -1,6 +1,6 @@
 # How a TaskRun Works
 
-A **TaskRun** represents a single attempt to complete a task. When RoboDev picks up a labelled issue, it creates a TaskRun that tracks the work from start to finish — including retries, timeouts, and human intervention.
+A **TaskRun** represents a single attempt to complete a task. When Osmia picks up a labelled issue, it creates a TaskRun that tracks the work from start to finish — including retries, timeouts, and human intervention.
 
 ## State Machine
 
@@ -103,7 +103,7 @@ Retry is useful for transient failures (API timeouts, rate limits). Persistent f
 
 > **Status:** Scaffolding complete, integration pending. See `docs/roadmap.md` Phase I.
 
-RoboDev is building a causal diagnosis system (`internal/diagnosis/`) that replaces blind retries with informed corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:
+Osmia is building a causal diagnosis system (`internal/diagnosis/`) that replaces blind retries with informed corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:
 
 | Failure Mode | Example | Corrective Action |
 |---|---|---|

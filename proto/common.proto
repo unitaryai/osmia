@@ -1,16 +1,16 @@
-// Copyright 2026 The RoboDev Authors.
+// Copyright 2026 The Osmia Authors.
 // SPDX-License-Identifier: Apache-2.0
 
-// Package common defines shared messages used across all RoboDev plugin
+// Package common defines shared messages used across all Osmia plugin
 // interfaces. This includes the version handshake messages (used by every
 // plugin service) and core domain types (Ticket, TaskResult) that are
 // referenced by multiple plugin interfaces.
 
 syntax = "proto3";
 
-package robodev.v1;
+package osmia.v1;
 
-option go_package = "github.com/unitaryai/robodev/proto/v1;v1";
+option go_package = "github.com/unitaryai/osmia/proto/v1;v1";
 
 import "google/protobuf/struct.proto";
 

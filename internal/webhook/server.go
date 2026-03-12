@@ -76,7 +76,7 @@ func WithShortcutTargetStateID(id int64) Option {
 }
 
 // WithApprovalHandler sets the handler for approval/rejection callbacks.
-// When set, approval actions from Slack (robodev_approval_*) are routed to
+// When set, approval actions from Slack (osmia_approval_*) are routed to
 // this handler instead of being logged and discarded.
 func WithApprovalHandler(h ApprovalHandler) Option {
 	return func(s *Server) {

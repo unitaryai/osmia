@@ -1,12 +1,12 @@
 # Architecture
 
-This document describes the architecture of RoboDev, a Kubernetes-native controller that orchestrates autonomous AI coding agents to perform development tasks at scale.
+This document describes the architecture of Osmia, a Kubernetes-native controller that orchestrates autonomous AI coding agents to perform development tasks at scale.
 
 For the full technical plan, see `oss-plan.md`. For product requirements, see `oss-prd.md`.
 
 ## Overview
 
-RoboDev follows the Kubernetes **operator pattern**. A single controller binary runs inside the cluster and drives a reconciliation loop: it polls a ticketing backend for work, translates each ticket into a Kubernetes Job that runs an AI coding agent, monitors the job through to completion, and feeds the result back to the source control and ticketing systems.
+Osmia follows the Kubernetes **operator pattern**. A single controller binary runs inside the cluster and drives a reconciliation loop: it polls a ticketing backend for work, translates each ticket into a Kubernetes Job that runs an AI coding agent, monitors the job through to completion, and feeds the result back to the source control and ticketing systems.
 
 The controller does not itself perform any code generation. It is purely an orchestration layer. The actual coding work happens inside short-lived Kubernetes Jobs, each running one of the supported AI engines (Claude Code, OpenAI Codex, or Aider). This separation means the controller can manage many concurrent agents across multiple repositories and organisations without coupling to any single AI provider.
 
@@ -18,7 +18,7 @@ All external integrations -- ticketing, notifications, approvals, secrets, SCM, 
 graph TD
     TB["Ticketing Backend<br/>(GitHub Issues / GitLab / Jira)"] -->|poll tickets| Ctrl
 
-    subgraph Ctrl["RoboDev Controller"]
+    subgraph Ctrl["Osmia Controller"]
         RL["Reconciliation Loop"]
         GR["Guard Rails"]
         TSM["TaskRun State Machine"]
@@ -156,7 +156,7 @@ The `JobBuilder` (`internal/jobbuilder/`) then translates this spec into a Kuber
 | **Codex** | OpenAI's coding agent. Configured via API key or credentials file. |
 | **Aider** | Open-source AI pair programming tool. Supports multiple LLM backends. |
 
-The default engine is `claude-code`, configurable via `robodev-config.yaml`.
+The default engine is `claude-code`, configurable via `osmia-config.yaml`.
 
 ### TaskResult
 
@@ -176,7 +176,7 @@ type TaskResult struct {
 
 ## Plugin System
 
-RoboDev's plugin system, implemented in `pkg/plugin/`, provides two integration mechanisms:
+Osmia's plugin system, implemented in `pkg/plugin/`, provides two integration mechanisms:
 
 ### Built-in Plugins
 
@@ -187,14 +187,14 @@ Built-in plugins are compiled directly into the controller binary. They implemen
 Third-party plugins run as separate processes and communicate with the controller over gRPC using `hashicorp/go-plugin`. The plugin host (`pkg/plugin/host.go`) manages their lifecycle:
 
 1. **Spawning** -- the host starts the plugin binary as a subprocess using `exec.Command`.
-2. **Handshake** -- a magic cookie (`ROBODEV_PLUGIN=robodev`) and protocol version are exchanged to verify compatibility.
+2. **Handshake** -- a magic cookie (`OSMIA_PLUGIN=osmia`) and protocol version are exchanged to verify compatibility.
 3. **Health monitoring** -- the host tracks each plugin's health state and restart count.
 4. **Automatic restart** -- if a plugin dies, the host restarts it with exponential backoff (default: 1s, 5s, 30s), up to a configurable maximum restart count (default: 3).
 5. **Graceful shutdown** -- on controller termination, all plugin subprocesses are killed.
 
 ### Plugin Interfaces
 
-RoboDev defines six plugin interfaces. Every interface includes a `Handshake` RPC with an `interface_version` field for forward-compatible version negotiation.
+Osmia defines six plugin interfaces. Every interface includes a `Handshake` RPC with an `interface_version` field for forward-compatible version negotiation.
 
 | Interface | Type Constant | Purpose |
 |---|---|---|
@@ -209,7 +209,7 @@ All interfaces are defined as protobuf services in `proto/` (the source of truth
 
 ## Guard Rails
 
-RoboDev enforces safety through six complementary layers. For full details, see the [Guard Rails documentation](guardrails.md).
+Osmia enforces safety through six complementary layers. For full details, see the [Guard Rails documentation](guardrails.md).
 
 1. **Controller validation** -- the reconciler validates each ticket against configurable rules before creating a Job. This includes allowed repository patterns (glob matching), allowed task types, and blocked file patterns. Violations are rejected immediately and the ticket is marked as failed.
 
@@ -266,9 +266,9 @@ The steps in detail:
 2. **Validate** -- the controller checks guard rails (allowed repos, task types, file patterns).
 3. **Build spec** -- the selected engine produces an `ExecutionSpec` containing the container image, command, environment variables, secret references, resource limits, and deadline.
 4. **Create job** -- the `JobBuilder` translates the spec into a `batch/v1.Job` with:
-   - Labels: `app=robodev-agent`, `robodev.io/task-run-id`, `robodev.io/engine`
+   - Labels: `app=osmia-agent`, `osmia.io/task-run-id`, `osmia.io/engine`
    - Security context: `runAsNonRoot`, `runAsUser: 1000`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, all capabilities dropped, `RuntimeDefault` seccomp profile
-   - Tolerations for the `robodev.io/agent` taint (to schedule on dedicated node pools)
+   - Tolerations for the `osmia.io/agent` taint (to schedule on dedicated node pools)
    - `BackoffLimit: 0` (retries are handled by the controller, not Kubernetes)
    - `RestartPolicy: Never`
 5. **Monitor heartbeats** -- the watchdog loop evaluates heartbeat telemetry from the running agent, checking for loops, thrashing, stalls, cost overruns, and telemetry failures.
@@ -314,7 +314,7 @@ Diagnostic `Reason` structs are populated from templates (never from raw agent o
 
 ## Intelligence Layer
 
-Seven subsystems extend RoboDev's intelligence beyond basic orchestration. **PRM and Memory are fully wired into the controller** — the remaining five have complete packages with unit tests and are tracked for integration in `docs/roadmap.md` under Phase I.
+Seven subsystems extend Osmia's intelligence beyond basic orchestration. **PRM and Memory are fully wired into the controller** — the remaining five have complete packages with unit tests and are tracked for integration in `docs/roadmap.md` under Phase I.
 
 ### Subsystem Architecture
 
@@ -443,7 +443,7 @@ For high-value tasks, launches N parallel K8s Jobs (different engines or strateg
 
 ## Security Architecture
 
-RoboDev is a security-first project. For the full threat model and mitigations, see the [Security Model](security.md).
+Osmia is a security-first project. For the full threat model and mitigations, see the [Security Model](security.md).
 
 ### Container Isolation
 
@@ -477,20 +477,20 @@ All external input -- ticket descriptions, plugin responses, webhook payloads --
 
 ### Workload Identity
 
-Where possible, RoboDev prefers workload identity patterns (AWS IRSA, GCP WIF) over static credentials. The engine configuration supports `bedrock` and `vertex` authentication methods that leverage pod-level identity bindings.
+Where possible, Osmia prefers workload identity patterns (AWS IRSA, GCP WIF) over static credentials. The engine configuration supports `bedrock` and `vertex` authentication methods that leverage pod-level identity bindings.
 
 ## Observability
 
 ### Prometheus Metrics
 
-The controller exposes the following metrics under the `robodev_` namespace:
+The controller exposes the following metrics under the `osmia_` namespace:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `robodev_taskruns_total` | Counter | `state` | Total number of TaskRuns by final state. |
-| `robodev_taskrun_duration_seconds` | Histogram | `engine` | Duration of TaskRuns. Buckets from 1 minute to ~4 hours (exponential, base 2, 8 buckets). |
-| `robodev_active_jobs` | Gauge | -- | Number of currently active Jobs. |
-| `robodev_plugin_errors_total` | Counter | `plugin` | Total number of plugin errors by plugin name. |
+| `osmia_taskruns_total` | Counter | `state` | Total number of TaskRuns by final state. |
+| `osmia_taskrun_duration_seconds` | Histogram | `engine` | Duration of TaskRuns. Buckets from 1 minute to ~4 hours (exponential, base 2, 8 buckets). |
+| `osmia_active_jobs` | Gauge | -- | Number of currently active Jobs. |
+| `osmia_plugin_errors_total` | Counter | `plugin` | Total number of plugin errors by plugin name. |
 
 Metrics are registered via `promauto` and are available at the standard `/metrics` endpoint.
 
@@ -511,7 +511,7 @@ The Helm chart includes provisioning for Grafana dashboards that visualise:
 
 ## Configuration
 
-All controller behaviour is driven by `robodev-config.yaml`, loaded at startup by the `internal/config/` package. The configuration covers:
+All controller behaviour is driven by `osmia-config.yaml`, loaded at startup by the `internal/config/` package. The configuration covers:
 
 - **Ticketing** -- backend selection and connection details
 - **Notifications** -- one or more notification channels

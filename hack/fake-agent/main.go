@@ -1,5 +1,5 @@
 // fake-agent is a minimal test double for AI coding agents used in E2E workflow
-// tests. It reads the ROBODEV_SCENARIO environment variable and emits a
+// tests. It reads the OSMIA_SCENARIO environment variable and emits a
 // pre-scripted sequence of NDJSON events to stdout, then exits with the
 // appropriate exit code.
 //
@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	scenario := os.Getenv("ROBODEV_SCENARIO")
+	scenario := os.Getenv("OSMIA_SCENARIO")
 	if scenario == "" {
 		scenario = "success"
 	}

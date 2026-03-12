@@ -17,7 +17,7 @@ func TestParseCommentBlock(t *testing.T) {
 		{
 			name: "single ref entry",
 			body: `Some ticket text.
-<!-- robodev:secrets
+<!-- osmia:secrets
   - ref: vault://secret/data/stripe/test-key#api_key
     env: STRIPE_API_KEY
 -->
@@ -28,7 +28,7 @@ More text.`,
 		},
 		{
 			name: "multiple ref entries",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - ref: vault://secret/data/stripe/test-key#api_key
     env: STRIPE_API_KEY
   - ref: k8s://my-secret/token
@@ -41,7 +41,7 @@ More text.`,
 		},
 		{
 			name: "alias entry",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - alias: stripe-test
 -->`,
 			want: []SecretRequest{
@@ -50,7 +50,7 @@ More text.`,
 		},
 		{
 			name: "mixed alias and ref entries",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - alias: stripe-test
   - ref: vault://secret/data/db#url
     env: DATABASE_URL
@@ -68,11 +68,11 @@ More text.`,
 		},
 		{
 			name: "multiple separate blocks",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - alias: stripe-test
 -->
 Some text between blocks.
-<!-- robodev:secrets
+<!-- osmia:secrets
   - ref: k8s://my-secret/key
     env: MY_KEY
 -->`,
@@ -83,28 +83,28 @@ Some text between blocks.
 		},
 		{
 			name: "malformed YAML",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   this is not valid yaml: [
 -->`,
 			wantErr: true,
 		},
 		{
 			name: "entry with neither alias nor ref",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - env: MISSING_REF
 -->`,
 			wantErr: true,
 		},
 		{
 			name: "ref without env",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
   - ref: vault://secret/data/db#url
 -->`,
 			wantErr: true,
 		},
 		{
 			name: "empty comment block",
-			body: `<!-- robodev:secrets
+			body: `<!-- osmia:secrets
 -->`,
 			want: nil,
 		},
@@ -132,7 +132,7 @@ func TestParseLabels(t *testing.T) {
 	}{
 		{
 			name:   "single secret label",
-			labels: []string{"robodev:secret:STRIPE_API_KEY=vault://secret/data/stripe#key"},
+			labels: []string{"osmia:secret:STRIPE_API_KEY=vault://secret/data/stripe#key"},
 			want: []SecretRequest{
 				{EnvName: "STRIPE_API_KEY", URI: "vault://secret/data/stripe#key"},
 			},
@@ -141,9 +141,9 @@ func TestParseLabels(t *testing.T) {
 			name: "multiple labels with non-secret labels mixed in",
 			labels: []string{
 				"bug",
-				"robodev:secret:DB_URL=k8s://my-secret/url",
+				"osmia:secret:DB_URL=k8s://my-secret/url",
 				"priority:high",
-				"robodev:secret:API_KEY=vault://secret/data/app#key",
+				"osmia:secret:API_KEY=vault://secret/data/app#key",
 			},
 			want: []SecretRequest{
 				{EnvName: "DB_URL", URI: "k8s://my-secret/url"},
@@ -152,7 +152,7 @@ func TestParseLabels(t *testing.T) {
 		},
 		{
 			name:   "no matching labels",
-			labels: []string{"bug", "enhancement", "robodev:task:abc"},
+			labels: []string{"bug", "enhancement", "osmia:task:abc"},
 			want:   nil,
 		},
 		{
@@ -162,7 +162,7 @@ func TestParseLabels(t *testing.T) {
 		},
 		{
 			name:   "alias URI in label",
-			labels: []string{"robodev:secret:STRIPE=alias://stripe-test"},
+			labels: []string{"osmia:secret:STRIPE=alias://stripe-test"},
 			want: []SecretRequest{
 				{EnvName: "STRIPE", URI: "alias://stripe-test"},
 			},

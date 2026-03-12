@@ -1,6 +1,6 @@
 // Package llm provides a DSPy-inspired abstraction for structured LLM
 // interactions. It defines typed signatures, composable modules, and a
-// budget-aware client that all RoboDev subsystems share.
+// budget-aware client that all Osmia subsystems share.
 package llm
 
 import "fmt"

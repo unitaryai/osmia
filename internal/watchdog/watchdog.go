@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
 // Action represents the action the watchdog recommends when an anomaly is detected.

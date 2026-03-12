@@ -1,13 +1,13 @@
 # Quick Start: Kubernetes
 
-This guide walks you through installing RoboDev on a Kubernetes cluster, configuring it with GitHub Issues and Claude Code, and creating your first automated task. By the end you will have a working deployment that picks up labelled GitHub issues, spins up an AI coding agent, and opens a pull request with the result.
+This guide walks you through installing Osmia on a Kubernetes cluster, configuring it with GitHub Issues and Claude Code, and creating your first automated task. By the end you will have a working deployment that picks up labelled GitHub issues, spins up an AI coding agent, and opens a pull request with the result.
 
 ## Prerequisites
 
 | Requirement | Minimum Version | Notes |
 |---|---|---|
 | Kubernetes cluster | 1.28+ | A local `kind` or `minikube` cluster works for evaluation |
-| Helm | 3.x | Used to deploy the RoboDev controller |
+| Helm | 3.x | Used to deploy the Osmia controller |
 | kubectl | Matching your cluster version | For inspecting pods, logs, and secrets |
 | GitHub repository | — | The repo the agent will work on |
 | GitHub personal access token | — | With `repo` and `issues` scopes |
@@ -20,25 +20,25 @@ Optional but recommended:
 
 ## 1. Create Kubernetes Secrets
 
-RoboDev reads credentials from Kubernetes Secrets. Create them in the namespace where you will install the chart:
+Osmia reads credentials from Kubernetes Secrets. Create them in the namespace where you will install the chart:
 
 ```bash
 # Create the namespace (if it does not already exist)
-kubectl create namespace robodev
+kubectl create namespace osmia
 
 # GitHub personal access token (needs repo + issues scopes)
-kubectl create secret generic robodev-github-token \
-  --namespace robodev \
+kubectl create secret generic osmia-github-token \
+  --namespace osmia \
   --from-literal=token='ghp_your_github_token_here'
 
 # Anthropic API key for Claude Code
-kubectl create secret generic robodev-anthropic-key \
-  --namespace robodev \
+kubectl create secret generic osmia-anthropic-key \
+  --namespace osmia \
   --from-literal=api_key='sk-ant-your_anthropic_key_here'
 
 # (Optional) Slack bot token for notifications
-kubectl create secret generic robodev-slack-token \
-  --namespace robodev \
+kubectl create secret generic osmia-slack-token \
+  --namespace osmia \
   --from-literal=token='xoxb-your-slack-bot-token'
 ```
 
@@ -50,7 +50,7 @@ Create a `values.yaml` file that configures ticketing, the engine, and (optional
 replicaCount: 1
 
 image:
-  repository: ghcr.io/unitaryai/robodev
+  repository: ghcr.io/unitaryai/osmia
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -61,8 +61,8 @@ config:
       owner: "your-org"
       repo: "your-repo"
       labels:
-        - "robodev"
-      token_secret: "robodev-github-token"
+        - "osmia"
+      token_secret: "osmia-github-token"
 
   engines:
     default: claude-code
@@ -73,14 +73,14 @@ config:
   scm:
     backend: github
     config:
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
   notifications:
     channels:
       - backend: slack
         config:
           channel_id: "C0123456789"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
 
   guardrails:
     max_cost_per_job: 50.0
@@ -101,16 +101,16 @@ resources:
 ```
 
 !!! tip
-    A complete example lives in `examples/github-slack/values.yaml` in the RoboDev repository.
+    A complete example lives in `examples/github-slack/values.yaml` in the Osmia repository.
 
 ## 3. Install with Helm
 
 ```bash
-helm repo add robodev https://unitaryai.github.io/RoboDev
+helm repo add osmia https://unitaryai.github.io/Osmia
 helm repo update
 
-helm install robodev robodev/robodev \
-  --namespace robodev \
+helm install osmia osmia/osmia \
+  --namespace osmia \
   --values values.yaml
 ```
 
@@ -118,11 +118,11 @@ helm install robodev robodev/robodev \
 
 ```bash
 # Check the controller pod is running
-kubectl get pods -n robodev
-# Expected: robodev-xxxxx   1/1   Running   0   ...
+kubectl get pods -n osmia
+# Expected: osmia-xxxxx   1/1   Running   0   ...
 
 # Check the health endpoints
-kubectl port-forward -n robodev deployment/robodev 8080:8080 &
+kubectl port-forward -n osmia deployment/osmia 8080:8080 &
 curl http://localhost:8080/healthz   # should return 200
 curl http://localhost:8080/readyz    # should return 200
 
@@ -130,14 +130,14 @@ curl http://localhost:8080/readyz    # should return 200
 curl -s http://localhost:8080/metrics | head -20
 
 # Check the controller logs for startup messages
-kubectl logs -n robodev deployment/robodev --tail=50
+kubectl logs -n osmia deployment/osmia --tail=50
 ```
 
 You should see structured JSON log lines confirming that the ticketing poller has started and the engine is ready.
 
 ## 5. Label a GitHub Issue
 
-Create an issue in your target repository describing a small code change, then add the **robodev** label. The controller polls for issues matching the configured labels and will pick it up within a few seconds.
+Create an issue in your target repository describing a small code change, then add the **osmia** label. The controller polls for issues matching the configured labels and will pick it up within a few seconds.
 
 Example issue:
 
@@ -149,10 +149,10 @@ Example issue:
 
 ```bash
 # Follow the controller logs
-kubectl logs -n robodev deployment/robodev -f
+kubectl logs -n osmia deployment/osmia -f
 
 # List agent jobs once the task is picked up
-kubectl get jobs -n robodev
+kubectl get jobs -n osmia
 ```
 
 The agent will clone the repository, carry out the work described in the issue, run any tests it finds, and open a pull request. Progress updates are posted as comments on the original issue (and to Slack if configured).
@@ -206,7 +206,7 @@ See [Guard Rails documentation](../guardrails.md) for the full specification.
 
 ## Choosing an Engine
 
-RoboDev supports multiple AI coding agents. See [Engines Explained](../concepts/engines.md) for a comparison, or the full [Engine Reference](../plugins/engines.md) for detailed configuration.
+Osmia supports multiple AI coding agents. See [Engines Explained](../concepts/engines.md) for a comparison, or the full [Engine Reference](../plugins/engines.md) for detailed configuration.
 
 | Engine | Best For | Guard Rails |
 |---|---|---|
@@ -226,7 +226,7 @@ config:
 
 ## Webhook Setup (Optional)
 
-Instead of polling, RoboDev can receive webhook events for near-instant ticket ingestion.
+Instead of polling, Osmia can receive webhook events for near-instant ticket ingestion.
 
 ### Enable webhooks
 
@@ -243,9 +243,9 @@ config:
 
 ### Configure your provider
 
-- **GitHub:** Add a webhook pointing to `https://<your-robodev-host>:8081/webhooks/github`. Set content type to `application/json`, provide the same secret, and select "Issues" events.
-- **GitLab:** Add a webhook to `https://<your-robodev-host>:8081/webhooks/gitlab` with the secret token. Select "Issues events" and "Merge request events".
-- **Slack:** Configure a Slack app with an interactive endpoint at `https://<your-robodev-host>:8081/webhooks/slack`.
+- **GitHub:** Add a webhook pointing to `https://<your-osmia-host>:8081/webhooks/github`. Set content type to `application/json`, provide the same secret, and select "Issues" events.
+- **GitLab:** Add a webhook to `https://<your-osmia-host>:8081/webhooks/gitlab` with the secret token. Select "Issues events" and "Merge request events".
+- **Slack:** Configure a Slack app with an interactive endpoint at `https://<your-osmia-host>:8081/webhooks/slack`.
 
 !!! info "Network policies"
     If `networkPolicy.enabled` is set, the controller network policy automatically allows ingress on the webhook port. You can restrict the source CIDR via `networkPolicy.controller.webhookSourceCIDR`.
@@ -257,4 +257,4 @@ config:
 - [Architecture overview](../architecture.md) — how the controller, plugins, and engines fit together
 - [Security model](../security.md) — threat model, defence in depth, and hardening guidance
 - [Scaling guide](../scaling.md) — horizontal scaling, Karpenter, KEDA
-- [Writing a plugin](../plugins/writing-a-plugin.md) — extend RoboDev with custom backends
+- [Writing a plugin](../plugins/writing-a-plugin.md) — extend Osmia with custom backends

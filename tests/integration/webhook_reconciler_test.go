@@ -22,13 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/webhook"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/webhook"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const testWebhookSecret = "integration-test-secret"
@@ -71,7 +71,7 @@ func (m *webhookTestTicketing) Name() string                                    
 func (m *webhookTestTicketing) InterfaceVersion() int                                  { return ticketing.InterfaceVersion }
 
 // webhookAdapter bridges webhook events to the reconciler, mirroring the
-// pattern used in cmd/robodev/main.go.
+// pattern used in cmd/osmia/main.go.
 type webhookAdapter struct {
 	reconciler *controller.Reconciler
 	logger     *slog.Logger
@@ -106,7 +106,7 @@ func githubIssuePayload(issueNumber int) []byte {
 			"title": "Test webhook issue",
 			"body": "Integration test body",
 			"html_url": "https://github.com/org/repo/issues/%d",
-			"labels": [{"name": "robodev"}]
+			"labels": [{"name": "osmia"}]
 		},
 		"repository": {
 			"full_name": "org/repo",

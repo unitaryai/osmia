@@ -2,7 +2,7 @@
 //
 // These tests verify that every supported backend string has a corresponding
 // init function and can be instantiated without error. This catches the class
-// of bug where a new pkg/plugin/* package is added but cmd/robodev/main.go
+// of bug where a new pkg/plugin/* package is added but cmd/osmia/main.go
 // is never updated to wire it in (the Shortcut backend was silent for a long
 // time before this regression guard was added).
 //
@@ -26,11 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/unitaryai/robodev/internal/config"
-	scticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/shortcut"
+	"github.com/unitaryai/osmia/internal/config"
+	scticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/shortcut"
 )
 
-const testNamespace = "robodev-test"
+const testNamespace = "osmia-test"
 
 // fakeClient builds a Kubernetes fake client pre-seeded with one or more
 // Secrets. Each entry in secrets is name → key → value.
@@ -58,7 +58,7 @@ func fakeClient(secrets map[string]map[string]string) *fake.Clientset {
 
 func TestInitGitHubBackend(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-gh-token": {"token": "ghp_fake"},
+		"osmia-gh-token": {"token": "ghp_fake"},
 	})
 	cfg := &config.Config{
 		Ticketing: config.TicketingConfig{
@@ -66,7 +66,7 @@ func TestInitGitHubBackend(t *testing.T) {
 			Config: map[string]any{
 				"owner":        "my-org",
 				"repo":         "my-repo",
-				"token_secret": "robodev-gh-token",
+				"token_secret": "osmia-gh-token",
 			},
 		},
 	}
@@ -77,13 +77,13 @@ func TestInitGitHubBackend(t *testing.T) {
 
 func TestInitLinearBackend(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-linear-token": {"token": "lin_api_fake"},
+		"osmia-linear-token": {"token": "lin_api_fake"},
 	})
 	cfg := &config.Config{
 		Ticketing: config.TicketingConfig{
 			Backend: "linear",
 			Config: map[string]any{
-				"token_secret": "robodev-linear-token",
+				"token_secret": "osmia-linear-token",
 				"team_id":      "TEAM-1",
 			},
 		},
@@ -129,13 +129,13 @@ func TestInitShortcutBackend(t *testing.T) {
 	defer srv.Close()
 
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-sc-token": {"token": "sc_fake"},
+		"osmia-sc-token": {"token": "sc_fake"},
 	})
 	cfg := &config.Config{
 		Ticketing: config.TicketingConfig{
 			Backend: "shortcut",
 			Config: map[string]any{
-				"token_secret":        "robodev-sc-token",
+				"token_secret":        "osmia-sc-token",
 				"workflow_state_name": "Ready for Development",
 				"in_progress_state_name": "In Development",
 			},
@@ -169,13 +169,13 @@ func TestInitShortcutBackend(t *testing.T) {
 
 func TestInitSlackChannel(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-slack-token": {"token": "xoxb-fake"},
+		"osmia-slack-token": {"token": "xoxb-fake"},
 	})
 	ch, err := initSlackChannel(config.ChannelConfig{
 		Backend: "slack",
 		Config: map[string]any{
 			"channel_id":   "C0FAKE",
-			"token_secret": "robodev-slack-token",
+			"token_secret": "osmia-slack-token",
 		},
 	}, k8s, testNamespace, testLogger())
 	require.NoError(t, err)
@@ -195,13 +195,13 @@ func TestInitDiscordChannel(t *testing.T) {
 
 func TestInitTelegramChannel(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-tg-token": {"token": "1234567890:fake"},
+		"osmia-tg-token": {"token": "1234567890:fake"},
 	})
 	ch, err := initTelegramChannel(config.ChannelConfig{
 		Backend: "telegram",
 		Config: map[string]any{
 			"chat_id":      "-100fake",
-			"token_secret": "robodev-tg-token",
+			"token_secret": "osmia-tg-token",
 		},
 	}, k8s, testNamespace, testLogger())
 	require.NoError(t, err)
@@ -210,13 +210,13 @@ func TestInitTelegramChannel(t *testing.T) {
 
 func TestInitTelegramChannel_WithThreadID(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-tg-token": {"token": "1234567890:fake"},
+		"osmia-tg-token": {"token": "1234567890:fake"},
 	})
 	ch, err := initTelegramChannel(config.ChannelConfig{
 		Backend: "telegram",
 		Config: map[string]any{
 			"chat_id":      "-100fake",
-			"token_secret": "robodev-tg-token",
+			"token_secret": "osmia-tg-token",
 			"thread_id":    "42",
 		},
 	}, k8s, testNamespace, testLogger())
@@ -228,14 +228,14 @@ func TestInitTelegramChannel_WithThreadID(t *testing.T) {
 
 func TestInitApprovalBackend_Slack(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-approval-token": {"token": "xoxb-approval-fake"},
+		"osmia-approval-token": {"token": "xoxb-approval-fake"},
 	})
 	cfg := &config.Config{
 		Approval: config.ApprovalConfig{
 			Backend: "slack",
 			Config: map[string]any{
 				"channel_id":   "C0APPROVAL",
-				"token_secret": "robodev-approval-token",
+				"token_secret": "osmia-approval-token",
 			},
 		},
 	}
@@ -261,13 +261,13 @@ func TestInitApprovalBackend_UnsupportedReturnsError(t *testing.T) {
 
 func TestInitSCMBackend_GitHub(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-scm-token": {"token": "ghp_scm_fake"},
+		"osmia-scm-token": {"token": "ghp_scm_fake"},
 	})
 	cfg := &config.Config{
 		SCM: config.SCMConfig{
 			Backend: "github",
 			Config: map[string]any{
-				"token_secret": "robodev-scm-token",
+				"token_secret": "osmia-scm-token",
 			},
 		},
 	}
@@ -278,13 +278,13 @@ func TestInitSCMBackend_GitHub(t *testing.T) {
 
 func TestInitSCMBackend_GitLab(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-scm-token": {"token": "glpat_scm_fake"},
+		"osmia-scm-token": {"token": "glpat_scm_fake"},
 	})
 	cfg := &config.Config{
 		SCM: config.SCMConfig{
 			Backend: "gitlab",
 			Config: map[string]any{
-				"token_secret": "robodev-scm-token",
+				"token_secret": "osmia-scm-token",
 			},
 		},
 	}
@@ -295,13 +295,13 @@ func TestInitSCMBackend_GitLab(t *testing.T) {
 
 func TestInitSCMBackend_GitLab_WithBaseURL(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-scm-token": {"token": "glpat_scm_fake"},
+		"osmia-scm-token": {"token": "glpat_scm_fake"},
 	})
 	cfg := &config.Config{
 		SCM: config.SCMConfig{
 			Backend: "gitlab",
 			Config: map[string]any{
-				"token_secret": "robodev-scm-token",
+				"token_secret": "osmia-scm-token",
 				"base_url":     "https://gitlab.example.com",
 			},
 		},
@@ -328,13 +328,13 @@ func TestInitSCMBackend_UnsupportedReturnsError(t *testing.T) {
 
 func TestInitReviewBackend_CodeRabbit(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
-		"robodev-cr-key": {"api_key": "crab_fake"},
+		"osmia-cr-key": {"api_key": "crab_fake"},
 	})
 	cfg := &config.Config{
 		Review: config.ReviewConfig{
 			Backend: "coderabbit",
 			Config: map[string]any{
-				"api_key_secret": "robodev-cr-key",
+				"api_key_secret": "osmia-cr-key",
 			},
 		},
 	}
@@ -382,7 +382,7 @@ func TestInitSecretsResolver_VaultBackend(t *testing.T) {
 					Backend: "vault",
 					Config: map[string]any{
 						"address":      "https://vault.example.com",
-						"role":         "robodev",
+						"role":         "osmia",
 						"auth_method":  "kubernetes",
 						"secrets_path": "secret",
 					},
@@ -445,9 +445,9 @@ func TestConfigStringSlice(t *testing.T) {
 	}{
 		{
 			name: "[]any with strings",
-			m:    map[string]any{"labels": []any{"bug", "robodev"}},
+			m:    map[string]any{"labels": []any{"bug", "osmia"}},
 			key:  "labels",
-			want: []string{"bug", "robodev"},
+			want: []string{"bug", "osmia"},
 		},
 		{
 			name: "[]string value",
@@ -503,19 +503,19 @@ func TestTriggerLabelDerivation(t *testing.T) {
 			name:           "explicit labels take precedence",
 			explicitLabels: []string{"deploy"},
 			backend:        "github",
-			ticketingCfg:   map[string]any{"labels": []any{"robodev"}},
+			ticketingCfg:   map[string]any{"labels": []any{"osmia"}},
 			wantLabels:     []string{"deploy"},
 		},
 		{
 			name:         "derived from ticketing config",
 			backend:      "github",
-			ticketingCfg: map[string]any{"labels": []any{"robodev", "auto"}},
-			wantLabels:   []string{"robodev", "auto"},
+			ticketingCfg: map[string]any{"labels": []any{"osmia", "auto"}},
+			wantLabels:   []string{"osmia", "auto"},
 		},
 		{
 			name:         "non-github backend does not derive",
 			backend:      "linear",
-			ticketingCfg: map[string]any{"labels": []any{"robodev"}},
+			ticketingCfg: map[string]any{"labels": []any{"osmia"}},
 			wantLabels:   nil,
 		},
 		{

@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // GenericAuthMode defines the authentication method for the generic webhook.

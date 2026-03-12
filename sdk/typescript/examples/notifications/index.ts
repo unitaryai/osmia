@@ -1,8 +1,8 @@
 /**
- * Example: custom notification channel plugin for RoboDev.
+ * Example: custom notification channel plugin for Osmia.
  *
  * This skeleton shows how to implement a NotificationChannel plugin in
- * TypeScript. The plugin runs as a standalone gRPC server; the RoboDev
+ * TypeScript. The plugin runs as a standalone gRPC server; the Osmia
  * controller connects to it over the hashicorp/go-plugin transport.
  *
  * Prerequisites:
@@ -14,7 +14,7 @@
  *   node dist/examples/notifications/index.js
  */
 
-import { PluginBase } from "@unitaryai/robodev-plugin-sdk";
+import { PluginBase } from "@unitaryai/osmia-plugin-sdk";
 import type { ConnectRouter } from "@connectrpc/connect";
 
 // Generated stubs — run `make sdk-gen` first.

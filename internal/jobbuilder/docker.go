@@ -10,12 +10,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 const (
 	// annotationBackend signals which execution backend produced this job.
-	annotationBackend = "robodev.io/execution-backend"
+	annotationBackend = "osmia.io/execution-backend"
 )
 
 // DockerBuilder constructs Kubernetes Job objects annotated for local Docker
@@ -59,7 +59,7 @@ func (b *DockerBuilder) Build(taskRunID string, engineName string, spec *engine.
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
-	jobName := fmt.Sprintf("robodev-%s", taskRunID)
+	jobName := fmt.Sprintf("osmia-%s", taskRunID)
 	if len(jobName) > 63 {
 		jobName = jobName[:63]
 	}

@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/llm"
-	"github.com/unitaryai/robodev/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/llm"
+	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
 // extractMemorySignature defines the LLM signature for knowledge extraction.

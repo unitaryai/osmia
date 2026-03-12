@@ -1,8 +1,8 @@
-# CLAUDE.md — RoboDev
+# CLAUDE.md — Osmia
 
 ## Project Overview
 
-RoboDev is a Kubernetes-native AI coding agent harness that orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider) to perform maintenance and development tasks on codebases at scale. It is Apache 2.0 licensed, enterprise-grade, and security-first.
+Osmia is a Kubernetes-native AI coding agent harness that orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider) to perform maintenance and development tasks on codebases at scale. It is Apache 2.0 licensed, enterprise-grade, and security-first.
 
 The full technical plan is in `oss-plan.md`. The product requirements are in `oss-prd.md`. Refer to these when you need architectural context or implementation details.
 
@@ -13,7 +13,7 @@ The full technical plan is in `oss-plan.md`. The product requirements are in `os
 - **Plugin SDKs**: Generated from protobufs — Python, Go, TypeScript
 - **Build**: Makefile targets for build, test, lint, proto-gen, sdk-gen
 - **Container images**: Multi-stage Docker builds, distroless base images
-- **Deployment**: Helm chart in `charts/robodev/`
+- **Deployment**: Helm chart in `charts/osmia/`
 
 ## Code Style & Conventions
 
@@ -33,7 +33,7 @@ The full technical plan is in `oss-plan.md`. The product requirements are in `os
 Follow the structure defined in section 8 of `oss-plan.md`. The key packages are:
 
 ```
-cmd/robodev/              — Main entrypoint
+cmd/osmia/              — Main entrypoint
 internal/controller/      — controller-runtime reconciler
 internal/jobbuilder/      — ExecutionSpec -> K8s Job translation
 internal/sandboxbuilder/  — Sandbox CR builder (gVisor/Kata)
@@ -94,7 +94,7 @@ proto/                    — Protobuf definitions (source of truth for all inte
 - Do not modify `oss-plan.md` or `oss-prd.md` — these are reference documents
 - Do not introduce Python into the controller — the controller is Go only
 - Do not bypass the plugin interface abstraction — all external integrations go through the defined interfaces
-- Do not hard-code configuration values — use `robodev-config.yaml` and environment variables
+- Do not hard-code configuration values — use `osmia-config.yaml` and environment variables
 - Do not add Kubernetes CRD types until explicitly decided (see open question 7 in the plan)
 
 ## Changelog

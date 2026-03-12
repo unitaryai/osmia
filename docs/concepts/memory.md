@@ -1,10 +1,10 @@
 # Episodic Memory
 
-RoboDev's **episodic memory** system accumulates structured knowledge from every completed task — successes and failures alike — and injects relevant prior knowledge into future task prompts. Over time, RoboDev learns which approaches work, which repositories have quirks, and which engines struggle with specific task types.
+Osmia's **episodic memory** system accumulates structured knowledge from every completed task — successes and failures alike — and injects relevant prior knowledge into future task prompts. Over time, Osmia learns which approaches work, which repositories have quirks, and which engines struggle with specific task types.
 
 ## Why Memory Matters
 
-Without memory, every task starts from scratch. The same mistakes are repeated, the same workarounds are rediscovered, and institutional knowledge lives only in human heads. With memory enabled, RoboDev builds a compounding knowledge base that makes every subsequent task more likely to succeed.
+Without memory, every task starts from scratch. The same mistakes are repeated, the same workarounds are rediscovered, and institutional knowledge lives only in human heads. With memory enabled, Osmia builds a compounding knowledge base that makes every subsequent task more likely to succeed.
 
 **Key benefits:**
 
@@ -80,7 +80,7 @@ The prompt builder includes the memory section after the guard rails and before 
 
 ## Configuration
 
-Enable memory in your `robodev-config.yaml`:
+Enable memory in your `osmia-config.yaml`:
 
 ```yaml
 memory:
@@ -97,7 +97,7 @@ memory:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | bool | `false` | Enables episodic memory |
-| `store_path` | string | `/var/lib/robodev/memory.db` | Path to the SQLite database file |
+| `store_path` | string | `/var/lib/osmia/memory.db` | Path to the SQLite database file |
 | `decay_interval_hours` | int | `24` | Hours between confidence decay cycles |
 | `prune_threshold` | float | `0.05` | Facts below this confidence are pruned |
 | `max_facts_per_query` | int | `10` | Maximum facts returned per query |
@@ -168,10 +168,10 @@ Nodes are connected by typed edges:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `robodev_memory_nodes_total` | Gauge | `type` | Total nodes in the graph by type |
-| `robodev_memory_queries_total` | Counter | `engine` | Total memory queries |
-| `robodev_memory_extractions_total` | Counter | `outcome` | Total extraction runs by task outcome |
-| `robodev_memory_confidence_distribution` | Histogram | — | Distribution of fact confidence values |
+| `osmia_memory_nodes_total` | Gauge | `type` | Total nodes in the graph by type |
+| `osmia_memory_queries_total` | Counter | `engine` | Total memory queries |
+| `osmia_memory_extractions_total` | Counter | `outcome` | Total extraction runs by task outcome |
+| `osmia_memory_confidence_distribution` | Histogram | — | Distribution of fact confidence values |
 
 ## Architecture
 

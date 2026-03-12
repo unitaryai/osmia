@@ -1,6 +1,6 @@
 # Causal Failure Diagnosis
 
-When a task fails, RoboDev does not just retry it blindly. The causal diagnosis subsystem classifies *why* the failure happened and generates targeted corrective instructions that are injected into the retry prompt — so the next attempt starts with a more informed approach.
+When a task fails, Osmia does not just retry it blindly. The causal diagnosis subsystem classifies *why* the failure happened and generates targeted corrective instructions that are injected into the retry prompt — so the next attempt starts with a more informed approach.
 
 ## Failure Modes
 

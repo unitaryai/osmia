@@ -2,7 +2,7 @@
 
 ## Overview
 
-RoboDev is designed for horizontal scaling on Kubernetes. The controller runs as a single replica, whilst agent jobs scale independently via Karpenter node provisioning and configurable concurrency limits.
+Osmia is designed for horizontal scaling on Kubernetes. The controller runs as a single replica, whilst agent jobs scale independently via Karpenter node provisioning and configurable concurrency limits.
 
 ## Controller High Availability
 
@@ -13,7 +13,7 @@ For now, run a single controller replica. Agent jobs are independent Kubernetes 
 
 ## Karpenter Integration
 
-RoboDev agent jobs are ephemeral, CPU-bound workloads. Karpenter provisions dedicated nodes on demand when jobs are created and scales down when they complete.
+Osmia agent jobs are ephemeral, CPU-bound workloads. Karpenter provisions dedicated nodes on demand when jobs are created and scales down when they complete.
 
 ### Recommended NodePool
 
@@ -28,11 +28,11 @@ Key design decisions:
 
 ### Tolerations
 
-Agent jobs include tolerations for the `robodev.io/agent` taint by default:
+Agent jobs include tolerations for the `osmia.io/agent` taint by default:
 
 ```yaml
 tolerations:
-  - key: robodev.io/agent
+  - key: osmia.io/agent
     value: "true"
     effect: NoSchedule
 ```
@@ -55,7 +55,7 @@ Multiple layers of cost control are available:
 1. **Per-job cost ceiling** — `max_cost_per_job` terminates jobs exceeding the budget
 2. **Job duration limit** — `max_job_duration_minutes` sets a hard timeout
 3. **Progress watchdog** — detects and terminates unproductive agents early
-4. **Karpenter CPU limits** — caps total compute across all RoboDev nodes
+4. **Karpenter CPU limits** — caps total compute across all Osmia nodes
 5. **Cost velocity alerts** — warns when spending exceeds thresholds
 
 ## KEDA Scaling
@@ -70,14 +70,14 @@ Note: The controller currently runs as a single replica (leader election is on t
 
 ## Multi-Tenancy
 
-For shared clusters, RoboDev defines a tenancy configuration schema. Namespace-per-tenant runtime isolation is on the roadmap; the config structure and RBAC recommendations are in place:
+For shared clusters, Osmia defines a tenancy configuration schema. Namespace-per-tenant runtime isolation is on the roadmap; the config structure and RBAC recommendations are in place:
 
 ```yaml
 tenancy:
   mode: "namespace-per-tenant"
   tenants:
     - name: "team-alpha"
-      namespace: "robodev-alpha"
+      namespace: "osmia-alpha"
       ticketing:
         backend: github
         config:
@@ -101,14 +101,14 @@ The controller exposes the following metrics:
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `robodev_taskruns_total` | Counter | Total task runs by state |
-| `robodev_active_jobs` | Gauge | Currently running jobs |
-| `robodev_taskrun_duration_seconds` | Histogram | Job execution duration |
-| `robodev_plugin_errors_total` | Counter | Plugin errors by plugin |
+| `osmia_taskruns_total` | Counter | Total task runs by state |
+| `osmia_active_jobs` | Gauge | Currently running jobs |
+| `osmia_taskrun_duration_seconds` | Histogram | Job execution duration |
+| `osmia_plugin_errors_total` | Counter | Plugin errors by plugin |
 
 ### Grafana Dashboard
 
-A Grafana dashboard JSON model is included in the Helm chart for visualising RoboDev metrics.
+A Grafana dashboard JSON model is included in the Helm chart for visualising Osmia metrics.
 
 ### Structured Logging
 

@@ -147,7 +147,7 @@ config:
             # Create Changelog
             Generate a CHANGELOG.md entry for the changes made.
         - name: review-checklist
-          path: /opt/robodev/skills/review-checklist.md
+          path: /opt/osmia/skills/review-checklist.md
         - name: deploy-guide
           configmap: deploy-skills       # load from a Kubernetes ConfigMap
           key: deploy-guide.md           # optional — defaults to <name>.md
@@ -197,7 +197,7 @@ The `setup-claude.sh` wrapper runs before `claude` to initialise the writable ho
 
 #### Guard Rails (Hooks)
 
-Claude Code supports a [hooks system](https://docs.anthropic.com/en/docs/claude-code/hooks) that intercepts tool calls before execution. RoboDev generates a `hooks.json` configuration file and mounts it into the agent container at `/config/hooks.json`:
+Claude Code supports a [hooks system](https://docs.anthropic.com/en/docs/claude-code/hooks) that intercepts tool calls before execution. Osmia generates a `hooks.json` configuration file and mounts it into the agent container at `/config/hooks.json`:
 
 ```json
 {
@@ -235,10 +235,10 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 
 | Variable | Source | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | K8s Secret `robodev-anthropic-key` | API authentication |
-| `ROBODEV_TASK_ID` | Controller | Unique task identifier |
-| `ROBODEV_TICKET_ID` | Controller | Source ticket identifier |
-| `ROBODEV_REPO_URL` | Ticket | Repository to work on |
+| `ANTHROPIC_API_KEY` | K8s Secret `osmia-anthropic-key` | API authentication |
+| `OSMIA_TASK_ID` | Controller | Unique task identifier |
+| `OSMIA_TICKET_ID` | Controller | Source ticket identifier |
+| `OSMIA_REPO_URL` | Ticket | Repository to work on |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Engine | Always set to `1` |
 | `CLAUDE_SKILL_INLINE_<NAME>` | Engine | Base64-encoded inline skill content (see [Skills](#skills)) |
 | `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image or ConfigMap mount (see [Skills](#skills)) |
@@ -252,7 +252,7 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 |---|---|---|---|
 | `workspace` | `/workspace` | Yes | Repository checkout and working directory |
 | `config` | `/config` | No | Guard rail hooks and configuration |
-| `home` | `/home/robodev` | Yes | Writable home directory (emptyDir) for `~/.claude/` config and skills |
+| `home` | `/home/osmia` | Yes | Writable home directory (emptyDir) for `~/.claude/` config and skills |
 | `tmp` | `/tmp` | Yes | Writable tmp (emptyDir) for Claude Code subprocess shell directories |
 
 #### Skills
@@ -262,7 +262,7 @@ Skills are custom Markdown instruction files that the agent can invoke via `/ski
 Each skill has a `name` (lowercase letters, digits, and hyphens only) and exactly one of:
 
 - **`inline`** — the Markdown content directly in the config. The controller base64-encodes it and passes it as the `CLAUDE_SKILL_INLINE_<NAME>` environment variable.
-- **`path`** — a path to a Markdown file on the container image (e.g. `/opt/robodev/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
+- **`path`** — a path to a Markdown file on the container image (e.g. `/opt/osmia/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
 - **`configmap`** — the name of a Kubernetes ConfigMap containing the skill. The controller mounts the ConfigMap as a volume at `/skills/<name>.md` and sets `CLAUDE_SKILL_PATH_<NAME>` to the mount path. Optionally specify `key` to select a specific key within the ConfigMap (defaults to `<name>.md`).
 
 At container startup, `setup-claude.sh` reads these environment variables, decodes/copies the files, and writes them to `~/.claude/skills/`. The `<NAME>` suffix is converted to lowercase with hyphens (e.g. `CLAUDE_SKILL_INLINE_CREATE_CHANGELOG` → `~/.claude/skills/create-changelog.md`).
@@ -291,7 +291,7 @@ engines:
   claude_code:
     skills:
       - name: security-review
-        path: /opt/robodev/skills/security-review.md
+        path: /opt/osmia/skills/security-review.md
 ```
 
 **Example — ConfigMap-backed skill:**
@@ -318,7 +318,7 @@ To bundle skills into the container image, add them to your custom Dockerfile:
 
 ```dockerfile
 FROM ghcr.io/unitaryai/engine-claude-code:latest
-COPY skills/ /opt/robodev/skills/
+COPY skills/ /opt/osmia/skills/
 ```
 
 #### Sub-Agents
@@ -493,15 +493,15 @@ Codex reads repository conventions from `AGENTS.md` (rather than `CLAUDE.md`). I
 | Variable | Source | Description |
 |---|---|---|
 | `OPENAI_API_KEY` | K8s Secret `openai-api-key` | API authentication |
-| `ROBODEV_TASK_ID` | Controller | Unique task identifier |
-| `ROBODEV_TICKET_ID` | Controller | Source ticket identifier |
-| `ROBODEV_REPO_URL` | Ticket | Repository to work on |
+| `OSMIA_TASK_ID` | Controller | Unique task identifier |
+| `OSMIA_TICKET_ID` | Controller | Source ticket identifier |
+| `OSMIA_REPO_URL` | Ticket | Repository to work on |
 
 ---
 
 ### Aider
 
-Runs the [Aider CLI](https://aider.chat/) for AI-assisted coding. Aider supports multiple LLM providers — RoboDev can configure it to use either Anthropic or OpenAI models.
+Runs the [Aider CLI](https://aider.chat/) for AI-assisted coding. Aider supports multiple LLM providers — Osmia can configure it to use either Anthropic or OpenAI models.
 
 | Property | Value |
 |---|---|
@@ -539,7 +539,7 @@ aider \
   --message "<prompt>"
 ```
 
-The `--no-git` flag is used because RoboDev manages git operations via the SCM backend, not via Aider's built-in git support.
+The `--no-git` flag is used because Osmia manages git operations via the SCM backend, not via Aider's built-in git support.
 
 #### Model Provider
 
@@ -560,7 +560,7 @@ Like Codex, Aider does not support a hooks system. Guard rails are appended dire
 
 ### OpenCode
 
-OpenCode is a terminal-based AI coding agent. RoboDev runs it in headless mode inside Kubernetes Jobs.
+OpenCode is a terminal-based AI coding agent. Osmia runs it in headless mode inside Kubernetes Jobs.
 
 **Package:** `pkg/engine/opencode/`
 
@@ -605,7 +605,7 @@ OpenCode does not support a hooks system. Guard rails are appended directly to t
 !!! warning "Community template — no pre-built image"
     Cline is a VS Code extension with no published headless CLI. The Go engine implementation (`pkg/engine/cline/`) and the Dockerfile (`docker/engine-cline/`) are provided as a community contribution template. **No pre-built container image is published for Cline.** Configuring `cline` as your engine will result in an image pull failure until a working headless integration is contributed. See [Contributing](../contributing.md) if you want to help.
 
-Cline is an AI coding agent with optional MCP (Model Context Protocol) and AWS Bedrock support. When a headless CLI becomes available, RoboDev can run it inside Kubernetes Jobs using the implementation in `pkg/engine/cline/`.
+Cline is an AI coding agent with optional MCP (Model Context Protocol) and AWS Bedrock support. When a headless CLI becomes available, Osmia can run it inside Kubernetes Jobs using the implementation in `pkg/engine/cline/`.
 
 **Package:** `pkg/engine/cline/`
 
@@ -685,7 +685,7 @@ import (
     "fmt"
     "strings"
 
-    "github.com/unitaryai/robodev/pkg/engine"
+    "github.com/unitaryai/osmia/pkg/engine"
 )
 
 const (
@@ -721,9 +721,9 @@ func (e *MyEngine) BuildExecutionSpec(task engine.Task, config engine.EngineConf
         Image:   image,
         Command: []string{"my-cli", "--prompt", prompt},
         Env: map[string]string{
-            "ROBODEV_TASK_ID":   task.ID,
-            "ROBODEV_TICKET_ID": task.TicketID,
-            "ROBODEV_REPO_URL":  task.RepoURL,
+            "OSMIA_TASK_ID":   task.ID,
+            "OSMIA_TICKET_ID": task.TicketID,
+            "OSMIA_REPO_URL":  task.RepoURL,
         },
         SecretEnv: map[string]string{
             "MY_API_KEY": "my-api-key-secret",

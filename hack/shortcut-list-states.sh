@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shortcut-list-states.sh — Lists all workflow states in your Shortcut workspace.
 #
-# Use this to find the exact state names for robodev-config.yaml:
-#   ticketing.config.workflow_state_name    — the state that triggers RoboDev
-#   ticketing.config.in_progress_state_name — the state RoboDev moves stories into
+# Use this to find the exact state names for osmia-config.yaml:
+#   ticketing.config.workflow_state_name    — the state that triggers Osmia
+#   ticketing.config.in_progress_state_name — the state Osmia moves stories into
 #
 # Usage:
 #   SHORTCUT_TOKEN=your-token ./hack/shortcut-list-states.sh

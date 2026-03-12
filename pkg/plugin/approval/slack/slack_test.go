@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/plugin/approval"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/approval"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 func newTestServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
@@ -251,7 +251,7 @@ func TestSlackApprovalBackend_HandleCallback(t *testing.T) {
 					ActionID string `json:"action_id"`
 					Value    string `json:"value"`
 				}{
-					{ActionID: "robodev_approval_run-001_0", Value: "approve"},
+					{ActionID: "osmia_approval_run-001_0", Value: "approve"},
 				},
 				User: struct {
 					ID       string `json:"id"`
@@ -273,7 +273,7 @@ func TestSlackApprovalBackend_HandleCallback(t *testing.T) {
 					ActionID string `json:"action_id"`
 					Value    string `json:"value"`
 				}{
-					{ActionID: "robodev_approval_run-002_1", Value: "reject"},
+					{ActionID: "osmia_approval_run-002_1", Value: "reject"},
 				},
 				User: struct {
 					ID       string `json:"id"`
@@ -295,7 +295,7 @@ func TestSlackApprovalBackend_HandleCallback(t *testing.T) {
 					ActionID string `json:"action_id"`
 					Value    string `json:"value"`
 				}{
-					{ActionID: "robodev_approval_run-003_1", Value: "deny"},
+					{ActionID: "osmia_approval_run-003_1", Value: "deny"},
 				},
 				User: struct {
 					ID       string `json:"id"`
@@ -412,7 +412,7 @@ func TestSlackApprovalBackend_RequestAndCallback_Integration(t *testing.T) {
 			ActionID string `json:"action_id"`
 			Value    string `json:"value"`
 		}{
-			{ActionID: "robodev_approval_run-integration_0", Value: "approve"},
+			{ActionID: "osmia_approval_run-integration_0", Value: "approve"},
 		},
 		User: struct {
 			ID       string `json:"id"`

@@ -2,7 +2,7 @@
 
 ## Overview
 
-RoboDev provides layered safety boundaries — guard rails — to ensure autonomous AI agents operate within enterprise-approved limits. Guard rails are applied at multiple levels for defence in depth.
+Osmia provides layered safety boundaries — guard rails — to ensure autonomous AI agents operate within enterprise-approved limits. Guard rails are applied at multiple levels for defence in depth.
 
 !!! tip "New to guard rails?"
     For a plain-language introduction, see [Guard Rails Overview](concepts/guardrails-overview.md). This page covers the detailed configuration reference.
@@ -26,7 +26,7 @@ sequenceDiagram
 
 ## 1. Controller-Level Guards
 
-Applied before a job is created. Configured in `robodev-config.yaml`:
+Applied before a job is created. Configured in `osmia-config.yaml`:
 
 ```yaml
 guardrails:
@@ -65,7 +65,7 @@ guardrails:
 !!! info "Only applies to Claude Code"
     Engine hooks are only available for the Claude Code engine. Other engines (Codex, Aider, OpenCode, Cline) rely on prompt-based rules which are advisory, not enforced.
 
-Applied inside the execution container via Claude Code's hooks system. RoboDev generates a `settings.json` file mounted into the container:
+Applied inside the execution container via Claude Code's hooks system. Osmia generates a `settings.json` file mounted into the container:
 
 ```json
 {
@@ -76,7 +76,7 @@ Applied inside the execution container via Claude Code's hooks system. RoboDev g
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/block-dangerous-commands.sh"
+            "command": "/opt/osmia/hooks/block-dangerous-commands.sh"
           }
         ]
       },
@@ -85,7 +85,7 @@ Applied inside the execution container via Claude Code's hooks system. RoboDev g
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/block-sensitive-files.sh"
+            "command": "/opt/osmia/hooks/block-sensitive-files.sh"
           }
         ]
       }
@@ -95,7 +95,7 @@ Applied inside the execution container via Claude Code's hooks system. RoboDev g
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/robodev/hooks/heartbeat.sh"
+            "command": "/opt/osmia/hooks/heartbeat.sh"
           }
         ]
       }

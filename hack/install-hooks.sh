@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-hooks.sh: install the recommended git hooks for RoboDev development.
+# install-hooks.sh: install the recommended git hooks for Osmia development.
 #
 # Run once after cloning:
 #   ./hack/install-hooks.sh

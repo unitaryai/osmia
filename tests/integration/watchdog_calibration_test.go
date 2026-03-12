@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/internal/watchdog"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/watchdog"
 )
 
 func watchdogTestLogger() *slog.Logger {

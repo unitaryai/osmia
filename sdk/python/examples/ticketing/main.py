@@ -1,12 +1,12 @@
-"""Example: custom ticketing backend plugin for RoboDev.
+"""Example: custom ticketing backend plugin for Osmia.
 
 This skeleton shows how to implement a TicketingBackend plugin in Python.
-The plugin runs as a standalone gRPC server; the RoboDev controller
+The plugin runs as a standalone gRPC server; the Osmia controller
 connects to it over the hashicorp/go-plugin transport.
 
 Prerequisites:
     1. Run ``make sdk-gen`` from the repo root to generate
-       ``sdk/python/src/robodev/proto/`` stubs.
+       ``sdk/python/src/osmia/proto/`` stubs.
     2. Install the SDK: ``pip install -e sdk/python/``
 
 Run the plugin:
@@ -16,9 +16,9 @@ Run the plugin:
 from __future__ import annotations
 
 # Generated stubs — run ``make sdk-gen`` first.
-# from robodev.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
+# from osmia.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
 
-from robodev.plugin import PluginBase
+from osmia.plugin import PluginBase
 
 # Bump this when the protobuf service definition changes.
 INTERFACE_VERSION = 1

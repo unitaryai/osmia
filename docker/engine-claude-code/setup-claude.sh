@@ -1,18 +1,18 @@
 #!/bin/sh
 # setup-claude.sh — initialises Claude Code user config before running the agent.
 #
-# The home directory (/home/robodev) is an emptyDir volume that shadows any
+# The home directory (/home/osmia) is an emptyDir volume that shadows any
 # files baked into the image.  This script replicates the config files at
 # container startup, matching the approach used in the PoC:
 #   1. ~/.claude/settings.json  — grants permission for MCP tool use
-#   2. /workspace/.mcp.json     — registers the robodev-slack MCP server
+#   2. /workspace/.mcp.json     — registers the osmia-slack MCP server
 #      (project-scope file that Claude Code auto-loads from the cwd)
 #   3. ~/.claude/skills/*.md    — custom skills injected via env vars (optional)
 #
 # The main claude invocation also passes --mcp-config /workspace/.mcp.json
 # as an explicit belt-and-suspenders load path.
 #
-# Skill environment variables (set by the RoboDev controller):
+# Skill environment variables (set by the Osmia controller):
 #   CLAUDE_SKILL_INLINE_<NAME>  — base64-encoded Markdown content for an inline skill
 #   CLAUDE_SKILL_PATH_<NAME>    — path to a skill file on the container image
 #

@@ -12,9 +12,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -111,14 +111,14 @@ func (s *SlackChannel) Notify(ctx context.Context, message string, ticket ticket
 
 // NotifyStart sends a notification that an agent has begun working on a ticket.
 func (s *SlackChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
-	summary := fmt.Sprintf("\U0001F916 RoboDev agent started working on: %s", ticket.Title)
+	summary := fmt.Sprintf("\U0001F916 Osmia agent started working on: %s", ticket.Title)
 
 	blocks := []slackBlock{
 		{
 			Type: "section",
 			Text: &slackText{
 				Type: "mrkdwn",
-				Text: fmt.Sprintf("\U0001F916 *RoboDev agent started working on:* %s", ticket.Title),
+				Text: fmt.Sprintf("\U0001F916 *Osmia agent started working on:* %s", ticket.Title),
 			},
 		},
 	}
@@ -144,14 +144,14 @@ func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Tick
 		statusText = "failed"
 	}
 
-	summary := fmt.Sprintf("%s RoboDev agent %s on: %s", statusEmoji, statusText, ticket.Title)
+	summary := fmt.Sprintf("%s Osmia agent %s on: %s", statusEmoji, statusText, ticket.Title)
 
 	blocks := []slackBlock{
 		{
 			Type: "section",
 			Text: &slackText{
 				Type: "mrkdwn",
-				Text: fmt.Sprintf("%s *RoboDev agent %s on:* %s", statusEmoji, statusText, ticket.Title),
+				Text: fmt.Sprintf("%s *Osmia agent %s on:* %s", statusEmoji, statusText, ticket.Title),
 			},
 		},
 	}

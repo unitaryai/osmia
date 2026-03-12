@@ -1,6 +1,6 @@
 # Plugin SDKs
 
-RoboDev provides SDK helper libraries and build tooling for three languages.
+Osmia provides SDK helper libraries and build tooling for three languages.
 The protobuf definitions in `proto/` are the source of truth. Generated stubs
 are **not checked into the repository** — you generate them locally with
 `make sdk-gen` before using the SDKs.
@@ -50,7 +50,7 @@ or third-party plugin.
 
 ```go
 import (
-    v1 "github.com/unitaryai/robodev/proto/v1"
+    v1 "github.com/unitaryai/osmia/proto/v1"
 )
 
 func (b *MyBackend) Handshake(
@@ -78,7 +78,7 @@ A minimal ticketing plugin skeleton:
 ```python
 import grpc
 from concurrent import futures
-from robodev.v1 import ticketing_pb2, ticketing_pb2_grpc, common_pb2
+from osmia.v1 import ticketing_pb2, ticketing_pb2_grpc, common_pb2
 
 class MyTicketingBackend(ticketing_pb2_grpc.TicketingBackendServicer):
     def Handshake(self, request, context):

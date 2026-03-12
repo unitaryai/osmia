@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/llm"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/llm"
 )
 
 // scoreToolCallSignature defines the LLM signature for scoring agent tool calls.

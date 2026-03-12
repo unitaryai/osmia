@@ -1,12 +1,12 @@
-# What is RoboDev?
+# What is Osmia?
 
-RoboDev is an open-source tool that connects your issue tracker to AI coding agents. When you label an issue, RoboDev picks it up, runs an AI agent (like Claude Code or Codex) against your codebase, and opens a pull request with the result. It handles the orchestration so you don't have to — scheduling work, enforcing safety rules, retrying on failure, and notifying your team.
+Osmia is an open-source tool that connects your issue tracker to AI coding agents. When you label an issue, Osmia picks it up, runs an AI agent (like Claude Code or Codex) against your codebase, and opens a pull request with the result. It handles the orchestration so you don't have to — scheduling work, enforcing safety rules, retrying on failure, and notifying your team.
 
 ## The Happy Path
 
 ```mermaid
 graph LR
-    A["You label an issue<br/><b>robodev</b>"] --> B["RoboDev picks it up"]
+    A["You label an issue<br/><b>osmia</b>"] --> B["Osmia picks it up"]
     B --> C["AI agent writes code"]
     C --> D["Pull request opened"]
     D --> E["You review & merge"]
@@ -20,13 +20,13 @@ That's the core workflow. Everything else — guard rails, multiple engines, plu
 
 **Running AI agents manually doesn't scale.** You can open Claude Code or Codex locally and give it a task, but that ties up your machine and your attention. You can't run ten tasks in parallel, and you can't enforce consistent safety rules.
 
-**Enterprise teams need guardrails.** Letting an AI agent modify production codebases requires cost limits, file access controls, audit logging, and human approval workflows. RoboDev provides these out of the box.
+**Enterprise teams need guardrails.** Letting an AI agent modify production codebases requires cost limits, file access controls, audit logging, and human approval workflows. Osmia provides these out of the box.
 
 ## How It Works (No Kubernetes Jargon)
 
 1. **You create an issue** in GitHub, GitLab, or Jira describing a task.
-2. **You add a label** (e.g. `robodev`) to signal that RoboDev should handle it.
-3. **RoboDev's controller** notices the label, checks safety rules, and decides which AI agent to use.
+2. **You add a label** (e.g. `osmia`) to signal that Osmia should handle it.
+3. **Osmia's controller** notices the label, checks safety rules, and decides which AI agent to use.
 4. **A container starts** running the AI agent with your codebase checked out.
 5. **The agent works** — reading code, making changes, running tests.
 6. **A pull request is opened** with the agent's changes, and the original issue is updated with a link.
@@ -36,7 +36,7 @@ That's the core workflow. Everything else — guard rails, multiple engines, plu
 sequenceDiagram
     participant You
     participant Tracker as Issue Tracker
-    participant Ctrl as RoboDev Controller
+    participant Ctrl as Osmia Controller
     participant Agent as AI Agent
     participant SCM as GitHub/GitLab
 
@@ -54,7 +54,7 @@ sequenceDiagram
 
 ## What Are Guard Rails?
 
-Guard rails are safety boundaries that prevent the AI agent from doing things it shouldn't. RoboDev has six independent layers:
+Guard rails are safety boundaries that prevent the AI agent from doing things it shouldn't. Osmia has six independent layers:
 
 1. **Controller validation** — checks the issue against rules before starting (allowed repos, task types, concurrent job limits).
 2. **Engine hooks** — intercepts dangerous commands (like `rm -rf` or `sudo`) before they execute.
@@ -67,7 +67,7 @@ These layers work independently — a failure in one doesn't compromise the othe
 
 ## What Are Engines?
 
-An engine is an AI coding tool that RoboDev can run. The controller doesn't write code itself — it delegates to engines:
+An engine is an AI coding tool that Osmia can run. The controller doesn't write code itself — it delegates to engines:
 
 | Engine | What it is |
 |---|---|
@@ -81,7 +81,7 @@ You configure a default engine and optional fallbacks. If one engine fails, the 
 
 ## What Are Plugins?
 
-Plugins let RoboDev connect to different services. There are six types:
+Plugins let Osmia connect to different services. There are six types:
 
 | Plugin Type | What It Connects To |
 |---|---|
@@ -92,11 +92,11 @@ Plugins let RoboDev connect to different services. There are six types:
 | **Approval** | Human-in-the-loop approval workflows |
 | **Review** | CodeRabbit, Semgrep (automated code review) |
 
-Built-in plugins (like GitHub Issues and Slack) ship with RoboDev. You can write custom plugins in any language that supports gRPC. See [Writing a Plugin](../plugins/writing-a-plugin.md).
+Built-in plugins (like GitHub Issues and Slack) ship with Osmia. You can write custom plugins in any language that supports gRPC. See [Writing a Plugin](../plugins/writing-a-plugin.md).
 
 ## Do I Need Kubernetes?
 
-For production use, yes — RoboDev runs as a Kubernetes operator. But for evaluation and local development, you can use [Docker Compose](../getting-started/docker-compose.md) to try it without a cluster.
+For production use, yes — Osmia runs as a Kubernetes operator. But for evaluation and local development, you can use [Docker Compose](../getting-started/docker-compose.md) to try it without a cluster.
 
 ## Next Steps
 

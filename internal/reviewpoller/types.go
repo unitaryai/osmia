@@ -1,4 +1,4 @@
-// Package reviewpoller monitors pull/merge requests created by RoboDev,
+// Package reviewpoller monitors pull/merge requests created by Osmia,
 // classifies incoming review comments, and emits follow-up task requests
 // for actionable feedback.
 package reviewpoller
@@ -6,7 +6,7 @@ package reviewpoller
 import (
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
 // Classification describes how a review comment should be handled.
@@ -14,7 +14,7 @@ type Classification int
 
 const (
 	// ClassificationIgnore indicates the comment should be ignored
-	// (e.g. bot comment, empty body, or posted by RoboDev itself).
+	// (e.g. bot comment, empty body, or posted by Osmia itself).
 	ClassificationIgnore Classification = iota
 	// ClassificationInformational indicates the comment is informational
 	// (e.g. LGTM, compliment) and requires no action.
@@ -32,7 +32,7 @@ type ClassifiedComment struct {
 	Reason         string
 }
 
-// TrackedPR is a pull or merge request that RoboDev is monitoring for
+// TrackedPR is a pull or merge request that Osmia is monitoring for
 // incoming review comments.
 type TrackedPR struct {
 	// PRURL is the HTML URL of the pull/merge request.

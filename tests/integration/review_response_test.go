@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/reviewpoller"
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/reviewpoller"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
 // reviewTestLogger returns a quiet logger for test use.

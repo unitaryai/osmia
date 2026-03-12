@@ -2,13 +2,13 @@
 apiVersion: sandbox.kubernetes.io/v1alpha1
 kind: SandboxWarmPool
 metadata:
-  name: {{ include "robodev.fullname" . }}-warm-pool
+  name: {{ include "osmia.fullname" . }}-warm-pool
   labels:
-    {{- include "robodev.labels" . | nindent 4 }}
+    {{- include "osmia.labels" . | nindent 4 }}
 spec:
   size: {{ .Values.sandbox.warmPool.size | default 3 }}
   runtimeClassName: {{ .Values.sandbox.runtimeClass | default "gvisor" }}
   selector:
     matchLabels:
-      app: robodev-agent
+      app: osmia-agent
 {{- end }}

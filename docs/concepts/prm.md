@@ -1,6 +1,6 @@
 # Real-Time Agent Coaching (PRM)
 
-The **Process Reward Model** (PRM) is RoboDev's real-time quality assurance system. While an AI agent works on a task, the PRM continuously evaluates its behaviour by analysing the NDJSON event stream — scoring each step, detecting trajectory patterns, and intervening before small problems become expensive failures.
+The **Process Reward Model** (PRM) is Osmia's real-time quality assurance system. While an AI agent works on a task, the PRM continuously evaluates its behaviour by analysing the NDJSON event stream — scoring each step, detecting trajectory patterns, and intervening before small problems become expensive failures.
 
 ## Why PRM Matters
 
@@ -69,7 +69,7 @@ Based on the current score and trajectory pattern, the decider chooses an action
 
 ## Configuration
 
-Enable PRM in your `robodev-config.yaml`:
+Enable PRM in your `osmia-config.yaml`:
 
 ```yaml
 prm:
@@ -78,7 +78,7 @@ prm:
   window_size: 10               # Rolling window of recent events
   score_threshold_nudge: 7      # Score below this triggers a nudge
   score_threshold_escalate: 3   # Score below this triggers escalation
-  hint_file_path: "/workspace/.robodev-hint.md"
+  hint_file_path: "/workspace/.osmia-hint.md"
   max_trajectory_length: 50     # Maximum trajectory points stored
 ```
 
@@ -91,7 +91,7 @@ prm:
 | `window_size` | int | `10` | Number of recent events in the scoring window |
 | `score_threshold_nudge` | float | `7.0` | Scores below this produce a nudge intervention |
 | `score_threshold_escalate` | float | `3.0` | Scores below this produce an escalation |
-| `hint_file_path` | string | `/workspace/.robodev-hint.md` | Path where hints are written in the agent pod |
+| `hint_file_path` | string | `/workspace/.osmia-hint.md` | Path where hints are written in the agent pod |
 | `max_trajectory_length` | int | `50` | Maximum number of trajectory points retained |
 
 ### Tuning Tips
@@ -106,9 +106,9 @@ The PRM exposes the following metrics:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
-| `robodev_prm_step_scores` | Histogram | `engine` | Distribution of step scores (1-10) |
-| `robodev_prm_interventions_total` | Counter | `action` | Total interventions by type (continue/nudge/escalate) |
-| `robodev_prm_trajectory_patterns_total` | Counter | `pattern` | Trajectory pattern detections |
+| `osmia_prm_step_scores` | Histogram | `engine` | Distribution of step scores (1-10) |
+| `osmia_prm_interventions_total` | Counter | `action` | Total interventions by type (continue/nudge/escalate) |
+| `osmia_prm_trajectory_patterns_total` | Counter | `pattern` | Trajectory pattern detections |
 
 ## Architecture
 

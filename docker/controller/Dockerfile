@@ -11,14 +11,14 @@ RUN go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /out/robodev ./cmd/robodev/
+    go build -trimpath -ldflags="-s -w" -o /out/osmia ./cmd/osmia/
 
 # Stage 2: Minimal runtime image.
 FROM gcr.io/distroless/static-debian12:nonroot
 
-COPY --from=builder /out/robodev /usr/local/bin/robodev
+COPY --from=builder /out/osmia /usr/local/bin/osmia
 
 USER nonroot:nonroot
 EXPOSE 8080
 
-ENTRYPOINT ["robodev"]
+ENTRYPOINT ["osmia"]

@@ -1,4 +1,4 @@
-# docker-compose.yaml — Local development environment for RoboDev.
+# docker-compose.yaml — Local development environment for Osmia.
 #
 # Runs the controller outside of Kubernetes using the "local" execution
 # backend. Engine containers are launched dynamically by the controller
@@ -17,10 +17,10 @@ services:
       - "8080:8080"   # metrics and health
       - "8081:8081"   # webhook receiver
     environment:
-      - ROBODEV_CONFIG=/config/robodev-config.yaml
+      - OSMIA_CONFIG=/config/osmia-config.yaml
     volumes:
-      - ./robodev-config.yaml:/config/robodev-config.yaml:ro
-      - robodev-workspace:/workspace
+      - ./osmia-config.yaml:/config/osmia-config.yaml:ro
+      - osmia-workspace:/workspace
 
 volumes:
-  robodev-workspace:
+  osmia-workspace:

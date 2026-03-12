@@ -14,14 +14,14 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/controller"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/memory"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/internal/tournament"
-	"github.com/unitaryai/robodev/internal/watchdog"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/controller"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/memory"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/tournament"
+	"github.com/unitaryai/osmia/internal/watchdog"
 )
 
 // TestWorkflowHappyPath verifies the basic ticket → K8s Job → NDJSON stream →
@@ -175,7 +175,7 @@ func TestWorkflowPRMHintDelivery(t *testing.T) {
 		EvaluationInterval:  5,
 		WindowSize:          10,
 		ScoreThresholdNudge: 9, // nudge whenever score < 9 (virtually always for loop)
-		HintFilePath:        "/tmp/robodev-hint.md",
+		HintFilePath:        "/tmp/osmia-hint.md",
 	}
 
 	prmCfg := prm.Config{
@@ -183,7 +183,7 @@ func TestWorkflowPRMHintDelivery(t *testing.T) {
 		EvaluationInterval:  5,
 		WindowSize:          10,
 		ScoreThresholdNudge: 9,
-		HintFilePath:        "/tmp/robodev-hint.md",
+		HintFilePath:        "/tmp/osmia-hint.md",
 	}
 
 	r := controller.NewReconciler(cfg, logger,

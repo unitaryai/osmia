@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // mockEventHandler records calls to HandleWebhookEvent for testing.

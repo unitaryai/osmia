@@ -1,10 +1,10 @@
-# Full enterprise RoboDev deployment with all features enabled.
+# Full enterprise Osmia deployment with all features enabled.
 # Includes multi-tenancy, quality gate, agent teams, and strict security.
 
 replicaCount: 1
 
 image:
-  repository: ghcr.io/unitaryai/robodev
+  repository: ghcr.io/unitaryai/osmia
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -15,21 +15,21 @@ config:
       owner: "enterprise-org"
       repo: "monorepo"
       labels:
-        - "robodev"
+        - "osmia"
         - "approved"
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
   notifications:
     channels:
       - backend: slack
         config:
           channel_id: "C0123456789"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
 
   secrets:
     backend: k8s
     config:
-      namespace: "robodev-secrets"
+      namespace: "osmia-secrets"
 
   engines:
     default: claude-code
@@ -46,7 +46,7 @@ config:
       image: "ghcr.io/unitaryai/engine-codex:latest"
       auth:
         method: api_key
-        api_key_secret: "robodev-openai-key"
+        api_key_secret: "osmia-openai-key"
 
   guardrails:
     max_cost_per_job: 100.0
@@ -84,12 +84,12 @@ config:
   review:
     backend: coderabbit
     config:
-      api_key_secret: "robodev-coderabbit-key"
+      api_key_secret: "osmia-coderabbit-key"
 
   scm:
     backend: github
     config:
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
   progress_watchdog:
     enabled: true
@@ -106,7 +106,7 @@ config:
     mode: "namespace-per-tenant"
     tenants:
       - name: "team-alpha"
-        namespace: "robodev-alpha"
+        namespace: "osmia-alpha"
         ticketing:
           backend: github
           config:
@@ -115,9 +115,9 @@ config:
         secrets:
           backend: k8s
           config:
-            namespace: "robodev-alpha"
+            namespace: "osmia-alpha"
       - name: "team-beta"
-        namespace: "robodev-beta"
+        namespace: "osmia-beta"
         ticketing:
           backend: github
           config:
@@ -126,7 +126,7 @@ config:
         secrets:
           backend: k8s
           config:
-            namespace: "robodev-beta"
+            namespace: "osmia-beta"
 
   plugin_health:
     max_plugin_restarts: 3
@@ -139,7 +139,7 @@ config:
 # Plugin init containers for external plugins.
 plugins:
   - name: jira
-    image: ghcr.io/myorg/robodev-plugin-jira:v1.0.0
+    image: ghcr.io/myorg/osmia-plugin-jira:v1.0.0
     binaryPath: /plugin
 
 resources:

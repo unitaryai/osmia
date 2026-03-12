@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/unitaryai/robodev/internal/llm"
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/internal/llm"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
 // Classifier classifies a review comment into ignore, informational, or
@@ -26,7 +26,7 @@ var botUsernames = []string{
 	"dependabot",
 	"copilot",
 	"gemini-code-assist",
-	"robodev",
+	"osmia",
 }
 
 // informationalKeywords are phrases that indicate a non-actionable comment.

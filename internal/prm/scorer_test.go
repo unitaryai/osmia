@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/agentstream"
 )
 
 func testLogger() *slog.Logger {

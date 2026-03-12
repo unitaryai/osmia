@@ -11,9 +11,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -100,7 +100,7 @@ func (t *TelegramChannel) Notify(ctx context.Context, message string, ticket tic
 
 // NotifyStart sends a notification that an agent has begun working on a ticket.
 func (t *TelegramChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
-	text := fmt.Sprintf("\U0001F916 *RoboDev agent started working on:* %s", ticket.Title)
+	text := fmt.Sprintf("\U0001F916 *Osmia agent started working on:* %s", ticket.Title)
 	if ticket.ExternalURL != "" {
 		text += "\n[" + ticket.ID + "](" + ticket.ExternalURL + ")"
 	}

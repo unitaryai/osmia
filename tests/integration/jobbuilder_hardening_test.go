@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/aider"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	"github.com/unitaryai/robodev/pkg/engine/cline"
-	"github.com/unitaryai/robodev/pkg/engine/codex"
-	"github.com/unitaryai/robodev/pkg/engine/opencode"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/aider"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	"github.com/unitaryai/osmia/pkg/engine/cline"
+	"github.com/unitaryai/osmia/pkg/engine/codex"
+	"github.com/unitaryai/osmia/pkg/engine/opencode"
 )
 
 // allEngines returns one instance of every supported execution engine.
@@ -94,7 +94,7 @@ func TestJobBuilderSecurityHardening(t *testing.T) {
 }
 
 // TestJobBuilderLabelsAndTolerations verifies that the built Job carries the
-// required robodev labels and the agent node toleration.
+// required osmia labels and the agent node toleration.
 func TestJobBuilderLabelsAndTolerations(t *testing.T) {
 	t.Parallel()
 
@@ -108,18 +108,18 @@ func TestJobBuilderLabelsAndTolerations(t *testing.T) {
 	require.NotNil(t, job)
 
 	labels := job.Labels
-	assert.Equal(t, "robodev-agent", labels["app"],
-		`label "app" must equal "robodev-agent"`)
-	assert.NotEmpty(t, labels["robodev.io/task-run-id"],
-		`label "robodev.io/task-run-id" must not be empty`)
-	assert.NotEmpty(t, labels["robodev.io/engine"],
-		`label "robodev.io/engine" must not be empty`)
+	assert.Equal(t, "osmia-agent", labels["app"],
+		`label "app" must equal "osmia-agent"`)
+	assert.NotEmpty(t, labels["osmia.io/task-run-id"],
+		`label "osmia.io/task-run-id" must not be empty`)
+	assert.NotEmpty(t, labels["osmia.io/engine"],
+		`label "osmia.io/engine" must not be empty`)
 
-	// Verify the toleration for robodev.io/agent is present with correct settings.
+	// Verify the toleration for osmia.io/agent is present with correct settings.
 	tolerations := job.Spec.Template.Spec.Tolerations
 	hasToleration := false
 	for _, tol := range tolerations {
-		if tol.Key == "robodev.io/agent" {
+		if tol.Key == "osmia.io/agent" {
 			hasToleration = true
 			assert.Equal(t, corev1.TolerationOpExists, tol.Operator,
 				"toleration operator must be Exists")
@@ -128,7 +128,7 @@ func TestJobBuilderLabelsAndTolerations(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, hasToleration, `toleration for "robodev.io/agent" must be present`)
+	assert.True(t, hasToleration, `toleration for "osmia.io/agent" must be present`)
 }
 
 // TestJobBuilderNameLength verifies that even when a very long task run ID is

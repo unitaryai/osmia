@@ -1,5 +1,5 @@
-// Package config loads and validates RoboDev controller configuration
-// from a YAML file (robodev-config.yaml).
+// Package config loads and validates Osmia controller configuration
+// from a YAML file (osmia-config.yaml).
 package config
 
 import (
@@ -9,8 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config is the top-level configuration for the RoboDev controller,
-// loaded from robodev-config.yaml.
+// Config is the top-level configuration for the Osmia controller,
+// loaded from osmia-config.yaml.
 type Config struct {
 	Ticketing            TicketingConfig            `yaml:"ticketing"`
 	Notifications        NotificationsConfig        `yaml:"notifications"`
@@ -41,7 +41,7 @@ type Config struct {
 }
 
 // ReviewResponseConfig configures the PR/MR review comment response subsystem.
-// When enabled, RoboDev monitors open pull/merge requests it created and
+// When enabled, Osmia monitors open pull/merge requests it created and
 // spawns follow-up jobs to address actionable review feedback.
 type ReviewResponseConfig struct {
 	// Enabled activates the review response subsystem.
@@ -53,10 +53,10 @@ type ReviewResponseConfig struct {
 	MinSeverity string `yaml:"min_severity"`
 	// MaxFollowUpJobs is the maximum number of follow-up jobs per PR. Default: 3.
 	MaxFollowUpJobs int `yaml:"max_follow_up_jobs"`
-	// ReplyToComments causes RoboDev to reply to actionable comments
+	// ReplyToComments causes Osmia to reply to actionable comments
 	// acknowledging that it is addressing them. Default: true.
 	ReplyToComments bool `yaml:"reply_to_comments"`
-	// ResolveThreads causes RoboDev to resolve the discussion thread once
+	// ResolveThreads causes Osmia to resolve the discussion thread once
 	// the follow-up job completes. Not supported by GitHub REST. Default: false.
 	ResolveThreads bool `yaml:"resolve_threads"`
 	// LLMClassifier enables LLM-backed comment classification with rule-based
@@ -260,7 +260,7 @@ type SkillConfig struct {
 	// Use only lowercase letters, digits, and hyphens.
 	Name string `yaml:"name"`
 	// Path is the path to a Markdown skill file on the container image,
-	// e.g. "/opt/robodev/skills/create-changelog.md". Use for bundled skills.
+	// e.g. "/opt/osmia/skills/create-changelog.md". Use for bundled skills.
 	Path string `yaml:"path,omitempty"`
 	// Inline contains the skill Markdown content directly in the config.
 	// Use for custom, operator-defined skills that do not require a pre-built image.
@@ -472,7 +472,7 @@ type SCMConfig struct {
 }
 
 // ShortcutWorkflow configures a single trigger→in-progress workflow mapping for
-// the Shortcut ticketing backend. Multiple entries allow RoboDev to pick up
+// the Shortcut ticketing backend. Multiple entries allow Osmia to pick up
 // stories from different workflow states, each transitioning to its own
 // in-progress state.
 type ShortcutWorkflow struct {
@@ -585,7 +585,7 @@ type TranscriptConfig struct {
 	Prefix  string `yaml:"prefix,omitempty"` // key prefix for s3/gcs
 }
 
-// Load reads and parses a RoboDev configuration file from the given path.
+// Load reads and parses a Osmia configuration file from the given path.
 // It returns an error if the file cannot be read, parsed, or fails validation.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)

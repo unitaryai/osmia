@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in RoboDev
+about: Report a bug in Osmia
 title: "[BUG] "
 labels: bug
 assignees: ''
@@ -26,7 +26,7 @@ What actually happened.
 
 ## Environment
 
-- RoboDev version:
+- Osmia version:
 - Kubernetes version:
 - Cloud provider:
 - Helm chart version:

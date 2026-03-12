@@ -1,0 +1,1 @@
+"""Osmia Jira ticketing plugin."""

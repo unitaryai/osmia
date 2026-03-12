@@ -1,4 +1,4 @@
-// Package controller implements the main reconciliation loop for the RoboDev
+// Package controller implements the main reconciliation loop for the Osmia
 // operator. It polls the ticketing backend for ready tickets, creates TaskRuns,
 // launches K8s Jobs via the JobBuilder, and monitors job completion.
 package controller
@@ -22,28 +22,28 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/diagnosis"
-	"github.com/unitaryai/robodev/internal/estimator"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/memory"
-	"github.com/unitaryai/robodev/internal/metrics"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/reviewpoller"
-	"github.com/unitaryai/robodev/internal/routing"
-	"github.com/unitaryai/robodev/internal/scmrouter"
-	"github.com/unitaryai/robodev/internal/secretresolver"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/internal/tournament"
-	"github.com/unitaryai/robodev/internal/watchdog"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/approval"
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
-	"github.com/unitaryai/robodev/pkg/plugin/review"
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
-	"github.com/unitaryai/robodev/pkg/plugin/transcript"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/diagnosis"
+	"github.com/unitaryai/osmia/internal/estimator"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/memory"
+	"github.com/unitaryai/osmia/internal/metrics"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/reviewpoller"
+	"github.com/unitaryai/osmia/internal/routing"
+	"github.com/unitaryai/osmia/internal/scmrouter"
+	"github.com/unitaryai/osmia/internal/secretresolver"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/internal/tournament"
+	"github.com/unitaryai/osmia/internal/watchdog"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/approval"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/review"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/transcript"
 )
 
 // JobBuilder translates an ExecutionSpec into a Kubernetes Job.
@@ -2195,7 +2195,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	} else if tr.RetryCount > 0 {
 		// Fall back to the predictable naming convention even if result.json
 		// was not written (e.g. pod killed before stop hook ran).
-		task.PriorBranchName = "robodev/" + tr.TicketID
+		task.PriorBranchName = "osmia/" + tr.TicketID
 	}
 
 	engineCfg := engine.EngineConfig{
@@ -2480,7 +2480,7 @@ func validateHintPath(path string) error {
 
 // writeHintFile delivers PRM hint content to the running agent pod by
 // executing a tee command inside the container via the Kubernetes exec API.
-// The hint path defaults to /workspace/.robodev-hint.md when not configured.
+// The hint path defaults to /workspace/.osmia-hint.md when not configured.
 func (r *Reconciler) writeHintFile(ctx context.Context, taskRunID, content string) error {
 	if r.restConfig == nil || r.k8sClient == nil {
 		return fmt.Errorf("rest config or k8s client not available for hint write")
@@ -2488,7 +2488,7 @@ func (r *Reconciler) writeHintFile(ctx context.Context, taskRunID, content strin
 
 	hintPath := r.config.PRM.HintFilePath
 	if hintPath == "" {
-		hintPath = "/workspace/.robodev-hint.md"
+		hintPath = "/workspace/.osmia-hint.md"
 	}
 	if err := validateHintPath(hintPath); err != nil {
 		return fmt.Errorf("invalid hint file path: %w", err)
@@ -2548,7 +2548,7 @@ func (r *Reconciler) cleanupHintFile(ctx context.Context, taskRunID string) {
 
 	hintPath := r.config.PRM.HintFilePath
 	if hintPath == "" {
-		hintPath = "/workspace/.robodev-hint.md"
+		hintPath = "/workspace/.osmia-hint.md"
 	}
 	if err := validateHintPath(hintPath); err != nil {
 		r.logger.Warn("skipping hint cleanup: invalid path",

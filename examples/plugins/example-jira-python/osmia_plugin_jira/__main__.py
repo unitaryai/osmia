@@ -1,10 +1,10 @@
-"""Example Jira ticketing plugin for RoboDev.
+"""Example Jira ticketing plugin for Osmia.
 
 This module implements the TicketingBackend gRPC interface for Jira Cloud.
 It demonstrates how to build a third-party plugin in Python using the
-RoboDev Plugin SDK.
+Osmia Plugin SDK.
 
-Note: This is an example/template. The robodev-plugin-sdk package is not
+Note: This is an example/template. The osmia-plugin-sdk package is not
 yet published; this code shows the intended plugin development experience.
 """
 
@@ -18,17 +18,17 @@ JIRA_BASE_URL = os.getenv("JIRA_BASE_URL", "https://yourorg.atlassian.net")
 JIRA_EMAIL = os.getenv("JIRA_EMAIL", "")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "")
 JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY", "")
-JIRA_LABEL = os.getenv("JIRA_LABEL", "robodev")
+JIRA_LABEL = os.getenv("JIRA_LABEL", "osmia")
 
 
 class JiraTicketingBackend:
-    """Jira Cloud ticketing backend for RoboDev.
+    """Jira Cloud ticketing backend for Osmia.
 
     Implements the TicketingBackend gRPC interface:
     - PollReadyTickets: searches Jira for issues with the configured label
     - MarkInProgress: transitions issue to "In Progress"
     - MarkComplete: transitions issue to "Done" and adds a comment
-    - MarkFailed: adds a "robodev-failed" label and comment
+    - MarkFailed: adds a "osmia-failed" label and comment
     - AddComment: posts a comment on the issue
     """
 
@@ -100,13 +100,13 @@ class JiraTicketingBackend:
         """Transition the issue to 'Done' and add a completion comment."""
         self.add_comment(
             ticket_id,
-            f"RoboDev completed this task.\n\nSummary: {result.get('summary', 'N/A')}\n"
+            f"Osmia completed this task.\n\nSummary: {result.get('summary', 'N/A')}\n"
             f"Merge Request: {result.get('merge_request_url', 'N/A')}",
         )
 
     def mark_failed(self, ticket_id: str, reason: str):
         """Add a failure label and comment."""
-        self.add_comment(ticket_id, f"RoboDev failed to complete this task.\n\nReason: {reason}")
+        self.add_comment(ticket_id, f"Osmia failed to complete this task.\n\nReason: {reason}")
 
     def add_comment(self, ticket_id: str, comment: str):
         """Post a comment on the Jira issue."""
@@ -132,13 +132,13 @@ class JiraTicketingBackend:
 def main():
     """Entry point for the Jira plugin.
 
-    In production, this would use the robodev-plugin-sdk to register
+    In production, this would use the osmia-plugin-sdk to register
     the backend as a gRPC service and start serving.
     """
-    logger.info("starting robodev-plugin-jira")
+    logger.info("starting osmia-plugin-jira")
 
     # When the SDK is available:
-    # from robodev_plugin_sdk import serve
+    # from osmia_plugin_sdk import serve
     # serve(JiraTicketingBackend(), interface="ticketing")
 
     backend = JiraTicketingBackend()

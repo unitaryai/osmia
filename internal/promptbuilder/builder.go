@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // TaskProfile defines constraints and allowed operations for a task type.

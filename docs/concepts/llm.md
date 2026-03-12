@@ -1,10 +1,10 @@
 # LLM Abstraction Layer
 
-RoboDev includes a DSPy-inspired LLM abstraction package (`internal/llm/`) that provides typed, composable LLM interactions for all intelligent subsystems. Rather than making ad-hoc API calls, subsystems define **signatures** that declare their inputs and outputs, and the framework handles prompt formatting, response parsing, and cost tracking automatically.
+Osmia includes a DSPy-inspired LLM abstraction package (`internal/llm/`) that provides typed, composable LLM interactions for all intelligent subsystems. Rather than making ad-hoc API calls, subsystems define **signatures** that declare their inputs and outputs, and the framework handles prompt formatting, response parsing, and cost tracking automatically.
 
 ## Why a Dedicated LLM Layer?
 
-RoboDev's subsystems (PRM scoring, memory extraction, causal diagnosis, tournament judging) all need to call LLMs, but with very different schemas and cost constraints. Without a shared abstraction, each subsystem would re-implement prompt formatting, JSON parsing, error handling, and budget enforcement. The `internal/llm/` package provides this shared foundation.
+Osmia's subsystems (PRM scoring, memory extraction, causal diagnosis, tournament judging) all need to call LLMs, but with very different schemas and cost constraints. Without a shared abstraction, each subsystem would re-implement prompt formatting, JSON parsing, error handling, and budget enforcement. The `internal/llm/` package provides this shared foundation.
 
 **Key benefits:**
 

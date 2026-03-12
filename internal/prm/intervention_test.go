@@ -62,7 +62,7 @@ func TestInterventionDecider_Decide(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decider := NewInterventionDecider(7, 3, "/workspace/.robodev-hint.md")
+			decider := NewInterventionDecider(7, 3, "/workspace/.osmia-hint.md")
 			traj := NewTrajectory(50)
 			for _, s := range tt.scores {
 				traj.AddScore(makeScore(s))
@@ -94,7 +94,7 @@ func TestInterventionDecider_HintFilePath(t *testing.T) {
 		{
 			name:     "empty path uses default",
 			path:     "",
-			wantPath: "/workspace/.robodev-hint.md",
+			wantPath: "/workspace/.osmia-hint.md",
 		},
 	}
 

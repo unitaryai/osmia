@@ -1,6 +1,6 @@
 # Configuration Reference
 
-RoboDev is configured via a YAML file (`robodev-config.yaml`) which is mounted into the controller pod as a ConfigMap. When deploying with Helm, you set configuration under the `config:` key in your `values.yaml` and the chart creates the ConfigMap for you.
+Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into the controller pod as a ConfigMap. When deploying with Helm, you set configuration under the `config:` key in your `values.yaml` and the chart creates the ConfigMap for you.
 
 ## Top-Level Sections
 
@@ -32,7 +32,7 @@ RoboDev is configured via a YAML file (`robodev-config.yaml`) which is mounted i
 !!! note "Intelligence features"
     All intelligence subsystems (`prm`, `memory`, `diagnosis`, `routing`, `estimator`, `competitive_execution`) are fully integrated into the controller and functional when enabled. They are all disabled by default and have no effect unless you add their configuration blocks.
 
-For the full set of fields and their defaults, see `charts/robodev/values.yaml` and the struct definitions in [`internal/config/config.go`](https://github.com/unitaryai/robodev/blob/main/internal/config/config.go).
+For the full set of fields and their defaults, see `charts/osmia/values.yaml` and the struct definitions in [`internal/config/config.go`](https://github.com/unitaryai/osmia/blob/main/internal/config/config.go).
 
 ## Ticketing
 
@@ -46,12 +46,12 @@ ticketing:
   config:
     owner: "your-org"               # GitHub org or username
     repo: "your-repo"               # Repository name
-    token_secret: "robodev-github-token"
+    token_secret: "osmia-github-token"
     labels:
-      - "robodev"                   # Issues must have this label to be picked up
+      - "osmia"                   # Issues must have this label to be picked up
     exclude_labels:
-      - "robodev-in-progress"       # Skip issues already in flight
-      - "robodev-failed"            # Skip issues that previously failed
+      - "osmia-in-progress"       # Skip issues already in flight
+      - "osmia-failed"            # Skip issues that previously failed
 ```
 
 | Field | Required | Description |
@@ -59,7 +59,7 @@ ticketing:
 | `token_secret` | Yes | Kubernetes Secret name containing a GitHub token with `repo` + `issues` scopes |
 | `owner` | Yes | GitHub organisation or username |
 | `repo` | Yes | Repository name |
-| `labels` | No | Issues must carry at least one of these labels. Defaults to `["robodev"]` |
+| `labels` | No | Issues must carry at least one of these labels. Defaults to `["osmia"]` |
 | `exclude_labels` | No | Issues carrying any of these labels are skipped |
 
 ### Shortcut
@@ -68,13 +68,13 @@ ticketing:
 ticketing:
   backend: shortcut
   config:
-    token_secret: "robodev-shortcut-token"
+    token_secret: "osmia-shortcut-token"
     workflow_state_name: "Ready for Development"   # trigger state — exact name
     in_progress_state_name: "In Development"       # state set when agent starts
     completed_state_name: "Ready for Review"       # state set on success (optional)
-    owner_mention_name: "robodev"                  # mention name of the RoboDev user
+    owner_mention_name: "osmia"                  # mention name of the Osmia user
     exclude_labels:
-      - "robodev-failed"
+      - "osmia-failed"
 ```
 
 | Field | Required | Description |
@@ -83,7 +83,7 @@ ticketing:
 | `workflow_state_name` | Yes | Exact name of the state that triggers pickup (e.g. `"Ready for Development"`) |
 | `in_progress_state_name` | No | State the story is moved to when the agent starts work |
 | `completed_state_name` | No | State the story is moved to on success. Defaults to the first done-type state in the workflow |
-| `owner_mention_name` | No | Only pick up stories assigned to this Shortcut user (e.g. `"robodev"`) |
+| `owner_mention_name` | No | Only pick up stories assigned to this Shortcut user (e.g. `"osmia"`) |
 | `exclude_labels` | No | Stories with any of these labels are skipped |
 
 **Multi-workflow support** — if your workspace has several workflows with different state names, use the `workflows` array instead of the flat keys above:
@@ -92,8 +92,8 @@ ticketing:
 ticketing:
   backend: shortcut
   config:
-    token_secret: "robodev-shortcut-token"
-    owner_mention_name: "robodev"
+    token_secret: "osmia-shortcut-token"
+    owner_mention_name: "osmia"
     completed_state_name: "Ready for Review"
     workflows:
       - trigger_state: "Ready for Development"
@@ -110,14 +110,14 @@ When `workflows` is set it supersedes `workflow_state_name` and `in_progress_sta
 ticketing:
   backend: linear
   config:
-    token_secret: "robodev-linear-token"
+    token_secret: "osmia-linear-token"
     team_id: "YOUR_TEAM_ID"          # Linear team UUID
     state_filter: "Todo"             # only pick up issues in this state
     labels:
-      - "robodev"
+      - "osmia"
     exclude_labels:
       - "in-progress"
-      - "robodev-failed"
+      - "osmia-failed"
 ```
 
 | Field | Required | Description |
@@ -126,7 +126,7 @@ ticketing:
 | `team_id` | Yes | Linear team UUID (find it in Settings → API) |
 | `state_filter` | No | Only pick up issues in this workflow state name |
 | `labels` | No | Issues must carry at least one of these labels |
-| `exclude_labels` | No | Issues carrying any of these labels are skipped. Defaults to `["in-progress", "robodev-failed"]` |
+| `exclude_labels` | No | Issues carrying any of these labels are skipped. Defaults to `["in-progress", "osmia-failed"]` |
 
 ### Local
 
@@ -158,7 +158,7 @@ engines:
   claude_code:
     auth:
       method: api_key
-      api_key_secret: "robodev-anthropic-key"
+      api_key_secret: "osmia-anthropic-key"
     fallback_model: haiku
     no_session_persistence: true
     append_system_prompt: "Always run the test suite before committing."
@@ -169,7 +169,7 @@ engines:
           # Create Changelog
           Generate a CHANGELOG.md entry for the changes made.
       - name: security-review
-        path: /opt/robodev/skills/security-review.md
+        path: /opt/osmia/skills/security-review.md
       - name: deploy-guide
         configmap: deploy-skills         # load from a K8s ConfigMap
     sub_agents:                          # delegate subtasks to specialised agents
@@ -183,12 +183,12 @@ engines:
   codex:
     auth:
       method: api_key
-      api_key_secret: "robodev-openai-key"
+      api_key_secret: "osmia-openai-key"
   opencode:
     provider: anthropic    # "anthropic", "openai", "google"
     auth:
       method: api_key
-      api_key_secret: "robodev-anthropic-key"
+      api_key_secret: "osmia-anthropic-key"
   # cline: no pre-built image is published yet — see Engine Reference.
 ```
 
@@ -241,10 +241,10 @@ notifications:
     - backend: slack
       config:
         channel_id: "C0123456789"
-        token_secret: "robodev-slack-token"
+        token_secret: "osmia-slack-token"
     - backend: teams
       config:
-        webhook_url_secret: "robodev-teams-webhook"
+        webhook_url_secret: "osmia-teams-webhook"
 ```
 
 Multiple channels can be configured simultaneously. All channels receive all events. Notification failures are logged but do not block the controller.
@@ -255,7 +255,7 @@ Multiple channels can be configured simultaneously. All channels receive all eve
 secrets:
   backend: k8s             # "k8s" (built-in) or a plugin name
   config:
-    namespace: "robodev"   # Optional — defaults to the controller's namespace
+    namespace: "osmia"   # Optional — defaults to the controller's namespace
 ```
 
 For external secret stores, see the [Secrets plugin documentation](../plugins/secrets.md).
@@ -275,7 +275,7 @@ secret_resolver:
         address: "https://vault.example.com"
   aliases:
     anthropic-key:
-      uri: "k8s://robodev/robodev-anthropic-key/api_key"
+      uri: "k8s://osmia/osmia-anthropic-key/api_key"
   policy:
     allowed_env_patterns: ["ANTHROPIC_*", "OPENAI_*", "GITHUB_*"]
     blocked_env_patterns: ["AWS_SECRET_*"]
@@ -377,7 +377,7 @@ tenancy:
   mode: "namespace-per-tenant"   # or "shared"
   tenants:
     - name: "team-alpha"
-      namespace: "robodev-alpha"
+      namespace: "osmia-alpha"
       ticketing:
         backend: github
         config:
@@ -402,7 +402,7 @@ plugin_health:
 scm:
   backend: github
   config:
-    token_secret: "robodev-github-token"
+    token_secret: "osmia-github-token"
 ```
 
 ## Review
@@ -425,7 +425,7 @@ prm:
   window_size: 10                   # Rolling window of recent events
   score_threshold_nudge: 7          # Scores below this trigger a nudge
   score_threshold_escalate: 3       # Scores below this trigger escalation
-  hint_file_path: "/workspace/.robodev-hint.md"
+  hint_file_path: "/workspace/.osmia-hint.md"
   max_trajectory_length: 50         # Maximum trajectory points stored
 ```
 
@@ -436,7 +436,7 @@ prm:
 | `window_size` | int | `10` | Events in the scoring window |
 | `score_threshold_nudge` | float | `7.0` | Score below this produces a nudge |
 | `score_threshold_escalate` | float | `3.0` | Score below this produces an escalation |
-| `hint_file_path` | string | `/workspace/.robodev-hint.md` | Path for hint files in the agent pod |
+| `hint_file_path` | string | `/workspace/.osmia-hint.md` | Path for hint files in the agent pod |
 | `max_trajectory_length` | int | `50` | Maximum trajectory points retained |
 
 ## Episodic Memory
@@ -456,7 +456,7 @@ memory:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | bool | `false` | Enables episodic memory |
-| `store_path` | string | `/var/lib/robodev/memory.db` | Path to the SQLite database |
+| `store_path` | string | `/var/lib/osmia/memory.db` | Path to the SQLite database |
 | `decay_interval_hours` | int | `24` | Hours between confidence decay cycles |
 | `prune_threshold` | float | `0.05` | Facts below this confidence are pruned |
 | `max_facts_per_query` | int | `10` | Maximum facts returned per query |
@@ -467,11 +467,11 @@ memory:
 
 ## Environment Variable Overrides
 
-Configuration values can be overridden via environment variables following the pattern `ROBODEV_<SECTION>_<FIELD>`:
+Configuration values can be overridden via environment variables following the pattern `OSMIA_<SECTION>_<FIELD>`:
 
 | Variable | Overrides |
 |---|---|
-| `ROBODEV_TICKETING_BACKEND` | `ticketing.backend` |
-| `ROBODEV_ENGINE_DEFAULT` | `engines.default` |
-| `ROBODEV_GUARDRAILS_MAX_COST_PER_JOB` | `guardrails.max_cost_per_job` |
-| `ROBODEV_GUARDRAILS_MAX_CONCURRENT_JOBS` | `guardrails.max_concurrent_jobs` |
+| `OSMIA_TICKETING_BACKEND` | `ticketing.backend` |
+| `OSMIA_ENGINE_DEFAULT` | `engines.default` |
+| `OSMIA_GUARDRAILS_MAX_COST_PER_JOB` | `guardrails.max_cost_per_job` |
+| `OSMIA_GUARDRAILS_MAX_CONCURRENT_JOBS` | `guardrails.max_concurrent_jobs` |

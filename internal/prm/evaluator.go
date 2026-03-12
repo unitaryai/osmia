@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
-	"github.com/unitaryai/robodev/internal/metrics"
+	"github.com/unitaryai/osmia/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/metrics"
 )
 
 // Config holds the configuration for the PRM evaluator.
@@ -34,7 +34,7 @@ func DefaultConfig() Config {
 		WindowSize:             10,
 		ScoreThresholdNudge:    7,
 		ScoreThresholdEscalate: 3,
-		HintFilePath:           "/workspace/.robodev-hint.md",
+		HintFilePath:           "/workspace/.osmia-hint.md",
 		MaxTrajectoryLength:    50,
 	}
 }

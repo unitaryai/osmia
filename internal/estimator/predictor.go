@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"sort"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/metrics"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/metrics"
 )
 
 const defaultK = 5

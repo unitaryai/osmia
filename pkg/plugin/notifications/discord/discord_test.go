@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/notifications"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // Compile-time interface check.
@@ -170,7 +170,7 @@ func TestDiscordChannel_NotifyStart(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, capturedPayload.Embeds, 1)
 				embed := capturedPayload.Embeds[0]
-				assert.Equal(t, "RoboDev Agent Started", embed.Title)
+				assert.Equal(t, "Osmia Agent Started", embed.Title)
 				assert.Equal(t, tt.ticket.Title, embed.Description)
 				assert.Equal(t, colourBlue, embed.Colour)
 

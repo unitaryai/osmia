@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitaryai/robodev/pkg/plugin/scm"
+	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
 const (

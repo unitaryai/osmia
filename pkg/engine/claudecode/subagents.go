@@ -1,4 +1,4 @@
-// Package claudecode provides the Claude Code execution engine for RoboDev.
+// Package claudecode provides the Claude Code execution engine for Osmia.
 // This file implements sub-agent configuration for Claude Code, replacing the
 // deprecated agent teams feature with the official sub-agents specification.
 package claudecode
@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // SubAgent describes a Claude Code sub-agent definition.

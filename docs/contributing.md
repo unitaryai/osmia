@@ -1,6 +1,6 @@
-# Contributing to RoboDev
+# Contributing to Osmia
 
-Thank you for your interest in contributing to RoboDev! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Osmia! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -9,7 +9,7 @@ This project adheres to the [Contributor Covenant Code of Conduct](code-of-condu
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/robodev.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/osmia.git`
 3. Install git hooks: `./hack/install-hooks.sh`
 4. Create a feature branch: `git checkout -b feat/my-feature`
 5. Make your changes
@@ -45,7 +45,7 @@ This installs a `pre-push` hook that runs `golangci-lint` and `go test -race ./.
 
 ## Local Development Workflow
 
-RoboDev uses [kind](https://kind.sigs.k8s.io/) for local development and testing. The full workflow is automated via Make targets:
+Osmia uses [kind](https://kind.sigs.k8s.io/) for local development and testing. The full workflow is automated via Make targets:
 
 ```bash
 # Verify all prerequisites are installed

@@ -2,7 +2,7 @@
 
 package e2e
 
-// Live E2E workflow tests exercise the full RoboDev pipeline against real
+// Live E2E workflow tests exercise the full Osmia pipeline against real
 // external services: Shortcut ticketing, GitLab SCM, and the Claude Code
 // engine. They require the live controller to be running in the kind cluster
 // with valid secrets.
@@ -10,9 +10,9 @@ package e2e
 // # Prerequisites
 //
 //   - kind cluster running with `make live-up` or equivalent
-//   - robodev-shortcut-token, robodev-scm-token, and robodev-anthropic-key
+//   - osmia-shortcut-token, osmia-scm-token, and osmia-anthropic-key
 //     K8s Secrets present in the live namespace
-//   - kubeconfig pointing at the kind cluster (kubectl context kind-robodev)
+//   - kubeconfig pointing at the kind cluster (kubectl context kind-osmia)
 //
 // # Running
 //
@@ -24,10 +24,10 @@ package e2e
 //
 // # Environment variables
 //
-//	ROBODEV_LIVE_NAMESPACE      K8s namespace where the controller runs (default: "robodev")
+//	OSMIA_LIVE_NAMESPACE      K8s namespace where the controller runs (default: "osmia")
 //	SHORTCUT_TEST_REPO_URL      GitLab repo URL for agent tasks (default: customer1-common test repo)
 //	SHORTCUT_READY_STATE        Trigger workflow state name (default: "Ready for Development")
-//	SHORTCUT_OWNER_MENTION      Shortcut mention name to assign stories to (default: "robodev")
+//	SHORTCUT_OWNER_MENTION      Shortcut mention name to assign stories to (default: "osmia")
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ import (
 // external services:
 //
 //  1. Creates a Shortcut story in "Ready for Development" state, assigned to
-//     @robodev, with the test GitLab repo as an external link.
+//     @osmia, with the test GitLab repo as an external link.
 //  2. Waits for the live controller to poll and pick up the story (up to 30s).
 //  3. Waits for the Claude Code agent K8s Job to complete successfully.
 //  4. Asserts that Shortcut transitions the story to a done-type state and
@@ -53,11 +53,11 @@ func TestLiveHappyPath(t *testing.T) {
 	repoURL := liveTestRepoURL()
 	sc := newShortcutTestClient(t)
 
-	title := fmt.Sprintf("RoboDev E2E: append comment to README — %d", time.Now().Unix())
+	title := fmt.Sprintf("Osmia E2E: append comment to README — %d", time.Now().Unix())
 	description := `Append exactly one line to the bottom of README.md:
 
 ` + "```" + `
-<!-- robodev-e2e-test -->
+<!-- osmia-e2e-test -->
 ` + "```" + `
 
 Do not modify any other files. Open a merge request with the change.`
@@ -97,13 +97,13 @@ Do not modify any other files. Open a merge request with the change.`
 func TestLiveGracefulCloneFailure(t *testing.T) {
 	sc := newShortcutTestClient(t)
 
-	title := fmt.Sprintf("RoboDev E2E: clone-failure graceful handling — %d", time.Now().Unix())
+	title := fmt.Sprintf("Osmia E2E: clone-failure graceful handling — %d", time.Now().Unix())
 	description := "Fix the authentication bug in the login module."
 
 	// This repo does not exist; the git clone inside the agent container will
 	// fail. Claude Code detects this, writes a result describing the error, and
 	// exits 0 — so the controller calls MarkComplete with the error summary.
-	invalidRepoURL := "https://gitlab.com/robodev-e2e-nonexistent/repo-does-not-exist"
+	invalidRepoURL := "https://gitlab.com/osmia-e2e-nonexistent/repo-does-not-exist"
 
 	storyID := sc.createStory(t, title, description, invalidRepoURL)
 	t.Cleanup(func() { sc.deleteStory(t, storyID) })

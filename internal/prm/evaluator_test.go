@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/agentstream"
 )
 
 func TestEvaluator_ProcessEvent_BasicFlow(t *testing.T) {

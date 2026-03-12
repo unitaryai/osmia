@@ -1,5 +1,5 @@
 // Package plugin implements the gRPC plugin host for loading and managing
-// external RoboDev plugins. Built-in plugins are compiled into the controller
+// external Osmia plugins. Built-in plugins are compiled into the controller
 // binary. External plugins run as separate processes communicating over gRPC
 // via hashicorp/go-plugin.
 package plugin
@@ -83,8 +83,8 @@ func NewHost(healthCfg HealthConfig, logger *slog.Logger) *Host {
 		logger:       logger,
 		handshake: goplugin.HandshakeConfig{
 			ProtocolVersion:  1,
-			MagicCookieKey:   "ROBODEV_PLUGIN",
-			MagicCookieValue: "robodev",
+			MagicCookieKey:   "OSMIA_PLUGIN",
+			MagicCookieValue: "osmia",
 		},
 	}
 }
@@ -111,8 +111,8 @@ var knownInterfaceVersions = map[PluginType]int{
 //     but relies on the operator setting InterfaceVersion correctly in config.
 //
 //  2. Transport handshake — hashicorp/go-plugin verifies the magic cookie
-//     ("ROBODEV_PLUGIN"/"robodev") when the subprocess connects. This confirms
-//     the binary is a valid RoboDev plugin but does not verify which interface
+//     ("OSMIA_PLUGIN"/"osmia") when the subprocess connects. This confirms
+//     the binary is a valid Osmia plugin but does not verify which interface
 //     version it implements.
 //
 // Note: the controller does not currently call the protobuf Handshake RPC to

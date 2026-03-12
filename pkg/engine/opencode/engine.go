@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 const (
@@ -128,9 +128,9 @@ func (e *OpenCodeEngine) BuildExecutionSpec(task engine.Task, config engine.Engi
 	}
 
 	env := map[string]string{
-		"ROBODEV_TASK_ID":   task.ID,
-		"ROBODEV_TICKET_ID": task.TicketID,
-		"ROBODEV_REPO_URL":  task.RepoURL,
+		"OSMIA_TASK_ID":   task.ID,
+		"OSMIA_TICKET_ID": task.TicketID,
+		"OSMIA_REPO_URL":  task.RepoURL,
 	}
 
 	// Merge any extra environment variables from the engine config.

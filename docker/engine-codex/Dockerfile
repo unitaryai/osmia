@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# OpenAI Codex execution environment for RoboDev agent jobs.
+# OpenAI Codex execution environment for Osmia agent jobs.
 FROM node:22-slim
 
 # Install system dependencies.
@@ -15,16 +15,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN npm install -g @openai/codex
 
 # Create non-root user (GID/UID 10000 to avoid conflicts with node base image).
-RUN groupadd --gid 10000 robodev \
-    && useradd --uid 10000 --gid robodev --create-home robodev
+RUN groupadd --gid 10000 osmia \
+    && useradd --uid 10000 --gid osmia --create-home osmia
 
 # Copy entrypoint.
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /workspace
-RUN chown robodev:robodev /workspace
+RUN chown osmia:osmia /workspace
 
-USER robodev
+USER osmia
 
 ENTRYPOINT ["entrypoint.sh"]

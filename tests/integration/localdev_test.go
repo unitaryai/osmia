@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/jobbuilder"
-	"github.com/unitaryai/robodev/internal/sandboxbuilder"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/engine/claudecode"
-	localticket "github.com/unitaryai/robodev/pkg/plugin/ticketing/local"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/sandboxbuilder"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine/claudecode"
+	localticket "github.com/unitaryai/osmia/pkg/plugin/ticketing/local"
 )
 
 // newSandboxBuilderForTest creates a SandboxBuilder with default config for tests.
@@ -52,11 +52,18 @@ func TestDockerBuilderProducesValidJob(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, job)
 
-	assert.Equal(t, "local", job.ObjectMeta.Annotations["robodev.io/execution-backend"])
-	assert.Equal(t, "local", job.Spec.Template.ObjectMeta.Annotations["robodev.io/execution-backend"])
-	assert.Equal(t, "robodev-agent", job.Labels["app"])
-	assert.Equal(t, "claude-code", job.Labels["robodev.io/engine"])
-	assert.Equal(t, "tr-local-1", job.Labels["robodev.io/task-run-id"])
+	// Verify local backend annotation on Job metadata.
+	assert.Equal(t, "local", job.ObjectMeta.Annotations["osmia.io/execution-backend"],
+		"Job must be annotated with local execution backend")
+
+	// Verify local backend annotation on pod template.
+	assert.Equal(t, "local", job.Spec.Template.ObjectMeta.Annotations["osmia.io/execution-backend"],
+		"pod template must be annotated with local execution backend")
+
+	// Verify standard labels are present.
+	assert.Equal(t, "osmia-agent", job.Labels["app"])
+	assert.Equal(t, "claude-code", job.Labels["osmia.io/engine"])
+	assert.Equal(t, "tr-local-1", job.Labels["osmia.io/task-run-id"])
 
 	require.Len(t, job.Spec.Template.Spec.Containers, 1)
 	assert.Equal(t, spec.Image, job.Spec.Template.Spec.Containers[0].Image)
@@ -81,7 +88,7 @@ func TestLocalBackendImportsSeedFile(t *testing.T) {
   description: "Description for first task"
   repo_url: "https://github.com/org/repo"
   labels:
-    - robodev
+    - osmia
 - id: "LOCAL-2"
   title: "Second local task"
   repo_url: "https://github.com/org/repo2"
@@ -198,7 +205,8 @@ func TestBuilderSelectionByBackend(t *testing.T) {
 				db := jobbuilder.NewDockerBuilder("test-ns")
 				job, err := db.Build("tr-sel-1", "claude-code", spec)
 				require.NoError(t, err)
-				assert.Equal(t, "local", job.ObjectMeta.Annotations["robodev.io/execution-backend"])
+				assert.Equal(t, "local", job.ObjectMeta.Annotations["osmia.io/execution-backend"],
+					"local backend must produce docker-annotated jobs")
 
 			case "sandbox":
 				sb := newSandboxBuilderForTest("test-ns")
@@ -211,9 +219,11 @@ func TestBuilderSelectionByBackend(t *testing.T) {
 				jb := jobbuilder.NewJobBuilder("test-ns")
 				job, err := jb.Build("tr-sel-3", "claude-code", spec)
 				require.NoError(t, err)
-				_, hasAnnotation := job.ObjectMeta.Annotations["robodev.io/execution-backend"]
-				assert.False(t, hasAnnotation)
-				assert.Nil(t, job.Spec.Template.Spec.RuntimeClassName)
+				_, hasAnnotation := job.ObjectMeta.Annotations["osmia.io/execution-backend"]
+				assert.False(t, hasAnnotation,
+					"standard job backend must not have execution-backend annotation")
+				assert.Nil(t, job.Spec.Template.Spec.RuntimeClassName,
+					"standard job backend must not set RuntimeClassName")
 			}
 		})
 	}

@@ -7,8 +7,8 @@ package notifications
 import (
 	"context"
 
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // InterfaceVersion is the current version of the NotificationChannel interface.

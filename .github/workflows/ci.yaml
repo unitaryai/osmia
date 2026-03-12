@@ -58,7 +58,7 @@ jobs:
         with:
           go-version: '1.23'
       - name: Build controller binary
-        run: go build -v -o bin/robodev ./cmd/robodev/
+        run: go build -v -o bin/osmia ./cmd/osmia/
 
   helm-lint:
     runs-on: ubuntu-latest
@@ -68,7 +68,7 @@ jobs:
         with:
           version: '3.14.0'
       - name: Lint Helm chart
-        run: helm lint charts/robodev/
+        run: helm lint charts/osmia/
 
   docker-build:
     runs-on: ubuntu-latest
@@ -83,18 +83,18 @@ jobs:
           context: .
           file: docker/controller/Dockerfile
           push: false
-          tags: robodev/controller:ci
+          tags: osmia/controller:ci
       - name: Build Claude Code engine image
         uses: docker/build-push-action@v6
         with:
           context: docker/engine-claude-code
           file: docker/engine-claude-code/Dockerfile
           push: false
-          tags: robodev/engine-claude-code:ci
+          tags: osmia/engine-claude-code:ci
       - name: Build Codex engine image
         uses: docker/build-push-action@v6
         with:
           context: docker/engine-codex
           file: docker/engine-codex/Dockerfile
           push: false
-          tags: robodev/engine-codex:ci
+          tags: osmia/engine-codex:ci

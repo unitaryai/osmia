@@ -1,6 +1,6 @@
-RoboDev has been installed successfully.
+Osmia has been installed successfully.
 
-Controller deployment: {{ include "robodev.fullname" . }}
+Controller deployment: {{ include "osmia.fullname" . }}
 Namespace:            {{ .Release.Namespace }}
 
 {{- if .Values.metrics.enabled }}
@@ -22,10 +22,10 @@ Configured plugins (loaded via init containers):
 {{- end }}
 
 To check the controller status:
-  kubectl get deployment {{ include "robodev.fullname" . }} -n {{ .Release.Namespace }}
-  kubectl logs -l app.kubernetes.io/name={{ include "robodev.name" . }} -n {{ .Release.Namespace }}
+  kubectl get deployment {{ include "osmia.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl logs -l app.kubernetes.io/name={{ include "osmia.name" . }} -n {{ .Release.Namespace }}
 
 To view the configuration:
-  kubectl get configmap {{ include "robodev.fullname" . }}-config -n {{ .Release.Namespace }} -o yaml
+  kubectl get configmap {{ include "osmia.fullname" . }}-config -n {{ .Release.Namespace }} -o yaml
 
-For more information, visit: https://github.com/robodev-inc/robodev
+For more information, visit: https://github.com/unitaryai/osmia

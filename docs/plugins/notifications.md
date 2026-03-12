@@ -124,11 +124,11 @@ for _, n := range r.notifiers {
 }
 ```
 
-Errors are logged and tracked via the `robodev_plugin_errors_total` Prometheus metric with the plugin name as a label. If a notification channel is persistently failing, the plugin health checker will mark it as unhealthy, but the controller continues operating.
+Errors are logged and tracked via the `osmia_plugin_errors_total` Prometheus metric with the plugin name as a label. If a notification channel is persistently failing, the plugin health checker will mark it as unhealthy, but the controller continues operating.
 
 ## Multiple Channels
 
-RoboDev supports multiple notification channels simultaneously. All configured channels receive all events:
+Osmia supports multiple notification channels simultaneously. All configured channels receive all events:
 
 ```yaml
 config:
@@ -137,10 +137,10 @@ config:
       - backend: slack
         config:
           channel_id: "C0123456789"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
       - backend: teams
         config:
-          webhook_url_secret: "robodev-teams-webhook"
+          webhook_url_secret: "osmia-teams-webhook"
 ```
 
 ## Built-in: Slack
@@ -156,7 +156,7 @@ config:
       - backend: slack
         config:
           channel_id: "C0123456789"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
 ```
 
 ### Message Format

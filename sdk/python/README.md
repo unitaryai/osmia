@@ -1,7 +1,7 @@
-# RoboDev Python Plugin SDK
+# Osmia Python Plugin SDK
 
-Use this SDK to build external RoboDev plugins in Python. Plugins run as
-out-of-process gRPC servers; the RoboDev controller loads them at start-up
+Use this SDK to build external Osmia plugins in Python. Plugins run as
+out-of-process gRPC servers; the Osmia controller loads them at start-up
 via the hashicorp/go-plugin subprocess transport.
 
 ## Prerequisites
@@ -23,7 +23,7 @@ pip install -e sdk/python/
 Once published, installation will be:
 
 ```bash
-pip install robodev-plugin-sdk
+pip install osmia-plugin-sdk
 ```
 
 ## Generating protobuf stubs
@@ -35,7 +35,7 @@ Run the following from the repository root. This regenerates all Python
 make sdk-gen
 ```
 
-Generated files are written to `sdk/python/src/robodev/proto/`. Do not
+Generated files are written to `sdk/python/src/osmia/proto/`. Do not
 edit them by hand — they are overwritten on every `make sdk-gen` run.
 
 ## Quick-start — ticketing plugin
@@ -45,7 +45,7 @@ import grpc
 from concurrent import futures
 
 # Generated stubs — run `make sdk-gen` first.
-from robodev.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
+from osmia.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
 
 INTERFACE_VERSION = 1
 
@@ -69,11 +69,11 @@ class MyTicketingPlugin(ticketing_pb2_grpc.TicketingBackendServicer):
 
 
 if __name__ == "__main__":
-    from robodev.plugin import PluginBase
+    from osmia.plugin import PluginBase
     PluginBase.serve(MyTicketingPlugin())
 ```
 
 ## Further reading
 
 Full plugin authoring guide:
-<https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/>
+<https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/>

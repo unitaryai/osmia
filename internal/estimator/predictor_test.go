@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
+	"github.com/unitaryai/osmia/internal/config"
 )
 
 func testLogger() *slog.Logger {

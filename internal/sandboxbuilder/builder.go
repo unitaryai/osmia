@@ -11,15 +11,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 const (
 	labelApp       = "app"
-	labelAppValue  = "robodev-agent"
-	labelTaskRunID = "robodev.io/task-run-id"
-	labelEngine    = "robodev.io/engine"
+	labelAppValue  = "osmia-agent"
+	labelTaskRunID = "osmia.io/task-run-id"
+	labelEngine    = "osmia.io/engine"
 
 	// annotationSandboxClaim signals the sandbox controller to bind a
 	// pre-allocated sandbox to this pod via the SandboxClaim abstraction.
@@ -27,14 +27,14 @@ const (
 
 	// annotationEnvStripping indicates the entrypoint should strip sensitive
 	// environment variables after use.
-	annotationEnvStripping = "robodev.io/env-stripping"
+	annotationEnvStripping = "osmia.io/env-stripping"
 
 	// labelWarmPool identifies which warm pool a pod should be drawn from.
 	labelWarmPool = "sandbox.kubernetes.io/warm-pool"
 
 	defaultRunAsUser int64 = 1000
 	containerName          = "agent"
-	taintKey               = "robodev.io/agent"
+	taintKey               = "osmia.io/agent"
 )
 
 // SandboxBuilder constructs Kubernetes Jobs from engine ExecutionSpecs with
@@ -80,7 +80,7 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
-	jobName := fmt.Sprintf("robodev-%s", taskRunID)
+	jobName := fmt.Sprintf("osmia-%s", taskRunID)
 	if len(jobName) > 63 {
 		jobName = jobName[:63]
 	}

@@ -1,6 +1,6 @@
 # Plugin gRPC API Reference
 
-All RoboDev plugin interfaces are defined as protobuf services in `proto/`.
+All Osmia plugin interfaces are defined as protobuf services in `proto/`.
 The proto files are the **source of truth** — generated Go stubs, Python stubs,
 and TypeScript stubs are all derived from them. Do not edit generated files
 directly; regenerate them with `make sdk-gen` instead.
@@ -19,16 +19,16 @@ For a guide on writing and deploying plugins, see
 
 | Service | Interface type | Proto file | Go package |
 |---|---|---|---|
-| `TicketingBackend` | Ticketing | `proto/ticketing.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `NotificationChannel` | Notifications | `proto/notifications.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `HumanApprovalBackend` | Approval | `proto/approval.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `SecretsBackend` | Secrets | `proto/secrets.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `SCMBackend` | Source control | `proto/scm.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `ReviewBackend` | Code review | `proto/review.proto` | `github.com/unitaryai/robodev/proto/v1` |
-| `ExecutionEngine` | Engine | `proto/engine.proto` | `github.com/unitaryai/robodev/proto/v1` |
+| `TicketingBackend` | Ticketing | `proto/ticketing.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `NotificationChannel` | Notifications | `proto/notifications.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `HumanApprovalBackend` | Approval | `proto/approval.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `SecretsBackend` | Secrets | `proto/secrets.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `SCMBackend` | Source control | `proto/scm.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `ReviewBackend` | Code review | `proto/review.proto` | `github.com/unitaryai/osmia/proto/v1` |
+| `ExecutionEngine` | Engine | `proto/engine.proto` | `github.com/unitaryai/osmia/proto/v1` |
 
-All services share the package declaration `robodev.v1` and the Go package
-`github.com/unitaryai/robodev/proto/v1`.
+All services share the package declaration `osmia.v1` and the Go package
+`github.com/unitaryai/osmia/proto/v1`.
 
 ---
 
@@ -49,8 +49,8 @@ rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
 
 **Current version enforcement** uses a two-level check — not a live `Handshake` RPC call:
 
-1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `robodev-config.yaml` against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.
-2. **Transport handshake** — hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid RoboDev plugin binary.
+1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `osmia-config.yaml` against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.
+2. **Transport handshake** — hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid Osmia plugin binary.
 
 The protobuf `Handshake` RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure `interface_version` in config matches the binary they deploy.
 

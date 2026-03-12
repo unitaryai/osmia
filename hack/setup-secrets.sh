@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-secrets.sh — Create K8s Secrets for live RoboDev testing.
+# setup-secrets.sh — Create K8s Secrets for live Osmia testing.
 #
 # Reads from environment variables (preferred) or prompts interactively.
 # Uses dry-run + apply for idempotency.
@@ -13,9 +13,9 @@
 
 set -euo pipefail
 
-NAMESPACE="${HELM_NAMESPACE:-robodev}"
+NAMESPACE="${HELM_NAMESPACE:-osmia}"
 
-echo "=== RoboDev Secret Provisioning ==="
+echo "=== Osmia Secret Provisioning ==="
 echo "Namespace: ${NAMESPACE}"
 echo ""
 
@@ -34,11 +34,11 @@ if [[ -z "${GITHUB_TOKEN}" ]]; then
     exit 1
 fi
 
-kubectl create secret generic robodev-github-token \
+kubectl create secret generic osmia-github-token \
     --namespace "${NAMESPACE}" \
     --from-literal=token="${GITHUB_TOKEN}" \
     --dry-run=client -o yaml | kubectl apply -f -
-echo "Secret robodev-github-token created/updated."
+echo "Secret osmia-github-token created/updated."
 
 # --- Anthropic API Key ---
 if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
@@ -60,22 +60,22 @@ echo "Secret anthropic-api-key created/updated."
 
 # --- Slack Bot Token (optional) ---
 if [[ -n "${SLACK_BOT_TOKEN:-}" ]]; then
-    kubectl create secret generic robodev-slack-token \
+    kubectl create secret generic osmia-slack-token \
         --namespace "${NAMESPACE}" \
         --from-literal=token="${SLACK_BOT_TOKEN}" \
         --dry-run=client -o yaml | kubectl apply -f -
-    echo "Secret robodev-slack-token created/updated."
+    echo "Secret osmia-slack-token created/updated."
 else
     echo ""
     echo -n "Enter Slack bot token (leave empty to skip): "
     read -rs SLACK_BOT_TOKEN_INPUT
     echo ""
     if [[ -n "${SLACK_BOT_TOKEN_INPUT}" ]]; then
-        kubectl create secret generic robodev-slack-token \
+        kubectl create secret generic osmia-slack-token \
             --namespace "${NAMESPACE}" \
             --from-literal=token="${SLACK_BOT_TOKEN_INPUT}" \
             --dry-run=client -o yaml | kubectl apply -f -
-        echo "Secret robodev-slack-token created/updated."
+        echo "Secret osmia-slack-token created/updated."
     else
         echo "Skipping Slack token (notifications will be disabled)."
     fi

@@ -1,6 +1,6 @@
 ---
 name: Plugin Request
-about: Request a new plugin integration for RoboDev
+about: Request a new plugin integration for Osmia
 title: "[PLUGIN] "
 labels: plugin
 assignees: ''

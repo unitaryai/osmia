@@ -15,12 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/memory"
-	"github.com/unitaryai/robodev/internal/prm"
-	"github.com/unitaryai/robodev/internal/taskrun"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/memory"
+	"github.com/unitaryai/osmia/internal/prm"
+	"github.com/unitaryai/osmia/internal/taskrun"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // mockEngine implements engine.ExecutionEngine for testing.
@@ -187,7 +187,7 @@ func TestProcessTicket(t *testing.T) {
 		Title:       "Fix the bug",
 		Description: "There is a bug in the login flow",
 		RepoURL:     "https://github.com/org/repo",
-		Labels:      []string{"robodev"},
+		Labels:      []string{"osmia"},
 	}
 
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
@@ -907,7 +907,7 @@ func TestLaunchRetryJob_SetsProirBranchFromResult(t *testing.T) {
 	tr.RetryCount = 1
 	tr.Result = &engine.TaskResult{
 		Success:    false,
-		BranchName: "robodev/TICKET-1",
+		BranchName: "osmia/TICKET-1",
 	}
 
 	ticket := ticketing.Ticket{
@@ -932,7 +932,7 @@ func TestLaunchRetryJob_SetsProirBranchFromResult(t *testing.T) {
 	ctx := context.Background()
 	r.launchRetryJob(ctx, tr, "")
 
-	assert.Equal(t, "robodev/TICKET-1", eng.lastTask.PriorBranchName)
+	assert.Equal(t, "osmia/TICKET-1", eng.lastTask.PriorBranchName)
 }
 
 func TestLaunchRetryJob_FallbackBranchWhenNoResult(t *testing.T) {
@@ -970,7 +970,7 @@ func TestLaunchRetryJob_FallbackBranchWhenNoResult(t *testing.T) {
 	ctx := context.Background()
 	r.launchRetryJob(ctx, tr, "")
 
-	assert.Equal(t, "robodev/TICKET-42", eng.lastTask.PriorBranchName)
+	assert.Equal(t, "osmia/TICKET-42", eng.lastTask.PriorBranchName)
 }
 
 func TestLaunchRetryJob_NoPriorBranchOnFirstRun(t *testing.T) {

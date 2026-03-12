@@ -7,9 +7,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/internal/metrics"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/metrics"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 // FallbackSelector is implemented by the default engine selector in the

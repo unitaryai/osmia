@@ -110,12 +110,12 @@ func TestValidateRequest(t *testing.T) {
 		{
 			name: "blocked pattern with wildcard",
 			policy: Policy{
-				BlockedEnvPatterns: []string{"ROBODEV_*"},
+				BlockedEnvPatterns: []string{"OSMIA_*"},
 				AllowRawRefs:       true,
 			},
 			req: SecretRequest{
-				EnvName: "ROBODEV_INTERNAL",
-				URI:     "vault://secret/data/robodev#key",
+				EnvName: "OSMIA_INTERNAL",
+				URI:     "vault://secret/data/osmia#key",
 			},
 			wantErr: "blocked by pattern",
 		},

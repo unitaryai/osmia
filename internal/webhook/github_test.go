@@ -22,7 +22,7 @@ func TestHandleGitHub(t *testing.T) {
 			Title:   "Fix login bug",
 			Body:    "The login page crashes",
 			HTMLURL: "https://github.com/owner/repo/issues/42",
-			Labels:  []ghLabel{{Name: "robodev"}, {Name: "bug"}},
+			Labels:  []ghLabel{{Name: "osmia"}, {Name: "bug"}},
 		},
 		Repo: ghRepo{
 			FullName: "owner/repo",
@@ -158,7 +158,7 @@ func TestHandleGitHub(t *testing.T) {
 				assert.Equal(t, "Fix login bug", call.tickets[0].Title)
 				assert.Equal(t, "The login page crashes", call.tickets[0].Description)
 				assert.Equal(t, "issue", call.tickets[0].TicketType)
-				assert.Equal(t, []string{"robodev", "bug"}, call.tickets[0].Labels)
+				assert.Equal(t, []string{"osmia", "bug"}, call.tickets[0].Labels)
 				assert.Equal(t, "https://github.com/owner/repo", call.tickets[0].RepoURL)
 				assert.Equal(t, "https://github.com/owner/repo/issues/42", call.tickets[0].ExternalURL)
 			}
@@ -226,14 +226,14 @@ func TestHandleGitHub_TriggerLabelGating(t *testing.T) {
 	}{
 		{
 			name:          "issue with trigger label is forwarded",
-			issueLabels:   []ghLabel{{Name: "robodev"}, {Name: "bug"}},
-			triggerLabels: []string{"robodev"},
+			issueLabels:   []ghLabel{{Name: "osmia"}, {Name: "bug"}},
+			triggerLabels: []string{"osmia"},
 			wantCalls:     1,
 		},
 		{
 			name:          "issue without trigger label is dropped",
 			issueLabels:   []ghLabel{{Name: "bug"}},
-			triggerLabels: []string{"robodev"},
+			triggerLabels: []string{"osmia"},
 			wantCalls:     0,
 		},
 		{
@@ -245,7 +245,7 @@ func TestHandleGitHub_TriggerLabelGating(t *testing.T) {
 		{
 			name:          "multiple trigger labels — any match is sufficient",
 			issueLabels:   []ghLabel{{Name: "enhancement"}},
-			triggerLabels: []string{"robodev", "enhancement"},
+			triggerLabels: []string{"osmia", "enhancement"},
 			wantCalls:     1,
 		},
 	}

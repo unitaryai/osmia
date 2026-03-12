@@ -1,12 +1,12 @@
 # Troubleshooting
 
-Common issues and their solutions when running RoboDev.
+Common issues and their solutions when running Osmia.
 
 ## Controller Pod Is Not Starting
 
 ```bash
-kubectl describe pod -n robodev -l app.kubernetes.io/name=robodev
-kubectl logs -n robodev deployment/robodev --previous
+kubectl describe pod -n osmia -l app.kubernetes.io/name=osmia
+kubectl logs -n osmia deployment/osmia --previous
 ```
 
 | Symptom | Cause | Fix |
@@ -22,13 +22,13 @@ kubectl logs -n robodev deployment/robodev --previous
 - Verify the GitHub token secret exists and has the required scopes:
 
 ```bash
-kubectl get secret robodev-github-token -n robodev
+kubectl get secret osmia-github-token -n osmia
 ```
 
 - Look for polling errors in the controller logs:
 
 ```bash
-kubectl logs -n robodev deployment/robodev | grep -i "ticketing"
+kubectl logs -n osmia deployment/osmia | grep -i "ticketing"
 ```
 
 !!! tip
@@ -38,10 +38,10 @@ kubectl logs -n robodev deployment/robodev | grep -i "ticketing"
 
 ```bash
 # List recent jobs and their status
-kubectl get jobs -n robodev
+kubectl get jobs -n osmia
 
 # Get logs from a failed job's pod
-kubectl logs -n robodev job/<job-name>
+kubectl logs -n osmia job/<job-name>
 ```
 
 | Symptom | Cause | Fix |
@@ -59,7 +59,7 @@ If you are using a `ServiceMonitor`, confirm that `metrics.serviceMonitor.enable
 
 ```bash
 # Test metrics endpoint directly
-kubectl port-forward -n robodev deployment/robodev 8080:8080 &
+kubectl port-forward -n osmia deployment/osmia 8080:8080 &
 curl -s http://localhost:8080/metrics | head -20
 ```
 
@@ -67,12 +67,12 @@ curl -s http://localhost:8080/metrics | head -20
 
 - Verify the webhook pod port matches `webhook.port` in your values (default: 8081).
 - Check that your ticketing provider is sending events to the correct URL.
-- Verify the webhook secret matches between your provider and RoboDev configuration.
+- Verify the webhook secret matches between your provider and Osmia configuration.
 - Check network policies allow inbound traffic on the webhook port.
 
 ```bash
 # Check webhook server logs
-kubectl logs -n robodev deployment/robodev | grep -i "webhook"
+kubectl logs -n osmia deployment/osmia | grep -i "webhook"
 ```
 
 ## Notifications Are Not Being Sent
@@ -83,11 +83,11 @@ kubectl logs -n robodev deployment/robodev | grep -i "webhook"
 - Look for notification errors in the logs:
 
 ```bash
-kubectl logs -n robodev deployment/robodev | grep -i "notification"
+kubectl logs -n osmia deployment/osmia | grep -i "notification"
 ```
 
 !!! info
-    Notification failures are non-critical — they are logged but do not block the controller. Check the `robodev_plugin_errors_total` Prometheus metric for persistent failures.
+    Notification failures are non-critical — they are logged but do not block the controller. Check the `osmia_plugin_errors_total` Prometheus metric for persistent failures.
 
 ## Docker Compose Issues
 
@@ -96,7 +96,7 @@ kubectl logs -n robodev deployment/robodev | grep -i "notification"
 Check the logs for configuration errors:
 
 ```bash
-docker compose logs robodev
+docker compose logs osmia
 ```
 
 Ensure your `.env` file contains valid `GITHUB_TOKEN` and `ANTHROPIC_API_KEY` values.
@@ -110,7 +110,7 @@ Ensure Docker has network access and can resolve `api.github.com`. If you are be
 The progress watchdog may terminate jobs that appear stalled, looping, or unproductive. Check the termination reason in the logs:
 
 ```bash
-kubectl logs -n robodev deployment/robodev | grep -i "watchdog"
+kubectl logs -n osmia deployment/osmia | grep -i "watchdog"
 ```
 
 | Reason | What happened | Fix |
@@ -126,6 +126,6 @@ See [Guard Rails Overview](../concepts/guardrails-overview.md) for details on ea
 
 If you cannot resolve an issue:
 
-1. Search the [GitHub Issues](https://github.com/unitaryai/robodev/issues) for similar problems.
+1. Search the [GitHub Issues](https://github.com/unitaryai/osmia/issues) for similar problems.
 2. Open a new issue with the controller logs, your `values.yaml` (with secrets redacted), and a description of the expected vs actual behaviour.
 3. Join the community discussion on GitHub Discussions.

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 const (
@@ -35,7 +35,7 @@ const (
 	configMountPath = "/config"
 
 	// apiKeySecretName is the Kubernetes Secret containing the Anthropic API key.
-	apiKeySecretName = "robodev-anthropic-key"
+	apiKeySecretName = "osmia-anthropic-key"
 
 	// apiKeySecretKey is the key within apiKeySecretName that holds the API key.
 	apiKeySecretKey = "api_key"
@@ -247,9 +247,9 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 
 	env := map[string]string{
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-		"ROBODEV_TASK_ID":                          task.ID,
-		"ROBODEV_TICKET_ID":                        task.TicketID,
-		"ROBODEV_REPO_URL":                         task.RepoURL,
+		"OSMIA_TASK_ID":                          task.ID,
+		"OSMIA_TICKET_ID":                        task.TicketID,
+		"OSMIA_REPO_URL":                         task.RepoURL,
 	}
 
 	// Merge teams environment variables when teams are enabled.
@@ -303,7 +303,7 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 			// Shadow the read-only container home directory with a writable
 			// emptyDir so Claude Code can create ~/.claude/ for its config.
 			Name:      "home",
-			MountPath: "/home/robodev",
+			MountPath: "/home/osmia",
 		},
 		{
 			// Provide a writable /tmp so Claude Code can create its subprocess
@@ -400,12 +400,12 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	b.WriteString("## Instructions\n\n")
 
 	if task.RepoURL != "" {
-		branchName := "robodev/" + task.TicketID
+		branchName := "osmia/" + task.TicketID
 
 		b.WriteString("1. Configure git globally:\n")
 		b.WriteString("   ```\n")
-		b.WriteString("   git config --global user.name \"RoboDev\"\n")
-		b.WriteString("   git config --global user.email \"robodev@localhost\"\n")
+		b.WriteString("   git config --global user.name \"Osmia\"\n")
+		b.WriteString("   git config --global user.email \"osmia@localhost\"\n")
 		b.WriteString("   git config --global init.defaultBranch main\n")
 		b.WriteString("   # Configure git credentials from SCM token env vars\n")
 		b.WriteString("   if [ -n \"${GITLAB_TOKEN:-}\" ]; then\n")

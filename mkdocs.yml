@@ -1,8 +1,8 @@
-site_name: RoboDev
+site_name: Osmia
 site_description: Kubernetes-native AI coding agent harness
-site_url: https://unitaryai.github.io/RoboDev
-repo_url: https://github.com/unitaryai/robodev
-repo_name: unitaryai/robodev
+site_url: https://unitaryai.github.io/Osmia
+repo_url: https://github.com/unitaryai/osmia
+repo_name: unitaryai/osmia
 edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2024–2026 Unitary AI — Apache 2.0 Licence
@@ -52,7 +52,7 @@ nav:
       - Configuration Reference: getting-started/configuration.md
       - Troubleshooting: getting-started/troubleshooting.md
   - Concepts:
-      - What is RoboDev?: concepts/what-is-robodev.md
+      - What is Osmia?: concepts/what-is-osmia.md
       - How a TaskRun Works: concepts/taskrun-lifecycle.md
       - Engines Explained: concepts/engines.md
       - Guard Rails Overview: concepts/guardrails-overview.md
@@ -117,4 +117,4 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/unitaryai/robodev
+      link: https://github.com/unitaryai/osmia

@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 func TestDockerBuild(t *testing.T) {
@@ -41,7 +41,7 @@ func TestDockerBuild(t *testing.T) {
 			taskRunID:  "tr-123",
 			engineName: "claude-code",
 			spec: &engine.ExecutionSpec{
-				Image: "ghcr.io/robodev/agent:latest",
+				Image: "ghcr.io/osmia/agent:latest",
 			},
 			wantErr:    true,
 			errContain: "missing required command",
@@ -51,7 +51,7 @@ func TestDockerBuild(t *testing.T) {
 			taskRunID:  "tr-minimal",
 			engineName: "codex",
 			spec: &engine.ExecutionSpec{
-				Image:   "ghcr.io/robodev/codex:latest",
+				Image:   "ghcr.io/osmia/codex:latest",
 				Command: []string{"codex", "run"},
 			},
 		},
@@ -93,13 +93,13 @@ func TestDockerBuild_Labels(t *testing.T) {
 	require.NoError(t, err)
 
 	// Job-level labels.
-	assert.Equal(t, "robodev-agent", job.Labels[labelApp])
+	assert.Equal(t, "osmia-agent", job.Labels[labelApp])
 	assert.Equal(t, "tr-456", job.Labels[LabelTaskRunID])
 	assert.Equal(t, "claude-code", job.Labels[labelEngine])
 
 	// Pod template labels.
 	podLabels := job.Spec.Template.Labels
-	assert.Equal(t, "robodev-agent", podLabels[labelApp])
+	assert.Equal(t, "osmia-agent", podLabels[labelApp])
 	assert.Equal(t, "tr-456", podLabels[LabelTaskRunID])
 	assert.Equal(t, "claude-code", podLabels[labelEngine])
 }
@@ -189,11 +189,11 @@ func TestDockerBuild_Resources(t *testing.T) {
 }
 
 func TestDockerBuild_Namespace(t *testing.T) {
-	builder := NewDockerBuilder("robodev-agents")
+	builder := NewDockerBuilder("osmia-agents")
 	job, err := builder.Build("tr-ns", "codex", validSpec())
 	require.NoError(t, err)
 
-	assert.Equal(t, "robodev-agents", job.Namespace)
+	assert.Equal(t, "osmia-agents", job.Namespace)
 }
 
 func TestDockerBuild_JobName(t *testing.T) {
@@ -201,7 +201,7 @@ func TestDockerBuild_JobName(t *testing.T) {
 	job, err := builder.Build("tr-123", "claude-code", validSpec())
 	require.NoError(t, err)
 
-	assert.Equal(t, "robodev-tr-123", job.Name)
+	assert.Equal(t, "osmia-tr-123", job.Name)
 }
 
 func TestDockerBuild_LongTaskRunID_Truncated(t *testing.T) {
@@ -224,7 +224,7 @@ func TestDockerBuild_ActiveDeadline(t *testing.T) {
 
 func TestDockerBuild_ActiveDeadline_ZeroOmitted(t *testing.T) {
 	spec := &engine.ExecutionSpec{
-		Image:   "ghcr.io/robodev/agent:latest",
+		Image:   "ghcr.io/osmia/agent:latest",
 		Command: []string{"run"},
 	}
 	builder := NewDockerBuilder("default")

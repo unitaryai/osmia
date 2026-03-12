@@ -1,11 +1,11 @@
 # Writing a Plugin
 
-!!! tip "New to RoboDev plugins?"
-    For a high-level overview of what plugins do and which types exist, see [What is RoboDev? — Plugins](../concepts/what-is-robodev.md#what-are-plugins).
+!!! tip "New to Osmia plugins?"
+    For a high-level overview of what plugins do and which types exist, see [What is Osmia? — Plugins](../concepts/what-is-osmia.md#what-are-plugins).
 
 ## Overview
 
-RoboDev is extended through **plugins** -- modular backends that integrate with external services. There are two plugin types:
+Osmia is extended through **plugins** -- modular backends that integrate with external services. There are two plugin types:
 
 1. **Built-in plugins** -- compiled directly into the controller binary (Go only). The GitHub Issues ticketing backend at `pkg/plugin/ticketing/github/` is an example.
 2. **Third-party plugins** -- standalone processes communicating over gRPC via [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin). Written in any language. Recommended for organisation-specific integrations (Jira, PagerDuty, Slack).
@@ -48,8 +48,8 @@ The controller verifies plugin identity using a magic cookie:
 ```go
 goplugin.HandshakeConfig{
     ProtocolVersion:  1,
-    MagicCookieKey:   "ROBODEV_PLUGIN",
-    MagicCookieValue: "robodev",
+    MagicCookieKey:   "OSMIA_PLUGIN",
+    MagicCookieValue: "osmia",
 }
 ```
 
@@ -149,19 +149,19 @@ Every plugin **must** implement `Handshake`. Your `HandshakeResponse` must inclu
 
 Package as a single executable. The controller spawns it via `exec.Command`, so it must be directly runnable.
 
-### Step 5: Configure in robodev-config.yaml
+### Step 5: Configure in osmia-config.yaml
 
 ```yaml
 plugins:
   - name: jira
-    command: /opt/robodev/plugins/robodev-plugin-jira
+    command: /opt/osmia/plugins/osmia-plugin-jira
     type: ticketing
     interface_version: 1
 ```
 
 ### Python Example
 
-A Jira ticketing plugin is provided at `examples/plugins/example-jira-python/`. Key excerpt from `robodev_plugin_jira/__main__.py`:
+A Jira ticketing plugin is provided at `examples/plugins/example-jira-python/`. Key excerpt from `osmia_plugin_jira/__main__.py`:
 
 ```python
 class JiraTicketingBackend:
@@ -184,7 +184,7 @@ class JiraTicketingBackend:
         # ... post comment via Jira REST API ...
 
 def main():
-    # from robodev_plugin_sdk import serve
+    # from osmia_plugin_sdk import serve
     # serve(JiraTicketingBackend(), interface="ticketing")
     pass
 ```
@@ -201,7 +201,7 @@ class TeamsNotificationChannel {
   get interfaceVersion(): number { return 1; }
 
   async notify(message: string, ticket: Ticket): Promise<void> {
-    await this.sendCard({ title: `RoboDev: ${ticket.title}`, text: message });
+    await this.sendCard({ title: `Osmia: ${ticket.title}`, text: message });
   }
 
   async notifyComplete(ticket: Ticket, result: TaskResult): Promise<void> {
@@ -212,7 +212,7 @@ class TeamsNotificationChannel {
   // ... POST Adaptive Card to Teams webhook ...
 }
 
-// import { serve } from '@robodev/plugin-sdk';
+// import { serve } from '@osmia/plugin-sdk';
 // serve(channel, { interface: 'notifications' });
 ```
 
@@ -241,15 +241,15 @@ Key shared types in `common.proto`:
 
 ### Helm values.yaml
 
-External plugins are configured under the `plugins` key in `charts/robodev/values.yaml`:
+External plugins are configured under the `plugins` key in `charts/osmia/values.yaml`:
 
 ```yaml
 plugins:
   - name: jira
-    image: ghcr.io/myorg/robodev-plugin-jira:v1.2.0
+    image: ghcr.io/myorg/osmia-plugin-jira:v1.2.0
     binaryPath: /plugin
   - name: pagerduty
-    image: ghcr.io/myorg/robodev-plugin-pagerduty:v0.3.1
+    image: ghcr.io/myorg/osmia-plugin-pagerduty:v0.3.1
     binaryPath: /plugin
 ```
 
@@ -257,7 +257,7 @@ Each entry specifies an OCI image containing the plugin binary and the path to t
 
 ### Health Configuration
 
-In `robodev-config.yaml`:
+In `osmia-config.yaml`:
 
 ```yaml
 plugin_health:
@@ -267,19 +267,19 @@ plugin_health:
 
 ## Deploying with Helm
 
-RoboDev uses an **init container pattern** to load plugins. For each entry in `plugins`, the Helm chart (`charts/robodev/templates/deployment.yaml`) creates an init container that copies the plugin binary into a shared `emptyDir` volume:
+Osmia uses an **init container pattern** to load plugins. For each entry in `plugins`, the Helm chart (`charts/osmia/templates/deployment.yaml`) creates an init container that copies the plugin binary into a shared `emptyDir` volume:
 
 ```yaml
 initContainers:
   - name: plugin-{{ .name }}
     image: {{ .image }}
-    command: ["cp", "{{ .binaryPath }}", "/plugins/robodev-plugin-{{ .name }}"]
+    command: ["cp", "{{ .binaryPath }}", "/plugins/osmia-plugin-{{ .name }}"]
     volumeMounts:
       - name: plugins
         mountPath: /plugins
 ```
 
-The controller container mounts the same volume read-only at `/opt/robodev/plugins` and spawns each binary from there. This keeps plugin binaries out of the controller image, enabling independent versioning.
+The controller container mounts the same volume read-only at `/opt/osmia/plugins` and spawns each binary from there. This keeps plugin binaries out of the controller image, enabling independent versioning.
 
 ## Testing
 
@@ -303,8 +303,8 @@ func (m *MockTicketingBackend) PollReadyTickets(ctx context.Context) ([]ticketin
 
 Every interface carries an `interface_version`. Compatibility is enforced via a two-level check:
 
-1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `robodev-config.yaml` against its expected version for the plugin type. A mismatch is rejected immediately with a structured error, without spawning the binary.
-2. **Transport handshake** — hashicorp/go-plugin verifies the magic cookie when the subprocess connects, confirming it is a valid RoboDev plugin binary.
+1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `osmia-config.yaml` against its expected version for the plugin type. A mismatch is rejected immediately with a structured error, without spawning the binary.
+2. **Transport handshake** — hashicorp/go-plugin verifies the magic cookie when the subprocess connects, confirming it is a valid Osmia plugin binary.
 
 On a version mismatch, the controller refuses to load the plugin — `LoadPlugin` returns an error and no plugin instance is stored. The plugin is simply never registered, so there is no health state to track. Restarts are not attempted, since restarting cannot resolve a version incompatibility.
 

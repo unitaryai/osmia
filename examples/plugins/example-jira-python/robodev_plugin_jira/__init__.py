@@ -1,1 +1,0 @@
-"""RoboDev Jira ticketing plugin."""

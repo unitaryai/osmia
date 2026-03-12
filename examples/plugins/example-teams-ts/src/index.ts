@@ -1,10 +1,10 @@
 /**
- * Example Microsoft Teams notification plugin for RoboDev.
+ * Example Microsoft Teams notification plugin for Osmia.
  *
  * Implements the NotificationChannel gRPC interface to send notifications
  * to Microsoft Teams channels via incoming webhooks.
  *
- * Note: This is an example/template. The @robodev/plugin-sdk package is
+ * Note: This is an example/template. The @osmia/plugin-sdk package is
  * not yet published; this code shows the intended plugin development
  * experience.
  */
@@ -48,7 +48,7 @@ class TeamsNotificationChannel {
    */
   async notify(message: string, ticket: Ticket): Promise<void> {
     await this.sendCard({
-      title: `RoboDev: ${ticket.title}`,
+      title: `Osmia: ${ticket.title}`,
       text: message,
       ticketUrl: ticket.externalUrl,
     });
@@ -60,7 +60,7 @@ class TeamsNotificationChannel {
   async notifyStart(ticket: Ticket): Promise<void> {
     await this.sendCard({
       title: `🤖 Agent started: ${ticket.title}`,
-      text: `RoboDev agent has begun working on ticket ${ticket.id}.`,
+      text: `Osmia agent has begun working on ticket ${ticket.id}.`,
       ticketUrl: ticket.externalUrl,
       themeColor: '0078D4', // Blue
     });
@@ -129,11 +129,11 @@ class TeamsNotificationChannel {
 /**
  * Entry point for the Teams plugin.
  *
- * In production, this would use the @robodev/plugin-sdk to register
+ * In production, this would use the @osmia/plugin-sdk to register
  * the channel as a gRPC service and start serving.
  */
 async function main(): Promise<void> {
-  console.log('starting robodev-plugin-teams');
+  console.log('starting osmia-plugin-teams');
 
   if (!TEAMS_WEBHOOK_URL) {
     console.error('TEAMS_WEBHOOK_URL environment variable is required');
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
   console.log(`teams channel initialised: ${channel.name} v${channel.interfaceVersion}`);
 
   // When the SDK is available:
-  // import { serve } from '@robodev/plugin-sdk';
+  // import { serve } from '@osmia/plugin-sdk';
   // serve(channel, { interface: 'notifications' });
 }
 

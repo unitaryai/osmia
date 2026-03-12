@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unitaryai/robodev/internal/agentstream"
+	"github.com/unitaryai/osmia/internal/agentstream"
 )
 
 // dependencyPatterns are substrings in event content that indicate a

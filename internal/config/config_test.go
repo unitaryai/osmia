@@ -121,7 +121,7 @@ plugin_health:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Write the YAML to a temporary file.
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -138,7 +138,7 @@ plugin_health:
 }
 
 func TestLoad_RejectsNonStringLocalSeedFile(t *testing.T) {
-	tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+	tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 	err := os.WriteFile(tmp, []byte(`
 ticketing:
   backend: local
@@ -223,7 +223,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -305,7 +305,7 @@ streaming:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -423,7 +423,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -481,7 +481,7 @@ guardrails:
 taskrun_store:
   backend: sqlite
   sqlite:
-    path: /var/lib/robodev/taskruns.db
+    path: /var/lib/osmia/taskruns.db
 `,
 			wantStoreBackend: "sqlite",
 		},
@@ -525,7 +525,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -615,7 +615,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -643,8 +643,8 @@ func TestLoad_LocalTicketingConfig(t *testing.T) {
 ticketing:
   backend: local
   config:
-    store_path: /var/lib/robodev/local-ticketing.db
-    seed_file: /var/lib/robodev/tasks.yaml
+    store_path: /var/lib/osmia/local-ticketing.db
+    seed_file: /var/lib/osmia/tasks.yaml
 secrets:
   backend: env
 engines:
@@ -661,7 +661,7 @@ guardrails:
 ticketing:
   backend: local
   config:
-    seed_file: /var/lib/robodev/tasks.yaml
+    seed_file: /var/lib/osmia/tasks.yaml
 secrets:
   backend: env
 engines:
@@ -697,7 +697,7 @@ guardrails:
 ticketing:
   backend: local
   config:
-    store_path: /var/lib/robodev/local-ticketing.db
+    store_path: /var/lib/osmia/local-ticketing.db
     seed_file: ../tasks.yaml
 secrets:
   backend: env
@@ -715,7 +715,7 @@ guardrails:
 			yaml: `
 ticketing:
   config:
-    task_file: /var/lib/robodev/tasks.yaml
+    task_file: /var/lib/osmia/tasks.yaml
 secrets:
   backend: env
 engines:
@@ -731,7 +731,7 @@ guardrails:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmp := filepath.Join(t.TempDir(), "robodev-config.yaml")
+			tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 			err := os.WriteFile(tmp, []byte(tt.yaml), 0o600)
 			require.NoError(t, err)
 
@@ -745,14 +745,14 @@ guardrails:
 			require.NoError(t, err)
 			require.NotNil(t, got)
 			assert.Equal(t, "local", got.Ticketing.Backend)
-			assert.Equal(t, "/var/lib/robodev/local-ticketing.db", got.Ticketing.Config["store_path"])
-			assert.Equal(t, "/var/lib/robodev/tasks.yaml", got.Ticketing.Config["seed_file"])
+			assert.Equal(t, "/var/lib/osmia/local-ticketing.db", got.Ticketing.Config["store_path"])
+			assert.Equal(t, "/var/lib/osmia/tasks.yaml", got.Ticketing.Config["seed_file"])
 		})
 	}
 }
 
 func TestLoad_FileNotFound(t *testing.T) {
-	_, err := Load("/nonexistent/path/robodev-config.yaml")
+	_, err := Load("/nonexistent/path/osmia-config.yaml")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading config file")
 }

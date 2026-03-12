@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/unitaryai/robodev/pkg/plugin/approval"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/pkg/plugin/approval"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
 const (
@@ -173,7 +173,7 @@ func (s *SlackApprovalBackend) RequestApproval(ctx context.Context, question str
 		btn := slackButton{
 			Type:     "button",
 			Text:     slackText{Type: "plain_text", Text: opt},
-			ActionID: fmt.Sprintf("robodev_approval_%s_%d", taskRunID, i),
+			ActionID: fmt.Sprintf("osmia_approval_%s_%d", taskRunID, i),
 			Value:    opt,
 		}
 		// Style the first option as primary (green) and "reject" as danger.
@@ -188,7 +188,7 @@ func (s *SlackApprovalBackend) RequestApproval(ctx context.Context, question str
 
 	blocks = append(blocks, slackBlock{
 		Type:     "actions",
-		BlockID:  fmt.Sprintf("robodev_approval_%s", taskRunID),
+		BlockID:  fmt.Sprintf("osmia_approval_%s", taskRunID),
 		Elements: buttons,
 	})
 

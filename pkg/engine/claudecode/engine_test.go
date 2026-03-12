@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/unitaryai/robodev/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/engine"
 )
 
 // compile-time check that ClaudeCodeEngine implements ExecutionEngine.
@@ -109,9 +109,9 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				assert.Equal(t, "1", spec.Env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"])
-				assert.Equal(t, "task-1", spec.Env["ROBODEV_TASK_ID"])
-				assert.Equal(t, "TICKET-42", spec.Env["ROBODEV_TICKET_ID"])
-				assert.Equal(t, "https://github.com/org/repo", spec.Env["ROBODEV_REPO_URL"])
+				assert.Equal(t, "task-1", spec.Env["OSMIA_TASK_ID"])
+				assert.Equal(t, "TICKET-42", spec.Env["OSMIA_TICKET_ID"])
+				assert.Equal(t, "https://github.com/org/repo", spec.Env["OSMIA_REPO_URL"])
 			},
 		},
 		{
@@ -160,7 +160,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.True(t, spec.Volumes[1].ReadOnly)
 
 				assert.Equal(t, "home", spec.Volumes[2].Name)
-				assert.Equal(t, "/home/robodev", spec.Volumes[2].MountPath)
+				assert.Equal(t, "/home/osmia", spec.Volumes[2].MountPath)
 				assert.False(t, spec.Volumes[2].ReadOnly)
 
 				assert.Equal(t, "tmp", spec.Volumes[3].Name)
@@ -448,7 +448,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 			name: "path skill sets CLAUDE_SKILL_PATH env var",
 			opts: []Option{
 				WithSkills([]Skill{
-					{Name: "review", Path: "/opt/robodev/skills/review.md"},
+					{Name: "review", Path: "/opt/osmia/skills/review.md"},
 				}),
 			},
 			task:   baseTask,
@@ -456,7 +456,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				key := "CLAUDE_SKILL_PATH_REVIEW"
 				require.Contains(t, spec.Env, key, "path skill env var must be present")
-				assert.Equal(t, "/opt/robodev/skills/review.md", spec.Env[key])
+				assert.Equal(t, "/opt/osmia/skills/review.md", spec.Env[key])
 			},
 		},
 		{
@@ -789,11 +789,11 @@ func TestBuildPrompt(t *testing.T) {
 				RepoURL:  "https://github.com/org/repo",
 			},
 			contains: []string{
-				"robodev/TICKET-99",
-				"git checkout -b robodev/TICKET-99",
-				"git push origin robodev/TICKET-99",
+				"osmia/TICKET-99",
+				"git checkout -b osmia/TICKET-99",
+				"git push origin osmia/TICKET-99",
 				"Commit and push your changes to that branch frequently",
-				"\"branch_name\": \"robodev/TICKET-99\"",
+				"\"branch_name\": \"osmia/TICKET-99\"",
 			},
 		},
 		{
@@ -803,12 +803,12 @@ func TestBuildPrompt(t *testing.T) {
 				TicketID:        "TICKET-99",
 				Title:           "Add feature",
 				RepoURL:         "https://github.com/org/repo",
-				PriorBranchName: "robodev/TICKET-99",
+				PriorBranchName: "osmia/TICKET-99",
 			},
 			contains: []string{
 				"## Continuation",
-				"robodev/TICKET-99",
-				"git clone --branch robodev/TICKET-99 --depth=50 https://github.com/org/repo /workspace/repo",
+				"osmia/TICKET-99",
+				"git clone --branch osmia/TICKET-99 --depth=50 https://github.com/org/repo /workspace/repo",
 				"git log --oneline -20",
 				"Do not redo work that is already committed.",
 			},

@@ -82,7 +82,7 @@ func TestControllerServiceAccountAutomount(t *testing.T) {
 	assert.True(t, automount, "automountServiceAccountToken should be true (or nil)")
 }
 
-// TestControllerReadOnlyConfigMount verifies that the /etc/robodev volume
+// TestControllerReadOnlyConfigMount verifies that the /etc/osmia volume
 // mount is marked readOnly, preventing accidental mutation of the config.
 func TestControllerReadOnlyConfigMount(t *testing.T) {
 	client := newK8sClient(t)
@@ -98,14 +98,14 @@ func TestControllerReadOnlyConfigMount(t *testing.T) {
 			continue
 		}
 		for _, vm := range c.VolumeMounts {
-			if vm.MountPath == "/etc/robodev" {
+			if vm.MountPath == "/etc/osmia" {
 				assert.True(t, vm.ReadOnly,
-					"/etc/robodev volume mount should be readOnly")
+					"/etc/osmia volume mount should be readOnly")
 				return
 			}
 		}
 	}
-	t.Fatal("could not find /etc/robodev volume mount in controller container")
+	t.Fatal("could not find /etc/osmia volume mount in controller container")
 }
 
 // findControllerSecurityContext locates the "controller" container in the

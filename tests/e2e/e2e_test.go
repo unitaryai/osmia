@@ -19,12 +19,12 @@ import (
 )
 
 const (
-	deploymentName = "robodev"
-	selectorLabel  = "app.kubernetes.io/name=robodev"
-	serviceName    = "robodev-metrics"
-	configMapName  = "robodev-config"
-	saName         = "robodev"
-	crbName        = "robodev"
+	deploymentName = "osmia"
+	selectorLabel  = "app.kubernetes.io/name=osmia"
+	serviceName    = "osmia-metrics"
+	configMapName  = "osmia-config"
+	saName         = "osmia"
+	crbName        = "osmia"
 
 	readyTimeout = 120 * time.Second
 )

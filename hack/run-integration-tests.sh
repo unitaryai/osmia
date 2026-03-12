@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-integration-tests.sh — orchestrates the full RoboDev integration test suite.
+# run-integration-tests.sh — orchestrates the full Osmia integration test suite.
 #
 # Phases:
 #   1. Setup  — build, create kind cluster, deploy with test values
@@ -39,8 +39,8 @@ for arg in "$@"; do
 done
 
 # --- Temp files for JSON output ---
-INTEGRATION_JSON=$(mktemp /tmp/robodev-integration-XXXXXX.json)
-E2E_JSON=$(mktemp /tmp/robodev-e2e-XXXXXX.json)
+INTEGRATION_JSON=$(mktemp /tmp/osmia-integration-XXXXXX.json)
+E2E_JSON=$(mktemp /tmp/osmia-e2e-XXXXXX.json)
 trap 'rm -f "${INTEGRATION_JSON}" "${E2E_JSON}"' EXIT
 
 EXIT_CODE=0
@@ -64,7 +64,7 @@ if [[ "${SKIP_SETUP}" == "false" ]]; then
   make deploy-test >&2 2>&1
 
   echo "Waiting for deployment to be ready..." >&2
-  kubectl rollout status deployment/robodev -n robodev --timeout=120s >&2 2>&1
+  kubectl rollout status deployment/osmia -n osmia --timeout=120s >&2 2>&1
   echo "Setup complete." >&2
 else
   echo "=== Skipping setup ===" >&2
@@ -165,7 +165,7 @@ E2E_SUMMARY=$(count_results "${E2E_JSON}")
 
 # Generate the markdown report to stdout.
 cat <<REPORT_EOF
-# RoboDev Integration Test Report
+# Osmia Integration Test Report
 
 **Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 **Branch**: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
@@ -189,7 +189,7 @@ parse_json_results "${E2E_JSON}" "E2E Tests (Tier 1)"
 echo "## Controller Logs (last 50 lines)"
 echo ""
 echo '```'
-kubectl logs -n robodev -l app.kubernetes.io/name=robodev --tail=50 2>/dev/null || echo "(no logs available — cluster may be down)"
+kubectl logs -n osmia -l app.kubernetes.io/name=osmia --tail=50 2>/dev/null || echo "(no logs available — cluster may be down)"
 echo '```'
 
 # --- Phase 5: Teardown ---

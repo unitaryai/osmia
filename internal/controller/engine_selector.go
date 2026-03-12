@@ -1,4 +1,4 @@
-// Package controller implements the main reconciliation loop for the RoboDev
+// Package controller implements the main reconciliation loop for the Osmia
 // operator. This file contains the engine selection logic including fallback
 // chain support.
 package controller
@@ -6,12 +6,12 @@ package controller
 import (
 	"strings"
 
-	"github.com/unitaryai/robodev/internal/config"
-	"github.com/unitaryai/robodev/pkg/engine"
-	"github.com/unitaryai/robodev/pkg/plugin/ticketing"
+	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
-const engineLabelPrefix = "robodev:engine:"
+const engineLabelPrefix = "osmia:engine:"
 
 // EngineSelector determines the ordered list of engines to use for a ticket.
 type EngineSelector interface {
@@ -38,7 +38,7 @@ func NewDefaultEngineSelector(cfg *config.Config, engines map[string]engine.Exec
 }
 
 // SelectEngines returns the ordered engine list for a ticket. If the ticket
-// carries a label of the form "robodev:engine:<name>" and that engine is
+// carries a label of the form "osmia:engine:<name>" and that engine is
 // registered, it is used exclusively (no fallback). Otherwise the default
 // engine followed by the configured fallback engines is returned, with any
 // unregistered engines filtered out.

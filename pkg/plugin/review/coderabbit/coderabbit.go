@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/unitaryai/robodev/pkg/plugin/review"
+	"github.com/unitaryai/osmia/pkg/plugin/review"
 )
 
 const (
@@ -187,7 +187,7 @@ func (b *CodeRabbitBackend) InterfaceVersion() int {
 	return review.InterfaceVersion
 }
 
-// mapCommentSeverity maps CodeRabbit comment severity levels to RoboDev levels.
+// mapCommentSeverity maps CodeRabbit comment severity levels to Osmia levels.
 // CodeRabbit may return "critical" which we map to "error".
 func mapCommentSeverity(severity string) string {
 	switch strings.ToLower(severity) {
@@ -202,7 +202,7 @@ func mapCommentSeverity(severity string) string {
 	}
 }
 
-// mapSecuritySeverity maps CodeRabbit security severity levels to RoboDev levels.
+// mapSecuritySeverity maps CodeRabbit security severity levels to Osmia levels.
 // CodeRabbit may return "info" which we map to "low".
 func mapSecuritySeverity(severity string) string {
 	switch strings.ToLower(severity) {

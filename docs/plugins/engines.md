@@ -486,7 +486,7 @@ engines:
 1. On first job launch, the controller generates a deterministic session ID from the TaskRun ID and passes it to the agent via `--session-id <id>`.
 2. Claude Code stores all session JSONL files in `$CLAUDE_CONFIG_DIR` (the PVC-backed path) rather than the ephemeral emptyDir home volume.
 3. When the agent hits `--max-turns`, the retry pod receives `task.SessionID` and the agent is invoked with `--resume <session-id>` instead of a fresh session.
-4. The workspace directory is also persisted on the PVC (`OSMIA_WORKSPACE_DIR`), so `setup-claude.sh` skips the git-clone step on retry pods.
+4. The workspace directory is also persisted on the PVC (`OSMIA_WORKSPACE_DIR`), so `entrypoint.sh` skips the git-clone step on retry pods.
 
 #### Storage Cleanup
 

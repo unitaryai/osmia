@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Session Persistence for Agent Continuations
+
+Retry pods can now resume Claude Code sessions with full conversation history via
+`--resume <session-id>` instead of starting fresh and relying on git diffs alone.
+
+Three storage backends are available:
+
+- **`shared-pvc`** — a single ReadWriteMany PVC with per-TaskRun subdirectories (simplest to operate)
+- **`per-taskrun-pvc`** — a dynamically created/deleted PVC per TaskRun (stronger isolation)
+- **`s3`** — stub; full implementation pending init-container support in ExecutionSpec
+
+Both `~/.claude/` (conversation history) and `/workspace/repo` are persisted so
+retry pods skip the git-clone step entirely.
+
+New configuration:
+
+```yaml
+engines:
+  claude_code:
+    session_persistence:
+      enabled: true
+      backend: shared-pvc
+      pvc_name: osmia-agent-sessions
+      ttl_minutes: 1440
+```
+
+New Helm values: `sessionPersistence.enabled`, `sessionPersistence.backend`,
+`sessionPersistence.sharedPVC`, `sessionPersistence.perTaskRunPVC`, `sessionPersistence.ttlMinutes`.
+
+New package: `internal/sessionstore` (`SessionStore` interface, `SharedPVCStore`,
+`PerTaskRunPVCStore`, `S3Store`, `Cleaner`).
+
+New field: `Task.SessionID` — set by the controller on retry jobs so the engine
+knows to use `--resume` rather than `--session-id`.
+
+New field: `TaskRun.SessionID` — stores the session ID assigned to the first job.
+
+New event type: `agentstream.SystemEvent` — parses the system init event emitted
+by Claude Code at startup, capturing the session ID for belt-and-suspenders tracking.
+
+New field: `VolumeMount.PVCName` — allows the jobbuilder to back a volume with a
+PersistentVolumeClaim instead of emptyDir or ConfigMap.
+
+### Breaking Changes
+
+#### Removal of `no_session_persistence` flag
+
+The `no_session_persistence` configuration field has been removed from
+`ClaudeCodeEngineConfig` and `EngineConfig`. The `--no-session-persistence` CLI
+flag was closed as NOT_PLANNED by Anthropic and removed from the Claude Code CLI,
+so passing it causes the agent to error.
+
+**Migration:** Remove `no_session_persistence: true` from any `osmia-config.yaml`
+files. Session persistence is now disabled by default and must be explicitly
+opted in via `session_persistence.enabled: true`.
+
 ### Changed
 
 #### Project Renamed from RoboDev to Osmia

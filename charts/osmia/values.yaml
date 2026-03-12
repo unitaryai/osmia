@@ -64,6 +64,31 @@ podSecurityContext:
 leaderElection:
   enabled: true
 
+# Session persistence for agent continuations.
+# When enabled, Claude Code session state (~/.claude) and the workspace are
+# written to durable storage so retry pods can resume via --resume instead of
+# starting fresh. Disabled by default; git-based continuation is the fallback.
+sessionPersistence:
+  enabled: false
+  # backend selects the storage backend: shared-pvc | per-taskrun-pvc | s3
+  backend: shared-pvc
+  sharedPVC:
+    # name of the PVC to create (shared-pvc backend).
+    name: osmia-agent-sessions
+    size: 10Gi
+    storageClass: ""
+    # accessMode must be ReadWriteMany for a shared PVC accessed by multiple pods.
+    accessMode: ReadWriteMany
+  perTaskRunPVC:
+    storageClass: ""
+    size: 1Gi
+  s3:
+    bucket: ""
+    prefix: "osmia-sessions/"
+  # ttlMinutes controls how long session data is retained after a TaskRun
+  # reaches a terminal state. Defaults to 1440 (24 hours).
+  ttlMinutes: 1440
+
 # External plugin init containers.
 # Each entry creates an init container that copies a plugin binary into
 # a shared emptyDir volume mounted at /opt/osmia/plugins.

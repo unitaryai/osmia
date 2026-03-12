@@ -78,8 +78,19 @@ type ResultEvent struct {
 	TestsAdded      int    `json:"tests_added,omitempty"`
 
 	// Claude Code stream-json fields — normalised into Success/Summary by ParseEvent.
-	IsError    bool   `json:"is_error"`
-	RawResult  string `json:"result"`
+	IsError   bool   `json:"is_error"`
+	RawResult string `json:"result"`
+}
+
+// SystemEvent carries system-level metadata emitted at session initialisation.
+// Claude Code emits a system event at startup that includes the session_id,
+// which Osmia captures to enable session resumption on retry pods.
+type SystemEvent struct {
+	// SessionID is the Claude Code session identifier. Present in the
+	// system init event emitted at the start of every claude run.
+	SessionID string `json:"session_id,omitempty"`
+	// Subtype provides additional context (e.g. "init", "error").
+	Subtype string `json:"subtype,omitempty"`
 }
 
 // rawEnvelope is used for the initial unmarshal to extract the type field
@@ -149,6 +160,13 @@ func ParseEvent(line []byte) (*StreamEvent, error) {
 			}
 		}
 		ev.Parsed = &re
+
+	case EventSystem:
+		var se SystemEvent
+		if err := json.Unmarshal(line, &se); err != nil {
+			return nil, fmt.Errorf("invalid system event: %w", err)
+		}
+		ev.Parsed = &se
 
 	default:
 		// Unknown type — leave Parsed nil so the caller can skip it.

@@ -42,6 +42,9 @@ type VolumeMount struct {
 	ConfigMapName string `json:"configmap_name,omitempty"`
 	// ConfigMapKey, when set alongside ConfigMapName, projects only this key.
 	ConfigMapKey string `json:"configmap_key,omitempty"`
+	// PVCName, when set, uses a PersistentVolumeClaim as the volume source.
+	// Takes precedence over ConfigMapName when both are set.
+	PVCName string `json:"pvc_name,omitempty"`
 }
 
 // Task represents a unit of work to be performed by an engine.
@@ -59,8 +62,13 @@ type Task struct {
 	// PriorBranchName, when non-empty, tells the engine that a previous
 	// attempt already pushed work to this branch. The prompt should
 	// instruct the agent to clone/checkout that branch and continue from
-	// where the prior run left off.
+	// where the prior run left off. Ignored when SessionID is set (session
+	// persistence handles context resumption via --resume).
 	PriorBranchName string `json:"prior_branch_name,omitempty"`
+	// SessionID, when non-empty, tells the engine to resume the named Claude
+	// Code session via --resume. Set by the controller on retry jobs when
+	// session persistence is enabled.
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // EngineConfig holds engine-specific configuration.
@@ -74,8 +82,7 @@ type EngineConfig struct {
 	ToolWhitelist        []string          `json:"tool_whitelist,omitempty"`
 	ToolBlacklist        []string          `json:"tool_blacklist,omitempty"`
 	JSONSchema           string            `json:"json_schema,omitempty"`
-	AppendSystemPrompt   string            `json:"append_system_prompt,omitempty"`
-	NoSessionPersistence bool              `json:"no_session_persistence,omitempty"`
+	AppendSystemPrompt string `json:"append_system_prompt,omitempty"`
 	// StreamingEnabled enables streaming output mode (stream-json) even
 	// without a JSON schema. When true, the engine uses --output-format
 	// stream-json and --verbose for richer event data.

@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
+	"github.com/unitaryai/osmia/internal/sessionstore"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -124,6 +127,22 @@ func WithSkills(skills []Skill) Option {
 	}
 }
 
+// WithSessionStore configures session persistence for the engine. When set,
+// BuildExecutionSpec adds the session store's volume mounts and environment
+// variables to the spec, and includes the appropriate --session-id or --resume
+// flag depending on whether this is a first run or a retry.
+func WithSessionStore(store sessionstore.SessionStore) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.sessionStore = store
+	}
+}
+
+// osmiaSessionNamespace is the UUID v5 namespace used to derive deterministic
+// session IDs from task IDs. Using a fixed namespace ensures that the same
+// task always produces the same session ID, making the controller and engine
+// independently consistent without coordination.
+var osmiaSessionNamespace = uuid.MustParse("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
 // ClaudeCodeEngine implements engine.ExecutionEngine for the Claude Code CLI.
 type ClaudeCodeEngine struct {
 	fallbackModel string
@@ -133,6 +152,7 @@ type ClaudeCodeEngine struct {
 	teamsConfig   TeamsConfig
 	skills        []Skill
 	subAgents     []SubAgent
+	sessionStore  sessionstore.SessionStore
 }
 
 // New returns a new ClaudeCodeEngine with the given functional options applied.
@@ -221,8 +241,16 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		command = append(command, "--fallback-model", fallbackModel)
 	}
 
-	if config.NoSessionPersistence {
-		command = append(command, "--no-session-persistence")
+	// Handle session persistence: --resume resumes an existing session,
+	// --session-id pins the session ID for a new one so retry pods know
+	// which session to resume on the next attempt.
+	if e.sessionStore != nil {
+		if task.SessionID != "" {
+			command = append(command, "--resume", task.SessionID)
+		} else {
+			sessionID := sessionIDForTask(task.ID)
+			command = append(command, "--session-id", sessionID)
+		}
 	}
 
 	if config.AppendSystemPrompt != "" {
@@ -317,6 +345,20 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	volumes = append(volumes, SkillVolumes(e.skills)...)
 	volumes = append(volumes, SubAgentVolumes(e.subAgents)...)
 
+	// Merge session store volumes and environment variables when persistence
+	// is configured. The task run ID is derived from the task ID since it is
+	// the stable identifier available at spec-build time.
+	if e.sessionStore != nil {
+		sessionID := task.SessionID
+		if sessionID == "" {
+			sessionID = sessionIDForTask(task.ID)
+		}
+		volumes = append(volumes, e.sessionStore.VolumeMounts(task.ID)...)
+		for k, v := range e.sessionStore.Env(task.ID, sessionID) {
+			env[k] = v
+		}
+	}
+
 	spec := &engine.ExecutionSpec{
 		Image:                 image,
 		Command:               command,
@@ -329,6 +371,13 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	}
 
 	return spec, nil
+}
+
+// sessionIDForTask derives a deterministic UUID v5 session ID from a task ID.
+// Using a deterministic scheme means the controller and engine independently
+// arrive at the same session ID without coordination, simplifying retry logic.
+func sessionIDForTask(taskID string) string {
+	return uuid.NewSHA1(osmiaSessionNamespace, []byte("osmia/session/"+taskID)).String()
 }
 
 // BuildPrompt constructs the task prompt for Claude Code from the task's
@@ -356,7 +405,10 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 		b.WriteString("\n\n")
 	}
 
-	if task.PriorBranchName != "" {
+	// When a session is being resumed via --resume, the conversation history
+	// is already available to the agent — skip the Continuation section to
+	// avoid confusing it with redundant git-clone instructions.
+	if task.PriorBranchName != "" && task.SessionID == "" {
 		b.WriteString("## Continuation\n\n")
 		b.WriteString("A previous agent session worked on this task but was interrupted before\n")
 		b.WriteString("completing it (max turns reached or premature exit). Prior work was pushed\n")
@@ -433,7 +485,7 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 		b.WriteString(branchName)
 		b.WriteString("\n")
 		b.WriteString("   ```\n\n")
-		b.WriteString("4. Commit and push your changes to that branch frequently — do not wait until you are finished:\n")
+		b.WriteString("4. Commit and push your changes to that branch at logical checkpoints:\n")
 		b.WriteString("   ```\n")
 		b.WriteString("   git add -A && git commit -m \"wip: <short description>\"\n")
 		b.WriteString("   git push origin ")

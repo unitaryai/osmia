@@ -160,9 +160,14 @@ engines:
       method: api_key
       api_key_secret: "osmia-anthropic-key"
     fallback_model: haiku
-    no_session_persistence: true
     append_system_prompt: "Always run the test suite before committing."
     tool_whitelist: [Bash, Read, Write, Edit, Grep, Glob]
+    # Optional: enable session persistence so retry pods resume via --resume
+    # instead of starting fresh. Disabled by default; requires a shared PVC.
+    session_persistence:
+      enabled: false
+      backend: shared-pvc
+      pvc_name: osmia-agent-sessions
     skills:                              # custom skills for the agent
       - name: create-changelog
         inline: |

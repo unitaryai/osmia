@@ -307,6 +307,33 @@ type SubAgentConfig struct {
 	Key string `yaml:"key,omitempty"`
 }
 
+// SessionPersistenceConfig configures session-state persistence between retries.
+// When enabled, Claude Code's ~/.claude directory (and optionally the workspace)
+// is stored in a durable backend so that retry pods can resume the exact
+// conversation context via --resume instead of starting a fresh session.
+type SessionPersistenceConfig struct {
+	// Enabled activates session persistence. Disabled by default; git-based
+	// continuation remains the fallback when this is false.
+	Enabled bool `yaml:"enabled"`
+	// Backend selects the storage backend: "shared-pvc", "per-taskrun-pvc", or "s3".
+	Backend string `yaml:"backend"`
+	// PVCName is the name of the shared PVC to use when Backend is "shared-pvc".
+	PVCName string `yaml:"pvc_name,omitempty"`
+	// StorageClass is the storage class for dynamically provisioned PVCs
+	// when Backend is "per-taskrun-pvc".
+	StorageClass string `yaml:"storage_class,omitempty"`
+	// StorageSize is the PVC size when Backend is "per-taskrun-pvc".
+	// Defaults to "1Gi" when unset.
+	StorageSize string `yaml:"storage_size,omitempty"`
+	// S3Bucket is the S3 bucket name when Backend is "s3".
+	S3Bucket string `yaml:"s3_bucket,omitempty"`
+	// S3Prefix is the key prefix within the bucket. Defaults to "osmia-sessions/".
+	S3Prefix string `yaml:"s3_prefix,omitempty"`
+	// TTLMinutes is how long session data is retained after a TaskRun reaches
+	// a terminal state. Defaults to 1440 (24 hours).
+	TTLMinutes int `yaml:"ttl_minutes,omitempty"`
+}
+
 // ClaudeCodeEngineConfig holds Claude Code-specific engine settings.
 type ClaudeCodeEngineConfig struct {
 	Image string     `yaml:"image,omitempty"`
@@ -314,17 +341,20 @@ type ClaudeCodeEngineConfig struct {
 	// AgentTeams enables Claude Code's experimental agent teams feature,
 	// which spawns multiple independent Claude Code instances that collaborate
 	// via shared task lists and inter-agent messaging.
-	AgentTeams           AgentTeamsConfig `yaml:"agent_teams"`
-	FallbackModel        string           `yaml:"fallback_model,omitempty"`
+	AgentTeams AgentTeamsConfig `yaml:"agent_teams"`
+	FallbackModel string `yaml:"fallback_model,omitempty"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more
 	// steps, such as large refactors or multi-file changes.
-	MaxTurns             int              `yaml:"max_turns,omitempty"`
-	ToolWhitelist        []string         `yaml:"tool_whitelist,omitempty"`
-	ToolBlacklist        []string         `yaml:"tool_blacklist,omitempty"`
-	JSONSchema           string           `yaml:"json_schema,omitempty"`
-	NoSessionPersistence bool             `yaml:"no_session_persistence,omitempty"`
-	AppendSystemPrompt   string           `yaml:"append_system_prompt,omitempty"`
+	MaxTurns           int      `yaml:"max_turns,omitempty"`
+	ToolWhitelist      []string `yaml:"tool_whitelist,omitempty"`
+	ToolBlacklist      []string `yaml:"tool_blacklist,omitempty"`
+	JSONSchema         string   `yaml:"json_schema,omitempty"`
+	AppendSystemPrompt string   `yaml:"append_system_prompt,omitempty"`
+	// SessionPersistence configures opt-in session-state persistence between
+	// retries. When disabled (the default), the git-based continuation
+	// strategy is used instead.
+	SessionPersistence SessionPersistenceConfig `yaml:"session_persistence,omitempty"`
 	// Skills lists custom skill files to make available to the agent.
 	// Each skill is written to ~/.claude/skills/<name>.md before the agent starts.
 	Skills []SkillConfig `yaml:"skills,omitempty"`

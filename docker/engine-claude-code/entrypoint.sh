@@ -31,9 +31,20 @@ if [[ -z "${REPO_URL:-}" ]]; then
     exit 1
 fi
 
-echo "Cloning ${REPO_URL} (branch: ${REPO_BRANCH})..."
-git clone --depth=1 --branch="${REPO_BRANCH}" "${REPO_URL}" /workspace/repo
-cd /workspace/repo
+# When OSMIA_WORKSPACE_DIR is set and already contains a git repository
+# (session persistence is active), skip cloning and use the existing workspace.
+# This allows retry pods to continue exactly where the previous pod left off
+# without re-cloning the repository.
+WORKSPACE_DIR="${OSMIA_WORKSPACE_DIR:-/workspace/repo}"
+
+if [[ -d "${WORKSPACE_DIR}/.git" ]]; then
+    echo "Using persisted workspace at ${WORKSPACE_DIR}..."
+    cd "${WORKSPACE_DIR}"
+else
+    echo "Cloning ${REPO_URL} (branch: ${REPO_BRANCH})..."
+    git clone --depth=1 --branch="${REPO_BRANCH}" "${REPO_URL}" "${WORKSPACE_DIR}"
+    cd "${WORKSPACE_DIR}"
+fi
 
 # ---- Inject CLAUDE.md if provided ----
 if [[ -n "${CLAUDE_MD_FILE:-}" && -f "${CLAUDE_MD_FILE}" ]]; then

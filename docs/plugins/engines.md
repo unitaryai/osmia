@@ -42,6 +42,7 @@ The input to all engine methods, populated from the ticketing backend:
 type Task struct {
     ID              string            // Unique task identifier.
     TicketID        string            // Source ticket identifier.
+    TaskRunID       string            // Per-run unique identifier for storage isolation.
     Title           string            // Short summary (used as prompt heading).
     Description     string            // Full task description (main prompt content).
     RepoURL         string            // Repository the agent should work on.

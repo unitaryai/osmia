@@ -20,8 +20,9 @@ Three storage backends are available:
 - **`per-taskrun-pvc`** — a dynamically created/deleted PVC per TaskRun (stronger isolation)
 - **`s3`** — stub; full implementation pending init-container support in ExecutionSpec
 
-Both `~/.claude/` (conversation history) and `/workspace/repo` are persisted so
-retry pods skip the git-clone step entirely.
+`~/.claude/` (conversation history) is persisted, and the workspace can also be
+persisted depending on the configured backend, allowing retry pods to skip the
+git-clone step when the workspace is retained.
 
 New configuration:
 

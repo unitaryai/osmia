@@ -276,6 +276,9 @@ func main() {
 				"storage_size", sp.StorageSize,
 				"ttl_minutes", sp.TTLMinutes,
 			)
+		default:
+			logger.Error("unsupported session persistence backend", "backend", sp.Backend)
+			os.Exit(1)
 		}
 	}
 

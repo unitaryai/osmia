@@ -1,147 +1,147 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/</loc>
+         <loc>https://unitaryai.github.io/Osmia/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/architecture/</loc>
+         <loc>https://unitaryai.github.io/Osmia/architecture/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/changelog/</loc>
+         <loc>https://unitaryai.github.io/Osmia/changelog/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/code-of-conduct/</loc>
+         <loc>https://unitaryai.github.io/Osmia/code-of-conduct/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/contributing/</loc>
+         <loc>https://unitaryai.github.io/Osmia/contributing/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/guardrails/</loc>
+         <loc>https://unitaryai.github.io/Osmia/guardrails/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/roadmap/</loc>
+         <loc>https://unitaryai.github.io/Osmia/roadmap/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/scaling/</loc>
+         <loc>https://unitaryai.github.io/Osmia/scaling/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/security-policy/</loc>
+         <loc>https://unitaryai.github.io/Osmia/security-policy/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/security/</loc>
+         <loc>https://unitaryai.github.io/Osmia/security/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/api/</loc>
+         <loc>https://unitaryai.github.io/Osmia/api/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/api/plugins/</loc>
+         <loc>https://unitaryai.github.io/Osmia/api/plugins/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/api/webhooks/</loc>
+         <loc>https://unitaryai.github.io/Osmia/api/webhooks/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/diagnosis/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/diagnosis/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/engines/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/engines/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/estimator/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/estimator/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/guardrails-overview/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/guardrails-overview/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/llm/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/llm/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/memory/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/memory/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/prm/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/prm/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/taskrun-lifecycle/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/taskrun-lifecycle/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/concepts/what-is-robodev/</loc>
+         <loc>https://unitaryai.github.io/Osmia/concepts/what-is-osmia/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/configuration/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/configuration/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/docker-compose/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/docker-compose/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/github-issues-slack/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/github-issues-slack/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/kubernetes/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/kubernetes/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/linear-slack/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/linear-slack/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/shortcut-slack/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/shortcut-slack/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/getting-started/troubleshooting/</loc>
+         <loc>https://unitaryai.github.io/Osmia/getting-started/troubleshooting/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/engines/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/engines/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/notifications/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/notifications/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/sdks/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/sdks/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/secrets/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/secrets/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/ticketing/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/ticketing/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
     <url>
-         <loc>https://unitaryai.github.io/RoboDev/plugins/writing-a-plugin/</loc>
+         <loc>https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/</loc>
          <lastmod>2026-03-12</lastmod>
     </url>
 </urlset>

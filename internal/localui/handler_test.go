@@ -110,7 +110,7 @@ func TestHandler_ServesIndex(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "RoboDev Local Tickets")
+	assert.Contains(t, rec.Body.String(), "Osmia Local Tickets")
 }
 
 func TestHandler_ListsTickets(t *testing.T) {
@@ -155,7 +155,7 @@ func TestHandler_CreatesCommentsAndRequeuesTickets(t *testing.T) {
 		"title":"Second local ticket",
 		"description":"Created via UI",
 		"ticket_type":"feature",
-		"labels":["robodev","ui"]
+		"labels":["osmia","ui"]
 	}`)
 	createReq := httptest.NewRequest(http.MethodPost, "/api/tickets", createBody)
 	createRec := httptest.NewRecorder()

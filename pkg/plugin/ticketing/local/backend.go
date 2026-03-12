@@ -1,6 +1,6 @@
 // Package local provides a built-in ticketing backend backed by a local
 // SQLite database. It is intended for local development and evaluation where
-// RoboDev needs durable ticket lifecycle state without an external tracker.
+// Osmia needs durable ticket lifecycle state without an external tracker.
 package local
 
 import (

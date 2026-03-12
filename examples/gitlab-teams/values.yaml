@@ -1,9 +1,9 @@
-# RoboDev deployment with GitLab and Microsoft Teams.
+# Osmia deployment with GitLab and Microsoft Teams.
 
 replicaCount: 1
 
 image:
-  repository: ghcr.io/unitaryai/robodev
+  repository: ghcr.io/unitaryai/osmia
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -14,14 +14,14 @@ config:
       owner: "your-group"
       repo: "your-project"
       labels:
-        - "robodev"
+        - "osmia"
 
   notifications:
     channels:
       - backend: slack  # Replace with teams plugin when available
         config:
           channel_id: "your-channel"
-          token_secret: "robodev-notification-token"
+          token_secret: "osmia-notification-token"
 
   secrets:
     backend: k8s
@@ -32,7 +32,7 @@ config:
   scm:
     backend: gitlab
     config:
-      token_secret: "robodev-gitlab-token"
+      token_secret: "osmia-gitlab-token"
 
   guardrails:
     max_cost_per_job: 50.0

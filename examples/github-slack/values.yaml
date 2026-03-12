@@ -1,10 +1,10 @@
-# Minimal RoboDev deployment: GitHub Issues + Slack notifications.
-# This is the quickest way to get started with RoboDev.
+# Minimal Osmia deployment: GitHub Issues + Slack notifications.
+# This is the quickest way to get started with Osmia.
 
 replicaCount: 1
 
 image:
-  repository: ghcr.io/unitaryai/robodev
+  repository: ghcr.io/unitaryai/osmia
   pullPolicy: IfNotPresent
   tag: "latest"
 
@@ -15,23 +15,23 @@ config:
       owner: "your-org"
       repo: "your-repo"
       labels:
-        - "robodev"
+        - "osmia"
       # Optional filters (combine as needed):
-      # assignee: "robodev-bot"
+      # assignee: "osmia-bot"
       # milestone: "1"              # Must be milestone number, not title
       # state: "open"               # "open" (default), "closed", or "all"
       # exclude_labels:             # Overrides default exclusion of in-progress/failed
       #   - "in-progress"
-      #   - "robodev-failed"
+      #   - "osmia-failed"
       #   - "wontfix"
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
   notifications:
     channels:
       - backend: slack
         config:
           channel_id: "C0123456789"
-          token_secret: "robodev-slack-token"
+          token_secret: "osmia-slack-token"
 
   secrets:
     backend: k8s
@@ -51,7 +51,7 @@ config:
   scm:
     backend: github
     config:
-      token_secret: "robodev-github-token"
+      token_secret: "osmia-github-token"
 
 resources:
   limits:

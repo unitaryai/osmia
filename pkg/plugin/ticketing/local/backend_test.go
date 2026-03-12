@@ -37,7 +37,7 @@ func seedBackendForTest(t *testing.T) *Backend {
 		Title:       "Fix login bug",
 		Description: "Users cannot log in",
 		TicketType:  "bug",
-		Labels:      []string{"robodev", "urgent"},
+		Labels:      []string{"osmia", "urgent"},
 		RepoURL:     "https://github.com/example/repo",
 		ExternalURL: "https://local.test/tickets/LOCAL-1",
 		Raw:         map[string]any{"priority": "high"},

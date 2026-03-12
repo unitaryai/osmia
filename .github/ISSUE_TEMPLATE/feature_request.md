@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature for RoboDev
+about: Suggest a new feature for Osmia
 title: "[FEATURE] "
 labels: enhancement
 assignees: ''

@@ -1,8 +1,8 @@
 # Guide: GitHub Issues + Slack
 
-This guide walks you through connecting RoboDev to a GitHub repository and a Slack workspace so that:
+This guide walks you through connecting Osmia to a GitHub repository and a Slack workspace so that:
 
-- Any issue labelled **robodev** is automatically picked up by the agent
+- Any issue labelled **osmia** is automatically picked up by the agent
 - You receive a Slack message when work starts, completes, or fails
 
 ## Prerequisites
@@ -11,7 +11,7 @@ This guide walks you through connecting RoboDev to a GitHub repository and a Sla
 |---|---|
 | Kubernetes cluster | [Set one up first](kubernetes.md) if you don't have one |
 | `kubectl` configured | Pointing at the target cluster and namespace |
-| `helm` 3+ | For deploying RoboDev |
+| `helm` 3+ | For deploying Osmia |
 | GitHub repository | The repo the agent will work on |
 | Anthropic API key | For the Claude Code engine |
 
@@ -21,7 +21,7 @@ This guide walks you through connecting RoboDev to a GitHub repository and a Sla
 
 1. Go to **GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)**.
 2. Click **Generate new token (classic)**.
-3. Give it a descriptive name: `robodev`.
+3. Give it a descriptive name: `osmia`.
 4. Select these scopes:
     - `repo` (full repository access — needed to clone, push, and open PRs)
     - `issues` (read and comment on issues)
@@ -32,11 +32,11 @@ This guide walks you through connecting RoboDev to a GitHub repository and a Sla
 ## Step 2 — Create a Slack bot
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**.
-2. Name it `RoboDev` and select your workspace.
+2. Name it `Osmia` and select your workspace.
 3. Under **OAuth & Permissions → Bot Token Scopes**, add: `chat:write`.
 4. Click **Install to Workspace** and copy the **Bot User OAuth Token** (starts with `xoxb-`).
 5. In the Slack sidebar, find (or create) the channel you want notifications in, right-click it, and copy the **Channel ID** from the bottom of the channel details panel.
-6. Invite the bot to the channel: `/invite @RoboDev`.
+6. Invite the bot to the channel: `/invite @Osmia`.
 
 ---
 
@@ -44,24 +44,24 @@ This guide walks you through connecting RoboDev to a GitHub repository and a Sla
 
 ```bash
 # GitHub token
-kubectl create secret generic robodev-github-token \
-  --namespace robodev \
+kubectl create secret generic osmia-github-token \
+  --namespace osmia \
   --from-literal=token=ghp_YOUR_TOKEN_HERE
 
 # Anthropic API key (for Claude Code)
-kubectl create secret generic robodev-anthropic-key \
-  --namespace robodev \
+kubectl create secret generic osmia-anthropic-key \
+  --namespace osmia \
   --from-literal=api_key=sk-ant-YOUR_KEY_HERE
 
 # Slack bot token
-kubectl create secret generic robodev-slack-token \
-  --namespace robodev \
+kubectl create secret generic osmia-slack-token \
+  --namespace osmia \
   --from-literal=token=xoxb-YOUR_SLACK_TOKEN_HERE
 ```
 
 ---
 
-## Step 4 — Write `robodev-config.yaml`
+## Step 4 — Write `osmia-config.yaml`
 
 ```yaml
 ticketing:
@@ -69,26 +69,26 @@ ticketing:
   config:
     owner: "your-org"           # GitHub org or username
     repo: "your-repo"           # Repository name
-    token_secret: robodev-github-token
+    token_secret: osmia-github-token
     labels:
-      - "robodev"               # Issues must have this label to be picked up
+      - "osmia"               # Issues must have this label to be picked up
     exclude_labels:
-      - "robodev-in-progress"   # Prevents picking up work already in flight
-      - "robodev-failed"
+      - "osmia-in-progress"   # Prevents picking up work already in flight
+      - "osmia-failed"
 
 notifications:
   channels:
     - backend: slack
       config:
         channel_id: "C0XXXXXXXXX"   # Replace with your channel ID from Step 2
-        token_secret: robodev-slack-token
+        token_secret: osmia-slack-token
 
 engines:
   default: claude-code
   claude-code:
     auth:
       method: api_key
-      api_key_secret: robodev-anthropic-key
+      api_key_secret: osmia-anthropic-key
 
 execution:
   backend: kubernetes
@@ -108,23 +108,23 @@ guardrails:
 ## Step 5 — Deploy with Helm
 
 ```bash
-# Add the RoboDev chart repository
-helm repo add robodev https://unitaryai.github.io/RoboDev
+# Add the Osmia chart repository
+helm repo add osmia https://unitaryai.github.io/Osmia
 helm repo update
 
 # Create the namespace
-kubectl create namespace robodev
+kubectl create namespace osmia
 
 # Deploy — pass your config file as a values override
-helm install robodev robodev/robodev \
-  --namespace robodev \
-  --set-file config=robodev-config.yaml
+helm install osmia osmia/osmia \
+  --namespace osmia \
+  --set-file config=osmia-config.yaml
 ```
 
 Verify the controller started cleanly:
 
 ```bash
-kubectl logs -n robodev -l app=robodev --tail=20
+kubectl logs -n osmia -l app=osmia --tail=20
 ```
 
 You should see a line like:
@@ -145,12 +145,12 @@ You should see a line like:
     >
     > **Body:** The handler does not validate the `email` field. Reject requests with a missing or malformed email address with a 400 status and a descriptive error message. Add unit tests.
 
-2. Add the **robodev** label to the issue.
+2. Add the **osmia** label to the issue.
 
 3. Within 30 seconds (the default poll interval) the controller will pick it up. Watch the logs:
 
     ```bash
-    kubectl logs -n robodev -l app=robodev -f
+    kubectl logs -n osmia -l app=osmia -f
     ```
 
 4. Check Slack — you will receive a message confirming the agent has started work, and another when it completes.
@@ -163,11 +163,11 @@ You should see a line like:
 
 **The issue is not being picked up.**
 - Confirm the label name exactly matches `labels` in your config.
-- Check `exclude_labels` — if the issue already has `robodev-in-progress` it will be skipped.
-- Run `kubectl logs -n robodev -l app=robodev --tail=50` and look for polling errors.
+- Check `exclude_labels` — if the issue already has `osmia-in-progress` it will be skipped.
+- Run `kubectl logs -n osmia -l app=osmia --tail=50` and look for polling errors.
 
 **No Slack message received.**
-- Confirm the bot is invited to the channel (`/invite @RoboDev`).
+- Confirm the bot is invited to the channel (`/invite @Osmia`).
 - Verify the channel ID is correct — it looks like `C0XXXXXXXXX`, not the channel name.
 - Check logs for `"failed to send slack notification"`.
 

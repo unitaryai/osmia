@@ -10,6 +10,8 @@ Osmia orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider
 
 **[Documentation →](https://unitaryai.github.io/Osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
 
+> **Why Osmia?** *Osmia* is the genus of mason bees — solitary, non-colonial insects that are among the most efficient pollinators on the planet. Each one works independently, without a hive or queen, yet collectively they get an extraordinary amount done. That's the model here: autonomous agents working in parallel, each on its own task, guided by a lightweight intelligence layer rather than a centralised controller.
+
 ---
 
 ## What Makes Osmia Different

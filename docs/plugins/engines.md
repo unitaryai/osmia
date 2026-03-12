@@ -523,7 +523,7 @@ sessionPersistence:
 
 The cleaner logs warnings and continues to the next item. Failed deletions are retried on the next sweep (1 hour later). No session data is critical — worst case, stale PVCs occupy storage until manually removed. You can monitor cleanup via the controller's structured logs:
 
-```
+```text
 level=INFO msg="per-taskrun-pvc cleaner: deleted stale session PVC" pvc=osmia-session-tr-abc123
 level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-session-tr-xyz error="..."
 ```

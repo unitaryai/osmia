@@ -1010,6 +1010,279 @@ func TestLaunchRetryJob_NoPriorBranchOnFirstRun(t *testing.T) {
 	assert.Empty(t, eng.lastTask.PriorBranchName)
 }
 
+// stubApprovalBackend records RequestApproval calls for assertion in tests.
+type stubApprovalBackend struct {
+	requests []stubApprovalRequest
+}
+
+type stubApprovalRequest struct {
+	taskRunID string
+	question  string
+	options   []string
+}
+
+func (s *stubApprovalBackend) RequestApproval(_ context.Context, question string, _ ticketing.Ticket, taskRunID string, options []string) error {
+	s.requests = append(s.requests, stubApprovalRequest{taskRunID: taskRunID, question: question, options: options})
+	return nil
+}
+
+func (s *stubApprovalBackend) CancelPending(_ context.Context, _ string) error { return nil }
+func (s *stubApprovalBackend) Name() string                                     { return "stub" }
+func (s *stubApprovalBackend) InterfaceVersion() int                            { return 1 }
+
+func TestShouldPromptContinuation(t *testing.T) {
+	// A base TaskRun with turns exhausted and all conditions met.
+	makeTR := func() *taskrun.TaskRun {
+		tr := taskrun.New("tr-1", "key-1", "T-1", "claude-code")
+		_ = tr.Transition(taskrun.StateRunning)
+		tr.ToolCallsTotal = 50
+		tr.ConfiguredMaxTurns = 50
+		tr.MaxContinuations = 3
+		tr.Result = &engine.TaskResult{Success: false}
+		return tr
+	}
+
+	tests := []struct {
+		desc        string
+		cfgEnabled  bool
+		hasApproval bool
+		modify      func(*taskrun.TaskRun)
+		want        bool
+	}{
+		{
+			desc:        "all conditions met",
+			cfgEnabled:  true,
+			hasApproval: true,
+			modify:      func(_ *taskrun.TaskRun) {},
+			want:        true,
+		},
+		{
+			desc:        "continuation_prompt disabled",
+			cfgEnabled:  false,
+			hasApproval: true,
+			modify:      func(_ *taskrun.TaskRun) {},
+			want:        false,
+		},
+		{
+			desc:        "no approval backend",
+			cfgEnabled:  true,
+			hasApproval: false,
+			modify:      func(_ *taskrun.TaskRun) {},
+			want:        false,
+		},
+		{
+			desc:        "turns not yet exhausted",
+			cfgEnabled:  true,
+			hasApproval: true,
+			modify:      func(tr *taskrun.TaskRun) { tr.ToolCallsTotal = 49 },
+			want:        false,
+		},
+		{
+			desc:        "agent declared success",
+			cfgEnabled:  true,
+			hasApproval: true,
+			modify:      func(tr *taskrun.TaskRun) { tr.Result = &engine.TaskResult{Success: true} },
+			want:        false,
+		},
+		{
+			desc:        "max continuations already reached",
+			cfgEnabled:  true,
+			hasApproval: true,
+			modify:      func(tr *taskrun.TaskRun) { tr.ContinuationCount = 3 },
+			want:        false,
+		},
+		{
+			desc:        "max continuations is zero (not configured)",
+			cfgEnabled:  true,
+			hasApproval: true,
+			modify:      func(tr *taskrun.TaskRun) { tr.MaxContinuations = 0 },
+			want:        false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			tr := makeTR()
+			tc.modify(tr)
+
+			r := &Reconciler{
+				config: &config.Config{
+					Engines: config.EnginesConfig{
+						ClaudeCode: &config.ClaudeCodeEngineConfig{
+							ContinuationPrompt: tc.cfgEnabled,
+							MaxContinuations:   3,
+						},
+					},
+				},
+			}
+			if tc.hasApproval {
+				r.approvalBackend = &stubApprovalBackend{}
+			}
+
+			got := r.shouldPromptContinuation(tr)
+			assert.Equal(t, tc.want, got, tc.desc)
+		})
+	}
+}
+
+func TestPromptContinuation(t *testing.T) {
+	// Verify NeedsHuman transition, gate type, and approval request are sent.
+	tr := taskrun.New("tr-cont", "key-cont", "T-CONT", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	tr.ToolCallsTotal = 50
+	tr.ConfiguredMaxTurns = 50
+	tr.MaxContinuations = 3
+	tr.Result = &engine.TaskResult{Success: false, Summary: "Halfway done"}
+
+	approvalBackend := &stubApprovalBackend{}
+	store := taskrun.NewMemoryStore()
+
+	r := &Reconciler{
+		config:          &config.Config{},
+		logger:          testLogger(),
+		approvalBackend: approvalBackend,
+		taskRunStore:    store,
+		taskRuns:        map[string]*taskrun.TaskRun{"key-cont": tr},
+		ticketCache:     map[string]ticketing.Ticket{"T-CONT": {ID: "T-CONT"}},
+	}
+
+	r.promptContinuation(context.Background(), tr)
+
+	assert.Equal(t, taskrun.StateNeedsHuman, tr.State)
+	assert.Equal(t, "continuation", tr.ApprovalGateType)
+	assert.NotEmpty(t, tr.HumanQuestion)
+	require.Len(t, approvalBackend.requests, 1)
+	req := approvalBackend.requests[0]
+	assert.Equal(t, "tr-cont", req.taskRunID)
+	assert.Equal(t, []string{"continue", "stop"}, req.options)
+	assert.Contains(t, req.question, "50/50")
+	assert.Contains(t, req.question, "Halfway done")
+}
+
+func TestResolveContinuationApproval_Approved(t *testing.T) {
+	// Verify job is launched with session ID, ContinuationCount incremented,
+	// RetryCount unchanged.
+	k8s := fake.NewSimpleClientset()
+	eng := &capturingEngine{mockEngine: mockEngine{name: "claude-code"}}
+	jb := &mockJobBuilder{}
+	tb := newMockTicketing(nil)
+	store := taskrun.NewMemoryStore()
+
+	tr := taskrun.New("tr-ca", "key-ca", "T-CA", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	_ = tr.Transition(taskrun.StateNeedsHuman)
+	tr.CurrentEngine = "claude-code"
+	tr.ApprovalGateType = "continuation"
+	tr.ContinuationCount = 0
+	tr.MaxContinuations = 3
+	tr.SessionID = "sess-abc"
+
+	ticket := ticketing.Ticket{ID: "T-CA", Title: "Fix it", Description: "Details"}
+
+	r := &Reconciler{
+		config:        testConfig(),
+		logger:        testLogger(),
+		k8sClient:     k8s,
+		ticketing:     tb,
+		engines:       map[string]engine.ExecutionEngine{"claude-code": eng},
+		jobBuilder:    jb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-ca": tr},
+		taskRunStore:  store,
+		ticketCache:   map[string]ticketing.Ticket{"T-CA": ticket},
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
+	}
+
+	err := r.ResolveApproval(context.Background(), "tr-ca", true, "alice")
+	require.NoError(t, err)
+
+	assert.Equal(t, taskrun.StateRunning, tr.State)
+	assert.Equal(t, 1, tr.ContinuationCount)
+	assert.Equal(t, 0, tr.RetryCount, "RetryCount must not be incremented for continuations")
+	assert.NotEmpty(t, tr.JobName)
+	assert.Equal(t, "sess-abc", eng.lastTask.SessionID)
+
+	jobs, listErr := k8s.BatchV1().Jobs("test-ns").List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, listErr)
+	assert.Len(t, jobs.Items, 1)
+}
+
+func TestResolveContinuationApproval_Rejected(t *testing.T) {
+	// Verify Failed transition and ticket marked with progress summary.
+	tb := newMockTicketing(nil)
+	store := taskrun.NewMemoryStore()
+
+	tr := taskrun.New("tr-cr", "key-cr", "T-CR", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	_ = tr.Transition(taskrun.StateNeedsHuman)
+	tr.ApprovalGateType = "continuation"
+	tr.Result = &engine.TaskResult{Success: false, Summary: "Refactored auth module"}
+
+	r := &Reconciler{
+		config:       testConfig(),
+		logger:       testLogger(),
+		ticketing:    tb,
+		taskRuns:     map[string]*taskrun.TaskRun{"key-cr": tr},
+		taskRunStore: store,
+	}
+
+	err := r.ResolveApproval(context.Background(), "tr-cr", false, "bob")
+	require.NoError(t, err)
+
+	assert.Equal(t, taskrun.StateFailed, tr.State)
+	require.Len(t, tb.markedFailed, 1)
+	assert.Contains(t, tb.markedFailed[0], "T-CR")
+}
+
+func TestHandleJobComplete_ContinuationBeforePreMerge(t *testing.T) {
+	// Verify that the continuation check fires (and holds the TaskRun in
+	// NeedsHuman) before reaching the pre-merge gate.
+	approvalBackend := &stubApprovalBackend{}
+	store := taskrun.NewMemoryStore()
+	tb := newMockTicketing(nil)
+
+	tr := taskrun.New("tr-cbp", "key-cbp", "T-CBP", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	tr.ToolCallsTotal = 50
+	tr.ConfiguredMaxTurns = 50
+	tr.MaxContinuations = 3
+	tr.Result = &engine.TaskResult{Success: false}
+
+	cfg := &config.Config{
+		GuardRails: config.GuardRailsConfig{ApprovalGates: []string{"pre_merge"}},
+		Engines: config.EnginesConfig{
+			ClaudeCode: &config.ClaudeCodeEngineConfig{
+				ContinuationPrompt: true,
+				MaxContinuations:   3,
+			},
+		},
+	}
+
+	r := &Reconciler{
+		config:              cfg,
+		logger:              testLogger(),
+		approvalBackend:     approvalBackend,
+		taskRunStore:        store,
+		ticketing:           tb,
+		taskRuns:            map[string]*taskrun.TaskRun{"key-cbp": tr},
+		ticketCache:         map[string]ticketing.Ticket{"T-CBP": {ID: "T-CBP"}},
+		taskRunRole:         map[string]string{},
+		taskRunToTournament: map[string]string{},
+		streamReaders:       make(map[string]context.CancelFunc),
+		podNames:            map[string]string{},
+	}
+
+	r.handleJobComplete(context.Background(), tr)
+
+	// Continuation should have fired, not pre-merge gate.
+	assert.Equal(t, taskrun.StateNeedsHuman, tr.State)
+	assert.Equal(t, "continuation", tr.ApprovalGateType)
+	require.Len(t, approvalBackend.requests, 1)
+	assert.Equal(t, []string{"continue", "stop"}, approvalBackend.requests[0].options)
+	// Ticket should NOT be marked complete (pre-merge gate not reached).
+	assert.Empty(t, tb.markedComplete)
+}
+
 func TestResolveApproval_PreStartApproval(t *testing.T) {
 	cfg := testConfig()
 	k8s := fake.NewSimpleClientset()

@@ -135,7 +135,7 @@ func (s *Server) handleSlack(w http.ResponseWriter, r *http.Request) {
 				taskRunID = parts[2]
 			}
 
-			approved := action.Value != "reject" && action.Value != "deny"
+			approved := action.Value != "reject" && action.Value != "deny" && action.Value != "stop"
 
 			if s.approvalHandler != nil {
 				if err := s.approvalHandler.HandleApprovalCallback(r.Context(), taskRunID, approved, payload.User.Username); err != nil {

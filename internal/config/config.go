@@ -362,6 +362,14 @@ type ClaudeCodeEngineConfig struct {
 	// to during task execution. Sub-agents are lightweight helpers within a
 	// single session — distinct from agent teams, which spawn independent instances.
 	SubAgents []SubAgentConfig `yaml:"sub_agents,omitempty"`
+	// ContinuationPrompt enables user-prompted continuation when the agent
+	// exhausts --max-turns. Requires session persistence and an approval backend.
+	// When true, the controller sends an approval request (e.g. Slack buttons)
+	// asking whether to continue or stop, rather than auto-retrying or failing.
+	ContinuationPrompt bool `yaml:"continuation_prompt,omitempty"`
+	// MaxContinuations limits how many user-approved continuations are allowed
+	// per TaskRun. Defaults to 3.
+	MaxContinuations int `yaml:"max_continuations,omitempty"`
 }
 
 // CodexEngineConfig holds OpenAI Codex-specific engine settings.

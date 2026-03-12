@@ -92,6 +92,16 @@ type TaskRun struct {
 	// resume the conversation with --resume.
 	SessionID string `json:"session_id,omitempty"`
 
+	// ContinuationCount is the number of times the user has approved a
+	// continuation for this TaskRun after turn exhaustion.
+	ContinuationCount int `json:"continuation_count,omitempty"`
+	// MaxContinuations is the maximum number of user-approved continuations
+	// permitted for this TaskRun. Set at creation from config.
+	MaxContinuations int `json:"max_continuations,omitempty"`
+	// ConfiguredMaxTurns records the --max-turns value at job launch so that
+	// handleJobComplete can detect turn exhaustion by comparing ToolCallsTotal.
+	ConfiguredMaxTurns int `json:"configured_max_turns,omitempty"`
+
 	// Review follow-up fields — populated for TaskRuns created in response
 	// to review comments on a PR/MR opened by a previous Osmia task.
 

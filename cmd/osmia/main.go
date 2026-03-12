@@ -32,6 +32,7 @@ import (
 	"github.com/unitaryai/osmia/internal/sandboxbuilder"
 	"github.com/unitaryai/osmia/internal/scmrouter"
 	"github.com/unitaryai/osmia/internal/secretresolver"
+	"github.com/unitaryai/osmia/internal/sessionstore"
 	"github.com/unitaryai/osmia/internal/tournament"
 	"github.com/unitaryai/osmia/internal/watchdog"
 	"github.com/unitaryai/osmia/internal/webhook"
@@ -238,6 +239,49 @@ func main() {
 			"max_teammates", cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
 		)
 	}
+	// --- Session persistence (Claude Code only) ---
+	var sessionCleaner *sessionstore.Cleaner
+	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.SessionPersistence.Enabled {
+		sp := cfg.Engines.ClaudeCode.SessionPersistence
+		switch sp.Backend {
+		case "shared-pvc":
+			store := sessionstore.NewSharedPVCStore(sp.PVCName)
+			claudeOpts = append(claudeOpts, claudecode.WithSessionStore(store))
+			sessionCleaner = sessionstore.NewCleaner(sessionstore.CleanerConfig{
+				Backend:    "shared-pvc",
+				PVCRootDir: "/data/sessions",
+				TTL:        time.Duration(sp.TTLMinutes) * time.Minute,
+			}, logger.With("component", "session-cleaner"))
+			logger.Info("session persistence enabled",
+				"backend", "shared-pvc",
+				"pvc_name", sp.PVCName,
+				"ttl_minutes", sp.TTLMinutes,
+			)
+		case "per-taskrun-pvc":
+			store := sessionstore.NewPerTaskRunPVCStore(
+				k8sClient, *namespace,
+				sp.StorageClass, sp.StorageSize,
+				logger.With("component", "session-store"),
+			)
+			claudeOpts = append(claudeOpts, claudecode.WithSessionStore(store))
+			sessionCleaner = sessionstore.NewCleaner(sessionstore.CleanerConfig{
+				Backend:   "per-taskrun-pvc",
+				K8sClient: k8sClient,
+				Namespace: *namespace,
+				TTL:       time.Duration(sp.TTLMinutes) * time.Minute,
+			}, logger.With("component", "session-cleaner"))
+			logger.Info("session persistence enabled",
+				"backend", "per-taskrun-pvc",
+				"storage_class", sp.StorageClass,
+				"storage_size", sp.StorageSize,
+				"ttl_minutes", sp.TTLMinutes,
+			)
+		default:
+			logger.Error("unsupported session persistence backend", "backend", sp.Backend)
+			os.Exit(1)
+		}
+	}
+
 	claudeEngine := claudecode.New(claudeOpts...)
 	opts = append(opts, controller.WithEngine(claudeEngine))
 	logger.Info("claude-code engine registered")
@@ -352,6 +396,12 @@ func main() {
 		logger.Info("received signal, shutting down", "signal", sig)
 		cancel()
 	}()
+
+	// --- Session cleaner (background) ---
+	if sessionCleaner != nil {
+		go sessionCleaner.Run(ctx)
+		logger.Info("session cleaner started")
+	}
 
 	// --- Approval backend (non-critical) ---
 	if cfg.Approval.Backend != "" {

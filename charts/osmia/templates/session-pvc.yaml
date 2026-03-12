@@ -1,0 +1,17 @@
+{{- if and .Values.sessionPersistence.enabled (eq .Values.sessionPersistence.backend "shared-pvc") }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.sessionPersistence.sharedPVC.name }}
+  labels:
+    {{- include "osmia.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.sessionPersistence.sharedPVC.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.sessionPersistence.sharedPVC.size }}
+  {{- if .Values.sessionPersistence.sharedPVC.storageClass }}
+  storageClassName: {{ .Values.sessionPersistence.sharedPVC.storageClass }}
+  {{- end }}
+{{- end }}

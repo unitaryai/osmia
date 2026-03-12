@@ -6,4 +6,23 @@ metadata:
     {{- include "osmia.labels" . | nindent 4 }}
 data:
   config.yaml: |
-    {{- toYaml .Values.config | nindent 4 }}
+    {{- $config := deepCopy .Values.config }}
+    {{- if .Values.sessionPersistence.enabled }}
+    {{- $sp := dict "enabled" true "backend" .Values.sessionPersistence.backend "ttl_minutes" (.Values.sessionPersistence.ttlMinutes | int) }}
+    {{- if eq .Values.sessionPersistence.backend "shared-pvc" }}
+    {{- $_ := set $sp "pvc_name" .Values.sessionPersistence.sharedPVC.name }}
+    {{- end }}
+    {{- if eq .Values.sessionPersistence.backend "per-taskrun-pvc" }}
+    {{- if .Values.sessionPersistence.perTaskRunPVC.storageClass }}
+    {{- $_ := set $sp "storage_class" .Values.sessionPersistence.perTaskRunPVC.storageClass }}
+    {{- end }}
+    {{- $_ := set $sp "storage_size" .Values.sessionPersistence.perTaskRunPVC.size }}
+    {{- end }}
+    {{- $cc := dict "session_persistence" $sp }}
+    {{- if hasKey $config "engines" }}
+    {{- $_ := set (index $config "engines") "claude-code" (merge $cc (index (index $config "engines") "claude-code" | default dict)) }}
+    {{- else }}
+    {{- $_ := set $config "engines" (dict "claude-code" $cc) }}
+    {{- end }}
+    {{- end }}
+    {{- toYaml $config | nindent 4 }}

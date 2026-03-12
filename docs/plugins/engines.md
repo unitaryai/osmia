@@ -40,15 +40,28 @@ The input to all engine methods, populated from the ticketing backend:
 
 ```go
 type Task struct {
-    ID          string            // Unique task identifier.
-    TicketID    string            // Source ticket identifier.
-    Title       string            // Short summary (used as prompt heading).
-    Description string            // Full task description (main prompt content).
-    RepoURL     string            // Repository the agent should work on.
-    Labels      []string          // Labels from the source ticket.
-    Metadata    map[string]string // Additional key-value pairs.
+    ID              string            // Unique task identifier.
+    TicketID        string            // Source ticket identifier.
+    TaskRunID       string            // Per-run unique identifier for storage isolation.
+    Title           string            // Short summary (used as prompt heading).
+    Description     string            // Full task description (main prompt content).
+    RepoURL         string            // Repository the agent should work on.
+    Labels          []string          // Labels from the source ticket.
+    Metadata        map[string]string // Additional key-value pairs.
+    MemoryContext   string            // Prior-knowledge injected from episodic memory.
+    PriorBranchName string            // Git branch from a previous attempt (git-based continuation).
+    SessionID       string            // Claude Code session ID for --resume (session-persistence continuation).
 }
 ```
+
+`PriorBranchName` and `SessionID` represent two continuation strategies that can coexist:
+
+| Field | Strategy | Who sets it | How it works |
+|---|---|---|---|
+| `PriorBranchName` | Git-based (default) | Controller, on retries | Retry prompt includes prior branch; agent reads `git log` to understand prior work |
+| `SessionID` | Session persistence (opt-in) | Controller, on retry jobs only | `--resume <id>` restores the full conversation; the `## Continuation` prompt section is suppressed |
+
+On first attempts, the controller does not set either field. When session persistence is enabled, the engine itself derives a deterministic session ID from `TaskRunID` and launches Claude Code with `--session-id <id>`. On subsequent retries the controller passes the known session ID via `SessionID`, and the engine switches to `--resume <id>` to continue the prior conversation.
 
 ### EngineConfig
 
@@ -78,6 +91,17 @@ type ExecutionSpec struct {
     ResourceLimits        Resources
     Volumes               []VolumeMount
     ActiveDeadlineSeconds int               // Hard timeout for the Job.
+}
+
+// VolumeMount — volume source priority: PVCName > ConfigMapName > emptyDir.
+type VolumeMount struct {
+    Name          string // Volume name.
+    MountPath     string // Path inside the container.
+    ReadOnly      bool
+    SubPath       string // Mount a single key/subdirectory.
+    ConfigMapName string // Back the volume with a ConfigMap.
+    ConfigMapKey  string // Project only this key (used with ConfigMapName).
+    PVCName       string // Back the volume with a PersistentVolumeClaim.
 }
 ```
 
@@ -125,7 +149,6 @@ config:
       model: "claude-sonnet-4-6"
       timeout_seconds: 3600
       fallback_model: haiku              # used when primary model is overloaded
-      no_session_persistence: true       # disable session state between turns
       append_system_prompt: "Always run tests before committing."
       tool_whitelist:                    # only these tools are available
         - Bash
@@ -170,8 +193,8 @@ config:
 | `image` | string | `ghcr.io/unitaryai/engine-claude-code:latest` | Container image override |
 | `timeout_seconds` | int | `7200` | Active deadline for the K8s Job |
 | `fallback_model` | string | — | Model to use when the primary is overloaded (e.g. `haiku`) |
-| `no_session_persistence` | bool | `false` | Disable Claude Code session persistence between turns |
 | `append_system_prompt` | string | — | Extra text appended to Claude Code's system prompt |
+| `session_persistence` | SessionPersistenceConfig | disabled | Opt-in session-state persistence between retries — see [Session Persistence](#session-persistence) |
 | `tool_whitelist` | []string | — | Only allow these Claude Code tools (via `--allowedTools`) |
 | `tool_blacklist` | []string | — | Block these Claude Code tools (via `--disallowedTools`) |
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
@@ -423,6 +446,92 @@ When enabled, the engine:
 2. Appends `--teammate-mode <mode>` to the Claude CLI command.
 
 The team lead then autonomously decides how many teammates to create, what roles they should have, and how to distribute work across them.
+
+#### Session Persistence
+
+By default, each agent pod starts with a clean `~/.claude/` directory (emptyDir volume). When a task hits `--max-turns` and retries, the new pod has no conversation history — it must re-read git diffs to understand prior work.
+
+**Session persistence** stores the `~/.claude/` directory (and optionally the workspace) in durable storage so that retry pods can resume the exact conversation context via `--resume <session-id>`, with no wasted turns re-establishing context.
+
+> **Note:** Session persistence is opt-in. Git-based continuation (`PriorBranchName`) remains the default fallback.
+
+**Configuration:**
+
+```yaml
+engines:
+  claude_code:
+    session_persistence:
+      enabled: true
+      backend: shared-pvc          # shared-pvc | per-taskrun-pvc | s3
+      pvc_name: osmia-agent-sessions  # for shared-pvc backend
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Activate session persistence |
+| `backend` | string | — | Storage backend: `shared-pvc`, `per-taskrun-pvc`, or `s3` |
+| `pvc_name` | string | — | Name of the shared PVC (`shared-pvc` backend) |
+| `storage_class` | string | cluster default | Storage class for dynamic PVCs (`per-taskrun-pvc` backend) |
+| `storage_size` | string | `1Gi` | PVC size (`per-taskrun-pvc` backend) |
+| `s3_bucket` | string | — | S3 bucket name (`s3` backend, not yet implemented) |
+| `s3_prefix` | string | `osmia-sessions/` | S3 key prefix (`s3` backend) |
+| `ttl_minutes` | int | `1440` | Session data retention after TaskRun completion (24 h) |
+
+**Backends:**
+
+- **`shared-pvc`** — mounts a single ReadWriteMany PVC. Each TaskRun gets an isolated subdirectory via `SubPath`. Simple and low-cost; requires a storage class that supports RWX (e.g. NFS, EFS, Ceph).
+- **`per-taskrun-pvc`** — creates a dedicated ReadWriteOnce PVC per TaskRun. Stronger isolation; the controller deletes the PVC on cleanup.
+- **`s3`** — not yet implemented. Will use an init container to download session data and a lifecycle hook to upload on exit.
+
+**How it works:**
+
+1. On first job launch, the controller generates a deterministic session ID from the TaskRun ID and passes it to the agent via `--session-id <id>`.
+2. Claude Code stores all session JSONL files in `$CLAUDE_CONFIG_DIR` (the PVC-backed path) rather than the ephemeral emptyDir home volume.
+3. When the agent hits `--max-turns`, the retry pod receives `task.SessionID` and the agent is invoked with `--resume <session-id>` instead of a fresh session.
+4. The workspace directory is also persisted on the PVC (`OSMIA_WORKSPACE_DIR`), so `entrypoint.sh` skips the git-clone step on retry pods.
+
+#### Storage Cleanup
+
+Session data is ephemeral — it only needs to exist while retries are possible. Once a TaskRun reaches a terminal state (Succeeded, Failed with retries exhausted, or TimedOut), its session data can be removed. Osmia handles this automatically via a **background cleaner goroutine** (`internal/sessionstore/cleaner.go`) that runs inside the controller pod when session persistence is enabled.
+
+**How cleanup works:**
+
+The cleaner runs a sweep every hour (configurable) and removes session data older than `ttl_minutes` (default 1440 = 24 hours):
+
+| Backend | What gets cleaned | How |
+|---|---|---|
+| `shared-pvc` | Subdirectories on the shared PVC | The controller pod mounts the shared PVC at `/data/sessions`. The cleaner lists subdirectories and removes any whose modification time is older than the TTL. |
+| `per-taskrun-pvc` | Dedicated PVCs | The cleaner lists PVCs with the `osmia.io/task-run-id` label and deletes any whose creation timestamp is older than the TTL. |
+| `s3` | S3 objects by prefix | Not yet implemented. |
+
+**Important details:**
+
+- **PVC phase is intentionally not checked.** When an agent pod finishes and is deleted, its PVC remains in `Bound` phase — Kubernetes does not automatically transition it to `Released`. If the cleaner filtered by phase, PVCs would accumulate indefinitely. Age-based deletion is safe because the TTL guarantees the TaskRun is terminal and no pod is referencing the PVC.
+- **The `Cleanup()` method on each store is idempotent.** Calling it multiple times (e.g. after a controller restart) is safe — deleting an already-removed PVC is treated as success.
+- **The controller pod must mount the shared PVC** for the `shared-pvc` cleaner to work. The Helm chart handles this automatically: when `sessionPersistence.backend` is `shared-pvc`, the deployment template adds a `session-pvc` volume and mounts it at `/data/sessions`. If you deploy without the Helm chart, ensure the controller pod has the shared PVC mounted and pass the mount path as `PVCRootDir` in the `CleanerConfig`.
+- **`per-taskrun-pvc` cleanup requires RBAC.** The controller's service account needs `list` and `delete` permissions on `persistentvolumeclaims` in the target namespace. The Helm chart's default RBAC rules include these permissions.
+
+**Tuning the TTL:**
+
+Set `sessionPersistence.ttlMinutes` in `values.yaml`. A shorter TTL reduces storage usage but risks deleting session data before a long-running retry completes. A longer TTL is safer but accumulates more data. The default of 24 hours is conservative — most tasks complete retries within minutes.
+
+```yaml
+sessionPersistence:
+  enabled: true
+  backend: per-taskrun-pvc
+  ttlMinutes: 720   # 12 hours — more aggressive cleanup
+```
+
+**What happens if cleanup fails?**
+
+The cleaner logs warnings and continues to the next item. Failed deletions are retried on the next sweep (1 hour later). No session data is critical — worst case, stale PVCs occupy storage until manually removed. You can monitor cleanup via the controller's structured logs:
+
+```text
+level=INFO msg="per-taskrun-pvc cleaner: deleted stale session PVC" pvc=osmia-session-tr-abc123
+level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-session-tr-xyz error="..."
+```
+
+**Helm chart:** Set `sessionPersistence.enabled: true` and configure the chosen backend in `values.yaml`. The chart will create the shared PVC when `backend: shared-pvc` is selected.
 
 ---
 

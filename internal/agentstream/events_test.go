@@ -78,6 +78,28 @@ func TestParseEvent(t *testing.T) {
 			},
 		},
 		{
+			name:     "system event with session_id is parsed",
+			input:    `{"type":"system","subtype":"init","session_id":"abc-123-xyz","timestamp":"2026-01-01T00:00:00Z"}`,
+			wantType: EventSystem,
+			checkFunc: func(t *testing.T, ev *StreamEvent) {
+				se, ok := ev.Parsed.(*SystemEvent)
+				require.True(t, ok, "Parsed should be *SystemEvent")
+				assert.Equal(t, "abc-123-xyz", se.SessionID)
+				assert.Equal(t, "init", se.Subtype)
+			},
+		},
+		{
+			name:     "system event without session_id is parsed without error",
+			input:    `{"type":"system","subtype":"error","timestamp":"2026-01-01T00:00:00Z"}`,
+			wantType: EventSystem,
+			checkFunc: func(t *testing.T, ev *StreamEvent) {
+				se, ok := ev.Parsed.(*SystemEvent)
+				require.True(t, ok, "Parsed should be *SystemEvent")
+				assert.Empty(t, se.SessionID)
+				assert.Equal(t, "error", se.Subtype)
+			},
+		},
+		{
 			name:     "unknown event type preserved without error",
 			input:    `{"type":"heartbeat","seq":5,"timestamp":"2026-01-01T00:00:00Z"}`,
 			wantType: EventType("heartbeat"),

@@ -112,6 +112,22 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.Engines.ClaudeCode != nil {
+		sp := c.Engines.ClaudeCode.SessionPersistence
+		if sp.Enabled {
+			switch sp.Backend {
+			case "shared-pvc", "per-taskrun-pvc":
+				// supported
+			case "s3":
+				return fmt.Errorf("engines.claude-code.session_persistence.backend %q is not yet supported; use \"shared-pvc\" or \"per-taskrun-pvc\"", sp.Backend)
+			case "":
+				return fmt.Errorf("engines.claude-code.session_persistence.backend must be set when session persistence is enabled")
+			default:
+				return fmt.Errorf("engines.claude-code.session_persistence.backend %q is not recognised; use \"shared-pvc\" or \"per-taskrun-pvc\"", sp.Backend)
+			}
+		}
+	}
+
 	if c.ReviewResponse.Enabled && c.ReviewResponse.MinSeverity != "" {
 		switch c.ReviewResponse.MinSeverity {
 		case "info", "warning", "error":

@@ -319,6 +319,62 @@ func TestBuild_ConfigMapVolumeWithKey(t *testing.T) {
 	assert.True(t, vm.ReadOnly)
 }
 
+func TestBuild_PVCVolume(t *testing.T) {
+	// A VolumeMount with PVCName must produce a PVC-backed volume source, not EmptyDir.
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/osmia/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{
+				Name:      "session-claude",
+				MountPath: "/session",
+				SubPath:   "tr-abc/claude",
+				PVCName:   "osmia-agent-sessions",
+			},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-pvc", "claude-code", spec)
+	require.NoError(t, err)
+
+	require.Len(t, job.Spec.Template.Spec.Volumes, 1)
+	vol := job.Spec.Template.Spec.Volumes[0]
+	assert.Equal(t, "session-claude", vol.Name)
+	require.NotNil(t, vol.VolumeSource.PersistentVolumeClaim, "volume must use PVC source")
+	assert.Nil(t, vol.VolumeSource.EmptyDir, "volume must not use EmptyDir")
+	assert.Nil(t, vol.VolumeSource.ConfigMap, "volume must not use ConfigMap")
+	assert.Equal(t, "osmia-agent-sessions", vol.VolumeSource.PersistentVolumeClaim.ClaimName)
+
+	vm := job.Spec.Template.Spec.Containers[0].VolumeMounts[0]
+	assert.Equal(t, "session-claude", vm.Name)
+	assert.Equal(t, "/session", vm.MountPath)
+	assert.Equal(t, "tr-abc/claude", vm.SubPath)
+}
+
+func TestBuild_PVCVolumeOverridesConfigMap(t *testing.T) {
+	// PVCName takes precedence over ConfigMapName when both are set.
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/osmia/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{
+				Name:          "mixed",
+				MountPath:     "/data",
+				PVCName:       "my-pvc",
+				ConfigMapName: "my-cm",
+			},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-pvc-cm", "claude-code", spec)
+	require.NoError(t, err)
+
+	vol := job.Spec.Template.Spec.Volumes[0]
+	require.NotNil(t, vol.VolumeSource.PersistentVolumeClaim)
+	assert.Nil(t, vol.VolumeSource.ConfigMap)
+	assert.Equal(t, "my-pvc", vol.VolumeSource.PersistentVolumeClaim.ClaimName)
+}
+
 func TestBuild_MixedVolumes(t *testing.T) {
 	spec := &engine.ExecutionSpec{
 		Image:   "ghcr.io/osmia/agent:latest",

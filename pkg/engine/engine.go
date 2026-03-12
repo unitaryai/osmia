@@ -5,6 +5,8 @@
 // Kubernetes Jobs or other runtime constructs.
 package engine
 
+import "context"
+
 // TokenUsage tracks token consumption for cost accounting.
 type TokenUsage struct {
 	InputTokens  int `json:"input_tokens"`
@@ -42,12 +44,19 @@ type VolumeMount struct {
 	ConfigMapName string `json:"configmap_name,omitempty"`
 	// ConfigMapKey, when set alongside ConfigMapName, projects only this key.
 	ConfigMapKey string `json:"configmap_key,omitempty"`
+	// PVCName, when set, uses a PersistentVolumeClaim as the volume source.
+	// Takes precedence over ConfigMapName when both are set.
+	PVCName string `json:"pvc_name,omitempty"`
 }
 
 // Task represents a unit of work to be performed by an engine.
 type Task struct {
 	ID          string            `json:"id"`
 	TicketID    string            `json:"ticket_id"`
+	// TaskRunID uniquely identifies this execution attempt. Multiple retries
+	// of the same ticket produce different TaskRunIDs. Used by the session
+	// store to isolate per-run storage paths.
+	TaskRunID string `json:"task_run_id,omitempty"`
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	RepoURL     string            `json:"repo_url"`
@@ -59,8 +68,13 @@ type Task struct {
 	// PriorBranchName, when non-empty, tells the engine that a previous
 	// attempt already pushed work to this branch. The prompt should
 	// instruct the agent to clone/checkout that branch and continue from
-	// where the prior run left off.
+	// where the prior run left off. Ignored when SessionID is set (session
+	// persistence handles context resumption via --resume).
 	PriorBranchName string `json:"prior_branch_name,omitempty"`
+	// SessionID, when non-empty, tells the engine to resume the named Claude
+	// Code session via --resume. Set by the controller on retry jobs when
+	// session persistence is enabled.
+	SessionID string `json:"session_id,omitempty"`
 }
 
 // EngineConfig holds engine-specific configuration.
@@ -74,8 +88,7 @@ type EngineConfig struct {
 	ToolWhitelist        []string          `json:"tool_whitelist,omitempty"`
 	ToolBlacklist        []string          `json:"tool_blacklist,omitempty"`
 	JSONSchema           string            `json:"json_schema,omitempty"`
-	AppendSystemPrompt   string            `json:"append_system_prompt,omitempty"`
-	NoSessionPersistence bool              `json:"no_session_persistence,omitempty"`
+	AppendSystemPrompt string `json:"append_system_prompt,omitempty"`
 	// StreamingEnabled enables streaming output mode (stream-json) even
 	// without a JSON schema. When true, the engine uses --output-format
 	// stream-json and --verbose for richer event data.
@@ -114,6 +127,27 @@ type ExecutionSpec struct {
 	ResourceLimits        Resources               `json:"resource_limits"`
 	Volumes               []VolumeMount           `json:"volumes"`
 	ActiveDeadlineSeconds int                     `json:"active_deadline_seconds"`
+}
+
+// SessionStore manages persistent storage for agent session state between pod
+// restarts. Implementations live in internal/sessionstore; the interface is
+// defined here so that public engine packages (pkg/engine/claudecode) can
+// accept it without importing internal packages.
+type SessionStore interface {
+	// Prepare sets up storage for a TaskRun (e.g. creates a per-TaskRun PVC
+	// or ensures the S3 prefix exists). Must be called before the first job.
+	Prepare(ctx context.Context, taskRunID string) error
+
+	// VolumeMounts returns the additional volume mounts to add to the agent
+	// pod spec.
+	VolumeMounts(taskRunID string) []VolumeMount
+
+	// Env returns extra environment variables for the agent container.
+	Env(taskRunID, sessionID string) map[string]string
+
+	// Cleanup removes storage for a completed TaskRun. Safe to call multiple
+	// times; implementations must be idempotent.
+	Cleanup(ctx context.Context, taskRunID string) error
 }
 
 // ExecutionEngine wraps an AI coding tool (Claude Code, Codex, etc).

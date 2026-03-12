@@ -1,6 +1,7 @@
 package claudecode
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -12,6 +13,29 @@ import (
 
 // compile-time check that ClaudeCodeEngine implements ExecutionEngine.
 var _ engine.ExecutionEngine = (*ClaudeCodeEngine)(nil)
+
+// stubSessionStore is a minimal SessionStore used in unit tests.
+type stubSessionStore struct{}
+
+func (s *stubSessionStore) Prepare(_ context.Context, _ string) error {
+	return nil
+}
+
+func (s *stubSessionStore) VolumeMounts(_ string) []engine.VolumeMount {
+	return []engine.VolumeMount{
+		{Name: "stub-session", MountPath: "/session", PVCName: "stub-pvc"},
+	}
+}
+
+func (s *stubSessionStore) Env(_, _ string) map[string]string {
+	return map[string]string{
+		"CLAUDE_CONFIG_DIR": "/session/claude",
+	}
+}
+
+func (s *stubSessionStore) Cleanup(_ context.Context, _ string) error {
+	return nil
+}
 
 func TestName(t *testing.T) {
 	e := New()
@@ -315,24 +339,94 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "no session persistence flag",
-			task: baseTask,
-			config: engine.EngineConfig{
-				TimeoutSeconds:       3600,
-				NoSessionPersistence: true,
-			},
-			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.Contains(t, spec.Command, "--no-session-persistence")
-			},
-		},
-		{
-			name: "no session persistence omitted when false",
+			name: "--no-session-persistence flag is never emitted",
 			task: baseTask,
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				assert.NotContains(t, spec.Command, "--no-session-persistence")
+			},
+		},
+		{
+			name: "session store with empty SessionID adds --session-id flag",
+			opts: []Option{WithSessionStore(&stubSessionStore{})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Contains(t, spec.Command, "--session-id")
+				assert.NotContains(t, spec.Command, "--resume")
+				// Session ID must be a valid UUID.
+				idx := -1
+				for i, s := range spec.Command {
+					if s == "--session-id" {
+						idx = i
+						break
+					}
+				}
+				require.NotEqual(t, -1, idx)
+				require.Less(t, idx+1, len(spec.Command))
+				assert.NotEmpty(t, spec.Command[idx+1])
+			},
+		},
+		{
+			name: "session store with SessionID set adds --resume flag",
+			opts: []Option{WithSessionStore(&stubSessionStore{})},
+			task: engine.Task{
+				ID:        "task-1",
+				TicketID:  "TICKET-42",
+				Title:     "Fix login bug",
+				RepoURL:   "https://github.com/org/repo",
+				SessionID: "abc-123-session",
+			},
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Contains(t, spec.Command, "--resume")
+				assert.Contains(t, spec.Command, "abc-123-session")
+				assert.NotContains(t, spec.Command, "--session-id")
+			},
+		},
+		{
+			name: "session store volumes are merged into spec",
+			opts: []Option{WithSessionStore(&stubSessionStore{})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				found := false
+				for _, v := range spec.Volumes {
+					if v.Name == "stub-session" {
+						found = true
+					}
+				}
+				assert.True(t, found, "stub session volume should be present")
+			},
+		},
+		{
+			name: "session store env vars are merged into spec",
+			opts: []Option{WithSessionStore(&stubSessionStore{})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Equal(t, "/session/claude", spec.Env["CLAUDE_CONFIG_DIR"])
+			},
+		},
+		{
+			name: "no session store means no session flags",
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.NotContains(t, spec.Command, "--session-id")
+				assert.NotContains(t, spec.Command, "--resume")
 			},
 		},
 		{
@@ -598,16 +692,18 @@ func TestBuildExecutionSpec(t *testing.T) {
 
 		{
 			name: "all flags combined",
-			opts: []Option{WithFallbackModel("default-fallback")},
+			opts: []Option{
+				WithFallbackModel("default-fallback"),
+				WithSessionStore(&stubSessionStore{}),
+			},
 			task: baseTask,
 			config: engine.EngineConfig{
-				TimeoutSeconds:       3600,
-				FallbackModel:        "haiku",
-				JSONSchema:           DefaultTaskResultSchema,
-				NoSessionPersistence: true,
-				AppendSystemPrompt:   "Be careful.",
-				ToolWhitelist:        []string{"Read", "Write"},
-				ToolBlacklist:        []string{"Bash"},
+				TimeoutSeconds:     3600,
+				FallbackModel:      "haiku",
+				JSONSchema:         DefaultTaskResultSchema,
+				AppendSystemPrompt: "Be careful.",
+				ToolWhitelist:      []string{"Read", "Write"},
+				ToolBlacklist:      []string{"Bash"},
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				assert.Contains(t, spec.Command, "stream-json")
@@ -615,7 +711,8 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.Contains(t, spec.Command, "--verbose")
 				assert.Contains(t, spec.Command, "--fallback-model")
 				assert.Contains(t, spec.Command, "haiku")
-				assert.Contains(t, spec.Command, "--no-session-persistence")
+				assert.NotContains(t, spec.Command, "--no-session-persistence")
+				assert.Contains(t, spec.Command, "--session-id")
 				assert.Contains(t, spec.Command, "--append-system-prompt")
 				assert.Contains(t, spec.Command, "Be careful.")
 				assert.Contains(t, spec.Command, "--allowedTools")
@@ -792,7 +889,7 @@ func TestBuildPrompt(t *testing.T) {
 				"osmia/TICKET-99",
 				"git checkout -b osmia/TICKET-99",
 				"git push origin osmia/TICKET-99",
-				"Commit and push your changes to that branch frequently",
+				"Commit and push your changes to that branch at logical checkpoints",
 				"\"branch_name\": \"osmia/TICKET-99\"",
 			},
 		},
@@ -843,6 +940,22 @@ func TestBuildPrompt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildPrompt_NoContinuationSectionWhenSessionIDSet(t *testing.T) {
+	// When a session is being resumed, --resume handles context so the
+	// Continuation section must be suppressed to avoid confusing the agent.
+	e := New()
+	prompt, err := e.BuildPrompt(engine.Task{
+		ID:              "task-1",
+		TicketID:        "TICKET-1",
+		Title:           "Fix bug",
+		RepoURL:         "https://github.com/org/repo",
+		PriorBranchName: "osmia/TICKET-1",
+		SessionID:       "some-session-id",
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, prompt, "## Continuation")
 }
 
 func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {

@@ -64,12 +64,12 @@ func TestEnhancedEngineStructuredOutput(t *testing.T) {
 			denyFlags: []string{`{"type":"string"}`},
 		},
 		{
-			name: "no schema uses plain json output without verbose",
+			name: "no schema always uses stream-json and verbose",
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			wantFlags: []string{"--output-format", "json"},
-			denyFlags: []string{"stream-json", "--json-schema", "--verbose"},
+			wantFlags: []string{"--output-format", "stream-json", "--verbose"},
+			denyFlags: []string{"--json-schema"},
 		},
 	}
 
@@ -249,14 +249,13 @@ func TestEnhancedEngineCombinedFlags(t *testing.T) {
 	)
 
 	config := engine.EngineConfig{
-		TimeoutSeconds:       3600,
-		FallbackModel:        "haiku",
-		JSONSchema:           claudecode.DefaultTaskResultSchema,
-		NoSessionPersistence: true,
-		AppendSystemPrompt:   "Be careful with production data.",
-		ToolWhitelist:        []string{"Read", "Write", "Bash"},
-		ToolBlacklist:        []string{"NotebookEdit"},
-		StreamingEnabled:     true,
+		TimeoutSeconds:     3600,
+		FallbackModel:      "haiku",
+		JSONSchema:         claudecode.DefaultTaskResultSchema,
+		AppendSystemPrompt: "Be careful with production data.",
+		ToolWhitelist:      []string{"Read", "Write", "Bash"},
+		ToolBlacklist:      []string{"NotebookEdit"},
+		StreamingEnabled:   true,
 	}
 
 	spec, err := eng.BuildExecutionSpec(enhancedEngineTask, config)
@@ -275,8 +274,8 @@ func TestEnhancedEngineCombinedFlags(t *testing.T) {
 	assert.Contains(t, spec.Command, "haiku")
 	assert.NotContains(t, spec.Command, "default-fallback")
 
-	// Session persistence.
-	assert.Contains(t, spec.Command, "--no-session-persistence")
+	// --no-session-persistence must never be emitted (flag was removed from Claude Code CLI).
+	assert.NotContains(t, spec.Command, "--no-session-persistence")
 
 	// System prompt.
 	assert.Contains(t, spec.Command, "--append-system-prompt")
@@ -323,12 +322,12 @@ func TestEnhancedEngineStreamingEnabled(t *testing.T) {
 			wantFlags: []string{"--output-format", "stream-json", "--verbose", "--json-schema"},
 		},
 		{
-			name: "streaming disabled without schema uses plain json",
+			name: "without explicit streaming flag still uses stream-json and verbose",
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			wantFlags: []string{"--output-format", "json"},
-			denyFlags: []string{"stream-json", "--verbose"},
+			wantFlags: []string{"--output-format", "stream-json", "--verbose"},
+			denyFlags: []string{"--json-schema"},
 		},
 	}
 

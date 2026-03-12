@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -124,6 +126,22 @@ func WithSkills(skills []Skill) Option {
 	}
 }
 
+// WithSessionStore configures session persistence for the engine. When set,
+// BuildExecutionSpec adds the session store's volume mounts and environment
+// variables to the spec, and includes the appropriate --session-id or --resume
+// flag depending on whether this is a first run or a retry.
+func WithSessionStore(store engine.SessionStore) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.sessionStore = store
+	}
+}
+
+// osmiaSessionNamespace is the UUID v5 namespace used to derive deterministic
+// session IDs from task IDs. Using a fixed namespace ensures that the same
+// task always produces the same session ID, making the controller and engine
+// independently consistent without coordination.
+var osmiaSessionNamespace = uuid.MustParse("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
 // ClaudeCodeEngine implements engine.ExecutionEngine for the Claude Code CLI.
 type ClaudeCodeEngine struct {
 	fallbackModel string
@@ -133,6 +151,7 @@ type ClaudeCodeEngine struct {
 	teamsConfig   TeamsConfig
 	skills        []Skill
 	subAgents     []SubAgent
+	sessionStore  engine.SessionStore
 }
 
 // New returns a new ClaudeCodeEngine with the given functional options applied.
@@ -221,8 +240,16 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		command = append(command, "--fallback-model", fallbackModel)
 	}
 
-	if config.NoSessionPersistence {
-		command = append(command, "--no-session-persistence")
+	// Handle session persistence: --resume resumes an existing session,
+	// --session-id pins the session ID for a new one so retry pods know
+	// which session to resume on the next attempt.
+	if e.sessionStore != nil {
+		if task.SessionID != "" {
+			command = append(command, "--resume", task.SessionID)
+		} else {
+			sessionID := sessionIDForTask(task.ID)
+			command = append(command, "--session-id", sessionID)
+		}
 	}
 
 	if config.AppendSystemPrompt != "" {
@@ -317,6 +344,25 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	volumes = append(volumes, SkillVolumes(e.skills)...)
 	volumes = append(volumes, SubAgentVolumes(e.subAgents)...)
 
+	// Merge session store volumes and environment variables when persistence
+	// is configured. TaskRunID isolates storage per execution attempt so
+	// retries of the same ticket do not share session data.
+	if e.sessionStore != nil {
+		taskRunID := task.TaskRunID
+		if taskRunID == "" {
+			// Fallback for callers that don't set TaskRunID (e.g. tests).
+			taskRunID = task.ID
+		}
+		sessionID := task.SessionID
+		if sessionID == "" {
+			sessionID = sessionIDForTask(taskRunID)
+		}
+		volumes = append(volumes, e.sessionStore.VolumeMounts(taskRunID)...)
+		for k, v := range e.sessionStore.Env(taskRunID, sessionID) {
+			env[k] = v
+		}
+	}
+
 	spec := &engine.ExecutionSpec{
 		Image:                 image,
 		Command:               command,
@@ -329,6 +375,13 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	}
 
 	return spec, nil
+}
+
+// sessionIDForTask derives a deterministic UUID v5 session ID from a task ID.
+// Using a deterministic scheme means the controller and engine independently
+// arrive at the same session ID without coordination, simplifying retry logic.
+func sessionIDForTask(taskID string) string {
+	return uuid.NewSHA1(osmiaSessionNamespace, []byte("osmia/session/"+taskID)).String()
 }
 
 // BuildPrompt constructs the task prompt for Claude Code from the task's
@@ -356,7 +409,10 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 		b.WriteString("\n\n")
 	}
 
-	if task.PriorBranchName != "" {
+	// When a session is being resumed via --resume, the conversation history
+	// is already available to the agent — skip the Continuation section to
+	// avoid confusing it with redundant git-clone instructions.
+	if task.PriorBranchName != "" && task.SessionID == "" {
 		b.WriteString("## Continuation\n\n")
 		b.WriteString("A previous agent session worked on this task but was interrupted before\n")
 		b.WriteString("completing it (max turns reached or premature exit). Prior work was pushed\n")
@@ -402,48 +458,67 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	if task.RepoURL != "" {
 		branchName := "osmia/" + task.TicketID
 
-		b.WriteString("1. Configure git globally:\n")
-		b.WriteString("   ```\n")
-		b.WriteString("   git config --global user.name \"Osmia\"\n")
-		b.WriteString("   git config --global user.email \"osmia@localhost\"\n")
-		b.WriteString("   git config --global init.defaultBranch main\n")
-		b.WriteString("   # Configure git credentials from SCM token env vars\n")
-		b.WriteString("   if [ -n \"${GITLAB_TOKEN:-}\" ]; then\n")
-		b.WriteString("     git config --global credential.helper store\n")
-		b.WriteString("     echo \"https://oauth2:${GITLAB_TOKEN}@gitlab.com\" >> ~/.git-credentials\n")
-		b.WriteString("   fi\n")
-		b.WriteString("   if [ -n \"${GITHUB_TOKEN:-}\" ]; then\n")
-		b.WriteString("     git config --global credential.helper store\n")
-		b.WriteString("     echo \"https://x-access-token:${GITHUB_TOKEN}@github.com\" >> ~/.git-credentials\n")
-		b.WriteString("   fi\n")
-		b.WriteString("   ```\n\n")
-
-		if task.PriorBranchName == "" {
-			b.WriteString("2. Clone the repository to /workspace/repo:\n")
+		// When resuming a persisted session, the workspace and git state are
+		// already on the PVC — skip clone/checkout instructions entirely.
+		if task.SessionID != "" {
+			b.WriteString("1. The workspace is already present from your previous session. Continue working in the existing directory.\n\n")
+			b.WriteString("2. Commit and push your changes to branch `")
+			b.WriteString(branchName)
+			b.WriteString("` at logical checkpoints:\n")
 			b.WriteString("   ```\n")
-			b.WriteString("   git clone --depth=1 ")
-			b.WriteString(task.RepoURL)
-			b.WriteString(" /workspace/repo\n")
+			b.WriteString("   git add -A && git commit -m \"wip: <short description>\"\n")
+			b.WriteString("   git push origin ")
+			b.WriteString(branchName)
+			b.WriteString("\n")
 			b.WriteString("   ```\n\n")
-		}
+			b.WriteString("3. When the full task is complete, write /workspace/result.json containing:\n")
+			b.WriteString("   `{\"success\": true, \"summary\": \"<description of what was done>\", \"branch_name\": \"")
+			b.WriteString(branchName)
+			b.WriteString("\"}`\n")
+		} else {
+			b.WriteString("1. Configure git globally:\n")
+			b.WriteString("   ```\n")
+			b.WriteString("   git config --global user.name \"Osmia\"\n")
+			b.WriteString("   git config --global user.email \"osmia@localhost\"\n")
+			b.WriteString("   git config --global init.defaultBranch main\n")
+			b.WriteString("   # Configure git credentials from SCM token env vars\n")
+			b.WriteString("   if [ -n \"${GITLAB_TOKEN:-}\" ]; then\n")
+			b.WriteString("     git config --global credential.helper store\n")
+			b.WriteString("     echo \"https://oauth2:${GITLAB_TOKEN}@gitlab.com\" >> ~/.git-credentials\n")
+			b.WriteString("   fi\n")
+			b.WriteString("   if [ -n \"${GITHUB_TOKEN:-}\" ]; then\n")
+			b.WriteString("     git config --global credential.helper store\n")
+			b.WriteString("     echo \"https://x-access-token:${GITHUB_TOKEN}@github.com\" >> ~/.git-credentials\n")
+			b.WriteString("   fi\n")
+			b.WriteString("   ```\n\n")
 
-		b.WriteString("3. Create a branch for your changes (use the same branch on every retry so work is not lost):\n")
-		b.WriteString("   ```\n")
-		b.WriteString("   git checkout -b ")
-		b.WriteString(branchName)
-		b.WriteString("\n")
-		b.WriteString("   ```\n\n")
-		b.WriteString("4. Commit and push your changes to that branch frequently — do not wait until you are finished:\n")
-		b.WriteString("   ```\n")
-		b.WriteString("   git add -A && git commit -m \"wip: <short description>\"\n")
-		b.WriteString("   git push origin ")
-		b.WriteString(branchName)
-		b.WriteString("\n")
-		b.WriteString("   ```\n\n")
-		b.WriteString("5. When the full task is complete, write /workspace/result.json containing:\n")
-		b.WriteString("   `{\"success\": true, \"summary\": \"<description of what was done>\", \"branch_name\": \"")
-		b.WriteString(branchName)
-		b.WriteString("\"}`\n")
+			if task.PriorBranchName == "" {
+				b.WriteString("2. Clone the repository to /workspace/repo:\n")
+				b.WriteString("   ```\n")
+				b.WriteString("   git clone --depth=1 ")
+				b.WriteString(task.RepoURL)
+				b.WriteString(" /workspace/repo\n")
+				b.WriteString("   ```\n\n")
+			}
+
+			b.WriteString("3. Create a branch for your changes (use the same branch on every retry so work is not lost):\n")
+			b.WriteString("   ```\n")
+			b.WriteString("   git checkout -b ")
+			b.WriteString(branchName)
+			b.WriteString("\n")
+			b.WriteString("   ```\n\n")
+			b.WriteString("4. Commit and push your changes to that branch at logical checkpoints:\n")
+			b.WriteString("   ```\n")
+			b.WriteString("   git add -A && git commit -m \"wip: <short description>\"\n")
+			b.WriteString("   git push origin ")
+			b.WriteString(branchName)
+			b.WriteString("\n")
+			b.WriteString("   ```\n\n")
+			b.WriteString("5. When the full task is complete, write /workspace/result.json containing:\n")
+			b.WriteString("   `{\"success\": true, \"summary\": \"<description of what was done>\", \"branch_name\": \"")
+			b.WriteString(branchName)
+			b.WriteString("\"}`\n")
+		}
 	} else {
 		b.WriteString("Complete the task described above. Work in the /workspace directory.\n")
 		b.WriteString("Write a result.json file to /workspace/result.json when finished.\n")

@@ -12,6 +12,14 @@
 # The main claude invocation also passes --mcp-config /workspace/.mcp.json
 # as an explicit belt-and-suspenders load path.
 #
+# Session persistence support:
+#   CLAUDE_CONFIG_DIR    — overrides ~/.claude; set by the session store to
+#                          point at a PVC-backed directory so that session
+#                          JSONL files survive pod restarts.
+#   OSMIA_WORKSPACE_DIR  — when set and already populated (a .git directory
+#                          is present), the git-clone step is skipped so the
+#                          agent continues in the same workspace.
+#
 # Skill environment variables (set by the Osmia controller):
 #   CLAUDE_SKILL_INLINE_<NAME>  — base64-encoded Markdown content for an inline skill
 #   CLAUDE_SKILL_PATH_<NAME>    — path to a skill file on the container image
@@ -22,42 +30,54 @@
 
 set -eu
 
-# Restore user settings (permissions + MCP tool allowlist).
-mkdir -p "${HOME}/.claude"
-cp /etc/claude-code/settings.json "${HOME}/.claude/settings.json"
+# Use CLAUDE_CONFIG_DIR when set (session persistence), otherwise ~/.claude.
+CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-${HOME}/.claude}"
+
+# Always create the directory — it will either be the PVC-backed path or
+# the ephemeral emptyDir home.
+mkdir -p "${CLAUDE_DIR}"
+
+# Overwrite settings.json and the MCP config unconditionally — these are
+# controlled by the operator and must reflect the current policy even on
+# resumed sessions.  Session JSONL files are left untouched.
+cp /etc/claude-code/settings.json "${CLAUDE_DIR}/settings.json"
 
 # Copy MCP server config to the project root so it is auto-loaded and also
 # available via the explicit --mcp-config flag in the claude invocation.
 cp /etc/claude-code/mcp.json /workspace/.mcp.json
 
+# Export CLAUDE_CONFIG_DIR so claude itself picks it up when the non-default
+# path is in use.  A no-op when CLAUDE_CONFIG_DIR was already set in the env.
+export CLAUDE_CONFIG_DIR="${CLAUDE_DIR}"
+
 # Write custom skill files if any skill env vars are present.
 # Inline skills: CLAUDE_SKILL_INLINE_<NAME>=<base64-encoded Markdown>
 # Path skills:   CLAUDE_SKILL_PATH_<NAME>=<path on image>
 if env | grep -q '^CLAUDE_SKILL_'; then
-    mkdir -p "${HOME}/.claude/skills"
+    mkdir -p "${CLAUDE_DIR}/skills"
 
     # Write inline skills (base64-decoded content).
     for var in $(env | grep '^CLAUDE_SKILL_INLINE_' | sed 's/=.*//'); do
         name=$(printf '%s' "$var" | sed 's/^CLAUDE_SKILL_INLINE_//' | tr '[:upper:]' '[:lower:]' | tr '_' '-')
-        printenv "$var" | base64 -d > "${HOME}/.claude/skills/${name}.md"
+        printenv "$var" | base64 -d > "${CLAUDE_DIR}/skills/${name}.md"
     done
 
     # Copy path-based skills from the image.
     for var in $(env | grep '^CLAUDE_SKILL_PATH_' | sed 's/=.*//'); do
         name=$(printf '%s' "$var" | sed 's/^CLAUDE_SKILL_PATH_//' | tr '[:upper:]' '[:lower:]' | tr '_' '-')
         path=$(printenv "$var")
-        [ -f "$path" ] && cp "$path" "${HOME}/.claude/skills/${name}.md"
+        [ -f "$path" ] && cp "$path" "${CLAUDE_DIR}/skills/${name}.md"
     done
 fi
 
 # Write ConfigMap-backed sub-agent files to ~/.claude/agents/.
 # Sub-agent env vars: CLAUDE_SUBAGENT_PATH_<NAME>=<path on volume>
 if env | grep -q '^CLAUDE_SUBAGENT_PATH_'; then
-    mkdir -p "${HOME}/.claude/agents"
+    mkdir -p "${CLAUDE_DIR}/agents"
     for var in $(env | grep '^CLAUDE_SUBAGENT_PATH_' | sed 's/=.*//'); do
         name=$(printf '%s' "$var" | sed 's/^CLAUDE_SUBAGENT_PATH_//' | tr '[:upper:]' '[:lower:]' | tr '_' '-')
         path=$(printenv "$var")
-        [ -f "$path" ] && cp "$path" "${HOME}/.claude/agents/${name}.md"
+        [ -f "$path" ] && cp "$path" "${CLAUDE_DIR}/agents/${name}.md"
     done
 fi
 

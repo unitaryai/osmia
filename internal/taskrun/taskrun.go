@@ -86,6 +86,12 @@ type TaskRun struct {
 	// the correct resolution logic.
 	ApprovalGateType string `json:"approval_gate_type,omitempty"`
 
+	// SessionID is the Claude Code session ID assigned to the first job for
+	// this TaskRun. Populated on first launch when session persistence is
+	// enabled, and passed to retry jobs via Task.SessionID so the agent can
+	// resume the conversation with --resume.
+	SessionID string `json:"session_id,omitempty"`
+
 	// Review follow-up fields — populated for TaskRuns created in response
 	// to review comments on a PR/MR opened by a previous Osmia task.
 

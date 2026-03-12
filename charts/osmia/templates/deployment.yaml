@@ -82,6 +82,10 @@ spec:
             - name: data
               mountPath: /data
             {{- end }}
+            {{- if and .Values.sessionPersistence.enabled (eq .Values.sessionPersistence.backend "shared-pvc") }}
+            - name: session-pvc
+              mountPath: /data/sessions
+            {{- end }}
       volumes:
         - name: config
           configMap:
@@ -94,6 +98,11 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "osmia.fullname" . }}-data
+        {{- end }}
+        {{- if and .Values.sessionPersistence.enabled (eq .Values.sessionPersistence.backend "shared-pvc") }}
+        - name: session-pvc
+          persistentVolumeClaim:
+            claimName: {{ .Values.sessionPersistence.sharedPVC.name }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

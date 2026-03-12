@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -30,7 +29,8 @@ type CleanerConfig struct {
 	// Backend is the session persistence backend ("shared-pvc", "per-taskrun-pvc").
 	Backend string
 	// PVCRootDir is the local path where the shared PVC is mounted inside the
-	// controller pod. Only used when Backend is "shared-pvc".
+	// controller pod. Only used when Backend is "shared-pvc". This path must
+	// correspond to a volume mount in the Helm deployment template.
 	PVCRootDir string
 	// K8sClient is used to list and delete PVCs for the per-taskrun-pvc backend.
 	K8sClient kubernetes.Interface
@@ -89,8 +89,13 @@ func (c *Cleaner) sweep(ctx context.Context) {
 
 // sweepSharedPVC removes subdirectories on the shared PVC that are older
 // than the TTL. Each subdirectory corresponds to one TaskRun.
+//
+// IMPORTANT: the controller pod must mount the shared PVC at PVCRootDir
+// for this to work. The Helm chart conditionally adds the volume and mount
+// when sessionPersistence.backend is "shared-pvc".
 func (c *Cleaner) sweepSharedPVC(ctx context.Context) {
 	if c.pvcRootDir == "" {
+		c.logger.WarnContext(ctx, "shared-pvc cleaner: pvc_root_dir not configured, skipping sweep")
 		return
 	}
 	entries, err := os.ReadDir(c.pvcRootDir)
@@ -129,6 +134,12 @@ func (c *Cleaner) sweepSharedPVC(ctx context.Context) {
 
 // sweepPerTaskRunPVCs lists PVCs labelled with osmia.io/task-run-id and
 // deletes those whose creation timestamp is older than the TTL.
+//
+// We intentionally do NOT filter by PVC phase. When an agent pod finishes
+// and is deleted, the PVC remains in Bound phase — there is no automatic
+// transition to Released. Filtering by phase would cause PVCs to accumulate
+// indefinitely. Age-based deletion is safe: by the time the TTL fires,
+// the TaskRun is guaranteed to be terminal and no pod is referencing the PVC.
 func (c *Cleaner) sweepPerTaskRunPVCs(ctx context.Context) {
 	if c.k8sClient == nil {
 		return
@@ -144,7 +155,7 @@ func (c *Cleaner) sweepPerTaskRunPVCs(ctx context.Context) {
 	}
 	cutoff := time.Now().Add(-c.ttl)
 	for _, pvc := range pvcs.Items {
-		if pvc.CreationTimestamp.Time.Before(cutoff) && isPVCReleasedOrLost(pvc) {
+		if pvc.CreationTimestamp.Time.Before(cutoff) {
 			if err := c.k8sClient.CoreV1().PersistentVolumeClaims(c.namespace).Delete(
 				ctx, pvc.Name, metav1.DeleteOptions{},
 			); err != nil {
@@ -160,12 +171,4 @@ func (c *Cleaner) sweepPerTaskRunPVCs(ctx context.Context) {
 			}
 		}
 	}
-}
-
-// isPVCReleasedOrLost returns true if the PVC is no longer bound to a pod.
-// We only delete PVCs that are Released or Lost to avoid removing active sessions.
-func isPVCReleasedOrLost(pvc corev1.PersistentVolumeClaim) bool {
-	return pvc.Status.Phase == corev1.ClaimLost ||
-		pvc.Status.Phase == corev1.ClaimPending ||
-		pvc.Status.Phase == ""
 }

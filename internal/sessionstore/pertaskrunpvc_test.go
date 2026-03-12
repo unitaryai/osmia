@@ -111,6 +111,15 @@ func TestPerTaskRunPVCStore_Cleanup_DeletesPVC(t *testing.T) {
 	assert.Error(t, err, "PVC should be deleted")
 }
 
+func TestPerTaskRunPVCStore_Cleanup_NotFoundIsSuccess(t *testing.T) {
+	// Cleanup on a non-existent PVC must succeed (idempotent).
+	client := fake.NewSimpleClientset()
+	store := NewPerTaskRunPVCStore(client, "default", "", "", testLogger())
+
+	err := store.Cleanup(context.Background(), "tr-does-not-exist")
+	assert.NoError(t, err, "not-found should be treated as successful cleanup")
+}
+
 func TestPVCNameForTaskRun(t *testing.T) {
 	assert.Equal(t, "osmia-session-tr-123", pvcNameForTaskRun("tr-123"))
 }

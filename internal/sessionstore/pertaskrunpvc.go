@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -146,8 +147,14 @@ func (s *PerTaskRunPVCStore) Env(taskRunID, sessionID string) map[string]string 
 func (s *PerTaskRunPVCStore) Cleanup(ctx context.Context, taskRunID string) error {
 	pvcName := pvcNameForTaskRun(taskRunID)
 	err := s.client.CoreV1().PersistentVolumeClaims(s.namespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
+	if errors.IsNotFound(err) {
+		s.logger.InfoContext(ctx, "session PVC already deleted",
+			"task_run_id", taskRunID,
+			"pvc_name", pvcName,
+		)
+		return nil
+	}
 	if err != nil {
-		// Treat not-found as success — already cleaned up.
 		s.logger.WarnContext(ctx, "failed to delete session PVC",
 			"task_run_id", taskRunID,
 			"pvc_name", pvcName,

@@ -2179,7 +2179,7 @@
 <p>If a job fails and retries remain (default <code>max_retries: 1</code>), the controller transitions through <code>Failed</code> → <code>Retrying</code> → <code>Running</code>, creating a new agent container. The retry count increments each time. Once retries are exhausted, the TaskRun enters a terminal <strong>Failed</strong> state.</p>
 <p>Retry is useful for transient failures (API timeouts, rate limits). Persistent failures (invalid credentials, unsupported task) will fail again — the quality of error messages helps humans decide whether to retry manually.</p>
 <h3 id="continuation-strategies">Continuation strategies<a class="headerlink" href="#continuation-strategies" title="Permanent link">&para;</a></h3>
-<p>When an agent hits <code>--max-turns</code> and a retry is triggered, the retry pod needs to know where to pick up. Osmia supports two continuation strategies:</p>
+<p>When an agent hits <code>--max-turns</code>, Osmia needs to decide what happens next. Three strategies are available:</p>
 <table>
 <thead>
 <tr>
@@ -2202,13 +2202,20 @@
 <td>Claude Code only</td>
 <td>The <code>~/.claude/</code> directory and workspace are stored on a PVC. The retry pod resumes with <code>--resume &lt;session-id&gt;</code>, restoring the full conversation — no git-clone needed, no wasted turns</td>
 </tr>
+<tr>
+<td><strong>User-prompted continuation</strong></td>
+<td>Opt-in</td>
+<td>Claude Code only</td>
+<td>When turns are exhausted, the controller asks the user via the approval backend (e.g. Slack) whether to continue or stop. On approval, a new pod resumes the session. Requires session persistence.</td>
+</tr>
 </tbody>
 </table>
 <p>Session persistence eliminates the main downside of git-based continuation: the retry agent must infer context from git history alone, spending turns re-reading code it already understood. With <code>--resume</code>, the agent continues as if the pod never restarted.</p>
+<p>User-prompted continuation builds on session persistence to give humans control over long-running tasks — rather than auto-retrying indefinitely, the controller pauses and presents a summary of progress, letting the operator decide whether the remaining work is worth another batch of turns.</p>
 <blockquote>
-<p><strong>Note:</strong> Session persistence currently requires the Claude Code engine. It is configured via <code>session_persistence</code> on <code>ClaudeCodeEngineConfig</code> and relies on Claude Code's <code>--resume</code> flag and <code>$CLAUDE_CONFIG_DIR</code> for session state storage. Other engines (Codex, Aider, OpenCode) use git-based continuation only.</p>
+<p><strong>Note:</strong> Session persistence and user-prompted continuation currently require the Claude Code engine. Other engines (Codex, Aider, OpenCode) use git-based continuation only.</p>
 </blockquote>
-<p>See <a href="../../plugins/engines/#session-persistence">Session Persistence</a> in the Claude Code engine docs for configuration details.</p>
+<p>See <a href="../../plugins/engines/#session-persistence">Session Persistence</a> and <a href="../../plugins/engines/#continuation-prompts">Continuation Prompts</a> in the Claude Code engine docs for configuration details.</p>
 <h3 id="causal-diagnosis-coming-soon">Causal Diagnosis (Coming Soon)<a class="headerlink" href="#causal-diagnosis-coming-soon" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>

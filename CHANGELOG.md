@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### User-Prompted Continuation on Turn Exhaustion
+
+When a Claude Code agent exhausts `--max-turns`, the controller can now pause
+and ask the operator (via Slack) whether to continue or stop, rather than
+auto-retrying or failing silently.
+
+How it works:
+
+- The controller detects turn exhaustion (`ToolCallsTotal >= ConfiguredMaxTurns`)
+  at job completion.
+- The TaskRun transitions to `NeedsHuman` with gate type `continuation`.
+- An approval request is sent to the Slack approval channel with **Continue**
+  and **Stop** buttons, including the turn count, cost, and any progress summary.
+- On approval, a new pod resumes the session via `--resume <session-id>`
+  (requires session persistence). `ContinuationCount` is incremented; `RetryCount`
+  is not affected.
+- On rejection, the TaskRun transitions to `Failed` with the operator's username
+  and progress summary recorded in the failure reason.
+- The Slack webhook handler now recognises `"stop"` as a rejection value
+  (alongside `"reject"` and `"deny"`).
+
+New configuration fields:
+
+```yaml
+engines:
+  claude-code:
+    continuation_prompt: true    # opt-in (default false)
+    max_continuations: 3         # maximum operator approvals per TaskRun (default 3)
+```
+
+New `TaskRun` fields: `ContinuationCount`, `MaxContinuations`, `ConfiguredMaxTurns`.
+
+Requires: session persistence enabled + an approval backend configured.
+
 #### Session Persistence for Agent Continuations
 
 Retry pods can now resume Claude Code sessions with full conversation history via

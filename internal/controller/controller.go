@@ -518,6 +518,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	)
 	tr.CurrentEngine = engineName
 	tr.EngineAttempts = []string{engineName}
+	r.applyContinuationConfig(tr)
 
 	// Persist the newly created TaskRun.
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -793,6 +794,14 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		return
 	case "judge":
 		r.handleJudgeComplete(ctx, tr, tournamentID)
+		return
+	}
+
+	// Check whether to prompt the user for a continuation before treating the
+	// job as a terminal success. Turn exhaustion is detected here because the
+	// K8s job exits cleanly (JobComplete) even when --max-turns is hit.
+	if r.shouldPromptContinuation(tr) {
+		r.promptContinuation(ctx, tr)
 		return
 	}
 
@@ -1554,13 +1563,21 @@ func (r *Reconciler) ResolveApproval(ctx context.Context, taskRunID string, appr
 
 		metrics.TaskRunsTotal.WithLabelValues(string(taskrun.StateFailed)).Inc()
 
+		failureReason := "rejected by " + responder
+		if target.ApprovalGateType == "continuation" {
+			failureReason = "continuation stopped by " + responder
+			if target.Result != nil && target.Result.Summary != "" {
+				failureReason += "; progress: " + target.Result.Summary
+			}
+		}
 		if r.ticketing != nil {
-			_ = r.ticketing.MarkFailed(ctx, target.TicketID, "rejected by "+responder)
+			_ = r.ticketing.MarkFailed(ctx, target.TicketID, failureReason)
 		}
 
 		r.logger.InfoContext(ctx, "task run rejected",
 			"task_run_id", taskRunID,
 			"responder", responder,
+			"gate_type", target.ApprovalGateType,
 		)
 		return nil
 	}
@@ -1570,6 +1587,8 @@ func (r *Reconciler) ResolveApproval(ctx context.Context, taskRunID string, appr
 		return r.resolvePreStartApproval(ctx, target)
 	case "pre_merge":
 		return r.resolvePreMergeApproval(ctx, target)
+	case "continuation":
+		return r.resolveContinuationApproval(ctx, target)
 	default:
 		return fmt.Errorf("unknown approval gate type %q for task run %q", target.ApprovalGateType, taskRunID)
 	}
@@ -1775,6 +1794,268 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 		"ticket_id", tr.TicketID,
 	)
 	return nil
+}
+
+// applyContinuationConfig sets the continuation-related fields on a freshly
+// created TaskRun from the controller's current engine config.
+func (r *Reconciler) applyContinuationConfig(tr *taskrun.TaskRun) {
+	if r.config.Engines.ClaudeCode == nil {
+		return
+	}
+	cc := r.config.Engines.ClaudeCode
+	maxTurns := cc.MaxTurns
+	if maxTurns <= 0 {
+		maxTurns = 50 // mirrors defaultMaxTurns in the engine package
+	}
+	tr.ConfiguredMaxTurns = maxTurns
+
+	if cc.ContinuationPrompt {
+		maxConts := cc.MaxContinuations
+		if maxConts <= 0 {
+			maxConts = 3
+		}
+		tr.MaxContinuations = maxConts
+	}
+}
+
+// shouldPromptContinuation returns true when all preconditions for a
+// user-prompted continuation are met:
+//   - continuation_prompt is enabled in config
+//   - a session store is configured (continuation requires --resume)
+//   - an approval backend is available to send the prompt
+//   - the agent did not declare success
+//   - tool-call count meets or exceeds the configured max-turns limit
+//   - the TaskRun has not yet reached its continuation limit
+func (r *Reconciler) shouldPromptContinuation(tr *taskrun.TaskRun) bool {
+	if r.config.Engines.ClaudeCode == nil || !r.config.Engines.ClaudeCode.ContinuationPrompt {
+		return false
+	}
+	if r.approvalBackend == nil {
+		return false
+	}
+	if tr.MaxContinuations <= 0 || tr.ContinuationCount >= tr.MaxContinuations {
+		return false
+	}
+	if tr.ConfiguredMaxTurns <= 0 || tr.ToolCallsTotal < tr.ConfiguredMaxTurns {
+		return false
+	}
+	if tr.Result != nil && tr.Result.Success {
+		return false
+	}
+	return true
+}
+
+// promptContinuation transitions the TaskRun to NeedsHuman and sends an
+// approval request asking the user whether to continue or stop.
+func (r *Reconciler) promptContinuation(ctx context.Context, tr *taskrun.TaskRun) {
+	question := r.buildContinuationQuestion(tr)
+
+	r.mu.Lock()
+	if err := tr.Transition(taskrun.StateNeedsHuman); err != nil {
+		r.mu.Unlock()
+		r.logger.ErrorContext(ctx, "failed to transition task run to needs human for continuation",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+	tr.HumanQuestion = question
+	tr.ApprovalGateType = "continuation"
+	r.mu.Unlock()
+
+	// The original K8s job has completed; decrement before waiting for approval
+	// to mirror the pre_merge gate flow (resolvePreMergeApproval decrements before
+	// launching the review job).
+	metrics.ActiveJobs.Dec()
+
+	if err := r.taskRunStore.Save(ctx, tr); err != nil {
+		r.logger.ErrorContext(ctx, "failed to save task run before continuation prompt",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+	}
+
+	r.mu.RLock()
+	cachedTicket := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+
+	if cachedTicket.ID == "" {
+		r.logger.WarnContext(ctx, "ticket not in cache for continuation prompt",
+			"task_run_id", tr.ID,
+			"ticket_id", tr.TicketID,
+		)
+	}
+
+	if err := r.approvalBackend.RequestApproval(ctx, question, cachedTicket, tr.ID, []string{"continue", "stop"}); err != nil {
+		r.logger.ErrorContext(ctx, "failed to send continuation approval request",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+	}
+
+	r.logger.InfoContext(ctx, "task run held for continuation approval",
+		"task_run_id", tr.ID,
+		"ticket_id", tr.TicketID,
+		"tool_calls", tr.ToolCallsTotal,
+		"continuation_count", tr.ContinuationCount,
+		"max_continuations", tr.MaxContinuations,
+	)
+}
+
+// buildContinuationQuestion formats the human-readable continuation prompt
+// shown to the approver, including progress context from the current result.
+func (r *Reconciler) buildContinuationQuestion(tr *taskrun.TaskRun) string {
+	summary := "no summary available"
+	costStr := ""
+	if tr.Result != nil {
+		if tr.Result.Summary != "" {
+			summary = tr.Result.Summary
+		}
+		if tr.Result.CostEstimateUSD > 0 {
+			costStr = fmt.Sprintf("  Cost so far: $%.2f\n", tr.Result.CostEstimateUSD)
+		}
+	}
+	return fmt.Sprintf(
+		"The agent ran out of turns (%d/%d used) on this task.\n\nProgress so far:\n  Turns used: %d\n%s  Summary: %q\n\nThis is continuation %d of %d allowed. Continue with another %d turns?",
+		tr.ToolCallsTotal, tr.ConfiguredMaxTurns,
+		tr.ToolCallsTotal,
+		costStr,
+		summary,
+		tr.ContinuationCount+1, tr.MaxContinuations,
+		tr.ConfiguredMaxTurns,
+	)
+}
+
+// resolveContinuationApproval launches a new job that resumes the agent
+// session where it left off. RetryCount is not incremented — continuations
+// are tracked separately via ContinuationCount.
+func (r *Reconciler) resolveContinuationApproval(ctx context.Context, tr *taskrun.TaskRun) error {
+	r.mu.Lock()
+	if err := tr.Transition(taskrun.StateRunning); err != nil {
+		r.mu.Unlock()
+		return fmt.Errorf("transitioning task run to running for continuation: %w", err)
+	}
+	tr.ContinuationCount++
+	r.mu.Unlock()
+
+	if err := r.taskRunStore.Save(ctx, tr); err != nil {
+		r.logger.ErrorContext(ctx, "failed to save task run after continuation approval",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+	}
+
+	r.logger.InfoContext(ctx, "continuation approved, launching resume job",
+		"task_run_id", tr.ID,
+		"continuation_count", tr.ContinuationCount,
+	)
+
+	r.launchContinuationJob(ctx, tr)
+	return nil
+}
+
+// launchContinuationJob creates a new K8s Job that resumes the existing
+// Claude Code session via --resume. Unlike launchRetryJob, it does not
+// increment RetryCount or inject diagnosis prompts.
+func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.TaskRun) {
+	r.mu.RLock()
+	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+
+	eng, ok := r.engines[tr.CurrentEngine]
+	if !ok {
+		r.logger.ErrorContext(ctx, "continuation engine not registered",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+		)
+		return
+	}
+
+	desc := ""
+	if hasTicket {
+		desc = cachedTicket.Description
+	}
+
+	task := engine.Task{
+		ID:        tr.TicketID,
+		TicketID:  tr.TicketID,
+		TaskRunID: tr.ID,
+		SessionID: tr.SessionID,
+	}
+	if hasTicket {
+		task.Title = cachedTicket.Title
+		task.RepoURL = cachedTicket.RepoURL
+		task.Labels = cachedTicket.Labels
+	}
+	task.Description = desc
+
+	engineCfg := engine.EngineConfig{
+		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
+		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
+		SecretKeyRefs:  r.agentSecretKeyRefs(),
+		Env:            r.slackEnv(),
+	}
+
+	spec, err := eng.BuildExecutionSpec(task, engineCfg)
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to build continuation execution spec",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
+	if r.jobBuilder == nil {
+		return
+	}
+
+	jobID := fmt.Sprintf("%s-c%d", tr.ID, tr.ContinuationCount)
+	job, err := r.jobBuilder.Build(jobID, tr.CurrentEngine, spec)
+	if err != nil {
+		r.logger.ErrorContext(ctx, "failed to build continuation k8s job",
+			"engine", tr.CurrentEngine,
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
+	if r.k8sClient != nil {
+		_, err = r.k8sClient.BatchV1().Jobs(r.namespace).Create(ctx, job, metav1.CreateOptions{})
+		if err != nil {
+			r.logger.ErrorContext(ctx, "failed to create continuation k8s job",
+				"engine", tr.CurrentEngine,
+				"task_run_id", tr.ID,
+				"error", err,
+			)
+			return
+		}
+	}
+
+	r.mu.Lock()
+	tr.JobName = job.Name
+	r.mu.Unlock()
+
+	if err := r.taskRunStore.Save(ctx, tr); err != nil {
+		r.logger.ErrorContext(ctx, "failed to save task run after continuation job launch",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+	}
+
+	metrics.ActiveJobs.Inc()
+
+	if tr.CurrentEngine == "claude-code" {
+		r.startStreamReader(ctx, tr)
+	}
+
+	r.logger.InfoContext(ctx, "continuation job created",
+		"engine", tr.CurrentEngine,
+		"job", job.Name,
+		"task_run_id", tr.ID,
+		"continuation_count", tr.ContinuationCount,
+	)
 }
 
 // startStreamReader launches a background goroutine that reads NDJSON events

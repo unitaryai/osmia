@@ -533,6 +533,57 @@ level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-s
 
 **Helm chart:** Set `sessionPersistence.enabled: true` and configure the chosen backend in `values.yaml`. The chart will create the shared PVC when `backend: shared-pvc` is selected.
 
+#### Continuation Prompts
+
+When an agent exhausts `--max-turns`, the default behaviour is to auto-retry using git-based continuation (the retry agent clones the prior branch and reads `git log`). **User-prompted continuation** replaces that with an interactive pause: the controller sends a Slack message asking the operator whether to continue or stop, and only resumes if the operator approves.
+
+**Prerequisites:**
+
+- Session persistence must be enabled (so the retry pod can resume via `--resume <session-id>` rather than re-reading git history).
+- An approval backend must be configured (currently Slack).
+
+**How it works:**
+
+1. The agent pod exits cleanly after hitting `--max-turns`. The controller detects that `ToolCallsTotal >= ConfiguredMaxTurns` and the task did not succeed.
+2. The TaskRun transitions to `NeedsHuman` with gate type `continuation`.
+3. The controller sends an approval request containing the turn count, cost so far, any progress summary, and two buttons: **Continue** and **Stop**.
+4. If the operator clicks **Continue**, the controller increments `ContinuationCount`, creates a new pod with `--resume <session-id>`, and transitions back to `Running`.
+5. If the operator clicks **Stop** (or the message times out), the TaskRun transitions to `Failed` with a reason that includes the operator's name and any progress summary.
+
+**Configuration:**
+
+```yaml
+config:
+  engines:
+    claude-code:
+      continuation_prompt: true      # enable user-prompted continuation
+      max_continuations: 3           # maximum times the operator can approve (default 3)
+      session_persistence:
+        enabled: true
+        backend: per-taskrun-pvc
+```
+
+**Interaction with retries:**
+
+`ContinuationCount` and `RetryCount` are independent. A continuation resumes the existing session from where it paused — it does not count as a retry and does not consume a retry slot. If a resumed session then fails for a different reason (e.g. a tool error), the normal retry mechanism applies separately.
+
+**Operator experience:**
+
+The Slack message sent to the approval channel looks like:
+
+```text
+Task tr-abc123 has exhausted its turn limit (50 turns, $0.42).
+Progress: "Implemented the feature, tests passing, PR not yet raised."
+
+Continuation 1 of 3. Approve to resume the session where it left off.
+
+[Continue]  [Stop]
+```
+
+Clicking **Continue** resumes immediately. Clicking **Stop** marks the TaskRun as failed and records the operator's username in the failure reason.
+
+> **Note:** User-prompted continuation requires the Claude Code engine and session persistence. The git-based continuation strategy is used for all other engines.
+
 ---
 
 ### OpenAI Codex

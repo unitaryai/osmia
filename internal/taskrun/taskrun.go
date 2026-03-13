@@ -82,8 +82,8 @@ type TaskRun struct {
 	TournamentState           string             `json:"tournament_state,omitempty"`
 
 	// ApprovalGateType records which approval gate this TaskRun is held at
-	// ("pre_start" or "pre_merge"), used by ResolveApproval to dispatch
-	// the correct resolution logic.
+	// ("pre_start", "pre_merge", or "continuation"), used by ResolveApproval
+	// to dispatch the correct resolution logic.
 	ApprovalGateType string `json:"approval_gate_type,omitempty"`
 
 	// SessionID is the Claude Code session ID assigned to the first job for
@@ -91,6 +91,16 @@ type TaskRun struct {
 	// enabled, and passed to retry jobs via Task.SessionID so the agent can
 	// resume the conversation with --resume.
 	SessionID string `json:"session_id,omitempty"`
+
+	// ContinuationCount is the number of times the user has approved a
+	// continuation for this TaskRun after turn exhaustion.
+	ContinuationCount int `json:"continuation_count,omitempty"`
+	// MaxContinuations is the maximum number of user-approved continuations
+	// permitted for this TaskRun. Set at creation from config.
+	MaxContinuations int `json:"max_continuations,omitempty"`
+	// ConfiguredMaxTurns records the --max-turns value at job launch so that
+	// handleJobComplete can detect turn exhaustion by comparing ToolCallsTotal.
+	ConfiguredMaxTurns int `json:"configured_max_turns,omitempty"`
 
 	// Review follow-up fields — populated for TaskRuns created in response
 	// to review comments on a PR/MR opened by a previous Osmia task.

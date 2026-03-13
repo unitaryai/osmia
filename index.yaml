@@ -1,5 +1,27 @@
 apiVersion: v1
 entries:
+  osmia:
+  - apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-03-13T09:39:06.565058914Z"
+    description: A Kubernetes-native AI coding agent harness
+    digest: 0bcecee07f586c6500391a5d4003ece1357108c5ded655ae95a3aba6a2d41056
+    home: https://github.com/unitaryai/osmia
+    keywords:
+    - ai
+    - coding-agent
+    - kubernetes
+    - automation
+    - claude-code
+    maintainers:
+    - name: Osmia Authors
+    name: osmia
+    sources:
+    - https://github.com/unitaryai/osmia
+    type: application
+    urls:
+    - https://github.com/unitaryai/osmia/releases/download/osmia-0.2.0/osmia-0.2.0.tgz
+    version: 0.2.0
   robodev:
   - apiVersion: v2
     appVersion: 0.2.0
@@ -43,4 +65,4 @@ entries:
     urls:
     - https://github.com/unitaryai/RoboDev/releases/download/robodev-0.1.0/robodev-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-05T18:23:53.362632361Z"
+generated: "2026-03-13T09:39:06.565068171Z"

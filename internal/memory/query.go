@@ -49,7 +49,7 @@ func (qe *QueryEngine) QueryForTask(
 		RepoURL:         repoURL,
 		Engine:          engineName,
 		TenantID:        tenantID,
-		MaxResults:       20,
+		MaxResults:      20,
 	}
 
 	nodes, err := qe.graph.Query(ctx, query)

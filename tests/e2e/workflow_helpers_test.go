@@ -93,8 +93,8 @@ func (e *workflowFakeEngine) getLastTask() engine.Task {
 // Name() returns "fake-code" and it always uses the "tournament_b" scenario.
 type workflowSecondEngine struct{}
 
-func (e *workflowSecondEngine) Name() string             { return "fake-code" }
-func (e *workflowSecondEngine) InterfaceVersion() int    { return 1 }
+func (e *workflowSecondEngine) Name() string          { return "fake-code" }
+func (e *workflowSecondEngine) InterfaceVersion() int { return 1 }
 func (e *workflowSecondEngine) BuildPrompt(_ engine.Task) (string, error) {
 	return "Fake prompt (secondary engine)", nil
 }

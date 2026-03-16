@@ -69,14 +69,14 @@ type Node interface {
 
 // Fact represents an atomic piece of knowledge extracted from a task execution.
 type Fact struct {
-	ID         string   `json:"id"`
-	Content    string   `json:"content"`
-	Source     string   `json:"source"` // task_run_id
-	FactKind   FactType `json:"fact_type"`
+	ID         string    `json:"id"`
+	Content    string    `json:"content"`
+	Source     string    `json:"source"` // task_run_id
+	FactKind   FactType  `json:"fact_type"`
 	ValidFrom  time.Time `json:"valid_from"`
-	Confidence float64  `json:"confidence"`
-	DecayRate  float64  `json:"decay_rate"`
-	TenantID   string   `json:"tenant_id"`
+	Confidence float64   `json:"confidence"`
+	DecayRate  float64   `json:"decay_rate"`
+	TenantID   string    `json:"tenant_id"`
 }
 
 // NodeID returns the unique identifier for this Fact.
@@ -170,10 +170,10 @@ func (ep *EngineProfile) GetValidFrom() time.Time { return ep.ValidFrom }
 
 // Edge represents a directed relationship between two nodes in the graph.
 type Edge struct {
-	FromID    string   `json:"from_id"`
-	ToID      string   `json:"to_id"`
-	Relation  Relation `json:"relation"`
-	Weight    float64  `json:"weight"`
+	FromID    string    `json:"from_id"`
+	ToID      string    `json:"to_id"`
+	Relation  Relation  `json:"relation"`
+	Weight    float64   `json:"weight"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

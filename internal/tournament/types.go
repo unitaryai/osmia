@@ -25,27 +25,27 @@ const (
 // Tournament tracks the lifecycle of a competitive execution between
 // multiple engine candidates for a single task.
 type Tournament struct {
-	ID               string                       `json:"id"`
-	TicketID         string                       `json:"ticket_id"`
-	TaskRunIDs       []string                     `json:"task_run_ids"`
-	CandidateStates  map[string]TournamentState   `json:"candidate_states"`
-	CandidateResults map[string]*CandidateResult  `json:"candidate_results,omitempty"`
-	JudgeTaskRunID   string                       `json:"judge_task_run_id,omitempty"`
-	WinnerTaskRunID  string                       `json:"winner_task_run_id,omitempty"`
-	State            TournamentState              `json:"state"`
-	Config           TournamentConfig             `json:"config"`
-	CreatedAt        time.Time                    `json:"created_at"`
-	CompletedAt      *time.Time                   `json:"completed_at,omitempty"`
+	ID               string                      `json:"id"`
+	TicketID         string                      `json:"ticket_id"`
+	TaskRunIDs       []string                    `json:"task_run_ids"`
+	CandidateStates  map[string]TournamentState  `json:"candidate_states"`
+	CandidateResults map[string]*CandidateResult `json:"candidate_results,omitempty"`
+	JudgeTaskRunID   string                      `json:"judge_task_run_id,omitempty"`
+	WinnerTaskRunID  string                      `json:"winner_task_run_id,omitempty"`
+	State            TournamentState             `json:"state"`
+	Config           TournamentConfig            `json:"config"`
+	CreatedAt        time.Time                   `json:"created_at"`
+	CompletedAt      *time.Time                  `json:"completed_at,omitempty"`
 }
 
 // TournamentConfig holds per-tournament configuration, either from the
 // global config or overridden at the ticket level.
 type TournamentConfig struct {
-	CandidateCount             int      `json:"candidate_count"`
-	CandidateEngines           []string `json:"candidate_engines,omitempty"`
-	JudgeEngine                string   `json:"judge_engine"`
-	EarlyTerminationThreshold  float64  `json:"early_termination_threshold"`
-	MaxConcurrentTournaments   int      `json:"max_concurrent_tournaments"`
+	CandidateCount            int      `json:"candidate_count"`
+	CandidateEngines          []string `json:"candidate_engines,omitempty"`
+	JudgeEngine               string   `json:"judge_engine"`
+	EarlyTerminationThreshold float64  `json:"early_termination_threshold"`
+	MaxConcurrentTournaments  int      `json:"max_concurrent_tournaments"`
 }
 
 // CandidateResult holds the output of a single candidate's execution.

@@ -135,8 +135,8 @@ func TestInitShortcutBackend(t *testing.T) {
 		Ticketing: config.TicketingConfig{
 			Backend: "shortcut",
 			Config: map[string]any{
-				"token_secret":        "osmia-sc-token",
-				"workflow_state_name": "Ready for Development",
+				"token_secret":           "osmia-sc-token",
+				"workflow_state_name":    "Ready for Development",
 				"in_progress_state_name": "In Development",
 			},
 		},

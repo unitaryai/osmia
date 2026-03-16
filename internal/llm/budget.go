@@ -8,8 +8,8 @@ import (
 // Default per-token costs in USD. These are rough estimates and should be
 // overridden via configuration for production use.
 const (
-	defaultInputCostPerToken  = 0.000003  // $3 per million input tokens
-	defaultOutputCostPerToken = 0.000015  // $15 per million output tokens
+	defaultInputCostPerToken  = 0.000003 // $3 per million input tokens
+	defaultOutputCostPerToken = 0.000015 // $15 per million output tokens
 )
 
 // Budget tracks cumulative spend for a subsystem and refuses calls when the

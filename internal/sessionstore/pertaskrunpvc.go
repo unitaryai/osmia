@@ -133,8 +133,8 @@ func (s *PerTaskRunPVCStore) VolumeMounts(taskRunID string) []engine.VolumeMount
 // directories on the per-TaskRun PVC.
 func (s *PerTaskRunPVCStore) Env(taskRunID, sessionID string) map[string]string {
 	env := map[string]string{
-		"CLAUDE_CONFIG_DIR":    filepath.Join(perTaskRunSessionPath),
-		"OSMIA_WORKSPACE_DIR":  filepath.Join(perTaskRunWorkspacePath),
+		"CLAUDE_CONFIG_DIR":   filepath.Join(perTaskRunSessionPath),
+		"OSMIA_WORKSPACE_DIR": filepath.Join(perTaskRunWorkspacePath),
 	}
 	if sessionID != "" {
 		env["OSMIA_SESSION_ID"] = sessionID

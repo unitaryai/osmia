@@ -39,8 +39,8 @@ func (vs *ValueStats) SuccessRate() float64 {
 
 // DimensionStats tracks per-value statistics for a single routing dimension.
 type DimensionStats struct {
-	Successes int                  `json:"successes"`
-	Failures  int                  `json:"failures"`
+	Successes int                    `json:"successes"`
+	Failures  int                    `json:"failures"`
 	Values    map[string]*ValueStats `json:"values"`
 }
 
@@ -54,10 +54,10 @@ func (ds *DimensionStats) SuccessRate() float64 {
 // across multiple task dimensions. It is safe for concurrent use.
 type EngineFingerprint struct {
 	mu          sync.RWMutex
-	EngineName  string                    `json:"engine_name"`
+	EngineName  string                     `json:"engine_name"`
 	Dimensions  map[string]*DimensionStats `json:"dimensions"`
-	LastUpdated time.Time                 `json:"last_updated"`
-	TotalTasks  int                       `json:"total_tasks"`
+	LastUpdated time.Time                  `json:"last_updated"`
+	TotalTasks  int                        `json:"total_tasks"`
 }
 
 // NewEngineFingerprint creates an empty fingerprint for the named engine,

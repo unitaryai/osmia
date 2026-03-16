@@ -341,8 +341,8 @@ type ClaudeCodeEngineConfig struct {
 	// AgentTeams enables Claude Code's experimental agent teams feature,
 	// which spawns multiple independent Claude Code instances that collaborate
 	// via shared task lists and inter-agent messaging.
-	AgentTeams AgentTeamsConfig `yaml:"agent_teams"`
-	FallbackModel string `yaml:"fallback_model,omitempty"`
+	AgentTeams    AgentTeamsConfig `yaml:"agent_teams"`
+	FallbackModel string           `yaml:"fallback_model,omitempty"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more
 	// steps, such as large refactors or multi-file changes.

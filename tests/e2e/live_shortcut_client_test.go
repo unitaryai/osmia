@@ -35,10 +35,10 @@ type shortcutTestClient struct {
 
 // liveStory is the subset of the Shortcut story response used in live tests.
 type liveStory struct {
-	ID              int          `json:"id"`
-	Name            string       `json:"name"`
-	WorkflowStateID int64        `json:"workflow_state_id"`
-	Labels          []liveLabel  `json:"labels"`
+	ID              int         `json:"id"`
+	Name            string      `json:"name"`
+	WorkflowStateID int64       `json:"workflow_state_id"`
+	Labels          []liveLabel `json:"labels"`
 }
 
 // liveLabel is a Shortcut label name.

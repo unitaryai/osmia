@@ -99,9 +99,9 @@ func TestPrescriber_UnknownModeUsesDefault(t *testing.T) {
 func TestPrescriber_SafeFromInjection(t *testing.T) {
 	prescriber := NewPrescriber()
 	diag := &Diagnosis{
-		Mode:       ScopeCreep,
-		Confidence: 0.70,
-		Evidence:   []string{"{{.BadTemplate}}", "<script>alert('xss')</script>"},
+		Mode:        ScopeCreep,
+		Confidence:  0.70,
+		Evidence:    []string{"{{.BadTemplate}}", "<script>alert('xss')</script>"},
 		DiagnosedAt: time.Now(),
 	}
 

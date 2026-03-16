@@ -274,9 +274,9 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 
 	env := map[string]string{
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-		"OSMIA_TASK_ID":                          task.ID,
-		"OSMIA_TICKET_ID":                        task.TicketID,
-		"OSMIA_REPO_URL":                         task.RepoURL,
+		"OSMIA_TASK_ID":   task.ID,
+		"OSMIA_TICKET_ID": task.TicketID,
+		"OSMIA_REPO_URL":  task.RepoURL,
 	}
 
 	// Merge teams environment variables when teams are enabled.

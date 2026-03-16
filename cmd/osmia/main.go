@@ -67,8 +67,8 @@ import (
 	glscm "github.com/unitaryai/osmia/pkg/plugin/scm/gitlab"
 
 	// Secrets backends.
-	k8ssecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/k8s"
 	awssmsecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/awssm"
+	k8ssecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/k8s"
 	vaultsecrets "github.com/unitaryai/osmia/pkg/plugin/secrets/vault"
 
 	// Review backend.

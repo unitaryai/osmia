@@ -109,7 +109,7 @@ func TestWorkflowEngineChainFallback(t *testing.T) {
 	ensureNamespace(t, k8s, ns)
 
 	mock := &mockWorkflowTicketing{}
-	claudeEng := &workflowFakeEngine{scenario: "fail"}             // "claude-code" — will fail
+	claudeEng := &workflowFakeEngine{scenario: "fail"}                  // "claude-code" — will fail
 	aiderEng := &workflowFakeEngine{name: "aider", scenario: "success"} // fallback — will succeed
 
 	// Build the reconciler directly so we can supply a custom config with

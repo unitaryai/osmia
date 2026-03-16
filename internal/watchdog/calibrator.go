@@ -48,16 +48,16 @@ var AllSignals = []Signal{
 // Observation represents a single data point collected after a TaskRun
 // completes, used to feed the calibrator.
 type Observation struct {
-	RepoURL                string
-	Engine                 string
-	TaskType               string
-	TokensConsumed         int64
-	ToolCallsTotal         int
-	FilesChanged           int
-	CostEstimateUSD        float64
-	DurationSeconds        float64
-	ConsecutiveIdentical   int
-	CompletedAt            time.Time
+	RepoURL              string
+	Engine               string
+	TaskType             string
+	TokensConsumed       int64
+	ToolCallsTotal       int
+	FilesChanged         int
+	CostEstimateUSD      float64
+	DurationSeconds      float64
+	ConsecutiveIdentical int
+	CompletedAt          time.Time
 }
 
 // Percentiles holds computed percentile values for a given signal.
@@ -108,10 +108,10 @@ func (c *Calibrator) Record(_ context.Context, obs Observation) {
 
 	values := map[Signal]float64{
 		SignalTokenRate:                 float64(obs.TokensConsumed) / durationMin,
-		SignalToolCallFrequency:        float64(obs.ToolCallsTotal) / durationMin,
-		SignalFileChangeRate:           float64(obs.FilesChanged) / durationMin,
-		SignalCostVelocity:             obs.CostEstimateUSD / durationMin * 10.0,
-		SignalTotalDuration:            obs.DurationSeconds,
+		SignalToolCallFrequency:         float64(obs.ToolCallsTotal) / durationMin,
+		SignalFileChangeRate:            float64(obs.FilesChanged) / durationMin,
+		SignalCostVelocity:              obs.CostEstimateUSD / durationMin * 10.0,
+		SignalTotalDuration:             obs.DurationSeconds,
 		SignalConsecutiveIdenticalCalls: float64(obs.ConsecutiveIdentical),
 	}
 

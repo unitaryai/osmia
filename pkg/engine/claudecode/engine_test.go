@@ -913,10 +913,10 @@ func TestBuildPrompt(t *testing.T) {
 		{
 			name: "no continuation section when PriorBranchName is empty",
 			task: engine.Task{
-				ID:      "task-8",
+				ID:       "task-8",
 				TicketID: "TICKET-88",
-				Title:   "Add feature",
-				RepoURL: "https://github.com/org/repo",
+				Title:    "Add feature",
+				RepoURL:  "https://github.com/org/repo",
 			},
 			contains: []string{
 				"git clone --depth=1 https://github.com/org/repo /workspace/repo",
@@ -961,10 +961,10 @@ func TestBuildPrompt_NoContinuationSectionWhenSessionIDSet(t *testing.T) {
 func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {
 	e := New()
 	prompt, err := e.BuildPrompt(engine.Task{
-		ID:      "task-1",
+		ID:       "task-1",
 		TicketID: "TICKET-1",
-		Title:   "Fix bug",
-		RepoURL: "https://github.com/org/repo",
+		Title:    "Fix bug",
+		RepoURL:  "https://github.com/org/repo",
 	})
 	require.NoError(t, err)
 	assert.NotContains(t, prompt, "## Continuation")

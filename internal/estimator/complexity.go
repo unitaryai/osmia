@@ -124,16 +124,16 @@ func scoreDescriptionComplexity(desc string) float64 {
 // scoreLabelComplexity maps known labels to complexity levels.
 func scoreLabelComplexity(labels []string) float64 {
 	labelScores := map[string]float64{
-		"typo-fix":      0.1,
-		"docs":          0.15,
-		"bug":           0.3,
-		"bug_fix":       0.3,
-		"enhancement":   0.5,
-		"feature":       0.6,
-		"refactor":      0.65,
-		"security":      0.7,
-		"architecture":  0.85,
-		"migration":     0.8,
+		"typo-fix":     0.1,
+		"docs":         0.15,
+		"bug":          0.3,
+		"bug_fix":      0.3,
+		"enhancement":  0.5,
+		"feature":      0.6,
+		"refactor":     0.65,
+		"security":     0.7,
+		"architecture": 0.85,
+		"migration":    0.8,
 	}
 
 	maxScore := 0.3 // default if no known labels match
@@ -165,16 +165,16 @@ func scoreRepoSize(fileCount int) float64 {
 // scoreTaskType maps task types to base complexity.
 func scoreTaskType(taskType string) float64 {
 	typeScores := map[string]float64{
-		"typo_fix":      0.1,
-		"docs":          0.15,
-		"bug_fix":       0.35,
-		"test":          0.3,
-		"enhancement":   0.5,
-		"new_feature":   0.6,
-		"refactor":      0.65,
-		"security_fix":  0.7,
-		"migration":     0.8,
-		"architecture":  0.9,
+		"typo_fix":     0.1,
+		"docs":         0.15,
+		"bug_fix":      0.35,
+		"test":         0.3,
+		"enhancement":  0.5,
+		"new_feature":  0.6,
+		"refactor":     0.65,
+		"security_fix": 0.7,
+		"migration":    0.8,
+		"architecture": 0.9,
 	}
 
 	if s, ok := typeScores[strings.ToLower(taskType)]; ok {

@@ -21,12 +21,12 @@ func (nopCloser) Close() error { return nil }
 
 func TestReadStream(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
-		wantEvents     int
-		wantFirstType  EventType
-		wantLastType   EventType
-		cancelAfterN   int // cancel context after N events; 0 means don't cancel
+		name          string
+		input         string
+		wantEvents    int
+		wantFirstType EventType
+		wantLastType  EventType
+		cancelAfterN  int // cancel context after N events; 0 means don't cancel
 	}{
 		{
 			name: "multiple valid lines",

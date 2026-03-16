@@ -18,10 +18,10 @@ type ProfileKey struct {
 // CalibratedProfile holds the calibrated percentile thresholds for a
 // specific profile key, along with metadata about when it was last updated.
 type CalibratedProfile struct {
-	Key         ProfileKey                `json:"key"`
-	Thresholds  map[Signal]*Percentiles   `json:"thresholds"`
-	LastUpdated time.Time                 `json:"last_updated"`
-	SampleCount int                       `json:"sample_count"`
+	Key         ProfileKey              `json:"key"`
+	Thresholds  map[Signal]*Percentiles `json:"thresholds"`
+	LastUpdated time.Time               `json:"last_updated"`
+	SampleCount int                     `json:"sample_count"`
 }
 
 // ProfileStore is the interface for retrieving calibrated profiles.

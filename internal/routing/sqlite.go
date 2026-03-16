@@ -21,10 +21,10 @@ const createFingerprintsTable = `CREATE TABLE IF NOT EXISTS fingerprints (
 // JSON serialisation, omitting the sync.RWMutex field which must not be
 // marshalled.
 type fingerprintJSON struct {
-	EngineName  string                    `json:"engine_name"`
+	EngineName  string                     `json:"engine_name"`
 	Dimensions  map[string]*DimensionStats `json:"dimensions"`
-	LastUpdated time.Time                 `json:"last_updated"`
-	TotalTasks  int                       `json:"total_tasks"`
+	LastUpdated time.Time                  `json:"last_updated"`
+	TotalTasks  int                        `json:"total_tasks"`
 }
 
 // SQLiteFingerprintStore is a FingerprintStore backed by a SQLite database

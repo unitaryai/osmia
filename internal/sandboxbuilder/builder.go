@@ -21,6 +21,13 @@ const (
 	labelTaskRunID = "osmia.io/task-run-id"
 	labelEngine    = "osmia.io/engine"
 
+	// labelComponent and labelManagedBy are Kubernetes recommended labels that
+	// identify agent pods for NetworkPolicy and other selectors.
+	labelComponent = "app.kubernetes.io/component"
+	labelManagedBy = "app.kubernetes.io/managed-by"
+	componentAgent = "agent"
+	managedByOsmia = "osmia"
+
 	// annotationSandboxClaim signals the sandbox controller to bind a
 	// pre-allocated sandbox to this pod via the SandboxClaim abstraction.
 	annotationSandboxClaim = "sandbox.kubernetes.io/claim"
@@ -96,8 +103,10 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 	// Build pod labels.
 	podLabels := map[string]string{
 		labelApp:       labelAppValue,
-		labelTaskRunID: taskRunID,
+		labelComponent: componentAgent,
 		labelEngine:    engineName,
+		labelManagedBy: managedByOsmia,
+		labelTaskRunID: taskRunID,
 	}
 	if b.cfg.WarmPool.Enabled {
 		podLabels[labelWarmPool] = engineName
@@ -111,8 +120,10 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 			Namespace: b.namespace,
 			Labels: map[string]string{
 				labelApp:       labelAppValue,
-				labelTaskRunID: taskRunID,
+				labelComponent: componentAgent,
 				labelEngine:    engineName,
+				labelManagedBy: managedByOsmia,
+				labelTaskRunID: taskRunID,
 			},
 		},
 		Spec: batchv1.JobSpec{

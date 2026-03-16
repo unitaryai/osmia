@@ -31,11 +31,11 @@ func TestEnhancedEngineStructuredOutput(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		opts       []claudecode.Option
-		config     engine.EngineConfig
-		wantFlags  []string
-		denyFlags  []string
+		name      string
+		opts      []claudecode.Option
+		config    engine.EngineConfig
+		wantFlags []string
+		denyFlags []string
 	}{
 		{
 			name: "json schema from config enables stream-json and schema flag",

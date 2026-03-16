@@ -1027,8 +1027,8 @@ func (s *stubApprovalBackend) RequestApproval(_ context.Context, question string
 }
 
 func (s *stubApprovalBackend) CancelPending(_ context.Context, _ string) error { return nil }
-func (s *stubApprovalBackend) Name() string                                     { return "stub" }
-func (s *stubApprovalBackend) InterfaceVersion() int                            { return 1 }
+func (s *stubApprovalBackend) Name() string                                    { return "stub" }
+func (s *stubApprovalBackend) InterfaceVersion() int                           { return 1 }
 
 func TestShouldPromptContinuation(t *testing.T) {
 	// A base TaskRun with turns exhausted and all conditions met.

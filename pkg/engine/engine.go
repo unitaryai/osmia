@@ -51,12 +51,12 @@ type VolumeMount struct {
 
 // Task represents a unit of work to be performed by an engine.
 type Task struct {
-	ID          string            `json:"id"`
-	TicketID    string            `json:"ticket_id"`
+	ID       string `json:"id"`
+	TicketID string `json:"ticket_id"`
 	// TaskRunID uniquely identifies this execution attempt. Multiple retries
 	// of the same ticket produce different TaskRunIDs. Used by the session
 	// store to isolate per-run storage paths.
-	TaskRunID string `json:"task_run_id,omitempty"`
+	TaskRunID   string            `json:"task_run_id,omitempty"`
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	RepoURL     string            `json:"repo_url"`
@@ -79,16 +79,16 @@ type Task struct {
 
 // EngineConfig holds engine-specific configuration.
 type EngineConfig struct {
-	Image                string            `json:"image"`
-	ResourceRequests     Resources         `json:"resource_requests"`
-	ResourceLimits       Resources         `json:"resource_limits"`
-	TimeoutSeconds       int               `json:"timeout_seconds"`
-	Env                  map[string]string `json:"env,omitempty"`
-	FallbackModel        string            `json:"fallback_model,omitempty"`
-	ToolWhitelist        []string          `json:"tool_whitelist,omitempty"`
-	ToolBlacklist        []string          `json:"tool_blacklist,omitempty"`
-	JSONSchema           string            `json:"json_schema,omitempty"`
-	AppendSystemPrompt string `json:"append_system_prompt,omitempty"`
+	Image              string            `json:"image"`
+	ResourceRequests   Resources         `json:"resource_requests"`
+	ResourceLimits     Resources         `json:"resource_limits"`
+	TimeoutSeconds     int               `json:"timeout_seconds"`
+	Env                map[string]string `json:"env,omitempty"`
+	FallbackModel      string            `json:"fallback_model,omitempty"`
+	ToolWhitelist      []string          `json:"tool_whitelist,omitempty"`
+	ToolBlacklist      []string          `json:"tool_blacklist,omitempty"`
+	JSONSchema         string            `json:"json_schema,omitempty"`
+	AppendSystemPrompt string            `json:"append_system_prompt,omitempty"`
 	// StreamingEnabled enables streaming output mode (stream-json) even
 	// without a JSON schema. When true, the engine uses --output-format
 	// stream-json and --verbose for richer event data.

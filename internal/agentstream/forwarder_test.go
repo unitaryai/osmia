@@ -13,10 +13,10 @@ import (
 
 func TestForwarder_Forward(t *testing.T) {
 	tests := []struct {
-		name           string
-		events         []*StreamEvent
-		useWatchdog    bool
-		wantWatchdogN  int
+		name          string
+		events        []*StreamEvent
+		useWatchdog   bool
+		wantWatchdogN int
 	}{
 		{
 			name: "events forwarded to watchdog channel",
@@ -37,10 +37,10 @@ func TestForwarder_Forward(t *testing.T) {
 			wantWatchdogN: 0,
 		},
 		{
-			name:           "empty event stream",
-			events:         nil,
-			useWatchdog:    true,
-			wantWatchdogN:  0,
+			name:          "empty event stream",
+			events:        nil,
+			useWatchdog:   true,
+			wantWatchdogN: 0,
 		},
 	}
 

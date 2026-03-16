@@ -23,6 +23,13 @@ const (
 	labelAppValue = "osmia-agent"
 	labelEngine   = "osmia.io/engine"
 
+	// labelComponent and labelManagedBy are Kubernetes recommended labels that
+	// identify agent pods for NetworkPolicy and other selectors.
+	labelComponent = "app.kubernetes.io/component"
+	labelManagedBy = "app.kubernetes.io/managed-by"
+	componentAgent = "agent"
+	managedByOsmia = "osmia"
+
 	defaultRunAsUser int64 = 10000
 	containerName          = "agent"
 	taintKey               = "osmia.io/agent"
@@ -75,8 +82,10 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 			Namespace: b.namespace,
 			Labels: map[string]string{
 				labelApp:       labelAppValue,
-				LabelTaskRunID: taskRunID,
+				labelComponent: componentAgent,
 				labelEngine:    engineName,
+				labelManagedBy: managedByOsmia,
+				LabelTaskRunID: taskRunID,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -85,8 +94,10 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						labelApp:       labelAppValue,
-						LabelTaskRunID: taskRunID,
+						labelComponent: componentAgent,
 						labelEngine:    engineName,
+						labelManagedBy: managedByOsmia,
+						LabelTaskRunID: taskRunID,
 					},
 				},
 				Spec: corev1.PodSpec{

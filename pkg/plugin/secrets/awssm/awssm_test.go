@@ -74,7 +74,7 @@ func newTestBackend(t *testing.T, server *httptest.Server) *Backend {
 	t.Helper()
 
 	smClient := secretsmanager.New(secretsmanager.Options{
-		Region: "eu-west-1",
+		Region:       "eu-west-1",
 		BaseEndpoint: aws.String(server.URL),
 		HTTPClient:   server.Client(),
 		// Use static credentials to avoid SDK trying real credential chain.

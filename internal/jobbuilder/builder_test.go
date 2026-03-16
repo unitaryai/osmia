@@ -101,14 +101,18 @@ func TestBuild_Labels(t *testing.T) {
 
 	// Job-level labels.
 	assert.Equal(t, "osmia-agent", job.Labels[labelApp])
-	assert.Equal(t, "tr-456", job.Labels[LabelTaskRunID])
+	assert.Equal(t, "agent", job.Labels[labelComponent])
 	assert.Equal(t, "claude-code", job.Labels[labelEngine])
+	assert.Equal(t, "osmia", job.Labels[labelManagedBy])
+	assert.Equal(t, "tr-456", job.Labels[LabelTaskRunID])
 
 	// Pod template labels.
 	podLabels := job.Spec.Template.Labels
 	assert.Equal(t, "osmia-agent", podLabels[labelApp])
-	assert.Equal(t, "tr-456", podLabels[LabelTaskRunID])
+	assert.Equal(t, "agent", podLabels[labelComponent])
 	assert.Equal(t, "claude-code", podLabels[labelEngine])
+	assert.Equal(t, "osmia", podLabels[labelManagedBy])
+	assert.Equal(t, "tr-456", podLabels[LabelTaskRunID])
 }
 
 func TestBuild_SecurityContext(t *testing.T) {

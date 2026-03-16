@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Agent NetworkPolicy now matches agent pods. Both `JobBuilder` and
+  `SandboxBuilder` add `app.kubernetes.io/component: agent` and
+  `app.kubernetes.io/managed-by: osmia` labels to Jobs and pod templates,
+  matching the selectors in `networkpolicy-agent.yaml`. Previously the
+  NetworkPolicy deployed but matched zero pods. (#12)
+
 ## [0.3.0] - 2026-03-13
 
 ### Added

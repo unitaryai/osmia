@@ -2,146 +2,146 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://unitaryai.github.io/Osmia/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/architecture/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/changelog/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/code-of-conduct/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/contributing/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/guardrails/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/roadmap/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/scaling/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/security-policy/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/security/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/api/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/api/plugins/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/api/webhooks/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/diagnosis/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/engines/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/estimator/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/guardrails-overview/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/llm/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/memory/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/prm/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/taskrun-lifecycle/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/concepts/what-is-osmia/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/configuration/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/docker-compose/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/github-issues-slack/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/kubernetes/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/linear-slack/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/shortcut-slack/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/getting-started/troubleshooting/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/engines/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/notifications/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/sdks/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/secrets/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/ticketing/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
     <url>
          <loc>https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/</loc>
-         <lastmod>2026-03-13</lastmod>
+         <lastmod>2026-03-16</lastmod>
     </url>
 </urlset>

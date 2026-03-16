@@ -1153,6 +1153,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Network Isolation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent NetworkPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controller-networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controller NetworkPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-blocked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is blocked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hardening-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardening recommendations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2130,6 +2180,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Network Isolation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agent NetworkPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controller-networkpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controller NetworkPolicy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-blocked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is blocked
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hardening-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hardening recommendations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2432,44 +2532,114 @@ with a restrictive <code>SecurityContext</code>:</p>
 </ul>
 <hr />
 <h2 id="network-isolation">Network Isolation<a class="headerlink" href="#network-isolation" title="Permanent link">&para;</a></h2>
-<p>Agent pods should have tightly restricted network access. Osmia recommends a
-<strong>deny-all-by-default</strong> NetworkPolicy with explicit egress allow-lists:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">networking.k8s.io/v1</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NetworkPolicy</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">metadata</span><span class="p">:</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osmia-agent-netpol</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nt">spec</span><span class="p">:</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">podSelector</span><span class="p">:</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">matchLabels</span><span class="p">:</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osmia-agent</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="nt">policyTypes</span><span class="p">:</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Egress</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">ingress</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w">          </span><span class="c1"># deny all inbound traffic</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="nt">egress</span><span class="p">:</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">to</span><span class="p">:</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">ipBlock</span><span class="p">:</span>
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">            </span><span class="nt">cidr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0.0.0/0</span>
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TCP</span>
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">          </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">443</span><span class="w">    </span><span class="c1"># HTTPS only — API endpoints, SCM</span>
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">to</span><span class="p">:</span>
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">namespaceSelector</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">          </span><span class="nt">podSelector</span><span class="p">:</span>
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">            </span><span class="nt">matchLabels</span><span class="p">:</span>
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">              </span><span class="nt">k8s-app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kube-dns</span>
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">      </span><span class="nt">ports</span><span class="p">:</span>
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">protocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">UDP</span>
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">          </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">53</span><span class="w">     </span><span class="c1"># DNS resolution</span>
+<p>Agent pods should have tightly restricted network access. The Helm chart includes
+built-in NetworkPolicy templates for both the controller and agent pods. Enable
+them by setting <code>networkPolicy.enabled: true</code> in your <code>values.yaml</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">networkPolicy</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">agent</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">extraEgressRules</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w">          </span><span class="c1"># add custom egress rules if needed</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">controller</span><span class="p">:</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">webhookSourceCIDR</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="w">         </span><span class="c1"># restrict webhook ingress to a CIDR</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nt">metricsSourceSelector</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">     </span><span class="c1"># restrict metrics scraping to specific pods</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="nt">kubeAPIServerCIDR</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;10.0.0.1/32&quot;</span><span class="w">  </span><span class="c1"># lock down K8s API access (defaults to 0.0.0.0/0)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">extraIngressRules</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">extraEgressRules</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
 </code></pre></div>
-<p>Recommendations:</p>
+<h3 id="agent-networkpolicy">Agent NetworkPolicy<a class="headerlink" href="#agent-networkpolicy" title="Permanent link">&para;</a></h3>
+<p>The agent policy selects pods with <code>app.kubernetes.io/component: agent</code> and
+<code>app.kubernetes.io/managed-by: osmia</code> — labels applied by both <code>JobBuilder</code> and
+<code>SandboxBuilder</code> to every agent pod.</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Rule</th>
+<th>Ports</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ingress</strong></td>
+<td>Deny ALL — agent pods do not serve any network endpoints</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>DNS resolution</td>
+<td>UDP+TCP 53</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>HTTPS — LLM providers, SCM APIs, package registries</td>
+<td>TCP 443</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>SSH — <code>git clone</code>/<code>push</code> over SSH</td>
+<td>TCP 22</td>
+</tr>
+</tbody>
+</table>
+<p>Additional egress rules can be added via <code>networkPolicy.agent.extraEgressRules</code>.</p>
+<h3 id="controller-networkpolicy">Controller NetworkPolicy<a class="headerlink" href="#controller-networkpolicy" title="Permanent link">&para;</a></h3>
+<p>The controller policy uses the Helm chart's standard selector labels.</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Rule</th>
+<th>Ports</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ingress</strong></td>
+<td>Webhook (if <code>webhook.enabled</code>) — optionally restricted by source CIDR</td>
+<td>TCP 8081 (default)</td>
+</tr>
+<tr>
+<td><strong>Ingress</strong></td>
+<td>Metrics scraping (if <code>metrics.enabled</code>) — optionally restricted by pod selector</td>
+<td>TCP 8080 (default)</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>DNS resolution</td>
+<td>UDP+TCP 53</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>HTTPS — ticketing, notifications, SCM, LLM APIs</td>
+<td>TCP 443</td>
+</tr>
+<tr>
+<td><strong>Egress</strong></td>
+<td>Kubernetes API server — defaults to <code>0.0.0.0/0</code>; set <code>kubeAPIServerCIDR</code> to lock down</td>
+<td>TCP 443, 6443</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-is-blocked">What is blocked<a class="headerlink" href="#what-is-blocked" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>No inter-pod communication</strong> — agent pods must not communicate with each
-  other or with unrelated services.</li>
+<li><strong>Agent-to-agent traffic</strong> — agent pods cannot communicate with each other or
+  with unrelated services.</li>
+<li><strong>Inbound connections to agents</strong> — all agent ingress is denied.</li>
+<li><strong>Non-HTTPS egress</strong> — plain HTTP (port 80) is blocked by default. If your
+  environment uses internal registries on port 80, add a rule via
+  <code>networkPolicy.agent.extraEgressRules</code>.</li>
+<li><strong>Controller access from arbitrary sources</strong> — webhook and metrics ingress can
+  be restricted to specific CIDRs or pod selectors.</li>
+</ul>
+<h3 id="hardening-recommendations">Hardening recommendations<a class="headerlink" href="#hardening-recommendations" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Set <code>kubeAPIServerCIDR</code></strong> — the default (<code>0.0.0.0/0</code>) allows the controller
+  to reach any IP on ports 443/6443. Lock it down to your cluster's API server IP.</li>
 <li><strong>Restrict egress by FQDN</strong> — where supported by your CNI (e.g. Cilium),
-  restrict egress to specific FQDNs such as <code>api.anthropic.com</code>,
+  restrict agent egress to specific FQDNs such as <code>api.anthropic.com</code>,
   <code>api.github.com</code>, and your SCM host.</li>
-<li><strong>No inbound traffic</strong> — agent pods do not serve any network endpoints.</li>
+<li><strong>Set <code>webhookSourceCIDR</code></strong> — restrict webhook ingress to your SCM provider's
+  IP ranges (e.g. GitHub's documented webhook IPs).</li>
 </ul>
 <hr />
 <h2 id="secret-management">Secret Management<a class="headerlink" href="#secret-management" title="Permanent link">&para;</a></h2>

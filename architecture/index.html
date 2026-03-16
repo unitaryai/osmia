@@ -3406,7 +3406,7 @@
 </code></pre></div>
 <p>Writable paths are limited to explicitly mounted <code>emptyDir</code> volumes (e.g. <code>/workspace</code>).</p>
 <h3 id="network-policies">Network Policies<a class="headerlink" href="#network-policies" title="Permanent link">&para;</a></h3>
-<p>Agent pods should be deployed with Kubernetes <code>NetworkPolicy</code> resources that restrict egress to only the required endpoints (API providers, SCM hosts). The Helm chart includes templates for these policies.</p>
+<p>Agent pods should be deployed with Kubernetes <code>NetworkPolicy</code> resources that restrict egress to only the required endpoints (API providers, SCM hosts). The Helm chart includes templates for both controller and agent policies — enable with <code>networkPolicy.enabled: true</code>. Agent pods are identified by the <code>app.kubernetes.io/component: agent</code> and <code>app.kubernetes.io/managed-by: osmia</code> labels. See <a href="../security/#network-isolation">Security — Network Isolation</a> for the full rule set and hardening guidance.</p>
 <h3 id="secret-management">Secret Management<a class="headerlink" href="#secret-management" title="Permanent link">&para;</a></h3>
 <p>Secrets are never passed as plain-text environment variables in Job specs. Instead, the <code>SecretEnv</code> map references Kubernetes Secrets by name, and Kubernetes injects them at pod startup. The <code>SecretsBackend</code> plugin interface supports external providers such as HashiCorp Vault. API keys and credentials are never logged.</p>
 <h3 id="input-validation">Input Validation<a class="headerlink" href="#input-validation" title="Permanent link">&para;</a></h3>

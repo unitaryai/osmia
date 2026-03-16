@@ -157,47 +157,70 @@ Key properties:
 
 ## Network Isolation
 
-Agent pods should have tightly restricted network access. Osmia recommends a
-**deny-all-by-default** NetworkPolicy with explicit egress allow-lists:
+Agent pods should have tightly restricted network access. The Helm chart includes
+built-in NetworkPolicy templates for both the controller and agent pods. Enable
+them by setting `networkPolicy.enabled: true` in your `values.yaml`:
 
 ```yaml
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: osmia-agent-netpol
-spec:
-  podSelector:
-    matchLabels:
-      app: osmia-agent
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress: []          # deny all inbound traffic
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-      ports:
-        - protocol: TCP
-          port: 443    # HTTPS only — API endpoints, SCM
-    - to:
-        - namespaceSelector: {}
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - protocol: UDP
-          port: 53     # DNS resolution
+networkPolicy:
+  enabled: true
+  agent:
+    extraEgressRules: []          # add custom egress rules if needed
+  controller:
+    webhookSourceCIDR: ""         # restrict webhook ingress to a CIDR
+    metricsSourceSelector: {}     # restrict metrics scraping to specific pods
+    kubeAPIServerCIDR: "10.0.0.1/32"  # lock down K8s API access (defaults to 0.0.0.0/0)
+    extraIngressRules: []
+    extraEgressRules: []
 ```
 
-Recommendations:
+### Agent NetworkPolicy
 
-- **No inter-pod communication** — agent pods must not communicate with each
-  other or with unrelated services.
+The agent policy selects pods with `app.kubernetes.io/component: agent` and
+`app.kubernetes.io/managed-by: osmia` — labels applied by both `JobBuilder` and
+`SandboxBuilder` to every agent pod.
+
+| Direction | Rule | Ports |
+|-----------|------|-------|
+| **Ingress** | Deny ALL — agent pods do not serve any network endpoints | — |
+| **Egress** | DNS resolution | UDP+TCP 53 |
+| **Egress** | HTTPS — LLM providers, SCM APIs, package registries | TCP 443 |
+| **Egress** | SSH — `git clone`/`push` over SSH | TCP 22 |
+
+Additional egress rules can be added via `networkPolicy.agent.extraEgressRules`.
+
+### Controller NetworkPolicy
+
+The controller policy uses the Helm chart's standard selector labels.
+
+| Direction | Rule | Ports |
+|-----------|------|-------|
+| **Ingress** | Webhook (if `webhook.enabled`) — optionally restricted by source CIDR | TCP 8081 (default) |
+| **Ingress** | Metrics scraping (if `metrics.enabled`) — optionally restricted by pod selector | TCP 8080 (default) |
+| **Egress** | DNS resolution | UDP+TCP 53 |
+| **Egress** | HTTPS — ticketing, notifications, SCM, LLM APIs | TCP 443 |
+| **Egress** | Kubernetes API server — defaults to `0.0.0.0/0`; set `kubeAPIServerCIDR` to lock down | TCP 443, 6443 |
+
+### What is blocked
+
+- **Agent-to-agent traffic** — agent pods cannot communicate with each other or
+  with unrelated services.
+- **Inbound connections to agents** — all agent ingress is denied.
+- **Non-HTTPS egress** — plain HTTP (port 80) is blocked by default. If your
+  environment uses internal registries on port 80, add a rule via
+  `networkPolicy.agent.extraEgressRules`.
+- **Controller access from arbitrary sources** — webhook and metrics ingress can
+  be restricted to specific CIDRs or pod selectors.
+
+### Hardening recommendations
+
+- **Set `kubeAPIServerCIDR`** — the default (`0.0.0.0/0`) allows the controller
+  to reach any IP on ports 443/6443. Lock it down to your cluster's API server IP.
 - **Restrict egress by FQDN** — where supported by your CNI (e.g. Cilium),
-  restrict egress to specific FQDNs such as `api.anthropic.com`,
+  restrict agent egress to specific FQDNs such as `api.anthropic.com`,
   `api.github.com`, and your SCM host.
-- **No inbound traffic** — agent pods do not serve any network endpoints.
+- **Set `webhookSourceCIDR`** — restrict webhook ingress to your SCM provider's
+  IP ranges (e.g. GitHub's documented webhook IPs).
 
 ---
 

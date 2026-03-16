@@ -465,7 +465,7 @@ Writable paths are limited to explicitly mounted `emptyDir` volumes (e.g. `/work
 
 ### Network Policies
 
-Agent pods should be deployed with Kubernetes `NetworkPolicy` resources that restrict egress to only the required endpoints (API providers, SCM hosts). The Helm chart includes templates for these policies.
+Agent pods should be deployed with Kubernetes `NetworkPolicy` resources that restrict egress to only the required endpoints (API providers, SCM hosts). The Helm chart includes templates for both controller and agent policies — enable with `networkPolicy.enabled: true`. Agent pods are identified by the `app.kubernetes.io/component: agent` and `app.kubernetes.io/managed-by: osmia` labels. See [Security — Network Isolation](security.md#network-isolation) for the full rule set and hardening guidance.
 
 ### Secret Management
 

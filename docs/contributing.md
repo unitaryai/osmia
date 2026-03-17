@@ -104,6 +104,45 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - Add an entry to `CHANGELOG.md` under "Unreleased"
 - Ensure CI passes before requesting review
 
+## Releasing
+
+Osmia uses git tags to trigger the release pipeline. The `release.yaml` workflow
+builds container images and publishes the Helm chart to the GitHub Pages
+repository (`https://unitaryai.github.io/osmia`).
+
+### Release checklist
+
+1. **Ensure `main` is clean** — all PRs merged, CI passing.
+2. **Decide the version** — follow [Semantic Versioning](https://semver.org/):
+   - Patch (`x.y.Z`) for bug fixes
+   - Minor (`x.Y.0`) for new features (backward-compatible)
+   - Major (`X.0.0`) for breaking changes
+3. **Stamp `CHANGELOG.md`** — move the `[Unreleased]` section to a new
+   `[x.y.z] - YYYY-MM-DD` heading. Add a fresh empty `[Unreleased]` above it.
+4. **Bump `charts/osmia/Chart.yaml`** — set both `version` and `appVersion` to
+   the new version (without the `v` prefix). The `chart-releaser-action` uses
+   this to decide whether to publish; if it matches an already-published version
+   the chart release is silently skipped.
+5. **Commit** — `chore: release vX.Y.Z`
+6. **Tag** — `git tag vX.Y.Z`
+7. **Push both** — `git push && git push origin vX.Y.Z`
+8. **Verify the release pipeline** — check GitHub Actions for:
+   - Container images built and pushed to `ghcr.io`
+   - Images signed with cosign
+   - Helm chart published to the `gh-pages` branch
+9. **Verify ArgoCD** (if applicable) — confirm the new chart version is
+   available: `helm repo update && helm search repo osmia`
+
+### Common mistakes
+
+- **Forgetting `Chart.yaml`** — the most common failure. If `version` in
+  `Chart.yaml` isn't bumped, the chart-releaser sees the version already exists
+  in the `gh-pages` index and skips publishing. Container images are built but
+  the Helm chart is not released.
+- **Tag without pushing main** — the tag must point to a commit that is on
+  `main` (or at least pushed to the remote), otherwise the release workflow
+  checks out stale code.
+
 ## Plugin Contributions
 
 If you're building a plugin, see the [Writing a Plugin](plugins/writing-a-plugin.md) guide.

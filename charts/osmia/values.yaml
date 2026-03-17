@@ -61,8 +61,10 @@ podSecurityContext:
     type: RuntimeDefault
 
 # Leader election for high-availability deployments.
+# NOTE: Not yet implemented — see docs/roadmap.md. Leave disabled until
+# the --leader-elect flag is wired in main.go.
 leaderElection:
-  enabled: true
+  enabled: false
 
 # Session persistence for agent continuations.
 # When enabled, Claude Code session state (~/.claude) and the workspace are

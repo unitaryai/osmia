@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-03-17
+
+### Fixed
+
+- Helm chart defaulted `leaderElection.enabled` to `true`, passing
+  `--leader-elect=true` to the controller binary which does not support that
+  flag. This caused the pod to exit immediately on startup. Changed default to
+  `false` with a comment noting leader election is not yet implemented (see
+  `docs/roadmap.md`).
+
 ## [0.3.2] - 2026-03-17
 
 ### Fixed

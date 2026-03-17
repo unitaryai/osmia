@@ -1697,6 +1697,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Releasing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-mistakes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common mistakes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-contributions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1961,6 +2000,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#releasing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Releasing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Releasing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#release-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Release checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-mistakes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common mistakes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plugin-contributions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2094,6 +2172,43 @@ backends and engine containers.</p>
 <li>Update documentation as needed</li>
 <li>Add an entry to <code>CHANGELOG.md</code> under "Unreleased"</li>
 <li>Ensure CI passes before requesting review</li>
+</ul>
+<h2 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h2>
+<p>Osmia uses git tags to trigger the release pipeline. The <code>release.yaml</code> workflow
+builds container images and publishes the Helm chart to the GitHub Pages
+repository (<code>https://unitaryai.github.io/osmia</code>).</p>
+<h3 id="release-checklist">Release checklist<a class="headerlink" href="#release-checklist" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Ensure <code>main</code> is clean</strong> — all PRs merged, CI passing.</li>
+<li><strong>Decide the version</strong> — follow <a href="https://semver.org/">Semantic Versioning</a>:</li>
+<li>Patch (<code>x.y.Z</code>) for bug fixes</li>
+<li>Minor (<code>x.Y.0</code>) for new features (backward-compatible)</li>
+<li>Major (<code>X.0.0</code>) for breaking changes</li>
+<li><strong>Stamp <code>CHANGELOG.md</code></strong> — move the <code>[Unreleased]</code> section to a new
+   <code>[x.y.z] - YYYY-MM-DD</code> heading. Add a fresh empty <code>[Unreleased]</code> above it.</li>
+<li><strong>Bump <code>charts/osmia/Chart.yaml</code></strong> — set both <code>version</code> and <code>appVersion</code> to
+   the new version (without the <code>v</code> prefix). The <code>chart-releaser-action</code> uses
+   this to decide whether to publish; if it matches an already-published version
+   the chart release is silently skipped.</li>
+<li><strong>Commit</strong> — <code>chore: release vX.Y.Z</code></li>
+<li><strong>Tag</strong> — <code>git tag vX.Y.Z</code></li>
+<li><strong>Push both</strong> — <code>git push &amp;&amp; git push origin vX.Y.Z</code></li>
+<li><strong>Verify the release pipeline</strong> — check GitHub Actions for:</li>
+<li>Container images built and pushed to <code>ghcr.io</code></li>
+<li>Images signed with cosign</li>
+<li>Helm chart published to the <code>gh-pages</code> branch</li>
+<li><strong>Verify ArgoCD</strong> (if applicable) — confirm the new chart version is
+   available: <code>helm repo update &amp;&amp; helm search repo osmia</code></li>
+</ol>
+<h3 id="common-mistakes">Common mistakes<a class="headerlink" href="#common-mistakes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Forgetting <code>Chart.yaml</code></strong> — the most common failure. If <code>version</code> in
+  <code>Chart.yaml</code> isn't bumped, the chart-releaser sees the version already exists
+  in the <code>gh-pages</code> index and skips publishing. Container images are built but
+  the Helm chart is not released.</li>
+<li><strong>Tag without pushing main</strong> — the tag must point to a commit that is on
+  <code>main</code> (or at least pushed to the remote), otherwise the release workflow
+  checks out stale code.</li>
 </ul>
 <h2 id="plugin-contributions">Plugin Contributions<a class="headerlink" href="#plugin-contributions" title="Permanent link">&para;</a></h2>
 <p>If you're building a plugin, see the <a href="../plugins/writing-a-plugin/">Writing a Plugin</a> guide.</p>

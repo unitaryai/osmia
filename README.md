@@ -6,7 +6,7 @@
 
 Osmia orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
 
-![Osmia Architecture](docs/images/Osmia-architecture.png)
+![Osmia Architecture](docs/images/osmia_architecture.png)
 
 **[Documentation →](https://unitaryai.github.io/Osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
 

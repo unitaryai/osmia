@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-03-17
+
+### Fixed
+
+- Helm chart version was stuck at 0.2.0 — `Chart.yaml` was not bumped for
+  v0.3.0 or v0.3.1, so the chart-releaser never published new versions to
+  the Helm repository. ArgoCD and `helm pull` could not find the chart.
+  `Chart.yaml` now tracks the release version.
+
 ## [0.3.1] - 2026-03-16
 
 ### Fixed

@@ -247,6 +247,7 @@ func main() {
 		case "shared-pvc":
 			store := sessionstore.NewSharedPVCStore(sp.PVCName)
 			claudeOpts = append(claudeOpts, claudecode.WithSessionStore(store))
+			opts = append(opts, controller.WithSessionStore(store))
 			sessionCleaner = sessionstore.NewCleaner(sessionstore.CleanerConfig{
 				Backend:    "shared-pvc",
 				PVCRootDir: "/data/sessions",
@@ -264,6 +265,7 @@ func main() {
 				logger.With("component", "session-store"),
 			)
 			claudeOpts = append(claudeOpts, claudecode.WithSessionStore(store))
+			opts = append(opts, controller.WithSessionStore(store))
 			sessionCleaner = sessionstore.NewCleaner(sessionstore.CleanerConfig{
 				Backend:   "per-taskrun-pvc",
 				K8sClient: k8sClient,

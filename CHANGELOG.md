@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-03-18
+
+### Fixed
+
+- Agent pods were stuck in `Pending` because the per-TaskRun session PVC was
+  never created before the K8s Job referenced it. `PerTaskRunPVCStore.Prepare`
+  was implemented but never called. The controller now holds a `sessionStore`
+  reference (wired via `WithSessionStore`) and calls `prepareSession` before
+  every `BuildExecutionSpec` call — covering initial jobs, retries,
+  continuations, fallbacks, review follow-ups, and tournament candidates.
+
 ## [0.3.4] - 2026-03-18
 
 ### Fixed

@@ -90,6 +90,10 @@ type Reconciler struct {
 	memoryExtractor *memory.Extractor
 	memoryQuery     *memory.QueryEngine
 
+	// sessionStore is used to provision per-TaskRun storage (e.g. PVCs) before
+	// agent jobs are created. May be nil when session persistence is disabled.
+	sessionStore engine.SessionStore
+
 	// Plugin backends — stored for use by lifecycle hooks and quality gates.
 	approvalBackend approval.Backend
 	scmBackend      scm.Backend
@@ -240,6 +244,23 @@ func WithSCMRouter(router *scmrouter.Router) ReconcilerOption {
 // follow-up task requests on each reconciliation tick.
 func WithReviewPoller(p *reviewpoller.Poller) ReconcilerOption {
 	return func(r *Reconciler) { r.reviewPoller = p }
+}
+
+// WithSessionStore sets the session store used to provision per-TaskRun
+// storage before agent jobs are created.
+func WithSessionStore(s engine.SessionStore) ReconcilerOption {
+	return func(r *Reconciler) { r.sessionStore = s }
+}
+
+// prepareSession calls Prepare on the session store for the given TaskRun ID.
+// It is a no-op when no session store is configured. Must be called before
+// BuildExecutionSpec so that any required storage (e.g. a per-TaskRun PVC)
+// exists before the K8s Job references it.
+func (r *Reconciler) prepareSession(ctx context.Context, taskRunID string) error {
+	if r.sessionStore == nil {
+		return nil
+	}
+	return r.sessionStore.Prepare(ctx, taskRunID)
 }
 
 // WithDiagnosis enables the causal failure diagnosis subsystem. When both
@@ -603,6 +624,10 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		Image:          r.config.Engines.ImageFor(engineName),
 		SecretKeyRefs:  r.agentSecretKeyRefs(),
 		Env:            r.slackEnv(),
+	}
+
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		return fmt.Errorf("preparing session storage: %w", err)
 	}
 
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
@@ -1146,6 +1171,14 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		Env:            r.slackEnv(),
 	}
 
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		r.logger.ErrorContext(ctx, "failed to prepare session storage for review follow-up",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
 	if err != nil {
 		r.logger.ErrorContext(ctx, "failed to build execution spec for review follow-up",
@@ -1443,6 +1476,14 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		Env:            r.slackEnv(),
 	}
 
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		r.logger.ErrorContext(ctx, "failed to prepare session storage for fallback job",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
 	if err != nil {
 		r.logger.ErrorContext(ctx, "failed to build fallback execution spec",
@@ -1650,6 +1691,10 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		Image:          r.config.Engines.ImageFor(engineName),
 		SecretKeyRefs:  r.agentSecretKeyRefs(),
 		Env:            r.slackEnv(),
+	}
+
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		return fmt.Errorf("preparing session storage: %w", err)
 	}
 
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
@@ -1994,6 +2039,14 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
 		SecretKeyRefs:  r.agentSecretKeyRefs(),
 		Env:            r.slackEnv(),
+	}
+
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		r.logger.ErrorContext(ctx, "failed to prepare session storage for continuation job",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
 	}
 
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
@@ -2489,6 +2542,14 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
 		SecretKeyRefs:  r.agentSecretKeyRefs(),
 		Env:            r.slackEnv(),
+	}
+
+	if err := r.prepareSession(ctx, tr.ID); err != nil {
+		r.logger.ErrorContext(ctx, "failed to prepare session storage for retry job",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
 	}
 
 	spec, err := eng.BuildExecutionSpec(task, engineCfg)
@@ -2995,6 +3056,14 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			Image:          r.config.Engines.ImageFor(engineName),
 			SecretKeyRefs:  r.agentSecretKeyRefs(),
 			Env:            r.slackEnv(),
+		}
+
+		if err := r.prepareSession(ctx, tr.ID); err != nil {
+			r.logger.ErrorContext(ctx, "failed to prepare session storage for tournament candidate",
+				"task_run_id", tr.ID,
+				"error", err,
+			)
+			continue
 		}
 
 		spec, err := eng.BuildExecutionSpec(task, engineCfg)

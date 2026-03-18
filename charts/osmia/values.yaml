@@ -2,6 +2,11 @@
 
 replicaCount: 1
 
+# Use Recreate when a ReadWriteOnce PVC is mounted — RollingUpdate causes
+# Multi-Attach errors since the new pod starts before the old one releases
+# the volume. Switch to RollingUpdate only if persistence is disabled.
+deploymentStrategy: Recreate
+
 image:
   repository: ghcr.io/unitaryai/osmia/controller
   pullPolicy: IfNotPresent

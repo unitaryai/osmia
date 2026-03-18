@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-03-18
+
+### Fixed
+
+- Helm chart now defaults to `Recreate` deployment strategy instead of
+  `RollingUpdate`. With a `ReadWriteOnce` PVC mounted, rolling updates cause
+  a `Multi-Attach` error because the new pod starts before the old one releases
+  the volume. `Recreate` terminates the old pod first. Configurable via
+  `deploymentStrategy` in values.
+
 ## [0.3.3] - 2026-03-17
 
 ### Fixed

@@ -4587,14 +4587,15 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   were owned by root. The container (running as UID 10000) could not write to the
   mounted subPath directories. Added <code>fsGroup: 10000</code> to the pod security context
   so Kubernetes chowns the volume on mount.</li>
-<li>Controller was not opening a merge request after a successful agent run.
-  The <code>CreatePullRequest</code> SCM call was never made — the success path only
-  registered an MR URL if one was already present in the agent result (which
-  it never is, since agents push a branch but do not open MRs). Added MR
-  creation between result capture and <code>MarkComplete</code>: when the agent result
-  contains a <code>branch_name</code> and an SCM backend is available, the controller
-  now calls <code>CreatePullRequest</code> and stores the URL in <code>result.MergeRequestURL</code>
-  before notifying the ticketing backend and the review poller.</li>
+<li>Agent was not opening a merge request after completing a task. The prompt
+  instructed the agent to push a branch and write <code>result.json</code> with
+  <code>branch_name</code>, but never told it to create an MR or include
+  <code>merge_request_url</code> in the result. Added step 5 (normal path) and step 3
+  (session-resume path) instructing the agent to use <code>glab</code>/<code>gh</code> to open an
+  MR with a well-structured description (what changed, why, how to verify),
+  and to write the MR URL into <code>result.json</code> as <code>merge_request_url</code>. The
+  controller's existing review-poller registration at task completion was
+  already designed to consume this field — it simply was never populated.</li>
 </ul>
 <h2 id="037-2026-03-19">[0.3.7] - 2026-03-19<a class="headerlink" href="#037-2026-03-19" title="Permanent link">&para;</a></h2>
 <h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>

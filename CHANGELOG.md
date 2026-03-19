@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dev release workflow: a `0.0.0-edge` Helm chart is now published to the
+  GitHub Pages repo on every push to `main`, alongside the existing edge
+  container images. This allows chart template changes (RBAC, deployment
+  strategy, env vars) to be deployed without creating a full semver release.
+  The chart's `appVersion` is set to the full git SHA for traceability.
+- `workflow_dispatch` trigger on `images.yaml` so edge images and the dev chart
+  can be built manually from the GitHub Actions UI without a push to `main`.
+
 ## [0.3.7] - 2026-03-19
 
 ### Fixed

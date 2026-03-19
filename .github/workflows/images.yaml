@@ -4,9 +4,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -154,3 +155,45 @@ jobs:
   # CLI mode. The Dockerfile in docker/engine-cline/ is a community
   # contribution template; it cannot produce a working image until a
   # proper headless integration is implemented.
+
+  helm-chart-dev:
+    runs-on: ubuntu-latest
+    needs:
+      - controller
+      - engine-claude-code
+      - engine-codex
+      - engine-opencode
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Package dev chart
+        run: |
+          helm package charts/osmia \
+            --version 0.0.0-edge \
+            --app-version "${{ github.sha }}" \
+            --destination gh-pages/
+
+      - name: Update repo index
+        run: |
+          helm repo index gh-pages/ \
+            --merge gh-pages/index.yaml \
+            --url https://unitaryai.github.io/osmia
+
+      - name: Commit and push to gh-pages
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add osmia-0.0.0-edge.tgz index.yaml
+          git commit -m "chore: publish 0.0.0-edge chart (${GITHUB_SHA:0:7})" || echo "Nothing to commit"
+          git push

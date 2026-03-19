@@ -104,6 +104,77 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - Add an entry to `CHANGELOG.md` under "Unreleased"
 - Ensure CI passes before requesting review
 
+## Dev Releases (Edge Deployments)
+
+Every push to `main` automatically publishes:
+
+- **Edge container images** tagged `main` (and `sha-<hash>`) to `ghcr.io`
+- **An edge Helm chart** versioned `0.0.0-edge` to the same GitHub Pages repo
+
+The `0.0.0-edge` chart is always overwritten with the latest `main` commit. Its
+`appVersion` is set to the full git SHA so you can trace exactly which commit is
+running.
+
+### Consuming the edge chart
+
+```bash
+helm repo add osmia https://unitaryai.github.io/osmia
+helm repo update
+
+# Inspect the dev chart (--devel required for pre-release versions)
+helm show chart osmia/osmia --version 0.0.0-edge --devel
+
+# Install/upgrade with the edge chart
+helm upgrade --install osmia osmia/osmia \
+  --version 0.0.0-edge --devel \
+  --set image.tag=main \
+  --set image.pullPolicy=Always
+```
+
+### Switching ArgoCD between dev and release mode
+
+**Dev mode** — track `main` continuously (no semver release needed):
+
+```yaml
+# kustomization.yaml
+version: 0.0.0-edge
+
+# values.yaml
+image:
+  tag: "main"
+  pullPolicy: Always
+engines:
+  claude-code:
+    image: ghcr.io/unitaryai/osmia/engine-claude-code:main
+```
+
+**Release mode** — pin to a specific semver release:
+
+```yaml
+# kustomization.yaml
+version: X.Y.Z
+
+# values.yaml
+image:
+  tag: "X.Y.Z"
+  pullPolicy: IfNotPresent
+# remove engines.claude-code.image override (uses chart default)
+```
+
+### Dev vs full release
+
+| Situation | Use |
+|-----------|-----|
+| Iterating on a fix — chart templates, RBAC, deployment config | Dev edge |
+| Sharing a fix with external users or documenting in CHANGELOG | Full semver release |
+| Testing a new feature before it's ready to announce | Dev edge |
+| Stable, versioned deployment you can roll back to by number | Full semver release |
+
+### Manual dev build
+
+You can trigger the edge image + chart build without pushing to `main` via the
+GitHub Actions UI: go to **Actions → Build and push edge images → Run workflow**.
+
 ## Releasing
 
 Osmia uses git tags to trigger the release pipeline. The `release.yaml` workflow

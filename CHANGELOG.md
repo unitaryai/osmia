@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `workflow_dispatch` trigger on `images.yaml` so edge images and the dev chart
   can be built manually from the GitHub Actions UI without a push to `main`.
 
+### Fixed
+
+- Agent pods stuck in `ContainerCreating` indefinitely when the per-TaskRun PVC
+  session store is used. The jobbuilder was emitting two separate `Volume` specs
+  both referencing the same PVC claim (one for the Claude session directory, one
+  for the persisted workspace). The kubelet volume manager deadlocks when it sees
+  two Volume specs for the same claim — `NodePublishVolume` is never called and
+  the pod never starts. Fixed `buildVolumes` to deduplicate PVC-backed volumes:
+  when a second mount references an already-declared PVC, the existing volume name
+  is reused in the `VolumeMount` rather than creating a duplicate `Volume` spec.
+
 ## [0.3.7] - 2026-03-19
 
 ### Fixed

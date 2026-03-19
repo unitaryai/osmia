@@ -355,6 +355,53 @@ func TestBuild_PVCVolume(t *testing.T) {
 	assert.Equal(t, "tr-abc/claude", vm.SubPath)
 }
 
+func TestBuild_SharedPVCDeduplication(t *testing.T) {
+	// When two VolumeMount entries reference the same PVC, only one K8s Volume must be
+	// emitted. Both VolumeMounts must reference that single volume by name. Without
+	// deduplication the kubelet deadlocks waiting for NodePublishVolume on a claim it
+	// considers already in-use.
+	spec := &engine.ExecutionSpec{
+		Image:   "ghcr.io/osmia/agent:latest",
+		Command: []string{"run"},
+		Volumes: []engine.VolumeMount{
+			{
+				Name:      "session-claude",
+				MountPath: "/session",
+				SubPath:   "claude",
+				PVCName:   "osmia-session-tr-123",
+			},
+			{
+				Name:      "session-workspace",
+				MountPath: "/workspace-persist",
+				SubPath:   "workspace",
+				PVCName:   "osmia-session-tr-123",
+			},
+		},
+	}
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-shared-pvc", "claude-code", spec)
+	require.NoError(t, err)
+
+	podSpec := job.Spec.Template.Spec
+
+	// Exactly one Volume must be declared despite two mounts using the same PVC.
+	require.Len(t, podSpec.Volumes, 1, "duplicate PVC must not produce two Volume specs")
+	vol := podSpec.Volumes[0]
+	assert.Equal(t, "session-claude", vol.Name)
+	require.NotNil(t, vol.VolumeSource.PersistentVolumeClaim)
+	assert.Equal(t, "osmia-session-tr-123", vol.VolumeSource.PersistentVolumeClaim.ClaimName)
+
+	// Both VolumeMounts must reference the single declared volume.
+	vms := podSpec.Containers[0].VolumeMounts
+	require.Len(t, vms, 2)
+	assert.Equal(t, "session-claude", vms[0].Name)
+	assert.Equal(t, "/session", vms[0].MountPath)
+	assert.Equal(t, "claude", vms[0].SubPath)
+	assert.Equal(t, "session-claude", vms[1].Name, "second mount must reuse first volume name")
+	assert.Equal(t, "/workspace-persist", vms[1].MountPath)
+	assert.Equal(t, "workspace", vms[1].SubPath)
+}
+
 func TestBuild_PVCVolumeOverridesConfigMap(t *testing.T) {
 	// PVCName takes precedence over ConfigMapName when both are set.
 	spec := &engine.ExecutionSpec{

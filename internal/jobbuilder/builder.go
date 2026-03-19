@@ -201,19 +201,38 @@ func buildEnvFromSources(secretEnv map[string]string) []corev1.EnvFromSource {
 // buildVolumes converts engine VolumeMount specs into K8s Volumes and VolumeMounts.
 // The volume source is chosen in priority order: PVCName > ConfigMapName > emptyDir.
 // When ConfigMapKey is also set alongside ConfigMapName, only that key is projected.
+//
+// PVC deduplication: when two mounts share the same PVCName, only one K8s Volume is
+// emitted for that claim. Subsequent mounts reuse the first volume's name so that the
+// kubelet volume manager sees a single PVC and can call NodePublishVolume once. Without
+// this, the kubelet deadlocks when two Volume specs reference identical claims.
 func buildVolumes(mounts []engine.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
 	if len(mounts) == 0 {
 		return nil, nil
 	}
+	// pvcVolumeName maps a PVC claim name to the first Volume name declared for it.
+	pvcVolumeName := make(map[string]string)
 	volumes := make([]corev1.Volume, 0, len(mounts))
 	volumeMounts := make([]corev1.VolumeMount, 0, len(mounts))
 	for _, m := range mounts {
-		vol := corev1.Volume{Name: m.Name}
+		// volumeName is the name used in the VolumeMount; it may differ from m.Name
+		// when this PVC has already been declared as a Volume.
+		volumeName := m.Name
+
 		if m.PVCName != "" {
-			vol.VolumeSource = corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: m.PVCName,
-				},
+			if existing, ok := pvcVolumeName[m.PVCName]; ok {
+				// Reuse the already-declared volume rather than emitting a duplicate.
+				volumeName = existing
+			} else {
+				pvcVolumeName[m.PVCName] = m.Name
+				volumes = append(volumes, corev1.Volume{
+					Name: m.Name,
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: m.PVCName,
+						},
+					},
+				})
 			}
 		} else if m.ConfigMapName != "" {
 			cmSource := &corev1.ConfigMapVolumeSource{
@@ -224,14 +243,19 @@ func buildVolumes(mounts []engine.VolumeMount) ([]corev1.Volume, []corev1.Volume
 					{Key: m.ConfigMapKey, Path: m.ConfigMapKey},
 				}
 			}
-			vol.VolumeSource = corev1.VolumeSource{ConfigMap: cmSource}
+			volumes = append(volumes, corev1.Volume{
+				Name:         m.Name,
+				VolumeSource: corev1.VolumeSource{ConfigMap: cmSource},
+			})
 		} else {
-			vol.VolumeSource = corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}
+			volumes = append(volumes, corev1.Volume{
+				Name:         m.Name,
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			})
 		}
-		volumes = append(volumes, vol)
 
 		vm := corev1.VolumeMount{
-			Name:      m.Name,
+			Name:      volumeName,
 			MountPath: m.MountPath,
 			ReadOnly:  m.ReadOnly,
 		}

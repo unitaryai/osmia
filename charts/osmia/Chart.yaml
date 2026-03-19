@@ -2,8 +2,8 @@ apiVersion: v2
 name: osmia
 description: A Kubernetes-native AI coding agent harness
 type: application
-version: 0.3.5
-appVersion: "0.3.5"
+version: 0.3.6
+appVersion: "0.3.6"
 home: https://github.com/unitaryai/osmia
 sources:
   - https://github.com/unitaryai/osmia

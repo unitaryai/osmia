@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-03-19
+
+### Fixed
+
+- Controller service account was missing `persistentvolumeclaims` RBAC
+  permissions. The `per-taskrun-pvc` session store calls the K8s API to create
+  PVCs but the ClusterRole only granted access to `jobs`, `pods`, `configmaps`,
+  and `secrets`. Added `get`, `list`, `watch`, `create`, `delete` on
+  `persistentvolumeclaims`.
+
 ## [0.3.5] - 2026-03-18
 
 ### Fixed

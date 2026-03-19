@@ -4582,6 +4582,11 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   the pod never starts. Fixed <code>buildVolumes</code> to deduplicate PVC-backed volumes:
   when a second mount references an already-declared PVC, the existing volume name
   is reused in the <code>VolumeMount</code> rather than creating a duplicate <code>Volume</code> spec.</li>
+<li>Agent pods failing with <code>Permission denied</code> writing to PVC-backed session volumes.
+  The pod security context was missing <code>fsGroup</code>, so freshly formatted EBS volumes
+  were owned by root. The container (running as UID 10000) could not write to the
+  mounted subPath directories. Added <code>fsGroup: 10000</code> to the pod security context
+  so Kubernetes chowns the volume on mount.</li>
 </ul>
 <h2 id="037-2026-03-19">[0.3.7] - 2026-03-19<a class="headerlink" href="#037-2026-03-19" title="Permanent link">&para;</a></h2>
 <h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>

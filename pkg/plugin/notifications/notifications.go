@@ -12,21 +12,29 @@ import (
 )
 
 // InterfaceVersion is the current version of the NotificationChannel interface.
-const InterfaceVersion = 1
+const InterfaceVersion = 2
 
 // Channel is the interface that notification backends must implement.
 // All methods are fire-and-forget — errors are logged but do not block
 // the controller reconciliation loop.
 type Channel interface {
 	// Notify sends a free-form notification message associated with a ticket.
-	Notify(ctx context.Context, message string, ticket ticketing.Ticket) error
+	// threadRef, when non-empty, requests that the message be posted as a reply
+	// in the thread identified by that reference (e.g. a Slack message timestamp).
+	// Backends that do not support threading silently ignore threadRef.
+	Notify(ctx context.Context, message string, ticket ticketing.Ticket, threadRef string) error
 
 	// NotifyStart sends a notification that an agent has begun working on a ticket.
-	NotifyStart(ctx context.Context, ticket ticketing.Ticket) error
+	// It returns a thread reference that callers should pass to subsequent Notify
+	// and NotifyComplete calls so that all messages for a task are grouped together.
+	// Backends that do not support threading return an empty string.
+	NotifyStart(ctx context.Context, ticket ticketing.Ticket) (string, error)
 
 	// NotifyComplete sends a notification that an agent has finished working
 	// on a ticket, including the task result summary.
-	NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult) error
+	// threadRef, when non-empty, causes the completion message to be posted as a
+	// reply (and, where supported, broadcast to the channel) in the identified thread.
+	NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult, threadRef string) error
 
 	// Name returns the unique identifier for this channel (e.g. "slack", "teams").
 	Name() string

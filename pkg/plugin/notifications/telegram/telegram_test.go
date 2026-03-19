@@ -120,7 +120,7 @@ func TestTelegramChannel_Notify(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.Notify(context.Background(), tt.message, tt.ticket)
+			err := ch.Notify(context.Background(), tt.message, tt.ticket, "")
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -166,7 +166,7 @@ func TestTelegramChannel_NotifyStart(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyStart(context.Background(), tt.ticket)
+			threadRef, err := ch.NotifyStart(context.Background(), tt.ticket)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -174,6 +174,8 @@ func TestTelegramChannel_NotifyStart(t *testing.T) {
 				require.NoError(t, err)
 				assert.Contains(t, capturedMsg.Text, tt.ticket.Title)
 				assert.Contains(t, capturedMsg.Text, "started working on")
+				// Telegram does not support threading; always returns empty ref.
+				assert.Empty(t, threadRef)
 			}
 
 			if tt.ticket.ExternalURL != "" {
@@ -242,7 +244,7 @@ func TestTelegramChannel_NotifyComplete(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result)
+			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result, "")
 			require.NoError(t, err)
 
 			if tt.wantSuccess {
@@ -292,7 +294,7 @@ func TestTelegramChannel_WithThreadID(t *testing.T) {
 	defer server.Close()
 
 	ch := New("test-bot-token", "123456789", WithAPIURL(server.URL), WithThreadID(42))
-	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"})
+	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"}, "")
 	assert.NoError(t, err)
 }
 
@@ -314,6 +316,6 @@ func TestTelegramChannel_ThreadIDOmittedWhenZero(t *testing.T) {
 	defer server.Close()
 
 	ch := newTestChannel(t, server.URL)
-	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"})
+	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"}, "")
 	assert.NoError(t, err)
 }

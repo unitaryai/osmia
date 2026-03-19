@@ -90,7 +90,9 @@ type telegramResponse struct {
 }
 
 // Notify sends a free-form notification message to the configured Telegram chat.
-func (t *TelegramChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket) error {
+// threadRef is accepted for interface compatibility but ignored — Telegram does
+// not have a threading model equivalent to Slack's.
+func (t *TelegramChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket, _ string) error {
 	text := message
 	if ticket.ExternalURL != "" {
 		text += "\n[" + ticket.ID + "](" + ticket.ExternalURL + ")"
@@ -99,16 +101,19 @@ func (t *TelegramChannel) Notify(ctx context.Context, message string, ticket tic
 }
 
 // NotifyStart sends a notification that an agent has begun working on a ticket.
-func (t *TelegramChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
+// Always returns an empty thread reference because Telegram does not support
+// cross-message threading.
+func (t *TelegramChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) (string, error) {
 	text := fmt.Sprintf("\U0001F916 *Osmia agent started working on:* %s", ticket.Title)
 	if ticket.ExternalURL != "" {
 		text += "\n[" + ticket.ID + "](" + ticket.ExternalURL + ")"
 	}
-	return t.sendMessage(ctx, text)
+	return "", t.sendMessage(ctx, text)
 }
 
 // NotifyComplete sends a notification that an agent has finished working on a ticket.
-func (t *TelegramChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult) error {
+// threadRef is accepted for interface compatibility but ignored.
+func (t *TelegramChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult, _ string) error {
 	var text string
 	if result.Success {
 		text = fmt.Sprintf("\u2705 *Task succeeded:* %s", ticket.Title)

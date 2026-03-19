@@ -79,7 +79,9 @@ type discordWebhookPayload struct {
 }
 
 // Notify sends a free-form notification message to the configured Discord channel.
-func (d *DiscordChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket) error {
+// threadRef is accepted for interface compatibility but ignored — Discord webhooks
+// do not support threaded replies in the same way as Slack.
+func (d *DiscordChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket, _ string) error {
 	embed := discordEmbed{
 		Description: message,
 		Colour:      colourBlue,
@@ -91,7 +93,9 @@ func (d *DiscordChannel) Notify(ctx context.Context, message string, ticket tick
 }
 
 // NotifyStart sends a notification that an agent has begun working on a ticket.
-func (d *DiscordChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
+// Always returns an empty thread reference because Discord webhooks do not
+// expose a message timestamp suitable for threading.
+func (d *DiscordChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) (string, error) {
 	embed := discordEmbed{
 		Title:       "Osmia Agent Started",
 		Description: ticket.Title,
@@ -100,11 +104,12 @@ func (d *DiscordChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticke
 	if ticket.ExternalURL != "" {
 		embed.URL = ticket.ExternalURL
 	}
-	return d.sendEmbed(ctx, embed)
+	return "", d.sendEmbed(ctx, embed)
 }
 
 // NotifyComplete sends a notification that an agent has finished working on a ticket.
-func (d *DiscordChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult) error {
+// threadRef is accepted for interface compatibility but ignored.
+func (d *DiscordChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult, _ string) error {
 	embed := discordEmbed{
 		Description: ticket.Title,
 	}

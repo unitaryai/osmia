@@ -118,7 +118,7 @@ func TestDiscordChannel_Notify(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.Notify(context.Background(), tt.message, tt.ticket)
+			err := ch.Notify(context.Background(), tt.message, tt.ticket, "")
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -162,12 +162,14 @@ func TestDiscordChannel_NotifyStart(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyStart(context.Background(), tt.ticket)
+			threadRef, err := ch.NotifyStart(context.Background(), tt.ticket)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				// Discord does not support threading; always returns empty ref.
+				assert.Empty(t, threadRef)
 				require.Len(t, capturedPayload.Embeds, 1)
 				embed := capturedPayload.Embeds[0]
 				assert.Equal(t, "Osmia Agent Started", embed.Title)
@@ -245,7 +247,7 @@ func TestDiscordChannel_NotifyComplete(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result)
+			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result, "")
 			require.NoError(t, err)
 
 			require.Len(t, capturedPayload.Embeds, 1)
@@ -305,7 +307,7 @@ func TestDiscordChannel_WebhookURLUsage(t *testing.T) {
 	defer server.Close()
 
 	ch := newTestChannel(t, server.URL+"/api/webhooks/12345/abcdef")
-	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"})
+	err := ch.Notify(context.Background(), "test", ticketing.Ticket{ID: "T-1", Title: "Test"}, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "/api/webhooks/12345/abcdef", webhookURL)
 }

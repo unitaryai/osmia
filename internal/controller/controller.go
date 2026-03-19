@@ -142,6 +142,12 @@ type Reconciler struct {
 	// reviewPoller monitors open PRs/MRs for review comments and emits
 	// follow-up task requests. Nil when review response is disabled.
 	reviewPoller *reviewpoller.Poller
+
+	// ticketNotificationRefs caches the thread reference (e.g. Slack message
+	// timestamp) returned by NotifyStart for each ticket ID so that
+	// NotifyComplete and subsequent Notify calls can thread under the initial
+	// notification. Keyed by ticket ID; protected by mu.
+	ticketNotificationRefs map[string]string
 }
 
 // ReconcilerOption configures the Reconciler.
@@ -344,19 +350,20 @@ func WithTournamentCoordinator(c *tournament.Coordinator) ReconcilerOption {
 // NewReconciler creates a new Reconciler with the given configuration.
 func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		config:              cfg,
-		logger:              logger,
-		engines:             make(map[string]engine.ExecutionEngine),
-		taskRuns:            make(map[string]*taskrun.TaskRun),
-		engineChains:        make(map[string][]string),
-		streamReaders:       make(map[string]context.CancelFunc),
-		prmEvaluators:       make(map[string]*prm.Evaluator),
-		ticketCache:         make(map[string]ticketing.Ticket),
-		heartbeats:          make(map[string]*watchdog.Heartbeat),
-		heartbeatSeqs:       make(map[string]int64),
-		podNames:            make(map[string]string),
-		taskRunRole:         make(map[string]string),
-		taskRunToTournament: make(map[string]string),
+		config:                 cfg,
+		logger:                 logger,
+		engines:                make(map[string]engine.ExecutionEngine),
+		taskRuns:               make(map[string]*taskrun.TaskRun),
+		engineChains:           make(map[string][]string),
+		streamReaders:          make(map[string]context.CancelFunc),
+		prmEvaluators:          make(map[string]*prm.Evaluator),
+		ticketCache:            make(map[string]ticketing.Ticket),
+		heartbeats:             make(map[string]*watchdog.Heartbeat),
+		heartbeatSeqs:          make(map[string]int64),
+		podNames:               make(map[string]string),
+		taskRunRole:            make(map[string]string),
+		taskRunToTournament:    make(map[string]string),
+		ticketNotificationRefs: make(map[string]string),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -638,6 +645,13 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 
 	engineCfg := r.baseEngineConfig(engineName)
 
+	// Send start notification before building the spec so that the returned
+	// thread reference can be injected into the container environment, allowing
+	// agent pods to post threaded Slack replies via the MCP server.
+	threadRef := r.runNotifyStart(ctx, ticket)
+	tr.NotificationThreadRef = threadRef
+	injectThreadRef(&engineCfg, threadRef)
+
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		return fmt.Errorf("preparing session storage: %w", err)
 	}
@@ -678,7 +692,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	r.engineChains[idempotencyKey] = engineChain
 	r.mu.Unlock()
 
-	// Persist state after transition.
+	// Persist state after transition (includes NotificationThreadRef set above).
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
 		r.logger.ErrorContext(ctx, "failed to save task run to store",
 			"task_run_id", tr.ID,
@@ -696,16 +710,6 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 			"ticket_id", ticket.ID,
 			"error", err,
 		)
-	}
-
-	// Send notifications.
-	for _, n := range r.notifiers {
-		if err := n.NotifyStart(ctx, ticket); err != nil {
-			r.logger.ErrorContext(ctx, "notification failed",
-				"channel", n.Name(),
-				"error", err,
-			)
-		}
 	}
 
 	// Start stream reader for claude-code to parse NDJSON events from pod logs.
@@ -991,7 +995,7 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 
 	if hasTicket {
 		for _, n := range r.notifiers {
-			if err := n.NotifyComplete(ctx, cachedTicket, result); err != nil {
+			if err := n.NotifyComplete(ctx, cachedTicket, result, tr.NotificationThreadRef); err != nil {
 				r.logger.ErrorContext(ctx, "completion notification failed",
 					"ticket_id", tr.TicketID,
 					"error", err,
@@ -1690,6 +1694,12 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 
 	engineCfg := r.baseEngineConfig(engineName)
 
+	// Send start notification before building the spec so that the returned
+	// thread reference can be injected into the container environment.
+	threadRef := r.runNotifyStart(ctx, cachedTicket)
+	tr.NotificationThreadRef = threadRef
+	injectThreadRef(&engineCfg, threadRef)
+
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		return fmt.Errorf("preparing session storage: %w", err)
 	}
@@ -1717,6 +1727,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 
 	tr.JobName = job.Name
 
+	// Persist state (includes NotificationThreadRef set above).
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
 		r.logger.ErrorContext(ctx, "failed to save task run after pre-start approval",
 			"task_run_id", tr.ID,
@@ -1732,15 +1743,6 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 			"ticket_id", cachedTicket.ID,
 			"error", err,
 		)
-	}
-
-	for _, n := range r.notifiers {
-		if err := n.NotifyStart(ctx, cachedTicket); err != nil {
-			r.logger.ErrorContext(ctx, "notification failed",
-				"channel", n.Name(),
-				"error", err,
-			)
-		}
 	}
 
 	if engineName == "claude-code" {
@@ -1800,7 +1802,7 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 
 	if hasTicket {
 		for _, n := range r.notifiers {
-			if err := n.NotifyComplete(ctx, cachedTicket, result); err != nil {
+			if err := n.NotifyComplete(ctx, cachedTicket, result, tr.NotificationThreadRef); err != nil {
 				r.logger.ErrorContext(ctx, "completion notification failed",
 					"ticket_id", tr.TicketID,
 					"error", err,
@@ -2412,6 +2414,45 @@ func (r *Reconciler) slackSecretKeyRefs() map[string]engine.SecretKeyRef {
 	return nil
 }
 
+// runNotifyStart fires NotifyStart on every configured notifier and returns
+// the first non-empty thread reference received. The ref is also stored in
+// ticketNotificationRefs so that tournament completions (which have no task
+// run reference) can look it up by ticket ID.
+func (r *Reconciler) runNotifyStart(ctx context.Context, ticket ticketing.Ticket) string {
+	var threadRef string
+	for _, n := range r.notifiers {
+		ref, err := n.NotifyStart(ctx, ticket)
+		if err != nil {
+			r.logger.ErrorContext(ctx, "notification failed",
+				"channel", n.Name(),
+				"error", err,
+			)
+			continue
+		}
+		if threadRef == "" && ref != "" {
+			threadRef = ref
+		}
+	}
+	if threadRef != "" {
+		r.mu.Lock()
+		r.ticketNotificationRefs[ticket.ID] = threadRef
+		r.mu.Unlock()
+	}
+	return threadRef
+}
+
+// injectThreadRef adds SLACK_THREAD_TS to the engine config's Env map so that
+// agent pods can post threaded Slack messages via the MCP server.
+func injectThreadRef(cfg *engine.EngineConfig, threadRef string) {
+	if threadRef == "" {
+		return
+	}
+	if cfg.Env == nil {
+		cfg.Env = make(map[string]string)
+	}
+	cfg.Env["SLACK_THREAD_TS"] = threadRef
+}
+
 // slackEnv returns env var entries for the Slack MCP server. It reads the
 // channel ID from the first configured Slack notification channel. Returns nil
 // when no Slack channel is configured.
@@ -2995,6 +3036,10 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 
 	tournamentID := fmt.Sprintf("tournament-%s-%d", ticket.ID, time.Now().UnixMilli())
 
+	// Send start notification before building candidate specs so the returned
+	// thread reference can be injected into every candidate container's env.
+	tournamentThreadRef := r.runNotifyStart(ctx, ticket)
+
 	// Create and launch a TaskRun + Job for each candidate engine.
 	var candidateTaskRunIDs []string
 	var createdTaskRuns []*taskrun.TaskRun
@@ -3026,6 +3071,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 		)
 		tr.CurrentEngine = engineName
 		tr.EngineAttempts = []string{engineName}
+		tr.NotificationThreadRef = tournamentThreadRef
 
 		task := engine.Task{
 			ID:            ticket.ID,
@@ -3039,6 +3085,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 		}
 
 		engineCfg := r.baseEngineConfig(engineName)
+		injectThreadRef(&engineCfg, tournamentThreadRef)
 
 		if err := r.prepareSession(ctx, tr.ID); err != nil {
 			r.logger.ErrorContext(ctx, "failed to prepare session storage for tournament candidate",
@@ -3145,15 +3192,6 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			"ticket_id", ticket.ID,
 			"error", err,
 		)
-	}
-
-	for _, n := range r.notifiers {
-		if err := n.NotifyStart(ctx, ticket); err != nil {
-			r.logger.ErrorContext(ctx, "notification failed",
-				"channel", n.Name(),
-				"error", err,
-			)
-		}
 	}
 
 	for _, tr := range createdTaskRuns {
@@ -3514,6 +3552,7 @@ func (r *Reconciler) handleJudgeComplete(ctx context.Context, tr *taskrun.TaskRu
 
 	r.mu.RLock()
 	cachedTicket, hasTicket := r.ticketCache[t.TicketID]
+	tournamentThreadRef := r.ticketNotificationRefs[t.TicketID]
 	r.mu.RUnlock()
 
 	if r.ticketing != nil {
@@ -3527,7 +3566,7 @@ func (r *Reconciler) handleJudgeComplete(ctx context.Context, tr *taskrun.TaskRu
 
 	if hasTicket {
 		for _, n := range r.notifiers {
-			if err := n.NotifyComplete(ctx, cachedTicket, result); err != nil {
+			if err := n.NotifyComplete(ctx, cachedTicket, result, tournamentThreadRef); err != nil {
 				r.logger.ErrorContext(ctx, "completion notification failed after tournament",
 					"ticket_id", t.TicketID,
 					"error", err,

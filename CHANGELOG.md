@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Slack thread grouping**: all messages for a task are now threaded under the
+  controller's initial "agent started" notification instead of being separate
+  top-level messages.
+  - `notifications.Channel` interface bumped to version 2: `NotifyStart` now
+    returns `(string, error)` where the string is an opaque thread reference
+    (Slack message timestamp); `Notify` and `NotifyComplete` accept an optional
+    `threadRef string` parameter.
+  - Slack backend captures the `ts` from `chat.postMessage` in `NotifyStart` and
+    uses it as `thread_ts` on subsequent messages. `NotifyComplete` also sets
+    `reply_broadcast: true` so the completion summary appears in the main channel
+    feed as well as inside the thread.
+  - `TaskRun` gains a `NotificationThreadRef` field (persisted to the store) so
+    retried and resumed jobs continue posting in the same thread.
+  - A `ticketNotificationRefs` map on the Reconciler provides thread-ref lookup
+    by ticket ID for tournament completion paths that have no single task run.
+  - Controller injects `SLACK_THREAD_TS` into every agent pod's environment so
+    the in-pod MCP server can also post threaded replies.
+  - MCP server (`slack_mcp.py`): reads `SLACK_THREAD_TS` from the environment.
+    `notify_start` now posts a threaded "analysing the codebase" update instead
+    of a duplicate top-level "starting" message. `ask_human` posts the question
+    as a thread reply with a "Reply in this thread" instruction; polls
+    `conversations.replies` filtered by `after_ts` and `bot_id` absence to
+    avoid picking up the bot's own acknowledgement. `notify_human` also posts
+    in-thread when the env var is present. All three fall back to top-level
+    messages when `SLACK_THREAD_TS` is absent.
+  - Telegram and Discord backends return an empty thread reference from
+    `NotifyStart` and silently ignore the `threadRef` parameter (no threading
+    model change for those backends).
+
 - Dev release workflow: a `0.0.0-edge` Helm chart is now published to the
   GitHub Pages repo on every push to `main`, alongside the existing edge
   container images. This allows chart template changes (RBAC, deployment

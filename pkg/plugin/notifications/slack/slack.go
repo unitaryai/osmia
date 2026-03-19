@@ -76,9 +76,11 @@ type slackText struct {
 
 // slackMessage is the payload sent to chat.postMessage.
 type slackMessage struct {
-	Channel string       `json:"channel"`
-	Text    string       `json:"text"`
-	Blocks  []slackBlock `json:"blocks"`
+	Channel        string       `json:"channel"`
+	Text           string       `json:"text"`
+	Blocks         []slackBlock `json:"blocks"`
+	ThreadTS       string       `json:"thread_ts,omitempty"`
+	ReplyBroadcast bool         `json:"reply_broadcast,omitempty"`
 }
 
 // slackResponse is the response from the Slack API.
@@ -89,7 +91,8 @@ type slackResponse struct {
 }
 
 // Notify sends a free-form notification message to the configured Slack channel.
-func (s *SlackChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket) error {
+// When threadRef is non-empty the message is posted as a reply in that thread.
+func (s *SlackChannel) Notify(ctx context.Context, message string, ticket ticketing.Ticket, threadRef string) error {
 	blocks := []slackBlock{
 		{
 			Type: "section",
@@ -106,11 +109,14 @@ func (s *SlackChannel) Notify(ctx context.Context, message string, ticket ticket
 		})
 	}
 
-	return s.postMessage(ctx, message, blocks)
+	_, err := s.postMessage(ctx, message, blocks, threadRef, false)
+	return err
 }
 
 // NotifyStart sends a notification that an agent has begun working on a ticket.
-func (s *SlackChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) error {
+// It returns the Slack message timestamp, which callers should pass as threadRef
+// to subsequent Notify and NotifyComplete calls to keep all messages in one thread.
+func (s *SlackChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket) (string, error) {
 	summary := fmt.Sprintf("\U0001F916 Osmia agent started working on: %s", ticket.Title)
 
 	blocks := []slackBlock{
@@ -132,11 +138,13 @@ func (s *SlackChannel) NotifyStart(ctx context.Context, ticket ticketing.Ticket)
 		})
 	}
 
-	return s.postMessage(ctx, summary, blocks)
+	return s.postMessage(ctx, summary, blocks, "", false)
 }
 
 // NotifyComplete sends a notification that an agent has finished working on a ticket.
-func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult) error {
+// When threadRef is non-empty the message is posted as a reply in that thread and
+// broadcast to the channel so it is visible outside the thread.
+func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult, threadRef string) error {
 	statusEmoji := "\u2705"
 	statusText := "succeeded"
 	if !result.Success {
@@ -191,7 +199,11 @@ func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Tick
 		})
 	}
 
-	return s.postMessage(ctx, summary, blocks)
+	// Broadcast to the channel when posting as a thread reply so that the
+	// completion message is visible to anyone not following the thread.
+	replyBroadcast := threadRef != ""
+	_, err := s.postMessage(ctx, summary, blocks, threadRef, replyBroadcast)
+	return err
 }
 
 // Name returns the unique identifier for this notification channel.
@@ -206,21 +218,26 @@ func (s *SlackChannel) InterfaceVersion() int {
 }
 
 // postMessage sends a message to the Slack channel via chat.postMessage.
-func (s *SlackChannel) postMessage(ctx context.Context, fallbackText string, blocks []slackBlock) error {
+// threadTS, when non-empty, posts the message as a reply in that thread.
+// replyBroadcast, when true, also sends the reply to the main channel feed.
+// Returns the message timestamp from the Slack API response.
+func (s *SlackChannel) postMessage(ctx context.Context, fallbackText string, blocks []slackBlock, threadTS string, replyBroadcast bool) (string, error) {
 	msg := slackMessage{
-		Channel: s.channelID,
-		Text:    fallbackText,
-		Blocks:  blocks,
+		Channel:        s.channelID,
+		Text:           fallbackText,
+		Blocks:         blocks,
+		ThreadTS:       threadTS,
+		ReplyBroadcast: replyBroadcast,
 	}
 
 	body, err := json.Marshal(msg)
 	if err != nil {
-		return fmt.Errorf("marshalling slack message: %w", err)
+		return "", fmt.Errorf("marshalling slack message: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.apiURL+"/chat.postMessage", bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("creating slack request: %w", err)
+		return "", fmt.Errorf("creating slack request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
@@ -228,26 +245,26 @@ func (s *SlackChannel) postMessage(ctx context.Context, fallbackText string, blo
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("sending slack message: %w", err)
+		return "", fmt.Errorf("sending slack message: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading slack response: %w", err)
+		return "", fmt.Errorf("reading slack response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("slack API returned status %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("slack API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var slackResp slackResponse
 	if err := json.Unmarshal(respBody, &slackResp); err != nil {
-		return fmt.Errorf("unmarshalling slack response: %w", err)
+		return "", fmt.Errorf("unmarshalling slack response: %w", err)
 	}
 
 	if !slackResp.OK {
-		return fmt.Errorf("slack API error: %s", slackResp.Error)
+		return "", fmt.Errorf("slack API error: %s", slackResp.Error)
 	}
 
 	s.logger.DebugContext(ctx, "slack message sent",
@@ -255,5 +272,5 @@ func (s *SlackChannel) postMessage(ctx context.Context, fallbackText string, blo
 		slog.String("ts", slackResp.TS),
 	)
 
-	return nil
+	return slackResp.TS, nil
 }

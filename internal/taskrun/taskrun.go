@@ -102,6 +102,12 @@ type TaskRun struct {
 	// handleJobComplete can detect turn exhaustion by comparing ToolCallsTotal.
 	ConfiguredMaxTurns int `json:"configured_max_turns,omitempty"`
 
+	// NotificationThreadRef holds the Slack message timestamp (or equivalent
+	// for other backends) returned by NotifyStart. Subsequent notifications
+	// for this TaskRun are posted as replies in that thread so all messages
+	// for a task are visually grouped.
+	NotificationThreadRef string `json:"notification_thread_ref,omitempty"`
+
 	// Review follow-up fields — populated for TaskRuns created in response
 	// to review comments on a PR/MR opened by a previous Osmia task.
 

@@ -18,6 +18,10 @@ import httpx
 # Slack configuration from environment
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
 SLACK_CHANNEL_ID = os.environ.get("SLACK_CHANNEL_ID", "")
+# Thread timestamp injected by the controller when a top-level notification
+# has already been sent.  When set, all agent messages are replies in that
+# thread rather than separate top-level messages.
+SLACK_THREAD_TS = os.environ.get("SLACK_THREAD_TS", "")
 
 # GitLab configuration from environment
 GITLAB_TOKEN = os.environ.get("GITLAB_TOKEN", "")
@@ -32,20 +36,33 @@ def log(msg: str) -> None:
     print(f"[slack-mcp] {msg}", file=sys.stderr)
 
 
-def send_slack_message(text: str, thread_ts: str | None = None) -> dict[str, Any]:
-    """Send a message to Slack."""
+def send_slack_message(
+    text: str,
+    thread_ts: str | None = None,
+    reply_broadcast: bool = False,
+) -> dict[str, Any]:
+    """Send a message to Slack.
+
+    Args:
+        text: Message text.
+        thread_ts: If set, post as a reply in this thread.
+        reply_broadcast: When True (and thread_ts is set), also sends the reply
+            to the main channel feed so it is visible outside the thread.
+    """
     if not SLACK_BOT_TOKEN:
         return {"error": "SLACK_BOT_TOKEN not configured"}
     if not SLACK_CHANNEL_ID:
         return {"error": "SLACK_CHANNEL_ID not configured"}
 
     with httpx.Client() as client:
-        payload = {
+        payload: dict[str, Any] = {
             "channel": SLACK_CHANNEL_ID,
             "text": text,
         }
         if thread_ts:
             payload["thread_ts"] = thread_ts
+            if reply_broadcast:
+                payload["reply_broadcast"] = True
 
         response = client.post(
             "https://slack.com/api/chat.postMessage",
@@ -55,13 +72,26 @@ def send_slack_message(text: str, thread_ts: str | None = None) -> dict[str, Any
         return response.json()
 
 
-def get_thread_replies(thread_ts: str, timeout_seconds: int = 300) -> str | None:
-    """Poll for replies in a Slack thread."""
+def get_thread_replies_after(
+    thread_ts: str,
+    after_ts: str,
+    timeout_seconds: int = 300,
+) -> str | None:
+    """Poll for human replies in a Slack thread posted after a given timestamp.
+
+    Filters out bot messages (identified by the presence of a ``bot_id`` field)
+    so that the bot's own acknowledgement messages are not mistaken for answers.
+
+    Args:
+        thread_ts: The timestamp of the root thread message.
+        after_ts: Only consider messages with a timestamp strictly greater than
+            this value (typically the ts of the question message itself).
+        timeout_seconds: How long to wait before giving up.
+    """
     if not SLACK_BOT_TOKEN:
         return None
 
     start_time = time.time()
-    last_reply_count = 0
 
     with httpx.Client() as client:
         while time.time() - start_time < timeout_seconds:
@@ -73,16 +103,12 @@ def get_thread_replies(thread_ts: str, timeout_seconds: int = 300) -> str | None
             data = response.json()
 
             if data.get("ok") and data.get("messages"):
-                messages = data["messages"]
-                # Skip the first message (the question itself)
-                replies = messages[1:] if len(messages) > 1 else []
-
-                if len(replies) > last_reply_count:
-                    # New reply received
-                    latest_reply = replies[-1]
-                    return latest_reply.get("text", "")
-
-                last_reply_count = len(replies)
+                for msg in data["messages"]:
+                    msg_ts = msg.get("ts", "0")
+                    # Only consider messages posted after the question and not
+                    # from a bot (bot messages carry a bot_id field).
+                    if msg_ts > after_ts and "bot_id" not in msg:
+                        return msg.get("text", "")
 
             time.sleep(5)  # Poll every 5 seconds
 
@@ -90,38 +116,59 @@ def get_thread_replies(thread_ts: str, timeout_seconds: int = 300) -> str | None
 
 
 def handle_ask_human(question: str) -> dict[str, Any]:
-    """Ask a question to humans via Slack and wait for response."""
+    """Ask a question to humans via Slack and wait for response.
+
+    When SLACK_THREAD_TS is set, the question is posted as a reply in the
+    existing task thread so that the entire conversation is grouped together.
+    Otherwise a new top-level message is created and the reply is awaited in
+    its own thread (legacy behaviour).
+    """
     log(f"Asking human: {question}")
 
-    # Post the question
-    result = send_slack_message(f"🤖 *Osmia needs your input:*\n\n{question}")
+    question_text = (
+        f"🤖 *Osmia needs your input:*\n\n{question}\n\n_Reply in this thread to respond._"
+    )
+
+    if SLACK_THREAD_TS:
+        # Post the question as a reply in the main task thread.
+        result = send_slack_message(question_text, thread_ts=SLACK_THREAD_TS)
+    else:
+        # Legacy path: create a new top-level message with its own thread.
+        result = send_slack_message(question_text)
 
     if not result.get("ok"):
         return {"error": f"Failed to post to Slack: {result.get('error', 'unknown')}"}
 
-    thread_ts = result.get("ts")
-    if not thread_ts:
-        return {"error": "No thread timestamp returned"}
+    question_ts = result.get("ts")
+    if not question_ts:
+        return {"error": "No message timestamp returned from Slack"}
 
-    log(f"Posted question, waiting for reply in thread {thread_ts}")
+    # Determine which thread to poll for replies.
+    poll_thread_ts = SLACK_THREAD_TS if SLACK_THREAD_TS else question_ts
 
-    # Wait for reply
-    reply = get_thread_replies(thread_ts, timeout_seconds=300)
+    log(f"Posted question (ts={question_ts}), polling thread {poll_thread_ts} for reply")
+
+    reply = get_thread_replies_after(poll_thread_ts, after_ts=question_ts, timeout_seconds=300)
 
     if reply:
         log(f"Got reply: {reply}")
-        # Acknowledge the response
-        send_slack_message("Ok! Thanks for your response.", thread_ts=thread_ts)
+        send_slack_message("Ok! Thanks for your response.", thread_ts=poll_thread_ts)
         return {"answer": reply}
     else:
         return {"error": "Timeout waiting for human response (5 minutes)"}
 
 
 def handle_notify_human(message: str) -> dict[str, Any]:
-    """Send a notification to humans via Slack (no response expected)."""
+    """Send a notification to humans via Slack (no response expected).
+
+    When SLACK_THREAD_TS is set, the notification is posted as a reply in the
+    existing task thread.
+    """
     log(f"Notifying human: {message}")
 
-    result = send_slack_message(f"📢 *Osmia notification:*\n\n{message}")
+    notification_text = f"📢 *Osmia notification:*\n\n{message}"
+    thread_ts = SLACK_THREAD_TS if SLACK_THREAD_TS else None
+    result = send_slack_message(notification_text, thread_ts=thread_ts)
 
     if result.get("ok"):
         return {"status": "sent"}
@@ -130,11 +177,24 @@ def handle_notify_human(message: str) -> dict[str, Any]:
 
 
 def handle_notify_start(story_id: str, story_title: str) -> dict[str, Any]:
-    """Notify Slack that Osmia is starting work on a story."""
+    """Post a planning update to Slack when Osmia begins analysing a story.
+
+    When SLACK_THREAD_TS is set (injected by the controller), this is posted as
+    a threaded reply under the controller's initial "started working on" message
+    to avoid a duplicate top-level notification. The message is intentionally
+    different from the controller's message — it signals that the agent has
+    actually started reading the codebase and planning its approach.
+    """
     log(f"Starting work on story {story_id}: {story_title}")
 
-    message = f"🚀 *Osmia is starting work on sc-{story_id}*\n\n*{story_title}*"
-    result = send_slack_message(message)
+    message = (
+        f"🔍 Analysing the codebase and planning approach for sc-{story_id}…\n\n*{story_title}*"
+    )
+
+    if SLACK_THREAD_TS:
+        result = send_slack_message(message, thread_ts=SLACK_THREAD_TS)
+    else:
+        result = send_slack_message(message)
 
     if result.get("ok"):
         return {"status": "sent", "story_id": story_id}
@@ -592,6 +652,7 @@ def main() -> None:
     log("Slack/GitLab MCP server starting")
     log(f"SLACK_BOT_TOKEN configured: {bool(SLACK_BOT_TOKEN)}")
     log(f"SLACK_CHANNEL_ID: {SLACK_CHANNEL_ID}")
+    log(f"SLACK_THREAD_TS: {SLACK_THREAD_TS or '(not set — messages will be top-level)'}")
     log(f"GITLAB_TOKEN configured: {bool(GITLAB_TOKEN)}")
 
     for line in sys.stdin:

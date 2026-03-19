@@ -61,15 +61,23 @@ func TestSlackChannel_Notify(t *testing.T) {
 		name       string
 		message    string
 		ticket     ticketing.Ticket
+		threadRef  string
 		apiResp    slackResponse
 		statusCode int
 		wantErr    bool
 	}{
 		{
-			name:    "successful notification",
+			name:    "successful notification without thread",
 			message: "Agent is making progress",
 			ticket:  sampleTicket(),
 			apiResp: slackResponse{OK: true, TS: "1234567890.123456"},
+		},
+		{
+			name:      "successful notification in thread",
+			message:   "Agent is making progress",
+			ticket:    sampleTicket(),
+			threadRef: "1234567890.000001",
+			apiResp:   slackResponse{OK: true, TS: "1234567890.123456"},
 		},
 		{
 			name:    "ticket without external URL",
@@ -103,6 +111,8 @@ func TestSlackChannel_Notify(t *testing.T) {
 				statusCode = http.StatusOK
 			}
 
+			var capturedMsg slackMessage
+
 			server := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 				// Verify request properties.
 				assert.Equal(t, http.MethodPost, r.Method)
@@ -114,10 +124,9 @@ func TestSlackChannel_Notify(t *testing.T) {
 				body, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
 
-				var msg slackMessage
-				require.NoError(t, json.Unmarshal(body, &msg))
-				assert.Equal(t, "C12345", msg.Channel)
-				assert.NotEmpty(t, msg.Blocks)
+				require.NoError(t, json.Unmarshal(body, &capturedMsg))
+				assert.Equal(t, "C12345", capturedMsg.Channel)
+				assert.NotEmpty(t, capturedMsg.Blocks)
 
 				w.WriteHeader(statusCode)
 				resp, _ := json.Marshal(tt.apiResp)
@@ -126,12 +135,13 @@ func TestSlackChannel_Notify(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.Notify(context.Background(), tt.message, tt.ticket)
+			err := ch.Notify(context.Background(), tt.message, tt.ticket, tt.threadRef)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tt.threadRef, capturedMsg.ThreadTS)
 			}
 		})
 	}
@@ -142,10 +152,12 @@ func TestSlackChannel_NotifyStart(t *testing.T) {
 		name    string
 		ticket  ticketing.Ticket
 		wantErr bool
+		wantTS  string
 	}{
 		{
-			name:   "successful start notification",
+			name:   "successful start notification returns thread ref",
 			ticket: sampleTicket(),
+			wantTS: "1234567890.123456",
 		},
 		{
 			name: "ticket without external URL",
@@ -153,6 +165,7 @@ func TestSlackChannel_NotifyStart(t *testing.T) {
 				ID:    "TICKET-99",
 				Title: "Minimal ticket",
 			},
+			wantTS: "1234567890.123456",
 		},
 	}
 
@@ -165,14 +178,14 @@ func TestSlackChannel_NotifyStart(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, json.Unmarshal(body, &capturedMsg))
 
-				resp, _ := json.Marshal(slackResponse{OK: true, TS: "1234567890.123456"})
+				resp, _ := json.Marshal(slackResponse{OK: true, TS: tt.wantTS})
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write(resp)
 			})
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyStart(context.Background(), tt.ticket)
+			threadRef, err := ch.NotifyStart(context.Background(), tt.ticket)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -180,6 +193,9 @@ func TestSlackChannel_NotifyStart(t *testing.T) {
 				require.NoError(t, err)
 				assert.Contains(t, capturedMsg.Text, tt.ticket.Title)
 				assert.Contains(t, capturedMsg.Text, "started working on")
+				// NotifyStart should not post into a thread.
+				assert.Empty(t, capturedMsg.ThreadTS)
+				assert.Equal(t, tt.wantTS, threadRef)
 			}
 		})
 	}
@@ -187,15 +203,17 @@ func TestSlackChannel_NotifyStart(t *testing.T) {
 
 func TestSlackChannel_NotifyComplete(t *testing.T) {
 	tests := []struct {
-		name            string
-		ticket          ticketing.Ticket
-		result          engine.TaskResult
-		wantSuccess     bool
-		wantMRLink      bool
-		wantSummaryText string
+		name               string
+		ticket             ticketing.Ticket
+		result             engine.TaskResult
+		threadRef          string
+		wantSuccess        bool
+		wantMRLink         bool
+		wantSummaryText    string
+		wantReplyBroadcast bool
 	}{
 		{
-			name:   "successful completion with MR",
+			name:   "successful completion with MR, no thread",
 			ticket: sampleTicket(),
 			result: engine.TaskResult{
 				Success:         true,
@@ -205,6 +223,17 @@ func TestSlackChannel_NotifyComplete(t *testing.T) {
 			wantSuccess:     true,
 			wantMRLink:      true,
 			wantSummaryText: "Fixed the login flow",
+		},
+		{
+			name:      "successful completion threaded with broadcast",
+			ticket:    sampleTicket(),
+			threadRef: "1234567890.000001",
+			result: engine.TaskResult{
+				Success: true,
+				Summary: "Applied dependency upgrade",
+			},
+			wantSuccess:        true,
+			wantReplyBroadcast: true,
 		},
 		{
 			name:   "failed completion",
@@ -244,7 +273,7 @@ func TestSlackChannel_NotifyComplete(t *testing.T) {
 			defer server.Close()
 
 			ch := newTestChannel(t, server.URL)
-			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result)
+			err := ch.NotifyComplete(context.Background(), tt.ticket, tt.result, tt.threadRef)
 			require.NoError(t, err)
 
 			if tt.wantSuccess {
@@ -252,6 +281,9 @@ func TestSlackChannel_NotifyComplete(t *testing.T) {
 			} else {
 				assert.Contains(t, capturedMsg.Text, "failed")
 			}
+
+			assert.Equal(t, tt.threadRef, capturedMsg.ThreadTS)
+			assert.Equal(t, tt.wantReplyBroadcast, capturedMsg.ReplyBroadcast)
 
 			// Check blocks contain MR link when expected.
 			blocksJSON, _ := json.Marshal(capturedMsg.Blocks)

@@ -4564,11 +4564,43 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Dev release workflow: a <code>0.0.0-edge</code> Helm chart is now published to the
+<li><strong>Slack thread grouping</strong>: all messages for a task are now threaded under the
+  controller's initial "agent started" notification instead of being separate
+  top-level messages.</li>
+<li><code>notifications.Channel</code> interface bumped to version 2: <code>NotifyStart</code> now
+    returns <code>(string, error)</code> where the string is an opaque thread reference
+    (Slack message timestamp); <code>Notify</code> and <code>NotifyComplete</code> accept an optional
+    <code>threadRef string</code> parameter.</li>
+<li>Slack backend captures the <code>ts</code> from <code>chat.postMessage</code> in <code>NotifyStart</code> and
+    uses it as <code>thread_ts</code> on subsequent messages. <code>NotifyComplete</code> also sets
+    <code>reply_broadcast: true</code> so the completion summary appears in the main channel
+    feed as well as inside the thread.</li>
+<li><code>TaskRun</code> gains a <code>NotificationThreadRef</code> field (persisted to the store) so
+    retried and resumed jobs continue posting in the same thread.</li>
+<li>A <code>ticketNotificationRefs</code> map on the Reconciler provides thread-ref lookup
+    by ticket ID for tournament completion paths that have no single task run.</li>
+<li>Controller injects <code>SLACK_THREAD_TS</code> into every agent pod's environment so
+    the in-pod MCP server can also post threaded replies.</li>
+<li>MCP server (<code>slack_mcp.py</code>): reads <code>SLACK_THREAD_TS</code> from the environment.
+    <code>notify_start</code> now posts a threaded "analysing the codebase" update instead
+    of a duplicate top-level "starting" message. <code>ask_human</code> posts the question
+    as a thread reply with a "Reply in this thread" instruction; polls
+    <code>conversations.replies</code> filtered by <code>after_ts</code> and <code>bot_id</code> absence to
+    avoid picking up the bot's own acknowledgement. <code>notify_human</code> also posts
+    in-thread when the env var is present. All three fall back to top-level
+    messages when <code>SLACK_THREAD_TS</code> is absent.</li>
+<li>
+<p>Telegram and Discord backends return an empty thread reference from
+    <code>NotifyStart</code> and silently ignore the <code>threadRef</code> parameter (no threading
+    model change for those backends).</p>
+</li>
+<li>
+<p>Dev release workflow: a <code>0.0.0-edge</code> Helm chart is now published to the
   GitHub Pages repo on every push to <code>main</code>, alongside the existing edge
   container images. This allows chart template changes (RBAC, deployment
   strategy, env vars) to be deployed without creating a full semver release.
-  The chart's <code>appVersion</code> is set to the full git SHA for traceability.</li>
+  The chart's <code>appVersion</code> is set to the full git SHA for traceability.</p>
+</li>
 <li><code>workflow_dispatch</code> trigger on <code>images.yaml</code> so edge images and the dev chart
   can be built manually from the GitHub Actions UI without a push to <code>main</code>.</li>
 </ul>

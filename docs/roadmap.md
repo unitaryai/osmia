@@ -103,6 +103,33 @@ rejection but does not translate profile constraints into agent pod configuratio
 
 ---
 
+### Orphaned TaskRun Recovery
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** None
+
+When a controller restarts mid-job (e.g. due to a pod eviction or ArgoCD
+rollout), in-memory task run state is lost. If the job's worker pod also
+failed (e.g. unschedulable, OOMKilled), the task run remains in `Running`
+state in the store with a job reference that no longer exists. The controller
+skips the ticket on every subsequent poll ("task run already exists") and
+never recovers — requiring manual intervention to reset the Shortcut story
+state and restart the controller.
+
+Recovery should be automatic:
+
+- [ ] On startup, load all `Running` task runs from the store and reconcile
+  them against live K8s Jobs — transition to `Failed` any task run whose job
+  no longer exists
+- [ ] Add a periodic background reconciliation loop (e.g. every 5 minutes)
+  that detects and recovers task runs whose jobs have disappeared
+- [ ] When a task run transitions to `Failed` due to a missing job, reset the
+  ticketing backend state (move the story back to the trigger state) so it
+  will be retried automatically
+
+---
+
 ### Leader Election (Controller HA)
 
 **Priority:** Low
@@ -472,6 +499,7 @@ live controller and `main.go`:
 | — | Task-Scoped Secret References (per-task) | Medium | 🚧 Not wired |
 | — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
 | — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
+| — | Orphaned TaskRun Recovery | High | 🚧 Not started |
 | — | Leader Election (Controller HA) | Low | 🚧 Not started |
 | — | Built-in AWS Secrets Manager Backend | Medium | 🚧 Core complete; IRSA Helm annotation + localstack tests remaining |
 | — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |

@@ -980,6 +980,38 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
 	r.mu.RUnlock()
 
+	// Open an MR/PR if the agent pushed a branch and the SCM backend is available.
+	if result.BranchName != "" && hasTicket && cachedTicket.RepoURL != "" {
+		if scmBackend, scmErr := r.scmFor(cachedTicket.RepoURL); scmErr == nil {
+			pr, prErr := scmBackend.CreatePullRequest(ctx, scm.CreatePullRequestInput{
+				RepoURL:     cachedTicket.RepoURL,
+				Title:       cachedTicket.Title,
+				Description: result.Summary,
+				BranchName:  result.BranchName,
+			})
+			if prErr != nil {
+				r.logger.WarnContext(ctx, "failed to open merge request",
+					"task_run_id", tr.ID,
+					"branch", result.BranchName,
+					"error", prErr,
+				)
+			} else {
+				r.logger.InfoContext(ctx, "merge request opened",
+					"task_run_id", tr.ID,
+					"url", pr.URL,
+				)
+				result.MergeRequestURL = pr.URL
+				tr.Result = &result
+			}
+		} else {
+			r.logger.WarnContext(ctx, "no SCM backend available to open merge request",
+				"task_run_id", tr.ID,
+				"repo_url", cachedTicket.RepoURL,
+				"error", scmErr,
+			)
+		}
+	}
+
 	if r.ticketing != nil {
 		if err := r.ticketing.MarkComplete(ctx, tr.TicketID, result); err != nil {
 			r.logger.ErrorContext(ctx, "failed to mark ticket complete",

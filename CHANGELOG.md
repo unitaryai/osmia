@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were owned by root. The container (running as UID 10000) could not write to the
   mounted subPath directories. Added `fsGroup: 10000` to the pod security context
   so Kubernetes chowns the volume on mount.
+- Controller was not opening a merge request after a successful agent run.
+  The `CreatePullRequest` SCM call was never made — the success path only
+  registered an MR URL if one was already present in the agent result (which
+  it never is, since agents push a branch but do not open MRs). Added MR
+  creation between result capture and `MarkComplete`: when the agent result
+  contains a `branch_name` and an SCM backend is available, the controller
+  now calls `CreatePullRequest` and stores the URL in `result.MergeRequestURL`
+  before notifying the ticketing backend and the review poller.
 
 ## [0.3.7] - 2026-03-19
 

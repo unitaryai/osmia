@@ -1697,6 +1697,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#dev-releases-edge-deployments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dev Releases (Edge Deployments)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dev Releases (Edge Deployments)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consuming-the-edge-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consuming the edge chart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switching-argocd-between-dev-and-release-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching ArgoCD between dev and release mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dev-vs-full-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dev vs full release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-dev-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual dev build
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#releasing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2000,6 +2061,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#dev-releases-edge-deployments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dev Releases (Edge Deployments)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dev Releases (Edge Deployments)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consuming-the-edge-chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consuming the edge chart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switching-argocd-between-dev-and-release-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switching ArgoCD between dev and release mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dev-vs-full-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dev vs full release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-dev-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual dev build
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#releasing" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2173,6 +2295,81 @@ backends and engine containers.</p>
 <li>Add an entry to <code>CHANGELOG.md</code> under "Unreleased"</li>
 <li>Ensure CI passes before requesting review</li>
 </ul>
+<h2 id="dev-releases-edge-deployments">Dev Releases (Edge Deployments)<a class="headerlink" href="#dev-releases-edge-deployments" title="Permanent link">&para;</a></h2>
+<p>Every push to <code>main</code> automatically publishes:</p>
+<ul>
+<li><strong>Edge container images</strong> tagged <code>main</code> (and <code>sha-&lt;hash&gt;</code>) to <code>ghcr.io</code></li>
+<li><strong>An edge Helm chart</strong> versioned <code>0.0.0-edge</code> to the same GitHub Pages repo</li>
+</ul>
+<p>The <code>0.0.0-edge</code> chart is always overwritten with the latest <code>main</code> commit. Its
+<code>appVersion</code> is set to the full git SHA so you can trace exactly which commit is
+running.</p>
+<h3 id="consuming-the-edge-chart">Consuming the edge chart<a class="headerlink" href="#consuming-the-edge-chart" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>osmia<span class="w"> </span>https://unitaryai.github.io/osmia
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Inspect the dev chart (--devel required for pre-release versions)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>helm<span class="w"> </span>show<span class="w"> </span>chart<span class="w"> </span>osmia/osmia<span class="w"> </span>--version<span class="w"> </span><span class="m">0</span>.0.0-edge<span class="w"> </span>--devel
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Install/upgrade with the edge chart</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>helm<span class="w"> </span>upgrade<span class="w"> </span>--install<span class="w"> </span>osmia<span class="w"> </span>osmia/osmia<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.0.0-edge<span class="w"> </span>--devel<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span>--set<span class="w"> </span>image.tag<span class="o">=</span>main<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span>--set<span class="w"> </span>image.pullPolicy<span class="o">=</span>Always
+</code></pre></div>
+<h3 id="switching-argocd-between-dev-and-release-mode">Switching ArgoCD between dev and release mode<a class="headerlink" href="#switching-argocd-between-dev-and-release-mode" title="Permanent link">&para;</a></h3>
+<p><strong>Dev mode</strong> — track <code>main</code> continuously (no semver release needed):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># kustomization.yaml</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0.0-edge</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># values.yaml</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nt">image</span><span class="p">:</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;main&quot;</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="nt">pullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Always</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/osmia/engine-claude-code:main</span>
+</code></pre></div>
+<p><strong>Release mode</strong> — pin to a specific semver release:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># kustomization.yaml</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">X.Y.Z</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># values.yaml</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nt">image</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">tag</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;X.Y.Z&quot;</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">pullPolicy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">IfNotPresent</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># remove engines.claude-code.image override (uses chart default)</span>
+</code></pre></div>
+<h3 id="dev-vs-full-release">Dev vs full release<a class="headerlink" href="#dev-vs-full-release" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iterating on a fix — chart templates, RBAC, deployment config</td>
+<td>Dev edge</td>
+</tr>
+<tr>
+<td>Sharing a fix with external users or documenting in CHANGELOG</td>
+<td>Full semver release</td>
+</tr>
+<tr>
+<td>Testing a new feature before it's ready to announce</td>
+<td>Dev edge</td>
+</tr>
+<tr>
+<td>Stable, versioned deployment you can roll back to by number</td>
+<td>Full semver release</td>
+</tr>
+</tbody>
+</table>
+<h3 id="manual-dev-build">Manual dev build<a class="headerlink" href="#manual-dev-build" title="Permanent link">&para;</a></h3>
+<p>You can trigger the edge image + chart build without pushing to <code>main</code> via the
+GitHub Actions UI: go to <strong>Actions → Build and push edge images → Run workflow</strong>.</p>
 <h2 id="releasing">Releasing<a class="headerlink" href="#releasing" title="Permanent link">&para;</a></h2>
 <p>Osmia uses git tags to trigger the release pipeline. The <code>release.yaml</code> workflow
 builds container images and publishes the Helm chart to the GitHub Pages

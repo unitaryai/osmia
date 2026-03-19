@@ -252,6 +252,23 @@ func WithSessionStore(s engine.SessionStore) ReconcilerOption {
 	return func(r *Reconciler) { r.sessionStore = s }
 }
 
+// baseEngineConfig returns an EngineConfig pre-populated with the fields that
+// are common across all job creation sites: timeout, image, secret refs, env,
+// and the API key secret name resolved from the engine's auth config.
+func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
+	apiKeySecret := ""
+	if r.config.Engines.ClaudeCode != nil && engineName == "claude-code" {
+		apiKeySecret = r.config.Engines.ClaudeCode.Auth.APIKeySecret
+	}
+	return engine.EngineConfig{
+		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
+		Image:          r.config.Engines.ImageFor(engineName),
+		SecretKeyRefs:  r.agentSecretKeyRefs(),
+		Env:            r.slackEnv(),
+		APIKeySecret:   apiKeySecret,
+	}
+}
+
 // prepareSession calls Prepare on the session store for the given TaskRun ID.
 // It is a no-op when no session store is configured. Must be called before
 // BuildExecutionSpec so that any required storage (e.g. a per-TaskRun PVC)
@@ -619,12 +636,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		MemoryContext: memoryContext,
 	}
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(engineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(engineName)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		return fmt.Errorf("preparing session storage: %w", err)
@@ -1164,12 +1176,7 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		RepoURL:     ticket.RepoURL,
 	}
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(engineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(engineName)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for review follow-up",
@@ -1469,12 +1476,7 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		TaskRunID: tr.ID,
 	}
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(engineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(engineName)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for fallback job",
@@ -1686,12 +1688,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		MemoryContext: memoryContext,
 	}
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(engineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(engineName)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		return fmt.Errorf("preparing session storage: %w", err)
@@ -2034,12 +2031,7 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 	}
 	task.Description = desc
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for continuation job",
@@ -2537,12 +2529,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		task.PriorBranchName = "osmia/" + tr.TicketID
 	}
 
-	engineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(tr.CurrentEngine),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for retry job",
@@ -3051,12 +3038,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			MemoryContext: memoryContext,
 		}
 
-		engineCfg := engine.EngineConfig{
-			TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-			Image:          r.config.Engines.ImageFor(engineName),
-			SecretKeyRefs:  r.agentSecretKeyRefs(),
-			Env:            r.slackEnv(),
-		}
+		engineCfg := r.baseEngineConfig(engineName)
 
 		if err := r.prepareSession(ctx, tr.ID); err != nil {
 			r.logger.ErrorContext(ctx, "failed to prepare session storage for tournament candidate",
@@ -3350,12 +3332,7 @@ func (r *Reconciler) launchJudge(ctx context.Context, tournamentID string) {
 		judgeTask.RepoURL = cachedTicket.RepoURL
 	}
 
-	judgeEngineCfg := engine.EngineConfig{
-		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
-		Image:          r.config.Engines.ImageFor(judgeEngineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
-		Env:            r.slackEnv(),
-	}
+	judgeEngineCfg := r.baseEngineConfig(judgeEngineName)
 
 	spec, err := judgeEng.BuildExecutionSpec(judgeTask, judgeEngineCfg)
 	if err != nil {

@@ -97,6 +97,9 @@ type EngineConfig struct {
 	// inject into the agent container. Entries are merged into the
 	// ExecutionSpec.SecretKeyRefs alongside any engine-level defaults.
 	SecretKeyRefs map[string]SecretKeyRef `json:"secret_key_refs,omitempty"`
+	// APIKeySecret is the name of the Kubernetes Secret containing the engine's
+	// API key (e.g. ANTHROPIC_API_KEY). Overrides any engine-level default.
+	APIKeySecret string `json:"api_key_secret,omitempty"`
 }
 
 // SecretKeyRef identifies a specific key within a Kubernetes Secret.

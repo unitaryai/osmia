@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-03-19
+
+### Fixed
+
+- Agent pods were stuck in `ContainerCreating` indefinitely because the
+  Claude Code engine hardcoded the API key secret name as `osmia-anthropic-key`,
+  while the actual Kubernetes Secret is named `osmia-anthropic`. Added an
+  `APIKeySecret` field to `EngineConfig` so the secret name is configurable.
+  Wired the value from `engines.claude-code.auth.api_key_secret` in the Helm
+  values via a new `baseEngineConfig` helper in the controller, which is used
+  at all job creation sites (initial, retry, continuation, fallback, follow-up,
+  tournament). The engine falls back to `osmia-anthropic-key` if no override
+  is configured.
+
 ## [0.3.6] - 2026-03-19
 
 ### Fixed

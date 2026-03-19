@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the pod never starts. Fixed `buildVolumes` to deduplicate PVC-backed volumes:
   when a second mount references an already-declared PVC, the existing volume name
   is reused in the `VolumeMount` rather than creating a duplicate `Volume` spec.
+- Agent pods failing with `Permission denied` writing to PVC-backed session volumes.
+  The pod security context was missing `fsGroup`, so freshly formatted EBS volumes
+  were owned by root. The container (running as UID 10000) could not write to the
+  mounted subPath directories. Added `fsGroup: 10000` to the pod security context
+  so Kubernetes chowns the volume on mount.
 
 ## [0.3.7] - 2026-03-19
 

@@ -71,6 +71,12 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
+	// fsGroup must match runAsUser so that Kubernetes chowns PVC-backed volumes
+	// (including subPath directories) to be group-writable by the container user.
+	// Without this, freshly formatted EBS volumes are owned by root and the
+	// non-root container cannot write to them.
+	fsGroup := runAsUser
+
 	jobName := fmt.Sprintf("osmia-%s", taskRunID)
 	if len(jobName) > 63 {
 		jobName = jobName[:63]
@@ -102,6 +108,9 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: &fsGroup,
+					},
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      taintKey,

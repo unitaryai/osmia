@@ -426,6 +426,20 @@ func TestBuild_PVCVolumeOverridesConfigMap(t *testing.T) {
 	assert.Equal(t, "my-pvc", vol.VolumeSource.PersistentVolumeClaim.ClaimName)
 }
 
+func TestBuild_PodSecurityContextFSGroup(t *testing.T) {
+	// The pod security context must set fsGroup so that Kubernetes chowns PVC-backed
+	// volume directories to be writable by the non-root container user. Without fsGroup,
+	// freshly formatted EBS volumes are owned by root and writes fail with EACCES.
+	builder := NewJobBuilder("default")
+	job, err := builder.Build("tr-sc", "claude-code", validSpec())
+	require.NoError(t, err)
+
+	sc := job.Spec.Template.Spec.SecurityContext
+	require.NotNil(t, sc, "pod security context must be set")
+	require.NotNil(t, sc.FSGroup, "fsGroup must be set")
+	assert.Equal(t, int64(defaultRunAsUser), *sc.FSGroup)
+}
+
 func TestBuild_MixedVolumes(t *testing.T) {
 	spec := &engine.ExecutionSpec{
 		Image:   "ghcr.io/osmia/agent:latest",

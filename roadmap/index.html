@@ -1788,6 +1788,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#orphaned-taskrun-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orphaned TaskRun Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#leader-election-controller-ha" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2213,6 +2224,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#orphaned-taskrun-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orphaned TaskRun Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#leader-election-controller-ha" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2577,6 +2599,29 @@ rejection but does not translate profile constraints into agent pod configuratio
 <ul>
 <li>[ ] Translate <code>blocked_file_patterns</code> into hook environment variables or engine config</li>
 <li>[ ] Apply per-profile cost and duration overrides at job creation time</li>
+</ul>
+<hr />
+<h3 id="orphaned-taskrun-recovery">Orphaned TaskRun Recovery<a class="headerlink" href="#orphaned-taskrun-recovery" title="Permanent link">&para;</a></h3>
+<p><strong>Priority:</strong> High
+<strong>Scope:</strong> Medium
+<strong>Dependencies:</strong> None</p>
+<p>When a controller restarts mid-job (e.g. due to a pod eviction or ArgoCD
+rollout), in-memory task run state is lost. If the job's worker pod also
+failed (e.g. unschedulable, OOMKilled), the task run remains in <code>Running</code>
+state in the store with a job reference that no longer exists. The controller
+skips the ticket on every subsequent poll ("task run already exists") and
+never recovers — requiring manual intervention to reset the Shortcut story
+state and restart the controller.</p>
+<p>Recovery should be automatic:</p>
+<ul>
+<li>[ ] On startup, load all <code>Running</code> task runs from the store and reconcile
+  them against live K8s Jobs — transition to <code>Failed</code> any task run whose job
+  no longer exists</li>
+<li>[ ] Add a periodic background reconciliation loop (e.g. every 5 minutes)
+  that detects and recovers task runs whose jobs have disappeared</li>
+<li>[ ] When a task run transitions to <code>Failed</code> due to a missing job, reset the
+  ticketing backend state (move the story back to the trigger state) so it
+  will be retried automatically</li>
 </ul>
 <hr />
 <h3 id="leader-election-controller-ha">Leader Election (Controller HA)<a class="headerlink" href="#leader-election-controller-ha" title="Permanent link">&para;</a></h3>
@@ -3154,6 +3199,12 @@ live controller and <code>main.go</code>:</p>
 <td>Task-Profile File Pattern Enforcement</td>
 <td>Medium</td>
 <td>🚧 Not wired</td>
+</tr>
+<tr>
+<td>—</td>
+<td>Orphaned TaskRun Recovery</td>
+<td>High</td>
+<td>🚧 Not started</td>
 </tr>
 <tr>
 <td>—</td>

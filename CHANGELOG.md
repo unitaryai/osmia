@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `NotifyStart` and silently ignore the `threadRef` parameter (no threading
     model change for those backends).
 
+- **AWS deployment examples**: new `examples/aws/` directory with EKS-specific
+  Helm values (`values-eks.yaml`), ExternalSecret manifests for ESO users
+  (`external-secret.yaml`), IRSA setup script (`setup-irsa.sh`), and README.
+- Karpenter NodePool example updated to recommend On-Demand instances for agent
+  workloads (Spot reclamation loses all token spend and progress).
+
 - Dev release workflow: a `0.0.0-edge` Helm chart is now published to the
   GitHub Pages repo on every push to `main`, alongside the existing edge
   container images. This allows chart template changes (RBAC, deployment

@@ -1,6 +1,7 @@
 # Karpenter NodePool for Osmia agent workloads.
-# This provisions dedicated compute nodes for AI coding agent jobs,
-# using spot instances for cost efficiency and taints for isolation.
+# This provisions dedicated compute nodes for AI coding agent jobs
+# with taints for isolation. On-Demand instances are recommended because
+# Spot reclamation loses all token spend and progress on long-running agents.
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
@@ -17,7 +18,7 @@ spec:
           values: ["amd64"]
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["spot", "on-demand"]
+          values: ["on-demand"]
         - key: node.kubernetes.io/instance-type
           operator: In
           values:

@@ -1,0 +1,166 @@
+# EKS-specific Helm values overlay for Osmia.
+#
+# Usage:
+#   helm install osmia osmia/osmia \
+#     --namespace osmia-system --create-namespace \
+#     -f values-eks.yaml
+#
+# Prerequisites:
+#   1. An EKS cluster with Karpenter installed (see nodepool.yaml)
+#   2. IRSA configured for the Osmia controller ServiceAccount
+#   3. Kubernetes Secrets created for API keys and tokens
+#      (see ../../hack/setup-secrets.sh or create manually)
+
+# -- IRSA annotation ---------------------------------------------------------
+# Replace with the ARN of the IAM role created for the Osmia controller.
+# The role needs:
+#   - secretsmanager:GetSecretValue (if using AWS Secrets Manager backend)
+#   - sts:AssumeRole (if using cross-account secrets)
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/osmia-controller"
+
+# -- Controller configuration ------------------------------------------------
+config:
+  ticketing:
+    backend: github
+    config:
+      owner: "your-org"
+      repo: "your-repo"
+      labels:
+        - "osmia"
+      token_secret: "osmia-github-token"
+
+  notifications:
+    channels:
+      - backend: slack
+        config:
+          channel_id: "C0123456789"
+          token_secret: "osmia-slack-token"
+
+  engines:
+    default: claude-code
+    claude-code:
+      image: "ghcr.io/unitaryai/osmia/engine-claude-code:latest"
+      auth:
+        api_key_secret: "osmia-anthropic"
+      max_turns: 50
+      # Uncomment to enable session resumption on turn exhaustion:
+      # continuation_prompt: true
+      # max_continuations: 3
+      resource_requests:
+        cpu: "2"
+        memory: "4Gi"
+      resource_limits:
+        cpu: "4"
+        memory: "8Gi"
+
+  # -- Secrets ----------------------------------------------------------------
+  # Option A: Native AWS Secrets Manager (recommended for EKS).
+  # Requires the IRSA role above to have secretsmanager:GetSecretValue.
+  secret_resolver:
+    backends:
+      - scheme: "k8s"
+        backend: "k8s"
+      - scheme: "aws-sm"
+        backend: "aws-secrets-manager"
+        config:
+          region: "eu-west-1"
+          # Uncomment for cross-account access:
+          # assume_role_arn: "arn:aws:iam::987654321098:role/osmia-secrets-reader"
+          cache_ttl: "5m"
+    policy:
+      allowed_schemes:
+        - "k8s"
+        - "aws-sm"
+
+  # Option B: External Secrets Operator (zero-code alternative).
+  # If your team already runs ESO, use the k8s backend alone — ESO syncs
+  # AWS Secrets Manager into K8s Secrets automatically. See
+  # examples/aws/external-secret.yaml for the ExternalSecret manifest.
+  #
+  # secret_resolver:
+  #   backends:
+  #     - scheme: "k8s"
+  #       backend: "k8s"
+
+  scm:
+    backend: github
+    config:
+      token_secret: "osmia-github-token"
+
+  guardrails:
+    max_cost_per_job: 25.0
+    max_concurrent_jobs: 5
+    max_job_duration_minutes: 120
+
+  progress_watchdog:
+    enabled: true
+    check_interval_seconds: 60
+    loop_detection_threshold: 10
+
+# -- Session persistence ------------------------------------------------------
+# per-taskrun-pvc with gp3 EBS is the natural fit for isolated agent sessions
+# on EKS. Each task run gets its own dynamically provisioned PVC.
+# For simplicity, use shared-pvc with an EFS-backed ReadWriteMany PVC instead.
+sessionPersistence:
+  enabled: false
+  backend: per-taskrun-pvc
+  perTaskRunPVC:
+    storageClass: "gp3"    # Use your EBS gp3 StorageClass name
+    size: 2Gi
+  # Alternative: shared-pvc with EFS
+  # backend: shared-pvc
+  # sharedPVC:
+  #   name: osmia-agent-sessions
+  #   size: 50Gi
+  #   storageClass: "efs-sc"    # EFS StorageClass (ReadWriteMany)
+  #   accessMode: ReadWriteMany
+
+# -- Webhook ingress via AWS ALB ----------------------------------------------
+webhook:
+  enabled: true
+  port: 8081
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-west-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    hosts:
+      - host: osmia-webhooks.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - hosts:
+          - osmia-webhooks.example.com
+
+# -- Persistence for controller state (memory, routing, watchdog) -------------
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: "gp3"
+  accessMode: ReadWriteOnce
+
+# -- NetworkPolicy (recommended) ----------------------------------------------
+networkPolicy:
+  enabled: true
+
+# -- Metrics ------------------------------------------------------------------
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false    # Set true if running Prometheus Operator
+
+# -- Node scheduling ----------------------------------------------------------
+# Schedule the controller onto system nodes; agent pods are scheduled by
+# Karpenter via the NodePool (see nodepool.yaml).
+nodeSelector:
+  kubernetes.io/arch: amd64
+tolerations: []
+affinity: {}

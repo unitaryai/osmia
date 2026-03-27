@@ -52,6 +52,8 @@ The `values-eks.yaml` file configures the built-in `aws-sm://` backend. Secrets 
 
 If your team already runs [ESO](https://external-secrets.io/), apply the manifests in `external-secret.yaml` to sync secrets into K8s. Then use only the `k8s` backend in the Osmia config. See the commented-out section in `values-eks.yaml`.
 
+Note: `setup-irsa.sh` only creates the IRSA role for the Osmia controller ServiceAccount (`osmia` in `osmia-system`). If you choose Option B, you must also configure IRSA for the `external-secrets-sa` ServiceAccount in the `external-secrets` namespace — this is the ServiceAccount referenced in the `ClusterSecretStore` in `external-secret.yaml`. Create an IAM role with the same `secretsmanager:GetSecretValue` policy and associate it using `eksctl create iamserviceaccount` or your preferred IRSA tooling. See the [ESO AWS authentication docs](https://external-secrets.io/latest/provider/aws-secrets-manager/) for full setup instructions.
+
 Both options use IRSA for authentication — no static AWS credentials are involved.
 
 ## Session Persistence on EKS

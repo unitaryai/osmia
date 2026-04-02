@@ -57,13 +57,15 @@ func New(token, channelID string, cfg Config) *Poller {
 		timeout:      timeout,
 		pollInterval: interval,
 	}
-	p.botUserID = p.resolveBotUserID()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	p.botUserID = p.resolveBotUserID(ctx)
 	return p
 }
 
 // resolveBotUserID calls auth.test to discover this bot's Slack user ID.
-func (p *Poller) resolveBotUserID() string {
-	req, err := http.NewRequest(http.MethodPost, p.apiURL+"/auth.test", nil)
+func (p *Poller) resolveBotUserID(ctx context.Context) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.apiURL+"/auth.test", nil)
 	if err != nil {
 		return ""
 	}

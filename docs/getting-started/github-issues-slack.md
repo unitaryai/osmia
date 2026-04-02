@@ -109,7 +109,7 @@ guardrails:
 
 ```bash
 # Add the Osmia chart repository
-helm repo add osmia https://unitaryai.github.io/Osmia
+helm repo add osmia https://unitaryai.github.io/osmia
 helm repo update
 
 # Create the namespace

@@ -8,7 +8,7 @@ Osmia orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider
 
 ![Osmia Architecture](docs/images/osmia_architecture.png)
 
-**[Documentation →](https://unitaryai.github.io/Osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
+**[Documentation →](https://unitaryai.github.io/osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
 
 > **Why Osmia?** *Osmia* is the genus of mason bees — solitary, non-colonial insects that are among the most efficient pollinators on the planet. Each one works independently, without a hive or queen, yet collectively they get an extraordinary amount done. That's the model here: autonomous agents working in parallel, each on its own task, guided by a lightweight intelligence layer rather than a centralised controller.
 
@@ -56,7 +56,7 @@ kubectl create secret generic osmia-github-token \
 kubectl create secret generic osmia-anthropic-key \
   -n osmia --from-literal=api_key=sk-ant-YOUR_KEY
 
-helm repo add osmia https://unitaryai.github.io/Osmia/charts
+helm repo add osmia https://unitaryai.github.io/osmia/charts
 helm install osmia osmia/osmia -n osmia -f osmia-config.yaml
 ```
 
@@ -87,7 +87,7 @@ guardrails:
 
 Label a GitHub issue `osmia` and the controller picks it up, launches a Claude Code agent, and opens a pull request with the changes.
 
-For step-by-step setup guides, the full configuration reference, and instructions for enabling the intelligence layer features, see the **[documentation](https://unitaryai.github.io/Osmia/)**.
+For step-by-step setup guides, the full configuration reference, and instructions for enabling the intelligence layer features, see the **[documentation](https://unitaryai.github.io/osmia/)**.
 
 ---
 
@@ -105,7 +105,7 @@ All external integrations are pluggable. Built-in plugins are compiled into the 
 | Review | CodeRabbit | Custom |
 | Engine | Claude Code, Codex, Aider, OpenCode | Custom |
 
-SDK helper libraries for Python, Go, and TypeScript are in `sdk/`. Generated proto stubs are not checked in — run `make sdk-gen` to generate them from the proto definitions. See the [plugin docs](https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/) for details.
+SDK helper libraries for Python, Go, and TypeScript are in `sdk/`. Generated proto stubs are not checked in — run `make sdk-gen` to generate them from the proto definitions. See the [plugin docs](https://unitaryai.github.io/osmia/plugins/writing-a-plugin/) for details.
 
 ---
 

@@ -140,7 +140,7 @@ guardrails:
 ## Step 7 — Deploy with Helm
 
 ```bash
-helm repo add osmia https://unitaryai.github.io/Osmia
+helm repo add osmia https://unitaryai.github.io/osmia
 helm repo update
 
 kubectl create namespace osmia

@@ -80,6 +80,10 @@ type ResultEvent struct {
 	// Claude Code stream-json fields — normalised into Success/Summary by ParseEvent.
 	IsError   bool   `json:"is_error"`
 	RawResult string `json:"result"`
+
+	// StructuredOutput holds the schema-conforming result when --json-schema
+	// is used. Claude Code puts structured data here instead of in result.
+	StructuredOutput *ResultEvent `json:"structured_output,omitempty"`
 }
 
 // SystemEvent carries system-level metadata emitted at session initialisation.
@@ -158,6 +162,32 @@ func ParseEvent(line []byte) (*StreamEvent, error) {
 			if re.Summary == "" {
 				re.Summary = re.RawResult
 			}
+		}
+		// When --json-schema is used, Claude Code puts the schema-conforming
+		// result in structured_output instead of result. Merge those fields
+		// into the top-level ResultEvent so callers see a consistent view.
+		if re.StructuredOutput != nil {
+			so := re.StructuredOutput
+			re.Success = so.Success
+			if so.Summary != "" {
+				re.Summary = so.Summary
+			}
+			if so.MergeRequestURL != "" {
+				re.MergeRequestURL = so.MergeRequestURL
+			}
+			if so.BranchName != "" {
+				re.BranchName = so.BranchName
+			}
+			if so.TestsPassed > 0 {
+				re.TestsPassed = so.TestsPassed
+			}
+			if so.TestsFailed > 0 {
+				re.TestsFailed = so.TestsFailed
+			}
+			if so.TestsAdded > 0 {
+				re.TestsAdded = so.TestsAdded
+			}
+			re.StructuredOutput = nil // avoid circular reference
 		}
 		ev.Parsed = &re
 

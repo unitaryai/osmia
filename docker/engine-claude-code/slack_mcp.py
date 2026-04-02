@@ -23,6 +23,10 @@ SLACK_CHANNEL_ID = os.environ.get("SLACK_CHANNEL_ID", "")
 # thread rather than separate top-level messages.
 SLACK_THREAD_TS = os.environ.get("SLACK_THREAD_TS", "")
 
+# Resolved at startup via auth.test — the Slack user ID of this bot so we can
+# require an @-mention before treating a thread reply as directed at us.
+SLACK_BOT_USER_ID: str = ""
+
 # GitLab configuration from environment
 GITLAB_TOKEN = os.environ.get("GITLAB_TOKEN", "")
 GITLAB_API_BASE = "https://gitlab.com/api/v4"
@@ -34,6 +38,32 @@ CODERABBIT_BOT_NAME = "coderabbitai"
 def log(msg: str) -> None:
     """Log to stderr (stdout is reserved for MCP protocol)."""
     print(f"[slack-mcp] {msg}", file=sys.stderr)
+
+
+def resolve_bot_user_id() -> str:
+    """Call auth.test to discover this bot's Slack user ID.
+
+    Returns the user ID string (e.g. "U0123ABC") or empty string on failure.
+    """
+    if not SLACK_BOT_TOKEN:
+        return ""
+
+    try:
+        with httpx.Client() as client:
+            response = client.post(
+                "https://slack.com/api/auth.test",
+                headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        log(f"auth.test failed: {exc}")
+        return ""
+
+    if data.get("ok"):
+        return data.get("user_id", "")
+    log(f"auth.test failed: {data.get('error', 'unknown')}")
+    return ""
 
 
 def send_slack_message(
@@ -80,7 +110,9 @@ def get_thread_replies_after(
     """Poll for human replies in a Slack thread posted after a given timestamp.
 
     Filters out bot messages (identified by the presence of a ``bot_id`` field)
-    so that the bot's own acknowledgement messages are not mistaken for answers.
+    and — when the bot's user ID is known — requires the reply to contain an
+    ``@``-mention of the bot (``<@BOT_USER_ID>``).  This prevents the agent
+    from reacting to unrelated chatter in the thread.
 
     Args:
         thread_ts: The timestamp of the root thread message.
@@ -90,6 +122,8 @@ def get_thread_replies_after(
     """
     if not SLACK_BOT_TOKEN:
         return None
+
+    mention_tag = f"<@{SLACK_BOT_USER_ID}>" if SLACK_BOT_USER_ID else ""
 
     start_time = time.time()
 
@@ -105,10 +139,14 @@ def get_thread_replies_after(
             if data.get("ok") and data.get("messages"):
                 for msg in data["messages"]:
                     msg_ts = msg.get("ts", "0")
-                    # Only consider messages posted after the question and not
-                    # from a bot (bot messages carry a bot_id field).
-                    if msg_ts > after_ts and "bot_id" not in msg:
-                        return msg.get("text", "")
+                    if msg_ts <= after_ts or "bot_id" in msg:
+                        continue
+                    text = msg.get("text", "")
+                    # When we know the bot's user ID, only accept replies
+                    # that explicitly @-mention us.
+                    if mention_tag and mention_tag not in text:
+                        continue
+                    return text
 
             time.sleep(5)  # Poll every 5 seconds
 
@@ -125,9 +163,12 @@ def handle_ask_human(question: str) -> dict[str, Any]:
     """
     log(f"Asking human: {question}")
 
-    question_text = (
-        f"🤖 *Osmia needs your input:*\n\n{question}\n\n_Reply in this thread to respond._"
-    )
+    if SLACK_BOT_USER_ID:
+        reply_hint = f"_Tag <@{SLACK_BOT_USER_ID}> in your reply so I can see it._"
+    else:
+        reply_hint = "_Reply in this thread to respond._"
+
+    question_text = f"🤖 *Osmia needs your input:*\n\n{question}\n\n{reply_hint}"
 
     if SLACK_THREAD_TS:
         # Post the question as a reply in the main task thread.
@@ -649,11 +690,19 @@ def handle_request(request: dict[str, Any]) -> dict[str, Any]:
 
 def main() -> None:
     """Main loop - read JSON-RPC requests from stdin, write responses to stdout."""
+    global SLACK_BOT_USER_ID  # noqa: PLW0603
+
     log("Slack/GitLab MCP server starting")
     log(f"SLACK_BOT_TOKEN configured: {bool(SLACK_BOT_TOKEN)}")
     log(f"SLACK_CHANNEL_ID: {SLACK_CHANNEL_ID}")
     log(f"SLACK_THREAD_TS: {SLACK_THREAD_TS or '(not set — messages will be top-level)'}")
     log(f"GITLAB_TOKEN configured: {bool(GITLAB_TOKEN)}")
+
+    SLACK_BOT_USER_ID = resolve_bot_user_id()
+    if SLACK_BOT_USER_ID:
+        log(f"Resolved bot user ID: {SLACK_BOT_USER_ID}")
+    else:
+        log("Could not resolve bot user ID — reply filtering will accept any non-bot message")
 
     for line in sys.stdin:
         line = line.strip()

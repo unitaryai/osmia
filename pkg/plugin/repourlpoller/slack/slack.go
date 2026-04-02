@@ -34,19 +34,22 @@ type Poller struct {
 	httpClient   *http.Client
 	timeout      time.Duration
 	pollInterval time.Duration
+	botUserID    string // resolved at creation via auth.test
 }
 
 // New creates a Poller with the given Slack bot token and channel ID.
+// It resolves the bot's own Slack user ID via auth.test so replies can
+// be filtered to only those that @-mention the bot.
 func New(token, channelID string, cfg Config) *Poller {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
-		timeout = 5 * time.Minute
+		timeout = 15 * time.Minute
 	}
 	interval := cfg.PollInterval
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
-	return &Poller{
+	p := &Poller{
 		token:        token,
 		channelID:    channelID,
 		apiURL:       "https://slack.com/api",
@@ -54,14 +57,45 @@ func New(token, channelID string, cfg Config) *Poller {
 		timeout:      timeout,
 		pollInterval: interval,
 	}
+	p.botUserID = p.resolveBotUserID()
+	return p
+}
+
+// resolveBotUserID calls auth.test to discover this bot's Slack user ID.
+func (p *Poller) resolveBotUserID() string {
+	req, err := http.NewRequest(http.MethodPost, p.apiURL+"/auth.test", nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Authorization", "Bearer "+p.token)
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		OK     bool   `json:"ok"`
+		UserID string `json:"user_id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || !result.OK {
+		return ""
+	}
+	return result.UserID
 }
 
 // AskForRepoURL posts a question to Slack and polls for a threaded reply
-// containing a repository URL. Returns the URL or an error on timeout.
+// containing a repository URL. The reply must @-mention the bot.
+// Returns the URL or an error on timeout.
 func (p *Poller) AskForRepoURL(ctx context.Context, ticketID, ticketTitle, threadTS string) (string, error) {
+	mentionHint := "Reply in this thread"
+	if p.botUserID != "" {
+		mentionHint = fmt.Sprintf("Tag <@%s> in your reply", p.botUserID)
+	}
 	question := fmt.Sprintf(
-		"🔗 *No repository URL found for sc-%s (%s).*\n\nReply in this thread with the git repository URL (e.g. `https://github.com/org/repo`).",
-		ticketID, ticketTitle,
+		"🔗 *No repository URL found for sc-%s (%s).*\n\n%s with the git repository URL (e.g. `https://github.com/org/repo`).",
+		ticketID, ticketTitle, mentionHint,
 	)
 
 	questionTS, err := p.postMessage(ctx, question, threadTS)
@@ -174,8 +208,17 @@ func (p *Poller) checkReplies(ctx context.Context, threadTS, afterTS string) (st
 		return "", fmt.Errorf("slack API returned ok=false")
 	}
 
+	mentionTag := ""
+	if p.botUserID != "" {
+		mentionTag = fmt.Sprintf("<@%s>", p.botUserID)
+	}
+
 	for _, msg := range result.Messages {
 		if msg.TS <= afterTS || msg.BotID != "" {
+			continue
+		}
+		// Require bot @-mention to avoid picking up unrelated chatter.
+		if mentionTag != "" && !strings.Contains(msg.Text, mentionTag) {
 			continue
 		}
 		if url := extractRepoURL(msg.Text); url != "" {

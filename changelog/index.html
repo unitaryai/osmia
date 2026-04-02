@@ -1727,6 +1727,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1742,7 +1759,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -1988,7 +2005,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
+  <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -2083,7 +2100,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_2" class="md-nav__link">
+  <a href="#added_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -2310,7 +2327,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added_3" class="md-nav__link">
+  <a href="#added_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -2427,7 +2444,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_4" class="md-nav__link">
+  <a href="#added_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -2631,7 +2648,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_5" class="md-nav__link">
+  <a href="#added_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -3177,6 +3194,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="[Unreleased]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3192,7 +3226,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -3438,7 +3472,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
+  <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -3533,7 +3567,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_2" class="md-nav__link">
+  <a href="#added_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -3760,7 +3794,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added_3" class="md-nav__link">
+  <a href="#added_4" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -3877,7 +3911,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_4" class="md-nav__link">
+  <a href="#added_5" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -4081,7 +4115,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_5" class="md-nav__link">
+  <a href="#added_6" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -4606,8 +4640,17 @@
 <p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
-<h2 id="038-2026-04-02">[0.3.8] - 2026-04-02<a class="headerlink" href="#038-2026-04-02" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Automatic repo URL resolution</strong>: when a ticket has no explicit repository URL
+  (e.g. no external link on a Shortcut story), the controller now extracts a
+  GitHub or GitLab URL from the ticket description. If none is found and Slack is
+  configured, it posts a question asking for the URL and polls for a threaded
+  reply. Tasks without a resolvable repo URL are rejected rather than burning
+  tokens on work that cannot be pushed.</li>
+</ul>
+<h2 id="038-2026-04-02">[0.3.8] - 2026-04-02<a class="headerlink" href="#038-2026-04-02" title="Permanent link">&para;</a></h2>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Slack thread grouping</strong>: all messages for a task are now threaded under the
   controller's initial "agent started" notification instead of being separate
@@ -4770,7 +4813,7 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   NetworkPolicy deployed but matched zero pods. (#12)</li>
 </ul>
 <h2 id="030-2026-03-13">[0.3.0] - 2026-03-13<a class="headerlink" href="#030-2026-03-13" title="Permanent link">&para;</a></h2>
-<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
 <h4 id="user-prompted-continuation-on-turn-exhaustion">User-Prompted Continuation on Turn Exhaustion<a class="headerlink" href="#user-prompted-continuation-on-turn-exhaustion" title="Permanent link">&para;</a></h4>
 <p>When a Claude Code agent exhausts <code>--max-turns</code>, the controller can now pause
 and ask the operator (via Slack) whether to continue or stop, rather than
@@ -4858,7 +4901,7 @@ opted in via <code>session_persistence.enabled: true</code>.</p>
 <li>Config file: <code>robodev-config.yaml</code> → <code>osmia-config.yaml</code></li>
 <li>Hint file: <code>.robodev-hint.md</code> → <code>.osmia-hint.md</code></li>
 </ul>
-<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<h3 id="added_3">Added<a class="headerlink" href="#added_3" title="Permanent link">&para;</a></h3>
 <h4 id="aws-secrets-manager-backend">AWS Secrets Manager Backend<a class="headerlink" href="#aws-secrets-manager-backend" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong>Built-in AWS Secrets Manager secrets backend.</strong> New <code>aws-secrets-manager</code> backend (<code>pkg/plugin/secrets/awssm/</code>) reads secrets from AWS Secrets Manager via the AWS SDK v2 default credential chain. Supports IRSA on EKS, cross-account access via STS AssumeRole, configurable cache TTL (default 5 minutes), and the <code>secret-name#json-field</code> key format. URI scheme: <code>aws-sm://</code>. Configured via <code>secret_resolver.backends</code> in <code>robodev-config.yaml</code>.</li>
@@ -4975,7 +5018,7 @@ opted in via <code>session_persistence.enabled: true</code>.</p>
 </ul>
 <hr />
 <h2 id="020-2026-03-05">[0.2.0] — 2026-03-05<a class="headerlink" href="#020-2026-03-05" title="Permanent link">&para;</a></h2>
-<h3 id="added_3">Added<a class="headerlink" href="#added_3" title="Permanent link">&para;</a></h3>
+<h3 id="added_4">Added<a class="headerlink" href="#added_4" title="Permanent link">&para;</a></h3>
 <h4 id="helm-chart-persistence">Helm Chart Persistence<a class="headerlink" href="#helm-chart-persistence" title="Permanent link">&para;</a></h4>
 <ul>
 <li>New <code>persistence</code> values block — when <code>persistence.enabled: true</code>, a PVC is
@@ -5025,7 +5068,7 @@ opted in via <code>session_persistence.enabled: true</code>.</p>
 <li>Fixed broken anchor link in <code>index.md</code> pointing to the Competitive Execution section.</li>
 </ul>
 <hr />
-<h3 id="added_4">Added<a class="headerlink" href="#added_4" title="Permanent link">&para;</a></h3>
+<h3 id="added_5">Added<a class="headerlink" href="#added_5" title="Permanent link">&para;</a></h3>
 <h4 id="prmr-comment-response-item-20">PR/MR Comment Response (Item 20)<a class="headerlink" href="#prmr-comment-response-item-20" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong><code>pkg/plugin/scm</code></strong> — <code>ReviewComment</code> type; <code>ListReviewComments</code>,
@@ -5336,7 +5379,7 @@ opted in via <code>session_persistence.enabled: true</code>.</p>
 <li>Update Docker Compose quickstart and Documentation Site status in <code>docs/roadmap.md</code> to reflect shipped work</li>
 <li>Sync all 13 items in <code>docs/improvements-plan.md</code> with actual implementation status (12 items were marked "Planned" despite being implemented)</li>
 </ul>
-<h3 id="added_5">Added<a class="headerlink" href="#added_5" title="Permanent link">&para;</a></h3>
+<h3 id="added_6">Added<a class="headerlink" href="#added_6" title="Permanent link">&para;</a></h3>
 <h4 id="dspy-inspired-llm-abstraction-internalllm">DSPy-Inspired LLM Abstraction (<code>internal/llm/</code>)<a class="headerlink" href="#dspy-inspired-llm-abstraction-internalllm" title="Permanent link">&para;</a></h4>
 <ul>
 <li>New <code>internal/llm/</code> package providing a typed, composable LLM abstraction inspired by DSPy</li>

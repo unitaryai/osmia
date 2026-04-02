@@ -57,6 +57,9 @@ import (
 	slacknotify "github.com/unitaryai/osmia/pkg/plugin/notifications/slack"
 	telegramnotify "github.com/unitaryai/osmia/pkg/plugin/notifications/telegram"
 
+	// Repo URL polling.
+	slackrepopoller "github.com/unitaryai/osmia/pkg/plugin/repourlpoller/slack"
+
 	// Approval backend.
 	approvalPkg "github.com/unitaryai/osmia/pkg/plugin/approval"
 	slackapproval "github.com/unitaryai/osmia/pkg/plugin/approval/slack"
@@ -352,7 +355,7 @@ func main() {
 	for _, chCfg := range cfg.Notifications.Channels {
 		switch chCfg.Backend {
 		case "slack":
-			slackCh, slackErr := initSlackChannel(chCfg, k8sClient, *namespace, logger)
+			slackCh, repoPoller, slackErr := initSlackChannel(chCfg, k8sClient, *namespace, logger)
 			if slackErr != nil {
 				logger.Warn("failed to initialise slack notifications, continuing without",
 					"error", slackErr,
@@ -360,6 +363,7 @@ func main() {
 				continue
 			}
 			opts = append(opts, controller.WithNotifier(slackCh))
+			opts = append(opts, controller.WithRepoURLPoller(repoPoller))
 			logger.Info("slack notification channel initialised")
 		case "discord":
 			discordCh, discordErr := initDiscordChannel(chCfg, logger)
@@ -1429,24 +1433,27 @@ func initSecretsResolver(cfg *config.Config, k8sClient kubernetes.Interface, nam
 	return secretresolver.NewResolver(opts...), nil
 }
 
-// initSlackChannel creates and returns a Slack notification channel from
-// a channel configuration block.
-func initSlackChannel(chCfg config.ChannelConfig, k8sClient kubernetes.Interface, namespace string, logger *slog.Logger) (*slacknotify.SlackChannel, error) {
+// initSlackChannel creates and returns a Slack notification channel and a
+// RepoURLPoller from a channel configuration block. The bot token stays
+// inside the plugin layer — callers never see it.
+func initSlackChannel(chCfg config.ChannelConfig, k8sClient kubernetes.Interface, namespace string, logger *slog.Logger) (*slacknotify.SlackChannel, *slackrepopoller.Poller, error) {
 	m := chCfg.Config
 
 	channelID, err := configString(m, "channel_id")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	tokenSecret, err := configString(m, "token_secret")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
 	if err != nil {
-		return nil, fmt.Errorf("reading slack token: %w", err)
+		return nil, nil, fmt.Errorf("reading slack token: %w", err)
 	}
 
-	return slacknotify.NewSlackChannel(channelID, token, logger), nil
+	notifier := slacknotify.NewSlackChannel(channelID, token, logger)
+	poller := slackrepopoller.New(token, channelID, slackrepopoller.Config{})
+	return notifier, poller, nil
 }

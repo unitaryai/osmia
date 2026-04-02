@@ -171,7 +171,7 @@ func TestInitSlackChannel(t *testing.T) {
 	k8s := fakeClient(map[string]map[string]string{
 		"osmia-slack-token": {"token": "xoxb-fake"},
 	})
-	ch, err := initSlackChannel(config.ChannelConfig{
+	ch, poller, err := initSlackChannel(config.ChannelConfig{
 		Backend: "slack",
 		Config: map[string]any{
 			"channel_id":   "C0FAKE",
@@ -180,6 +180,7 @@ func TestInitSlackChannel(t *testing.T) {
 	}, k8s, testNamespace, testLogger())
 	require.NoError(t, err)
 	assert.NotNil(t, ch)
+	assert.NotNil(t, poller)
 }
 
 func TestInitDiscordChannel(t *testing.T) {

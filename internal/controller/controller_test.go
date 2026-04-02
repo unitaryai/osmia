@@ -228,8 +228,9 @@ func TestProcessTicketIdempotency(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
 	ticket := ticketing.Ticket{
-		ID:    "TICKET-2",
-		Title: "Another bug",
+		ID:      "TICKET-2",
+		Title:   "Another bug",
+		RepoURL: "https://github.com/org/repo",
 	}
 
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
@@ -396,7 +397,7 @@ func TestReconcileOnce_ConcurrentJobLimit(t *testing.T) {
 	}
 	logger := testLogger()
 
-	ticket := ticketing.Ticket{ID: "T-1", Title: "Test"}
+	ticket := ticketing.Ticket{ID: "T-1", Title: "Test", RepoURL: "https://github.com/org/repo"}
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
 	eng := &mockEngine{name: "claude-code"}
 	jb := &mockJobBuilder{}
@@ -418,7 +419,7 @@ func TestReconcileOnce_ConcurrentJobLimit(t *testing.T) {
 	assert.Len(t, tb.markedProgress, 1)
 
 	// Second reconcile should skip due to concurrent limit.
-	tb.tickets = []ticketing.Ticket{{ID: "T-2", Title: "Another"}}
+	tb.tickets = []ticketing.Ticket{{ID: "T-2", Title: "Another", RepoURL: "https://github.com/org/repo"}}
 	err = r.reconcileOnce(ctx)
 	require.NoError(t, err)
 	// T-2 should not be processed because T-1 is still running.
@@ -509,8 +510,9 @@ func TestProcessTicket_PreStartApprovalGate(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
 	ticket := ticketing.Ticket{
-		ID:    "TICKET-GATE",
-		Title: "Fix the thing",
+		ID:      "TICKET-GATE",
+		Title:   "Fix the thing",
+		RepoURL: "https://github.com/org/repo",
 	}
 
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
@@ -550,8 +552,9 @@ func TestProcessTicket_NoApprovalGate(t *testing.T) {
 	k8s := fake.NewSimpleClientset()
 
 	ticket := ticketing.Ticket{
-		ID:    "TICKET-NO-GATE",
-		Title: "Normal ticket",
+		ID:      "TICKET-NO-GATE",
+		Title:   "Normal ticket",
+		RepoURL: "https://github.com/org/repo",
 	}
 
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
@@ -588,8 +591,9 @@ func TestProcessTicket_TaskRunStorePersistence(t *testing.T) {
 	store := taskrun.NewMemoryStore()
 
 	ticket := ticketing.Ticket{
-		ID:    "TICKET-STORE",
-		Title: "Test store persistence",
+		ID:      "TICKET-STORE",
+		Title:   "Test store persistence",
+		RepoURL: "https://github.com/org/repo",
 	}
 
 	tb := newMockTicketing([]ticketing.Ticket{ticket})
@@ -744,6 +748,7 @@ func TestProcessTicketWithMemoryContext(t *testing.T) {
 		ID:          "MEM-1",
 		Title:       "Fix auth issue",
 		Description: "Authentication is broken",
+		RepoURL:     "https://github.com/org/repo",
 	}
 
 	tb := newMockTicketing(nil)

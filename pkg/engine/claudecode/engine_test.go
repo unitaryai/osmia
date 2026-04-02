@@ -937,13 +937,14 @@ func TestBuildPrompt(t *testing.T) {
 			},
 		},
 		{
-			name: "mandatory MR language absent when no repo URL",
+			name: "no repo URL still includes MR instruction for git repos",
 			task: engine.Task{
 				ID:    "task-10",
 				Title: "General task",
 			},
 			contains: []string{
 				"Complete the task described above",
+				"MUST commit, push to a new branch, and open a merge request",
 			},
 		},
 	}
@@ -997,15 +998,16 @@ func TestBuildPrompt_MandatoryMRInResumePath(t *testing.T) {
 	assert.Contains(t, prompt, "MANDATORY")
 }
 
-func TestBuildPrompt_NoMandatoryMRWithoutRepoURL(t *testing.T) {
+func TestBuildPrompt_MRInstructionPresentWithoutRepoURL(t *testing.T) {
+	// Even without a RepoURL the agent may clone a repo based on the task
+	// description, so the prompt must still tell it to open an MR.
 	e := New()
 	prompt, err := e.BuildPrompt(engine.Task{
 		ID:    "task-1",
 		Title: "General task",
 	})
 	require.NoError(t, err)
-	assert.NotContains(t, prompt, "MUST open a merge request")
-	assert.NotContains(t, prompt, "MANDATORY")
+	assert.Contains(t, prompt, "MUST commit, push to a new branch, and open a merge request")
 }
 
 func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {

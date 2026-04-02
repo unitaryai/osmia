@@ -549,7 +549,11 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString("\", \"merge_request_url\": \"<MR URL from step 5>\"}`\n")
 		}
 	} else {
-		b.WriteString("Complete the task described above. Work in the /workspace directory.\n")
+		b.WriteString("Complete the task described above. Work in the /workspace directory.\n\n")
+		b.WriteString("If you clone a repository or make changes to files inside a git repository, you\n")
+		b.WriteString("MUST commit, push to a new branch, and open a merge request (MR/PR) using\n")
+		b.WriteString("`glab` (for GitLab) or `gh` (for GitHub) before finishing. Include the MR URL\n")
+		b.WriteString("in your result.\n\n")
 		b.WriteString("Write a result.json file to /workspace/result.json when finished.\n")
 	}
 

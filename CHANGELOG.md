@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Agent prompt for tasks without a `RepoURL` now includes MR instructions. When
+  the agent clones a repo on its own (e.g. from the ticket description), it must
+  still commit, push, and open an MR. Previously the no-RepoURL path had no
+  git or MR instructions at all.
+
 ## [0.3.8] - 2026-04-02
 
 ### Added

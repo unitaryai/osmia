@@ -148,6 +148,10 @@ type Reconciler struct {
 	// NotifyComplete and subsequent Notify calls can thread under the initial
 	// notification. Keyed by ticket ID; protected by mu.
 	ticketNotificationRefs map[string]string
+
+	// slackRepoURLPoller asks humans on Slack for a repo URL when one is
+	// missing from the ticket. Nil when Slack is not configured.
+	slackRepoURLPoller *SlackRepoURLPoller
 }
 
 // ReconcilerOption configures the Reconciler.
@@ -347,6 +351,12 @@ func WithTournamentCoordinator(c *tournament.Coordinator) ReconcilerOption {
 	return func(r *Reconciler) { r.tournamentCoordinator = c }
 }
 
+// WithSlackRepoURLPoller sets the poller used to ask humans on Slack for
+// a repository URL when one is missing from the ticket.
+func WithSlackRepoURLPoller(p *SlackRepoURLPoller) ReconcilerOption {
+	return func(r *Reconciler) { r.slackRepoURLPoller = p }
+}
+
 // NewReconciler creates a new Reconciler with the given configuration.
 func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -501,6 +511,25 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 	r.mu.Lock()
 	r.ticketCache[ticket.ID] = ticket
 	r.mu.Unlock()
+
+	// Resolve missing repository URL: first try to extract from the ticket
+	// description, then fall back to asking on Slack. Without a RepoURL
+	// the agent cannot push work, so reject the task rather than burning
+	// tokens on work that cannot be saved.
+	if ticket.RepoURL == "" {
+		if err := r.resolveRepoURL(ctx, &ticket); err != nil {
+			r.logger.WarnContext(ctx, "could not resolve repo URL",
+				"ticket_id", ticket.ID,
+				"error", err,
+			)
+			return r.ticketing.MarkFailed(ctx, ticket.ID,
+				fmt.Sprintf("no repository URL found: %v", err))
+		}
+		// Update the cached ticket with the resolved URL.
+		r.mu.Lock()
+		r.ticketCache[ticket.ID] = ticket
+		r.mu.Unlock()
+	}
 
 	// Validate guard rails.
 	if err := r.validateGuardRails(ticket); err != nil {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Automatic repo URL resolution**: when a ticket has no explicit repository URL
+  (e.g. no external link on a Shortcut story), the controller now extracts a
+  GitHub or GitLab URL from the ticket description. If none is found and Slack is
+  configured, it posts a question asking for the URL and polls for a threaded
+  reply. Tasks without a resolvable repo URL are rejected rather than burning
+  tokens on work that cannot be pushed.
+
 ## [0.3.8] - 2026-04-02
 
 ### Added

@@ -124,6 +124,32 @@ func TestParseEvent(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:     "result event with structured_output from --json-schema",
+			input:    `{"type":"result","is_error":false,"result":"","structured_output":{"success":true,"summary":"Upgraded httpx","merge_request_url":"https://gitlab.com/org/repo/-/merge_requests/18","branch_name":"osmia/29885","tests_added":6},"timestamp":"2026-01-01T00:00:00Z"}`,
+			wantType: EventResult,
+			checkFunc: func(t *testing.T, ev *StreamEvent) {
+				re, ok := ev.Parsed.(*ResultEvent)
+				require.True(t, ok)
+				assert.True(t, re.Success)
+				assert.Equal(t, "Upgraded httpx", re.Summary)
+				assert.Equal(t, "https://gitlab.com/org/repo/-/merge_requests/18", re.MergeRequestURL)
+				assert.Equal(t, "osmia/29885", re.BranchName)
+				assert.Equal(t, 6, re.TestsAdded)
+				assert.Nil(t, re.StructuredOutput, "StructuredOutput should be cleared after merge")
+			},
+		},
+		{
+			name:     "result event with empty result but structured_output takes precedence",
+			input:    `{"type":"result","is_error":false,"result":"","structured_output":{"success":true,"summary":"Done"},"timestamp":"2026-01-01T00:00:00Z"}`,
+			wantType: EventResult,
+			checkFunc: func(t *testing.T, ev *StreamEvent) {
+				re, ok := ev.Parsed.(*ResultEvent)
+				require.True(t, ok)
+				assert.True(t, re.Success)
+				assert.Equal(t, "Done", re.Summary)
+			},
+		},
+		{
 			name:     "extra fields are ignored",
 			input:    `{"type":"cost","input_tokens":100,"output_tokens":50,"cost_usd":0.001,"extra_field":"ignored","timestamp":"2026-01-01T00:00:00Z"}`,
 			wantType: EventCost,

@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -4593,6 +4593,15 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <p>Telegram and Discord backends return an empty thread reference from
     <code>NotifyStart</code> and silently ignore the <code>threadRef</code> parameter (no threading
     model change for those backends).</p>
+</li>
+<li>
+<p><strong>AWS deployment examples</strong>: new <code>examples/aws/</code> directory with EKS-specific
+  Helm values (<code>values-eks.yaml</code>), ExternalSecret manifests for ESO users
+  (<code>external-secret.yaml</code>), IRSA setup script (<code>setup-irsa.sh</code>), and README.</p>
+</li>
+<li>
+<p>Karpenter NodePool example updated to recommend On-Demand instances for agent
+  workloads (Spot reclamation loses all token spend and progress).</p>
 </li>
 <li>
 <p>Dev release workflow: a <code>0.0.0-edge</code> Helm chart is now published to the

@@ -55,10 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Slack MCP bot-mention filtering**: the in-pod MCP server now resolves
-  its own Slack user ID at startup via `auth.test` and only accepts thread
-  replies that explicitly `@`-mention the bot. Previously any non-bot message
-  in the thread was treated as a response, causing the agent to react to
-  unrelated chatter.
+  its own Slack user ID at startup via `auth.test` and, when that succeeds,
+  only accepts thread replies that explicitly `@`-mention the bot. If the
+  lookup fails, it falls back to the previous any-non-bot-reply behaviour.
+  Previously any non-bot message in the thread was treated as a response,
+  causing the agent to react to unrelated chatter.
 - Agent pods stuck in `ContainerCreating` indefinitely when the per-TaskRun PVC
   session store is used. The jobbuilder was emitting two separate `Volume` specs
   both referencing the same PVC claim (one for the Claude session directory, one

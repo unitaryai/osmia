@@ -7,6 +7,7 @@ explicitly @-mention the bot, and that unrelated thread chatter is ignored.
 import time
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 
 import slack_mcp
@@ -149,6 +150,18 @@ class TestResolveBotUserId:
         resp = MagicMock()
         resp.json.return_value = {"ok": False, "error": "invalid_auth"}
         mock_client.post.return_value = resp
+
+        result = slack_mcp.resolve_bot_user_id()
+        assert result == ""
+
+    @patch("slack_mcp.httpx.Client")
+    def test_network_error_returns_empty(self, mock_client_cls):
+        """Given an httpx exception during auth.test, return empty string gracefully."""
+        mock_client = MagicMock()
+        mock_client_cls.return_value.__enter__ = MagicMock(return_value=mock_client)
+        mock_client_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_client.post.side_effect = httpx.ConnectError("connection refused")
 
         result = slack_mcp.resolve_bot_user_id()
         assert result == ""

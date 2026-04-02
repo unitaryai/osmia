@@ -48,16 +48,22 @@ def resolve_bot_user_id() -> str:
     if not SLACK_BOT_TOKEN:
         return ""
 
-    with httpx.Client() as client:
-        response = client.post(
-            "https://slack.com/api/auth.test",
-            headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}"},
-        )
-        data = response.json()
-        if data.get("ok"):
-            return data.get("user_id", "")
-        log(f"auth.test failed: {data.get('error', 'unknown')}")
+    try:
+        with httpx.Client() as client:
+            response = client.post(
+                "https://slack.com/api/auth.test",
+                headers={"Authorization": f"Bearer {SLACK_BOT_TOKEN}"},
+            )
+            response.raise_for_status()
+            data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        log(f"auth.test failed: {exc}")
         return ""
+
+    if data.get("ok"):
+        return data.get("user_id", "")
+    log(f"auth.test failed: {data.get('error', 'unknown')}")
+    return ""
 
 
 def send_slack_message(

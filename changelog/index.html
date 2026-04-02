@@ -4650,6 +4650,12 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Slack MCP bot-mention filtering</strong>: the in-pod MCP server now resolves
+  its own Slack user ID at startup via <code>auth.test</code> and, when that succeeds,
+  only accepts thread replies that explicitly <code>@</code>-mention the bot. If the
+  lookup fails, it falls back to the previous any-non-bot-reply behaviour.
+  Previously any non-bot message in the thread was treated as a response,
+  causing the agent to react to unrelated chatter.</li>
 <li>Agent pods stuck in <code>ContainerCreating</code> indefinitely when the per-TaskRun PVC
   session store is used. The jobbuilder was emitting two separate <code>Volume</code> specs
   both referencing the same PVC claim (one for the Claude session directory, one

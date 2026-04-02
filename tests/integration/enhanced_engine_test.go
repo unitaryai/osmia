@@ -64,12 +64,11 @@ func TestEnhancedEngineStructuredOutput(t *testing.T) {
 			denyFlags: []string{`{"type":"string"}`},
 		},
 		{
-			name: "no schema always uses stream-json and verbose",
+			name: "no explicit schema falls back to DefaultTaskResultSchema",
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			wantFlags: []string{"--output-format", "stream-json", "--verbose"},
-			denyFlags: []string{"--json-schema"},
+			wantFlags: []string{"--output-format", "stream-json", "--verbose", "--json-schema", claudecode.DefaultTaskResultSchema},
 		},
 	}
 
@@ -304,13 +303,12 @@ func TestEnhancedEngineStreamingEnabled(t *testing.T) {
 		denyFlags []string
 	}{
 		{
-			name: "streaming enabled without schema uses stream-json and verbose",
+			name: "streaming enabled without explicit schema uses default schema",
 			config: engine.EngineConfig{
 				TimeoutSeconds:   3600,
 				StreamingEnabled: true,
 			},
-			wantFlags: []string{"--output-format", "stream-json", "--verbose"},
-			denyFlags: []string{"--json-schema"},
+			wantFlags: []string{"--output-format", "stream-json", "--verbose", "--json-schema", claudecode.DefaultTaskResultSchema},
 		},
 		{
 			name: "streaming enabled with schema includes all flags",
@@ -322,12 +320,11 @@ func TestEnhancedEngineStreamingEnabled(t *testing.T) {
 			wantFlags: []string{"--output-format", "stream-json", "--verbose", "--json-schema"},
 		},
 		{
-			name: "without explicit streaming flag still uses stream-json and verbose",
+			name: "without explicit streaming flag uses default schema",
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			wantFlags: []string{"--output-format", "stream-json", "--verbose"},
-			denyFlags: []string{"--json-schema"},
+			wantFlags: []string{"--output-format", "stream-json", "--verbose", "--json-schema", claudecode.DefaultTaskResultSchema},
 		},
 	}
 

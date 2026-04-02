@@ -278,16 +278,15 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "no json schema omits --json-schema flag",
+			name: "no explicit json schema falls back to DefaultTaskResultSchema",
 			task: baseTask,
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				// stream-json is always used; --json-schema is only added when a
-				// schema is provided.
 				assert.Contains(t, spec.Command, "stream-json")
-				assert.NotContains(t, spec.Command, "--json-schema")
+				assert.Contains(t, spec.Command, "--json-schema")
+				assert.Contains(t, spec.Command, DefaultTaskResultSchema)
 			},
 		},
 		{
@@ -648,7 +647,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 		// --- Streaming output tests ---
 
 		{
-			name: "streaming enabled without json schema uses stream-json and verbose",
+			name: "streaming enabled without explicit json schema uses default schema",
 			task: baseTask,
 			config: engine.EngineConfig{
 				TimeoutSeconds:   3600,
@@ -658,7 +657,8 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.Contains(t, spec.Command, "--output-format")
 				assert.Contains(t, spec.Command, "stream-json")
 				assert.Contains(t, spec.Command, "--verbose")
-				assert.NotContains(t, spec.Command, "--json-schema")
+				assert.Contains(t, spec.Command, "--json-schema")
+				assert.Contains(t, spec.Command, DefaultTaskResultSchema)
 			},
 		},
 		{
@@ -922,6 +922,30 @@ func TestBuildPrompt(t *testing.T) {
 				"git clone --depth=1 https://github.com/org/repo /workspace/repo",
 			},
 		},
+		{
+			name: "mandatory MR preamble present when repo URL is set",
+			task: engine.Task{
+				ID:       "task-9",
+				TicketID: "TICKET-100",
+				Title:    "Write PRD",
+				RepoURL:  "https://github.com/org/repo",
+			},
+			contains: []string{
+				"MUST open a merge request",
+				"MANDATORY",
+				"including documentation",
+			},
+		},
+		{
+			name: "mandatory MR language absent when no repo URL",
+			task: engine.Task{
+				ID:    "task-10",
+				Title: "General task",
+			},
+			contains: []string{
+				"Complete the task described above",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -956,6 +980,32 @@ func TestBuildPrompt_NoContinuationSectionWhenSessionIDSet(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotContains(t, prompt, "## Continuation")
+}
+
+func TestBuildPrompt_MandatoryMRInResumePath(t *testing.T) {
+	e := New()
+	prompt, err := e.BuildPrompt(engine.Task{
+		ID:              "task-1",
+		TicketID:        "TICKET-1",
+		Title:           "Fix bug",
+		RepoURL:         "https://github.com/org/repo",
+		PriorBranchName: "osmia/TICKET-1",
+		SessionID:       "some-session-id",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, prompt, "MUST open a merge request")
+	assert.Contains(t, prompt, "MANDATORY")
+}
+
+func TestBuildPrompt_NoMandatoryMRWithoutRepoURL(t *testing.T) {
+	e := New()
+	prompt, err := e.BuildPrompt(engine.Task{
+		ID:    "task-1",
+		Title: "General task",
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, prompt, "MUST open a merge request")
+	assert.NotContains(t, prompt, "MANDATORY")
 }
 
 func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {

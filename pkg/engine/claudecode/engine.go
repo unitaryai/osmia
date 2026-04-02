@@ -212,6 +212,9 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	if jsonSchema == "" {
 		jsonSchema = e.jsonSchema
 	}
+	if jsonSchema == "" {
+		jsonSchema = DefaultTaskResultSchema
+	}
 
 	// setup-claude.sh writes ~/.claude/settings.json (MCP tool permissions)
 	// and /workspace/.mcp.json (server registration) before exec'ing claude.
@@ -462,6 +465,10 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	if task.RepoURL != "" {
 		branchName := "osmia/" + task.TicketID
 
+		b.WriteString("**IMPORTANT: You MUST open a merge request (MR/PR) before completing the task\n")
+		b.WriteString("if you have created, modified, or deleted ANY files — including documentation,\n")
+		b.WriteString("plans, configuration, and generated output. Never skip this step.**\n\n")
+
 		// When resuming a persisted session, the workspace and git state are
 		// already on the PVC — skip clone/checkout instructions entirely.
 		if task.SessionID != "" {
@@ -475,7 +482,8 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString(branchName)
 			b.WriteString("\n")
 			b.WriteString("   ```\n\n")
-			b.WriteString("3. Once all changes are pushed, open a merge request using `glab` (for GitLab) or `gh` (for GitHub).\n")
+			b.WriteString("3. Open a merge request. This step is MANDATORY — do not skip it.\n")
+			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
 			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
 			b.WriteString("   Example for GitLab:\n")
 			b.WriteString("   ```\n")
@@ -526,7 +534,8 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString(branchName)
 			b.WriteString("\n")
 			b.WriteString("   ```\n\n")
-			b.WriteString("5. Once all changes are pushed, open a merge request using `glab` (for GitLab) or `gh` (for GitHub).\n")
+			b.WriteString("5. Open a merge request. This step is MANDATORY — do not skip it.\n")
+			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
 			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
 			b.WriteString("   Example for GitLab:\n")
 			b.WriteString("   ```\n")

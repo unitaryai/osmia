@@ -76,4 +76,4 @@ if __name__ == "__main__":
 ## Further reading
 
 Full plugin authoring guide:
-<https://unitaryai.github.io/Osmia/plugins/writing-a-plugin/>
+<https://unitaryai.github.io/osmia/plugins/writing-a-plugin/>

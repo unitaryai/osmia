@@ -1,6 +1,6 @@
 site_name: Osmia
 site_description: Kubernetes-native AI coding agent harness
-site_url: https://unitaryai.github.io/Osmia
+site_url: https://unitaryai.github.io/osmia
 repo_url: https://github.com/unitaryai/osmia
 repo_name: unitaryai/osmia
 edit_uri: edit/main/docs/

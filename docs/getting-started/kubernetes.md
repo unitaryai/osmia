@@ -106,7 +106,7 @@ resources:
 ## 3. Install with Helm
 
 ```bash
-helm repo add osmia https://unitaryai.github.io/Osmia
+helm repo add osmia https://unitaryai.github.io/osmia
 helm repo update
 
 helm install osmia osmia/osmia \

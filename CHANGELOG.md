@@ -52,6 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `workflow_dispatch` trigger on `images.yaml` so edge images and the dev chart
   can be built manually from the GitHub Actions UI without a push to `main`.
 
+### Changed
+
+- **Mandatory MR/PR enforcement**: agent prompt now includes a bold preamble and
+  strengthened step wording making it clear that opening a merge request is
+  mandatory whenever any files are created, modified, or deleted — including
+  documentation, plans, and generated output. Previously the instruction was a
+  plain numbered step that agents could skip.
+- **Default JSON schema for structured results**: `BuildExecutionSpec` now falls
+  back to `DefaultTaskResultSchema` when no explicit schema is configured, so
+  `--json-schema` is always passed to Claude Code. This ensures the result event
+  includes `merge_request_url` and `branch_name` as structured fields, allowing
+  the controller's review poller to register opened MRs.
+
 ### Fixed
 
 - Agent pods stuck in `ContainerCreating` indefinitely when the per-TaskRun PVC

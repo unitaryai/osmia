@@ -2,13 +2,12 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/unitaryai/osmia/internal/taskrun"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -19,6 +18,15 @@ import (
 var repoURLPattern = regexp.MustCompile(
 	`https?://(?:github\.com|gitlab\.com)/[^\s)"'<>]+`,
 )
+
+// RepoURLPoller asks a human for a repository URL and polls for the
+// answer. Implementations may use Slack, Teams, or any other channel.
+type RepoURLPoller interface {
+	// AskForRepoURL posts a question and blocks until the human replies
+	// with a URL or the timeout expires. threadTS, when non-empty, causes
+	// the question to be posted as a threaded reply.
+	AskForRepoURL(ctx context.Context, ticketID, ticketTitle, threadTS string) (string, error)
+}
 
 // extractRepoURL scans text for a GitHub or GitLab repository URL and
 // returns the first match. Returns empty string if none found.
@@ -33,212 +41,119 @@ func extractRepoURL(text string) string {
 	return match
 }
 
-// resolveRepoURL attempts to fill in a missing RepoURL on the ticket.
-// It first tries to extract a URL from the ticket description, then
-// falls back to asking on Slack if a notification channel is available.
-func (r *Reconciler) resolveRepoURL(ctx context.Context, ticket *ticketing.Ticket) error {
-	// Step 1: try to extract from the description text.
+// resolveRepoURL attempts to fill in a missing RepoURL on the ticket
+// by extracting it from the description. This only handles the
+// synchronous extraction step — Slack polling is handled asynchronously
+// by startRepoURLPoll.
+func (r *Reconciler) resolveRepoURL(ctx context.Context, ticket *ticketing.Ticket) bool {
 	if url := extractRepoURL(ticket.Description); url != "" {
 		r.logger.InfoContext(ctx, "extracted repo URL from ticket description",
 			"ticket_id", ticket.ID,
 			"repo_url", url,
 		)
 		ticket.RepoURL = url
-		return nil
+		return true
 	}
+	return false
+}
 
-	// Step 2: ask on Slack and wait for a reply.
-	if r.slackRepoURLPoller != nil {
-		r.logger.InfoContext(ctx, "no repo URL in description, asking on Slack",
-			"ticket_id", ticket.ID,
+// startRepoURLPoll creates a TaskRun in NeedsHuman state and starts a
+// background goroutine that polls the configured RepoURLPoller. When a
+// URL is received the ticket cache is updated and processing resumes via
+// resumeAfterRepoURL. This method returns immediately so ProcessTicket
+// does not block the reconcile loop.
+func (r *Reconciler) startRepoURLPoll(ctx context.Context, ticket ticketing.Ticket, idempotencyKey string, engineChain []string) error {
+	engineName := engineChain[0]
+	tr := taskrun.New(
+		fmt.Sprintf("tr-%s-%d", ticket.ID, time.Now().UnixMilli()),
+		idempotencyKey,
+		ticket.ID,
+		engineName,
+	)
+	tr.CurrentEngine = engineName
+	tr.EngineAttempts = []string{engineName}
+
+	if err := tr.Transition(taskrun.StateNeedsHuman); err != nil {
+		return fmt.Errorf("transitioning to NeedsHuman: %w", err)
+	}
+	tr.HumanQuestion = "provide repository URL"
+	tr.ApprovalGateType = "missing_repo_url"
+
+	r.mu.Lock()
+	r.taskRuns[idempotencyKey] = tr
+	r.engineChains[idempotencyKey] = engineChain
+	r.mu.Unlock()
+
+	if err := r.taskRunStore.Save(ctx, tr); err != nil {
+		r.logger.ErrorContext(ctx, "failed to save task run after repo URL gate",
+			"task_run_id", tr.ID,
+			"error", err,
 		)
-
-		// Post the question in the task's notification thread if available.
-		threadRef := r.ticketNotificationRef(ticket.ID)
-
-		url, err := r.slackRepoURLPoller.AskForRepoURL(ctx, ticket.ID, ticket.Title, threadRef)
-		if err != nil {
-			return fmt.Errorf("slack repo URL request failed: %w", err)
-		}
-		if url == "" {
-			return fmt.Errorf("no repo URL provided via Slack")
-		}
-
-		r.logger.InfoContext(ctx, "received repo URL from Slack",
-			"ticket_id", ticket.ID,
-			"repo_url", url,
-		)
-		ticket.RepoURL = url
-		return nil
 	}
 
-	return fmt.Errorf("no repo URL found in ticket description and no Slack channel configured to ask")
-}
+	// Post a notification to get a thread reference, then start polling
+	// in that thread so the question lands in the right place.
+	threadRef := r.runNotifyStart(ctx, ticket)
+	tr.NotificationThreadRef = threadRef
 
-// ticketNotificationRef returns the notification thread reference for a
-// ticket, if one exists in the controller's cache.
-func (r *Reconciler) ticketNotificationRef(ticketID string) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if ref, ok := r.ticketNotificationRefs[ticketID]; ok {
-		return ref
-	}
-	return ""
-}
-
-// SlackRepoURLPoller posts a question to Slack and polls for a reply
-// containing a repository URL. It uses the Slack Web API directly.
-type SlackRepoURLPoller struct {
-	token      string
-	channelID  string
-	apiURL     string
-	httpClient *http.Client
-	timeout    time.Duration
-}
-
-// NewSlackRepoURLPoller creates a poller that uses the given Slack bot
-// token and channel to ask humans for a repository URL.
-func NewSlackRepoURLPoller(token, channelID string) *SlackRepoURLPoller {
-	return &SlackRepoURLPoller{
-		token:      token,
-		channelID:  channelID,
-		apiURL:     "https://slack.com/api",
-		httpClient: http.DefaultClient,
-		timeout:    5 * time.Minute,
-	}
-}
-
-// AskForRepoURL posts a question to Slack and polls for a threaded reply
-// containing a repository URL. Returns the URL or an error on timeout.
-func (p *SlackRepoURLPoller) AskForRepoURL(ctx context.Context, ticketID, ticketTitle, threadTS string) (string, error) {
-	question := fmt.Sprintf(
-		"🔗 *No repository URL found for sc-%s (%s).*\n\nReply in this thread with the git repository URL (e.g. `https://github.com/org/repo`).",
-		ticketID, ticketTitle,
+	r.logger.InfoContext(ctx, "waiting for repo URL via Slack",
+		"ticket_id", ticket.ID,
+		"task_run_id", tr.ID,
 	)
 
-	questionTS, err := p.postMessage(ctx, question, threadTS)
-	if err != nil {
-		return "", fmt.Errorf("posting Slack message: %w", err)
-	}
-
-	// Determine which thread to poll — use the existing thread if available,
-	// otherwise the question message itself becomes the thread root.
-	pollThreadTS := threadTS
-	if pollThreadTS == "" {
-		pollThreadTS = questionTS
-	}
-
-	return p.pollForRepoURL(ctx, pollThreadTS, questionTS)
+	go r.pollRepoURL(context.Background(), tr.ID, ticket, threadRef)
+	return nil
 }
 
-// postMessage sends a text message to the configured Slack channel,
-// optionally as a threaded reply. Returns the message timestamp.
-func (p *SlackRepoURLPoller) postMessage(ctx context.Context, text, threadTS string) (string, error) {
-	payload := map[string]any{
-		"channel": p.channelID,
-		"text":    text,
-	}
-	if threadTS != "" {
-		payload["thread_ts"] = threadTS
-	}
+// pollRepoURL runs in a background goroutine, polling the RepoURLPoller
+// for a human-provided repository URL. On success it updates the ticket
+// cache and resumes processing; on failure it marks the ticket as failed.
+func (r *Reconciler) pollRepoURL(ctx context.Context, taskRunID string, ticket ticketing.Ticket, threadRef string) {
+	url, err := r.repoURLPoller.AskForRepoURL(ctx, ticket.ID, ticket.Title, threadRef)
+	if err != nil || url == "" {
+		reason := "no repo URL provided via Slack"
+		if err != nil {
+			reason = fmt.Sprintf("slack repo URL request failed: %v", err)
+		}
+		r.logger.WarnContext(ctx, reason, "ticket_id", ticket.ID)
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.apiURL+"/chat.postMessage", strings.NewReader(string(body)))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+p.token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		OK bool   `json:"ok"`
-		TS string `json:"ts"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if !result.OK {
-		return "", fmt.Errorf("slack API returned ok=false")
-	}
-	return result.TS, nil
-}
-
-// pollForRepoURL polls a Slack thread for a non-bot reply containing a
-// repository URL. Returns the extracted URL or an error on timeout.
-func (p *SlackRepoURLPoller) pollForRepoURL(ctx context.Context, threadTS, afterTS string) (string, error) {
-	deadline := time.After(p.timeout)
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-deadline:
-			return "", fmt.Errorf("timed out waiting for repo URL reply (%.0fs)", p.timeout.Seconds())
-		case <-ticker.C:
-			url, err := p.checkReplies(ctx, threadTS, afterTS)
-			if err != nil {
-				continue // transient errors — keep polling
-			}
-			if url != "" {
-				return url, nil
+		if r.ticketing != nil {
+			if markErr := r.ticketing.MarkFailed(ctx, ticket.ID, reason); markErr != nil {
+				r.logger.ErrorContext(ctx, "failed to mark ticket failed",
+					"ticket_id", ticket.ID,
+					"error", markErr,
+				)
 			}
 		}
-	}
-}
 
-// checkReplies fetches thread replies and looks for a non-bot message
-// containing a repository URL.
-func (p *SlackRepoURLPoller) checkReplies(ctx context.Context, threadTS, afterTS string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.apiURL+"/conversations.replies", nil)
-	if err != nil {
-		return "", err
-	}
-	q := req.URL.Query()
-	q.Set("channel", p.channelID)
-	q.Set("ts", threadTS)
-	req.URL.RawQuery = q.Encode()
-	req.Header.Set("Authorization", "Bearer "+p.token)
-
-	resp, err := p.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		OK       bool `json:"ok"`
-		Messages []struct {
-			TS    string `json:"ts"`
-			Text  string `json:"text"`
-			BotID string `json:"bot_id,omitempty"`
-		} `json:"messages"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	if !result.OK {
-		return "", fmt.Errorf("slack API returned ok=false")
-	}
-
-	for _, msg := range result.Messages {
-		if msg.TS <= afterTS || msg.BotID != "" {
-			continue
+		// Transition the TaskRun to Failed.
+		r.mu.Lock()
+		for _, tr := range r.taskRuns {
+			if tr.ID == taskRunID {
+				_ = tr.Transition(taskrun.StateFailed)
+				break
+			}
 		}
-		if url := extractRepoURL(msg.Text); url != "" {
-			return url, nil
-		}
+		r.mu.Unlock()
+		return
 	}
-	return "", nil
+
+	r.logger.InfoContext(ctx, "received repo URL from Slack",
+		"ticket_id", ticket.ID,
+		"repo_url", url,
+	)
+
+	// Update the ticket cache with the resolved URL.
+	ticket.RepoURL = url
+	r.mu.Lock()
+	r.ticketCache[ticket.ID] = ticket
+	r.mu.Unlock()
+
+	// Resume processing by resolving the approval gate.
+	if err := r.ResolveApproval(ctx, taskRunID, true, "slack-repo-url-poller"); err != nil {
+		r.logger.ErrorContext(ctx, "failed to resume after repo URL resolution",
+			"task_run_id", taskRunID,
+			"error", err,
+		)
+	}
 }

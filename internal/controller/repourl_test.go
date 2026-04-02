@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
@@ -91,12 +90,12 @@ func TestResolveRepoURL_ExtractsFromDescription(t *testing.T) {
 		Description: "Fix the bug in https://github.com/unitaryai/osmia please",
 	}
 
-	err := r.resolveRepoURL(context.Background(), &ticket)
-	require.NoError(t, err)
+	ok := r.resolveRepoURL(context.Background(), &ticket)
+	assert.True(t, ok)
 	assert.Equal(t, "https://github.com/unitaryai/osmia", ticket.RepoURL)
 }
 
-func TestResolveRepoURL_FailsWithoutSlack(t *testing.T) {
+func TestResolveRepoURL_ReturnsFalseWithoutURL(t *testing.T) {
 	r := &Reconciler{
 		logger: slog.Default(),
 	}
@@ -105,8 +104,7 @@ func TestResolveRepoURL_FailsWithoutSlack(t *testing.T) {
 		Description: "Fix the login bug",
 	}
 
-	err := r.resolveRepoURL(context.Background(), &ticket)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no repo URL found")
+	ok := r.resolveRepoURL(context.Background(), &ticket)
+	assert.False(t, ok)
 	assert.Empty(t, ticket.RepoURL)
 }

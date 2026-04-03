@@ -4668,6 +4668,15 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   called after the concurrent-limit early-return, so completed K8s jobs were
   never reaped when the controller was at capacity. The active count never
   decreased, permanently stalling all new work.</li>
+<li><strong>GitLab/GitHub SCM HTML response detection</strong>: when a token lacks access to a
+  resource the API may redirect to a sign-in page returning 200 OK with HTML.
+  <code>doGet</code> now validates the <code>Content-Type</code> header and rejects non-JSON responses
+  with a clear diagnostic message instead of failing with a cryptic JSON decode
+  error.</li>
+<li><strong>GitLab base URL normalisation</strong>: <code>WithBaseURL</code> now appends <code>/api/v4</code> if the
+  supplied URL is an instance URL (e.g. <code>https://gitlab.com</code>) rather than a full
+  API URL. Previously, omitting the suffix caused all API requests to hit the
+  GitLab web frontend, returning HTML instead of JSON.</li>
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>

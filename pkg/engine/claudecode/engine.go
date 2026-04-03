@@ -410,6 +410,12 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 		b.WriteString("\n\n")
 	}
 
+	if task.TicketURL != "" {
+		b.WriteString("## Ticket\n\n")
+		b.WriteString(task.TicketURL)
+		b.WriteString("\n\n")
+	}
+
 	if task.RepoURL != "" {
 		b.WriteString("## Repository\n\n")
 		b.WriteString(task.RepoURL)
@@ -485,12 +491,17 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString("3. Open a merge request. This step is MANDATORY — do not skip it.\n")
 			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
 			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
+			writeMRTitleGuidance(&b, task)
 			b.WriteString("   Example for GitLab:\n")
 			b.WriteString("   ```\n")
 			b.WriteString("   cd /workspace/repo\n")
 			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
-			b.WriteString("   glab mr create --fill --title \"<concise title>\" --description \"<full description>\"\n")
-			b.WriteString("   ```\n\n")
+			b.WriteString("   glab mr create --fill --title \"<concise title>")
+			writeMRTitleSuffix(&b, task)
+			b.WriteString("\" --description \"<full description>\"\n")
+			b.WriteString("   ```\n")
+			writeMRDescriptionFooter(&b, task)
+			b.WriteString("\n")
 			b.WriteString("4. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
@@ -537,12 +548,17 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString("5. Open a merge request. This step is MANDATORY — do not skip it.\n")
 			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
 			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
+			writeMRTitleGuidance(&b, task)
 			b.WriteString("   Example for GitLab:\n")
 			b.WriteString("   ```\n")
 			b.WriteString("   cd /workspace/repo\n")
 			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
-			b.WriteString("   glab mr create --fill --title \"<concise title>\" --description \"<full description>\"\n")
-			b.WriteString("   ```\n\n")
+			b.WriteString("   glab mr create --fill --title \"<concise title>")
+			writeMRTitleSuffix(&b, task)
+			b.WriteString("\" --description \"<full description>\"\n")
+			b.WriteString("   ```\n")
+			writeMRDescriptionFooter(&b, task)
+			b.WriteString("\n")
 			b.WriteString("6. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
@@ -554,4 +570,38 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+// writeMRTitleGuidance writes instructions telling the agent to include the
+// ticket ID in the MR title, if a ticket URL is available.
+func writeMRTitleGuidance(b *strings.Builder, task engine.Task) {
+	if task.TicketID == "" {
+		return
+	}
+	b.WriteString("   The MR title MUST end with ` [")
+	b.WriteString(task.TicketID)
+	b.WriteString("]` so the ticket is traceable from the MR.\n")
+}
+
+// writeMRTitleSuffix appends the ticket ID suffix for the glab/gh example
+// command, e.g. ` [sc-12345]`.
+func writeMRTitleSuffix(b *strings.Builder, task engine.Task) {
+	if task.TicketID == "" {
+		return
+	}
+	b.WriteString(" [")
+	b.WriteString(task.TicketID)
+	b.WriteString("]")
+}
+
+// writeMRDescriptionFooter appends a ticket reference instruction after the
+// shell example code block. The URL is kept outside the shell command to avoid
+// escaping issues with special characters in the URL.
+func writeMRDescriptionFooter(b *strings.Builder, task engine.Task) {
+	if task.TicketURL == "" {
+		return
+	}
+	b.WriteString("   Include `References: ")
+	b.WriteString(task.TicketURL)
+	b.WriteString("` in the MR description body.\n")
 }

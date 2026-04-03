@@ -679,6 +679,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		Title:         ticket.Title,
 		Description:   ticket.Description,
 		RepoURL:       ticket.RepoURL,
+		TicketURL:     ticket.ExternalURL,
 		Labels:        ticket.Labels,
 		MemoryContext: memoryContext,
 	}
@@ -1219,6 +1220,12 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		Description: ticket.Description,
 		RepoURL:     ticket.RepoURL,
 	}
+	r.mu.RLock()
+	parentTicket, parentOK := r.ticketCache[req.TicketID]
+	r.mu.RUnlock()
+	if parentOK {
+		task.TicketURL = parentTicket.ExternalURL
+	}
 
 	engineCfg := r.baseEngineConfig(engineName)
 
@@ -1519,6 +1526,12 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		TicketID:  tr.TicketID,
 		TaskRunID: tr.ID,
 	}
+	r.mu.RLock()
+	fallbackCachedTicket, fallbackOK := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+	if fallbackOK {
+		task.TicketURL = fallbackCachedTicket.ExternalURL
+	}
 
 	engineCfg := r.baseEngineConfig(engineName)
 
@@ -1733,6 +1746,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		Title:         cachedTicket.Title,
 		Description:   cachedTicket.Description,
 		RepoURL:       cachedTicket.RepoURL,
+		TicketURL:     cachedTicket.ExternalURL,
 		Labels:        cachedTicket.Labels,
 		MemoryContext: memoryContext,
 	}
@@ -2074,6 +2088,7 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 	if hasTicket {
 		task.Title = cachedTicket.Title
 		task.RepoURL = cachedTicket.RepoURL
+		task.TicketURL = cachedTicket.ExternalURL
 		task.Labels = cachedTicket.Labels
 	}
 	task.Description = desc
@@ -2601,6 +2616,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	if hasTicket {
 		task.Title = cachedTicket.Title
 		task.RepoURL = cachedTicket.RepoURL
+		task.TicketURL = cachedTicket.ExternalURL
 		task.Labels = cachedTicket.Labels
 	}
 	task.Description = desc
@@ -3125,6 +3141,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			Title:         ticket.Title,
 			Description:   ticket.Description,
 			RepoURL:       ticket.RepoURL,
+			TicketURL:     ticket.ExternalURL,
 			Labels:        ticket.Labels,
 			MemoryContext: memoryContext,
 		}

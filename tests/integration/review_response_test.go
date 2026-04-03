@@ -119,11 +119,11 @@ func actionableComment(id, author, body string) scm.ReviewComment {
 	}
 }
 
-// TestClassifier_IgnoresBotComments verifies that comments from known
-// automation accounts are classified as Ignore.
-func TestClassifier_IgnoresBotComments(t *testing.T) {
+// TestClassifier_IgnoresBotSummaryComments verifies that non-inline comments
+// from known automation accounts are classified as Ignore.
+func TestClassifier_IgnoresBotSummaryComments(t *testing.T) {
 	t.Parallel()
-	classifier := reviewpoller.NewRuleBasedClassifier()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
 	ctx := context.Background()
 
 	bots := []string{"coderabbit-ai", "github-actions[bot]", "dependabot[bot]", "copilot", "gemini-code-assist"}
@@ -132,22 +132,103 @@ func TestClassifier_IgnoresBotComments(t *testing.T) {
 			comment := scm.ReviewComment{
 				ID:      "1",
 				Author:  bot,
-				Body:    "This looks good to me!",
+				Body:    "You should fix the error handling.",
 				Created: time.Now(),
+				// No FilePath — this is a summary/general comment.
 			}
 			result, err := classifier.Classify(ctx, comment)
 			require.NoError(t, err)
 			assert.Equal(t, reviewpoller.ClassificationIgnore, result.Classification,
-				"expected bot comment from %q to be ignored", bot)
+				"expected non-inline bot comment from %q to be ignored", bot)
 		})
 	}
+}
+
+// TestClassifier_BotInlineDiffCommentsAreActionable verifies that inline diff
+// comments from bots (e.g. CodeRabbit) are still evaluated as actionable.
+func TestClassifier_BotInlineDiffCommentsAreActionable(t *testing.T) {
+	t.Parallel()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
+	ctx := context.Background()
+
+	comment := scm.ReviewComment{
+		ID:       "10",
+		Author:   "coderabbit-ai",
+		Body:     "You should add error handling here.",
+		FilePath: "pkg/handler.go",
+		Line:     42,
+		Created:  time.Now(),
+	}
+	result, err := classifier.Classify(ctx, comment)
+	require.NoError(t, err)
+	assert.Equal(t, reviewpoller.ClassificationRequiresAction, result.Classification,
+		"inline diff comment from bot should still be classified by keywords")
+}
+
+// TestClassifier_CustomPatternMatchesGroupBot verifies that user-provided
+// regex patterns in ignore_summary_authors match GitLab group bot usernames.
+func TestClassifier_CustomPatternMatchesGroupBot(t *testing.T) {
+	t.Parallel()
+	classifier := reviewpoller.NewRuleBasedClassifier([]string{`^group_\d+_bot_`})
+	ctx := context.Background()
+
+	comment := scm.ReviewComment{
+		ID:      "20",
+		Author:  "group_101508187_bot_f1eac3692eaf8315c51fba127e720935",
+		Body:    "You should fix the error handling in this module.",
+		Created: time.Now(),
+	}
+	result, err := classifier.Classify(ctx, comment)
+	require.NoError(t, err)
+	assert.Equal(t, reviewpoller.ClassificationIgnore, result.Classification,
+		"non-inline comment from GitLab group bot should be ignored")
+}
+
+// TestClassifier_CustomPatternAllowsInlineBotComments verifies that even with
+// a custom pattern matching a bot, inline diff comments are still actionable.
+func TestClassifier_CustomPatternAllowsInlineBotComments(t *testing.T) {
+	t.Parallel()
+	classifier := reviewpoller.NewRuleBasedClassifier([]string{`^group_\d+_bot_`})
+	ctx := context.Background()
+
+	comment := scm.ReviewComment{
+		ID:       "21",
+		Author:   "group_101508187_bot_f1eac3692eaf8315c51fba127e720935",
+		Body:     "You should add a nil check here.",
+		FilePath: ".gitignore",
+		Line:     58,
+		Created:  time.Now(),
+	}
+	result, err := classifier.Classify(ctx, comment)
+	require.NoError(t, err)
+	assert.Equal(t, reviewpoller.ClassificationRequiresAction, result.Classification,
+		"inline diff comment from group bot should still be classified by keywords")
+}
+
+// TestClassifier_HumanGeneralCommentStillActionable verifies that general
+// comments (no file position) from human authors are still actionable.
+func TestClassifier_HumanGeneralCommentStillActionable(t *testing.T) {
+	t.Parallel()
+	classifier := reviewpoller.NewRuleBasedClassifier([]string{`^group_\d+_bot_`})
+	ctx := context.Background()
+
+	comment := scm.ReviewComment{
+		ID:      "30",
+		Author:  "alice",
+		Body:    "This approach is wrong, please fix the auth flow.",
+		Created: time.Now(),
+	}
+	result, err := classifier.Classify(ctx, comment)
+	require.NoError(t, err)
+	assert.Equal(t, reviewpoller.ClassificationRequiresAction, result.Classification,
+		"general comment from human author should still be actionable")
 }
 
 // TestClassifier_RequiresAction verifies that error-level keywords produce a
 // RequiresAction classification with error severity.
 func TestClassifier_RequiresAction(t *testing.T) {
 	t.Parallel()
-	classifier := reviewpoller.NewRuleBasedClassifier()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
 	ctx := context.Background()
 
 	comment := scm.ReviewComment{
@@ -167,7 +248,7 @@ func TestClassifier_RequiresAction(t *testing.T) {
 // classified as Informational.
 func TestClassifier_Informational(t *testing.T) {
 	t.Parallel()
-	classifier := reviewpoller.NewRuleBasedClassifier()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
 	ctx := context.Background()
 
 	comment := scm.ReviewComment{
@@ -196,7 +277,7 @@ func TestPoller_EmitsFollowUp(t *testing.T) {
 		},
 	}
 
-	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(), logger)
+	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(nil), logger)
 	poller.WithSCMBackend(mock)
 
 	poller.Register("https://github.com/test/repo/pull/1", "TICKET-1",
@@ -228,7 +309,7 @@ func TestPoller_EmitsFollowUp(t *testing.T) {
 	// Use the exported Poll method (added for testability below).
 	// Since poll() is unexported, call Start with a patched interval.
 	// For this test we just verify the classifier + emit path directly:
-	classified, classErr := reviewpoller.NewRuleBasedClassifier().Classify(
+	classified, classErr := reviewpoller.NewRuleBasedClassifier(nil).Classify(
 		context.Background(),
 		actionableComment("1", "carol", "fix the crash in the auth module"),
 	)
@@ -248,7 +329,7 @@ func TestPoller_IgnoresProcessed(t *testing.T) {
 	comment := actionableComment("c1", "dave", "fix the broken import")
 	mock := &mockSCMBackend{reviewComments: []scm.ReviewComment{comment}}
 
-	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(), logger)
+	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(nil), logger)
 	poller.WithSCMBackend(mock)
 	poller.Register("https://github.com/test/repo/pull/1", "TICKET-2",
 		"Fix imports", "Fix the import paths.", "https://github.com/test/repo")
@@ -277,7 +358,7 @@ func TestPoller_MaxFollowUpLimit(t *testing.T) {
 
 	// Verify classifier identifies each as RequiresAction (tests the
 	// per-comment limit path indirectly).
-	classifier := reviewpoller.NewRuleBasedClassifier()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
 	ctx := context.Background()
 	actionCount := 0
 	for _, c := range comments {
@@ -307,7 +388,7 @@ func TestPoller_UntracksMergedPR(t *testing.T) {
 		prState: "merged",
 	}
 
-	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(), logger)
+	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(nil), logger)
 	poller.WithSCMBackend(mock)
 	poller.Register("https://github.com/test/repo/pull/2", "TICKET-3",
 		"Merged feature", "Already merged.", "https://github.com/test/repo")
@@ -336,7 +417,7 @@ func TestPoller_RepliesOnAction(t *testing.T) {
 	var _ scm.Backend = mock // compile-time interface check
 
 	// Classify directly to confirm the path is RequiresAction.
-	classified, err := reviewpoller.NewRuleBasedClassifier().Classify(
+	classified, err := reviewpoller.NewRuleBasedClassifier(nil).Classify(
 		context.Background(),
 		actionableComment("r1", "frank", "fix the error handling"),
 	)
@@ -344,7 +425,7 @@ func TestPoller_RepliesOnAction(t *testing.T) {
 	assert.Equal(t, reviewpoller.ClassificationRequiresAction, classified.Classification)
 
 	// Verify the poller is constructed and accepts the mock backend.
-	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(), logger)
+	poller := reviewpoller.New(cfg, reviewpoller.NewRuleBasedClassifier(nil), logger)
 	poller.WithSCMBackend(mock)
 	poller.Register("https://github.com/test/repo/pull/3", "TICKET-4",
 		"Error handling", "Improve error handling.", "https://github.com/test/repo")

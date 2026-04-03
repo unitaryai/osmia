@@ -62,6 +62,12 @@ type ReviewResponseConfig struct {
 	// LLMClassifier enables LLM-backed comment classification with rule-based
 	// fallback. Requires an LLM client to be configured. Default: false.
 	LLMClassifier bool `yaml:"llm_classifier"`
+	// IgnoreSummaryAuthors is a list of regex patterns matching comment
+	// author usernames whose non-inline comments (no file position) are
+	// ignored. Inline diff comments from these authors are still processed
+	// so that actionable review feedback is not lost. Merged with built-in
+	// defaults (e.g. "osmia", "dependabot"). Case-insensitive.
+	IgnoreSummaryAuthors []string `yaml:"ignore_summary_authors,omitempty"`
 }
 
 // CompetitiveExecutionConfig configures competitive execution with tournament selection.

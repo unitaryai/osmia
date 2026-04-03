@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Review poller acting on bot summary comments**: the classifier now only
+  ignores bot comments that lack a file position (summaries, coverage reports).
+  Inline diff comments from bots (e.g. CodeRabbit review suggestions) are still
+  evaluated as actionable. A new `ignore_summary_authors` config field accepts
+  regex patterns for additional bot usernames (e.g. GitLab group bot tokens).
 - **Duplicate MRs on retry/continuation**: diagnosis retries, engine fallbacks,
   and continuation jobs now pass the prior MR URL through to the prompt. When a
   previous run already opened an MR, the agent is instructed to push to the

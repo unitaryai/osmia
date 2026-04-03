@@ -101,6 +101,31 @@ func NewRuleBasedClassifier(extraPatterns []string) *RuleBasedClassifier {
 	return &RuleBasedClassifier{summaryAuthorPatterns: patterns}
 }
 
+// prefilterBotSummary checks whether a comment should be ignored before any
+// classification logic runs. Non-inline comments (no file position) from
+// authors matching the given patterns are ignored — they are typically bot
+// summaries, coverage reports, or initial review messages. Inline diff
+// comments are never skipped so actionable review feedback is preserved.
+// Returns a classified result and true if the comment should be skipped, or
+// an empty result and false if classification should proceed.
+func prefilterBotSummary(comment scm.ReviewComment, patterns []*regexp.Regexp) (ClassifiedComment, bool) {
+	if comment.FilePath != "" {
+		return ClassifiedComment{}, false
+	}
+	authorLower := strings.ToLower(comment.Author)
+	for _, pat := range patterns {
+		if pat.MatchString(authorLower) {
+			return ClassifiedComment{
+				ReviewComment:  comment,
+				Classification: ClassificationIgnore,
+				Severity:       "info",
+				Reason:         fmt.Sprintf("non-inline comment by known automation account %q", comment.Author),
+			}, true
+		}
+	}
+	return ClassifiedComment{}, false
+}
+
 // Classify applies rule-based heuristics to determine the comment classification.
 func (c *RuleBasedClassifier) Classify(_ context.Context, comment scm.ReviewComment) (ClassifiedComment, error) {
 	result := ClassifiedComment{
@@ -115,21 +140,9 @@ func (c *RuleBasedClassifier) Classify(_ context.Context, comment scm.ReviewComm
 		return result, nil
 	}
 
-	// Inline diff comments (with a file position) are always evaluated —
-	// they represent specific code review feedback we should act on,
-	// regardless of whether the author is a bot (e.g. CodeRabbit).
-	// Non-inline comments from known bots are ignored (summaries, coverage
-	// reports, etc.).
-	if comment.FilePath == "" {
-		authorLower := strings.ToLower(comment.Author)
-		for _, pat := range c.summaryAuthorPatterns {
-			if pat.MatchString(authorLower) {
-				result.Classification = ClassificationIgnore
-				result.Severity = "info"
-				result.Reason = fmt.Sprintf("non-inline comment by known automation account %q", comment.Author)
-				return result, nil
-			}
-		}
+	// Skip non-inline comments from known bots.
+	if filtered, ok := prefilterBotSummary(comment, c.summaryAuthorPatterns); ok {
+		return filtered, nil
 	}
 
 	bodyLower := strings.ToLower(comment.Body)
@@ -190,24 +203,33 @@ var classifyCommentSignature = llm.Signature{
 // LLMClassifier classifies review comments using an LLM, falling back to
 // RuleBasedClassifier when the LLM response is invalid or an error occurs.
 type LLMClassifier struct {
-	module   llm.Module
-	fallback Classifier
-	logger   *slog.Logger
+	module                llm.Module
+	fallback              Classifier
+	summaryAuthorPatterns []*regexp.Regexp
+	logger                *slog.Logger
 }
 
 // NewLLMClassifier creates an LLMClassifier backed by a ChainOfThought module.
 func NewLLMClassifier(client llm.Client, logger *slog.Logger, extraPatterns []string) *LLMClassifier {
 	module := llm.NewChainOfThought(classifyCommentSignature, client, nil)
+	fb := NewRuleBasedClassifier(extraPatterns)
 	return &LLMClassifier{
-		module:   module,
-		fallback: NewRuleBasedClassifier(extraPatterns),
-		logger:   logger,
+		module:                module,
+		fallback:              fb,
+		summaryAuthorPatterns: fb.summaryAuthorPatterns,
+		logger:                logger,
 	}
 }
 
 // Classify uses the LLM to classify the comment, falling back on error or
-// unrecognised output values.
+// unrecognised output values. Non-inline bot comments are prefiltered before
+// the LLM call to avoid wasting tokens on automated summaries.
 func (c *LLMClassifier) Classify(ctx context.Context, comment scm.ReviewComment) (ClassifiedComment, error) {
+	// Apply the same bot/FilePath prefilter before calling the LLM.
+	if filtered, ok := prefilterBotSummary(comment, c.summaryAuthorPatterns); ok {
+		return filtered, nil
+	}
+
 	inputs := map[string]any{
 		"author": comment.Author,
 		"body":   comment.Body,

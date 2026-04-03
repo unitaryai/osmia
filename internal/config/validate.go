@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -134,6 +135,15 @@ func (c *Config) Validate() error {
 			// valid
 		default:
 			return fmt.Errorf("review_response.min_severity must be one of info|warning|error, got %q", c.ReviewResponse.MinSeverity)
+		}
+	}
+
+	for i, pat := range c.ReviewResponse.IgnoreSummaryAuthors {
+		if strings.TrimSpace(pat) == "" {
+			return fmt.Errorf("review_response.ignore_summary_authors[%d] must not be blank", i)
+		}
+		if _, err := regexp.Compile(pat); err != nil {
+			return fmt.Errorf("review_response.ignore_summary_authors[%d] is not a valid regex: %w", i, err)
 		}
 	}
 

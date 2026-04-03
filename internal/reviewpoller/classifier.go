@@ -18,9 +18,10 @@ type Classifier interface {
 }
 
 // botUsernames are username substrings that identify known automation accounts
-// whose comments should be ignored.
+// whose non-inline comments should be ignored.
 var botUsernames = []string{
 	"coderabbit-ai",
+	"coderabbitai",
 	"github-actions[bot]",
 	"github-actions",
 	"dependabot[bot]",
@@ -28,6 +29,15 @@ var botUsernames = []string{
 	"copilot",
 	"gemini-code-assist",
 	"osmia",
+}
+
+// builtinBotPatterns are regex patterns compiled into the classifier by default.
+// They catch platform-specific bot username conventions that cannot be expressed
+// as simple substrings.
+var builtinBotPatterns = []string{
+	// GitLab group bot tokens — covers all group access tokens including
+	// CodeRabbit, CI scanners, coverage reporters, etc.
+	`^group_\d+_bot_[0-9a-f]+$`,
 }
 
 // informationalKeywords are phrases that indicate a non-actionable comment.
@@ -86,6 +96,11 @@ func NewRuleBasedClassifier(extraPatterns []string) *RuleBasedClassifier {
 	for _, bot := range botUsernames {
 		pat := regexp.MustCompile(regexp.QuoteMeta(strings.ToLower(bot)))
 		patterns = append(patterns, pat)
+	}
+
+	// Compile built-in platform-specific bot patterns.
+	for _, p := range builtinBotPatterns {
+		patterns = append(patterns, regexp.MustCompile("(?i)"+p))
 	}
 
 	// Compile user-provided regex patterns.

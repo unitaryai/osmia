@@ -424,6 +424,11 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 // reconcileOnce performs a single reconciliation cycle: poll for tickets,
 // check guard rails, create task runs, launch jobs, and check job statuses.
 func (r *Reconciler) reconcileOnce(ctx context.Context) error {
+	// Always check running job status — this must run even when at the
+	// concurrent job limit, otherwise completed jobs are never reaped and
+	// the active count never decreases (causing permanent stall).
+	defer r.checkRunningJobs(ctx)
+
 	// Check concurrent job limit.
 	activeCount := r.activeJobCount()
 	maxConcurrent := r.config.GuardRails.MaxConcurrentJobs
@@ -448,11 +453,6 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("polling tickets: %w", err)
 	}
-
-	// Always check running job status, regardless of whether new tickets arrived.
-	// Previously this was only called when tickets > 0, which caused completed
-	// jobs to go undetected until the next ticket was ready.
-	defer r.checkRunningJobs(ctx)
 
 	// Drain any follow-up requests from the review poller and submit jobs.
 	if r.reviewPoller != nil {

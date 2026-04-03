@@ -126,7 +126,7 @@ func TestClassifier_IgnoresBotSummaryComments(t *testing.T) {
 	classifier := reviewpoller.NewRuleBasedClassifier(nil)
 	ctx := context.Background()
 
-	bots := []string{"coderabbit-ai", "github-actions[bot]", "dependabot[bot]", "copilot", "gemini-code-assist"}
+	bots := []string{"coderabbit-ai", "coderabbitai", "github-actions[bot]", "dependabot[bot]", "copilot", "gemini-code-assist"}
 	for _, bot := range bots {
 		t.Run(bot, func(t *testing.T) {
 			comment := scm.ReviewComment{

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -1532,6 +1533,9 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	if fallbackOK {
 		task.TicketURL = fallbackCachedTicket.ExternalURL
 	}
+	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
+		task.PriorMergeRequestURL = mrURL
+	}
 
 	engineCfg := r.baseEngineConfig(engineName)
 
@@ -2093,6 +2097,12 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 	}
 	task.Description = desc
 
+	// If a prior run already opened an MR, pass its URL so the continuation
+	// agent pushes to the existing branch rather than creating a duplicate MR.
+	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
+		task.PriorMergeRequestURL = mrURL
+	}
+
 	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
@@ -2572,6 +2582,25 @@ func (r *Reconciler) scmSecretKeyRefs() map[string]engine.SecretKeyRef {
 	}
 }
 
+// validatedMergeRequestURL returns the MR URL from a task result after
+// validating it is a well-formed HTTP(S) URL. Returns "" if the result is nil,
+// empty, or the URL is malformed. This prevents agent-written placeholder or
+// malformed values from suppressing MR creation on retry paths.
+func validatedMergeRequestURL(result *engine.TaskResult) string {
+	if result == nil {
+		return ""
+	}
+	raw := strings.TrimSpace(result.MergeRequestURL)
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	return u.String()
+}
+
 // hasApprovalGate returns true if the given gate name is present in the
 // configured approval gates list.
 func (r *Reconciler) hasApprovalGate(gate string) bool {
@@ -2629,6 +2658,12 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		// Fall back to the predictable naming convention even if result.json
 		// was not written (e.g. pod killed before stop hook ran).
 		task.PriorBranchName = "osmia/" + tr.TicketID
+	}
+
+	// If a prior run already opened an MR, pass its URL so the retry agent
+	// pushes to the existing branch rather than creating a duplicate MR.
+	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
+		task.PriorMergeRequestURL = mrURL
 	}
 
 	engineCfg := r.baseEngineConfig(tr.CurrentEngine)

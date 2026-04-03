@@ -471,9 +471,16 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	if task.RepoURL != "" {
 		branchName := "osmia/" + task.TicketID
 
-		b.WriteString("**IMPORTANT: You MUST open a merge request (MR/PR) before completing the task\n")
-		b.WriteString("if you have created, modified, or deleted ANY files — including documentation,\n")
-		b.WriteString("plans, configuration, and generated output. Never skip this step.**\n\n")
+		if task.PriorMergeRequestURL != "" {
+			b.WriteString("**IMPORTANT: A merge request already exists for this task at:\n")
+			b.WriteString(task.PriorMergeRequestURL)
+			b.WriteString("\nDo NOT create a new merge request. Push your commits to the existing branch\n")
+			b.WriteString("and the MR will update automatically.**\n\n")
+		} else {
+			b.WriteString("**IMPORTANT: You MUST open a merge request (MR/PR) before completing the task\n")
+			b.WriteString("if you have created, modified, or deleted ANY files — including documentation,\n")
+			b.WriteString("plans, configuration, and generated output. Never skip this step.**\n\n")
+		}
 
 		// When resuming a persisted session, the workspace and git state are
 		// already on the PVC — skip clone/checkout instructions entirely.
@@ -488,24 +495,13 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString(branchName)
 			b.WriteString("\n")
 			b.WriteString("   ```\n\n")
-			b.WriteString("3. Open a merge request. This step is MANDATORY — do not skip it.\n")
-			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
-			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
-			writeMRTitleGuidance(&b, task)
-			b.WriteString("   Example for GitLab:\n")
-			b.WriteString("   ```\n")
-			b.WriteString("   cd /workspace/repo\n")
-			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
-			b.WriteString("   glab mr create --fill --title \"<concise title>")
-			writeMRTitleSuffix(&b, task)
-			b.WriteString("\" --description \"<full description>\"\n")
-			b.WriteString("   ```\n")
-			writeMRDescriptionFooter(&b, task)
-			b.WriteString("\n")
+			writeMRStep(&b, task, branchName, "3")
 			b.WriteString("4. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
-			b.WriteString("\", \"merge_request_url\": \"<MR URL from step 3>\"}`\n")
+			b.WriteString("\", \"merge_request_url\": \"")
+			writeMRURLPlaceholder(&b, task, "3")
+			b.WriteString("\"}`\n")
 		} else {
 			b.WriteString("1. Configure git globally:\n")
 			b.WriteString("   ```\n")
@@ -545,24 +541,13 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString(branchName)
 			b.WriteString("\n")
 			b.WriteString("   ```\n\n")
-			b.WriteString("5. Open a merge request. This step is MANDATORY — do not skip it.\n")
-			b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
-			b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
-			writeMRTitleGuidance(&b, task)
-			b.WriteString("   Example for GitLab:\n")
-			b.WriteString("   ```\n")
-			b.WriteString("   cd /workspace/repo\n")
-			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
-			b.WriteString("   glab mr create --fill --title \"<concise title>")
-			writeMRTitleSuffix(&b, task)
-			b.WriteString("\" --description \"<full description>\"\n")
-			b.WriteString("   ```\n")
-			writeMRDescriptionFooter(&b, task)
-			b.WriteString("\n")
+			writeMRStep(&b, task, branchName, "5")
 			b.WriteString("6. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
-			b.WriteString("\", \"merge_request_url\": \"<MR URL from step 5>\"}`\n")
+			b.WriteString("\", \"merge_request_url\": \"")
+			writeMRURLPlaceholder(&b, task, "5")
+			b.WriteString("\"}`\n")
 		}
 	} else {
 		b.WriteString("Complete the task described above. Work in the /workspace directory.\n")
@@ -572,36 +557,55 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	return b.String(), nil
 }
 
-// writeMRTitleGuidance writes instructions telling the agent to include the
-// ticket ID in the MR title, if a ticket URL is available.
-func writeMRTitleGuidance(b *strings.Builder, task engine.Task) {
-	if task.TicketID == "" {
+// writeMRStep writes the merge request creation/update step. When a prior MR
+// exists, the agent is told to push to the existing branch; otherwise it gets
+// the standard "create a new MR" instructions with ticket reference guidance.
+func writeMRStep(b *strings.Builder, task engine.Task, branchName, stepNum string) {
+	if task.PriorMergeRequestURL != "" {
+		b.WriteString(stepNum)
+		b.WriteString(". An MR already exists — do NOT create another one.\n")
+		b.WriteString("   Simply push your commits to branch `")
+		b.WriteString(branchName)
+		b.WriteString("` and the MR will update automatically.\n\n")
 		return
 	}
-	b.WriteString("   The MR title MUST end with ` [")
-	b.WriteString(task.TicketID)
-	b.WriteString("]` so the ticket is traceable from the MR.\n")
+	b.WriteString(stepNum)
+	b.WriteString(". Open a merge request. This step is MANDATORY — do not skip it.\n")
+	b.WriteString("   Use `glab` (for GitLab) or `gh` (for GitHub).\n")
+	b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
+	if task.TicketID != "" {
+		b.WriteString("   The MR title MUST end with ` [")
+		b.WriteString(task.TicketID)
+		b.WriteString("]` so the ticket is traceable from the MR.\n")
+	}
+	if task.TicketURL != "" {
+		b.WriteString("   Include `References: ")
+		b.WriteString(task.TicketURL)
+		b.WriteString("` in the MR description body.\n")
+	}
+	b.WriteString("   Example for GitLab:\n")
+	b.WriteString("   ```\n")
+	b.WriteString("   cd /workspace/repo\n")
+	b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
+	b.WriteString("   glab mr create --fill --title \"<concise title>")
+	if task.TicketID != "" {
+		b.WriteString(" [")
+		b.WriteString(task.TicketID)
+		b.WriteString("]")
+	}
+	b.WriteString("\" --description \"<full description>\"\n")
+	b.WriteString("   ```\n\n")
 }
 
-// writeMRTitleSuffix appends the ticket ID suffix for the glab/gh example
-// command, e.g. ` [sc-12345]`.
-func writeMRTitleSuffix(b *strings.Builder, task engine.Task) {
-	if task.TicketID == "" {
+// writeMRURLPlaceholder writes the merge_request_url value for the result.json
+// template. When a prior MR exists, the known URL is emitted; otherwise a
+// placeholder referencing the step number is used.
+func writeMRURLPlaceholder(b *strings.Builder, task engine.Task, stepNum string) {
+	if task.PriorMergeRequestURL != "" {
+		b.WriteString(task.PriorMergeRequestURL)
 		return
 	}
-	b.WriteString(" [")
-	b.WriteString(task.TicketID)
-	b.WriteString("]")
-}
-
-// writeMRDescriptionFooter appends a ticket reference instruction after the
-// shell example code block. The URL is kept outside the shell command to avoid
-// escaping issues with special characters in the URL.
-func writeMRDescriptionFooter(b *strings.Builder, task engine.Task) {
-	if task.TicketURL == "" {
-		return
-	}
-	b.WriteString("   Include `References: ")
-	b.WriteString(task.TicketURL)
-	b.WriteString("` in the MR description body.\n")
+	b.WriteString("<MR URL from step ")
+	b.WriteString(stepNum)
+	b.WriteString(">")
 }

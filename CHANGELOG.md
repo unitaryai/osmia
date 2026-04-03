@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Duplicate MRs on retry/continuation**: diagnosis retries, engine fallbacks,
+  and continuation jobs now pass the prior MR URL through to the prompt. When a
+  previous run already opened an MR, the agent is instructed to push to the
+  existing branch instead of creating a new MR.
 - **Controller stall at concurrent job limit**: `checkRunningJobs` was only
   called after the concurrent-limit early-return, so completed K8s jobs were
   never reaped when the controller was at capacity. The active count never

@@ -1087,6 +1087,63 @@ func TestBuildPrompt_TicketReferenceInMR(t *testing.T) {
 	})
 }
 
+func TestBuildPrompt_PriorMRPreventsNewMR(t *testing.T) {
+	e := New()
+
+	t.Run("with prior MR URL suppresses create instruction", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:                   "task-1",
+			TicketID:             "sc-28672",
+			Title:                "Fix the bug",
+			RepoURL:              "https://gitlab.com/org/repo",
+			PriorMergeRequestURL: "https://gitlab.com/org/repo/-/merge_requests/309",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "Do NOT create a new merge request")
+		assert.Contains(t, prompt, "do NOT create another one")
+		assert.Contains(t, prompt, "https://gitlab.com/org/repo/-/merge_requests/309")
+		assert.NotContains(t, prompt, "glab mr create")
+	})
+
+	t.Run("without prior MR URL includes create instruction", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:       "task-1",
+			TicketID: "sc-28672",
+			Title:    "Fix the bug",
+			RepoURL:  "https://gitlab.com/org/repo",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "glab mr create")
+		assert.NotContains(t, prompt, "Do NOT create a new merge request")
+	})
+
+	t.Run("result.json uses known MR URL when prior exists", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:                   "task-1",
+			TicketID:             "sc-28672",
+			Title:                "Fix the bug",
+			RepoURL:              "https://gitlab.com/org/repo",
+			PriorMergeRequestURL: "https://gitlab.com/org/repo/-/merge_requests/309",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "\"merge_request_url\": \"https://gitlab.com/org/repo/-/merge_requests/309\"")
+	})
+
+	t.Run("resume path with prior MR also suppresses create", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:                   "task-1",
+			TicketID:             "sc-28672",
+			Title:                "Fix the bug",
+			RepoURL:              "https://gitlab.com/org/repo",
+			SessionID:            "sess-123",
+			PriorMergeRequestURL: "https://gitlab.com/org/repo/-/merge_requests/309",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "do NOT create another one")
+		assert.NotContains(t, prompt, "glab mr create")
+	})
+}
+
 func TestGenerateHooksConfig(t *testing.T) {
 	tests := []struct {
 		name                string

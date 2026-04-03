@@ -467,6 +467,8 @@ func parseMRURL(mrURL string) (string, int, error) {
 }
 
 // doGet performs a GET request and returns the response body.
+// It validates that the response is JSON before returning — HTML responses
+// (e.g. from auth redirects to a sign-in page) are rejected with a clear error.
 func (b *GitLabSCMBackend) doGet(ctx context.Context, u string) (io.ReadCloser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -483,6 +485,13 @@ func (b *GitLabSCMBackend) doGet(ctx context.Context, u string) (io.ReadCloser, 
 		resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
+
+	ct := resp.Header.Get("Content-Type")
+	if ct != "" && !strings.HasPrefix(ct, "application/json") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("unexpected content-type %q (expected application/json) — the token may lack access to this resource", ct)
+	}
+
 	return resp.Body, nil
 }
 

@@ -262,6 +262,21 @@ func TestGitLabSCMBackend_GetPullRequestStatus_APIError(t *testing.T) {
 	assert.Contains(t, err.Error(), "unexpected status 404")
 }
 
+func TestGitLabSCMBackend_GetPullRequestStatus_HTMLResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html><body>Sign in</body></html>"))
+	}))
+	defer srv.Close()
+
+	b := NewGitLabSCMBackend("bad-token", testLogger(), WithBaseURL(srv.URL))
+	_, err := b.GetPullRequestStatus(context.Background(), "https://gitlab.com/acme/widgets/-/merge_requests/42")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected content-type")
+	assert.Contains(t, err.Error(), "token may lack access")
+}
+
 func TestGitLabSCMBackend_AuthHeader(t *testing.T) {
 	var authHeader string
 

@@ -1214,12 +1214,14 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	}
 
 	task := engine.Task{
-		ID:          ticket.ID,
-		TicketID:    ticket.ID,
-		TaskRunID:   tr.ID,
-		Title:       ticket.Title,
-		Description: ticket.Description,
-		RepoURL:     ticket.RepoURL,
+		ID:                   ticket.ID,
+		TicketID:             ticket.ID,
+		TaskRunID:            tr.ID,
+		Title:                ticket.Title,
+		Description:          ticket.Description,
+		RepoURL:              ticket.RepoURL,
+		PriorBranchName:      "osmia/" + req.TicketID,
+		PriorMergeRequestURL: req.PRURL,
 	}
 	r.mu.RLock()
 	parentTicket, parentOK := r.ticketCache[req.TicketID]

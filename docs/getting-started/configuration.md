@@ -15,6 +15,7 @@ Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into 
 | `tenancy` | Multi-tenancy config schema (namespace-per-tenant runtime isolation is planned) |
 | `quality_gate` | Optional AI-powered review of agent output before merging |
 | `review` | Review backend configuration |
+| `review_response` | Automated follow-up on PR/MR review comments |
 | `progress_watchdog` | Detects stalled or looping agent jobs and intervenes |
 | `plugin_health` | Health monitoring and restart behaviour for gRPC plugins |
 | `execution` | Execution backend (`job`, `sandbox`, or `local`) |
@@ -418,6 +419,49 @@ review:
   config:
     api_key_secret: "coderabbit-api-key"
 ```
+
+## Review Response
+
+When enabled, Osmia monitors merge requests it has opened for new review comments. Actionable comments (e.g. inline suggestions from CodeRabbit or human reviewers) trigger a follow-up job that addresses the feedback and pushes to the existing MR branch.
+
+```yaml
+review_response:
+  enabled: true
+  poll_interval_minutes: 5        # How often to check for new comments
+  settling_minutes: 10            # Wait before first poll (for bots to finish)
+  min_severity: "warning"         # Minimum severity to act on
+  max_follow_up_jobs: 3           # Max batched follow-ups per PR
+  reply_to_comments: true         # Post acknowledgement replies
+  resolve_threads: true           # Resolve threads on completion (GitLab only)
+  ignore_summary_authors:         # Regex patterns for bot summary filtering
+    - "^group_\\d+_bot_"          # GitLab group bot tokens
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `false` | Enables the review response subsystem |
+| `poll_interval_minutes` | int | `5` | Minutes between comment polling cycles |
+| `settling_minutes` | int | `0` | Minimum minutes to wait after a PR is registered before polling. Set this to give review bots time to finish posting — e.g. `10` for CodeRabbit which typically takes 8-10 minutes |
+| `min_severity` | string | `"warning"` | Minimum comment severity that triggers a follow-up. One of `info`, `warning`, `error` |
+| `max_follow_up_jobs` | int | `3` | Maximum number of batched follow-up jobs per PR over its lifetime |
+| `reply_to_comments` | bool | `true` | Post an acknowledgement reply to each actionable comment |
+| `resolve_threads` | bool | `false` | Resolve discussion threads on follow-up completion. Only supported on GitLab |
+| `llm_classifier` | bool | `false` | Use LLM-backed classification with rule-based fallback |
+| `ignore_summary_authors` | list | `[]` | Regex patterns for author usernames whose non-inline comments (summaries, coverage reports) are ignored. Inline diff comments from these authors are still processed. Merged with built-in defaults (`osmia`, `dependabot`, `github-actions[bot]`, `copilot`, `gemini-code-assist`, `coderabbit-ai`) |
+
+### Settling period
+
+Review bots like CodeRabbit take several minutes to analyse a diff and post all their comments. Without a settling period, Osmia may poll the MR before the bot has finished, act on the first few comments, and miss later ones. Setting `settling_minutes: 10` ensures Osmia waits at least 10 minutes after the MR is opened before checking for comments.
+
+### Comment batching
+
+All actionable comments discovered in a single poll cycle are batched into one follow-up job. The job receives an enriched description containing all comments. This prevents multiple separate jobs from being spawned for what is logically one round of review feedback.
+
+### Bot summary filtering
+
+Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The `ignore_summary_authors` patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.
+
+For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Add `"^group_\\d+_bot_"` to catch all of them.
 
 ## Process Reward Model (PRM)
 

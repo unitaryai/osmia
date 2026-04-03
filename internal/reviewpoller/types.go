@@ -66,15 +66,16 @@ type FollowUpRequest struct {
 	OriginalDescription string
 	// RepoURL is the repository URL.
 	RepoURL string
-	// Comment is the classified comment that triggered this follow-up.
-	Comment ClassifiedComment
+	// Comments is the set of actionable comments that triggered this follow-up.
+	// Multiple comments from a single poll are batched into one request.
+	Comments []ClassifiedComment
 	// EnrichedDescription is the original description augmented with the
 	// comment context, ready to be used as the new task description.
 	EnrichedDescription string
-	// ReplyCommentID is the comment ID to reply to when the follow-up
+	// ReplyCommentIDs are the comment IDs to reply to when the follow-up
 	// completes. May be empty.
-	ReplyCommentID string
-	// ThreadID is the discussion thread ID to resolve on completion.
+	ReplyCommentIDs []string
+	// ThreadIDs are the discussion thread IDs to resolve on completion.
 	// May be empty.
-	ThreadID string
+	ThreadIDs []string
 }

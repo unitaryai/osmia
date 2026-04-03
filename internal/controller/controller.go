@@ -1122,32 +1122,44 @@ func (r *Reconciler) handleFollowUpComplete(ctx context.Context, tr *taskrun.Tas
 		}
 	}
 
-	// Reply to the original review comment if configured.
+	// Reply to all batched review comments and resolve their threads.
 	if tr.ReviewCommentID != "" && tr.ReviewPRURL != "" {
 		backend, scmErr := r.scmFor(tr.ReviewPRURL)
 		if scmErr == nil {
 			replyBody := "Addressed. " + result.Summary
-			if replyErr := backend.ReplyToComment(ctx, tr.ReviewPRURL, tr.ReviewCommentID, replyBody); replyErr != nil {
-				r.logger.WarnContext(ctx, "failed to reply to review comment",
-					"pr_url", tr.ReviewPRURL,
-					"comment_id", tr.ReviewCommentID,
-					"error", replyErr,
-				)
+			for _, commentID := range strings.Split(tr.ReviewCommentID, ",") {
+				commentID = strings.TrimSpace(commentID)
+				if commentID == "" {
+					continue
+				}
+				if replyErr := backend.ReplyToComment(ctx, tr.ReviewPRURL, commentID, replyBody); replyErr != nil {
+					r.logger.WarnContext(ctx, "failed to reply to review comment",
+						"pr_url", tr.ReviewPRURL,
+						"comment_id", commentID,
+						"error", replyErr,
+					)
+				}
 			}
 		}
 
-		// Resolve the discussion thread if configured and a thread ID was set.
+		// Resolve all discussion threads if configured.
 		if r.config.ReviewResponse.ResolveThreads && tr.ReviewThreadID != "" {
 			if backend == nil {
 				backend, scmErr = r.scmFor(tr.ReviewPRURL)
 			}
 			if scmErr == nil {
-				if resolveErr := backend.ResolveThread(ctx, tr.ReviewPRURL, tr.ReviewThreadID); resolveErr != nil {
-					r.logger.WarnContext(ctx, "failed to resolve review thread",
-						"pr_url", tr.ReviewPRURL,
-						"thread_id", tr.ReviewThreadID,
-						"error", resolveErr,
-					)
+				for _, threadID := range strings.Split(tr.ReviewThreadID, ",") {
+					threadID = strings.TrimSpace(threadID)
+					if threadID == "" {
+						continue
+					}
+					if resolveErr := backend.ResolveThread(ctx, tr.ReviewPRURL, threadID); resolveErr != nil {
+						r.logger.WarnContext(ctx, "failed to resolve review thread",
+							"pr_url", tr.ReviewPRURL,
+							"thread_id", threadID,
+							"error", resolveErr,
+						)
+					}
 				}
 			}
 		}
@@ -1202,8 +1214,8 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	tr.CurrentEngine = engineName
 	tr.EngineAttempts = []string{engineName}
 	tr.ParentTicketID = req.TicketID
-	tr.ReviewCommentID = req.ReplyCommentID
-	tr.ReviewThreadID = req.ThreadID
+	tr.ReviewCommentID = strings.Join(req.ReplyCommentIDs, ",")
+	tr.ReviewThreadID = strings.Join(req.ThreadIDs, ",")
 	tr.ReviewPRURL = req.PRURL
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {

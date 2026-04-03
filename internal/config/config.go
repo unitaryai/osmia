@@ -62,6 +62,11 @@ type ReviewResponseConfig struct {
 	// LLMClassifier enables LLM-backed comment classification with rule-based
 	// fallback. Requires an LLM client to be configured. Default: false.
 	LLMClassifier bool `yaml:"llm_classifier"`
+	// SettlingMinutes is the minimum time to wait after a PR is registered
+	// before polling it for comments. This gives review bots (e.g. CodeRabbit)
+	// time to finish posting all their comments before Osmia acts. Default: 0
+	// (poll immediately on next interval).
+	SettlingMinutes int `yaml:"settling_minutes"`
 	// IgnoreSummaryAuthors is a list of regex patterns matching comment
 	// author usernames whose non-inline comments (no file position) are
 	// ignored. Inline diff comments from these authors are still processed

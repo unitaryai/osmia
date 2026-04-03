@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Review comment settling period and batching**: new `settling_minutes` config
+  field delays polling a PR after registration, giving review bots time to finish
+  posting all comments. All actionable comments from a single poll are now batched
+  into one follow-up job instead of spawning a separate job per comment.
 - **Ticket references in merge requests**: the agent prompt now instructs the
   agent to include the ticket ID in the MR title (e.g. `fix: resolve null check
   [sc-28671]`) and a `References:` link to the ticket URL in the MR description.

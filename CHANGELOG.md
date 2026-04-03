@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Controller stall at concurrent job limit**: `checkRunningJobs` was only
+  called after the concurrent-limit early-return, so completed K8s jobs were
+  never reaped when the controller was at capacity. The active count never
+  decreased, permanently stalling all new work.
+
 ### Added
 
 - **Automatic repo URL resolution**: when a ticket has no explicit repository URL

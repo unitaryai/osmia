@@ -4664,6 +4664,10 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Duplicate MRs on retry/continuation</strong>: diagnosis retries, engine fallbacks,
+  and continuation jobs now pass the prior MR URL through to the prompt. When a
+  previous run already opened an MR, the agent is instructed to push to the
+  existing branch instead of creating a new MR.</li>
 <li><strong>Controller stall at concurrent job limit</strong>: <code>checkRunningJobs</code> was only
   called after the concurrent-limit early-return, so completed K8s jobs were
   never reaped when the controller was at capacity. The active count never

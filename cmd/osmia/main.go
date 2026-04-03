@@ -709,7 +709,7 @@ func main() {
 
 	// --- Review response (PR/MR comment monitoring) ---
 	if cfg.ReviewResponse.Enabled {
-		classifier := reviewpoller.NewRuleBasedClassifier()
+		classifier := reviewpoller.NewRuleBasedClassifier(cfg.ReviewResponse.IgnoreSummaryAuthors)
 		poller := reviewpoller.New(cfg.ReviewResponse, classifier, logger.With("component", "review-poller"))
 		if len(cfg.SCM.Backends) > 0 {
 			// Re-use the already-constructed router from the SCM section above.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"github.com/unitaryai/osmia/internal/llm"
@@ -65,11 +66,39 @@ var errorKeywords = []string{
 
 // RuleBasedClassifier classifies review comments using simple keyword and
 // author pattern matching, with no external dependencies.
-type RuleBasedClassifier struct{}
+//
+// Non-inline comments (no file position) from authors matching the built-in
+// bot list or user-provided patterns are classified as Ignore. Inline diff
+// comments (with a file position) are always evaluated regardless of author,
+// so actionable review feedback from bots like CodeRabbit is not lost.
+type RuleBasedClassifier struct {
+	summaryAuthorPatterns []*regexp.Regexp
+}
 
-// NewRuleBasedClassifier creates a new RuleBasedClassifier.
-func NewRuleBasedClassifier() *RuleBasedClassifier {
-	return &RuleBasedClassifier{}
+// NewRuleBasedClassifier creates a new RuleBasedClassifier. The extraPatterns
+// parameter accepts additional regex patterns for author usernames whose
+// non-inline comments should be ignored (e.g. "^group_\\d+_bot_" for GitLab
+// group bots). These are merged with the built-in botUsernames defaults.
+func NewRuleBasedClassifier(extraPatterns []string) *RuleBasedClassifier {
+	var patterns []*regexp.Regexp
+
+	// Compile built-in bot usernames as literal substring patterns.
+	for _, bot := range botUsernames {
+		pat := regexp.MustCompile(regexp.QuoteMeta(strings.ToLower(bot)))
+		patterns = append(patterns, pat)
+	}
+
+	// Compile user-provided regex patterns.
+	for _, p := range extraPatterns {
+		compiled, err := regexp.Compile("(?i)" + p)
+		if err != nil {
+			// Skip invalid patterns rather than failing hard.
+			continue
+		}
+		patterns = append(patterns, compiled)
+	}
+
+	return &RuleBasedClassifier{summaryAuthorPatterns: patterns}
 }
 
 // Classify applies rule-based heuristics to determine the comment classification.
@@ -86,14 +115,20 @@ func (c *RuleBasedClassifier) Classify(_ context.Context, comment scm.ReviewComm
 		return result, nil
 	}
 
-	// Ignore known bot accounts.
-	authorLower := strings.ToLower(comment.Author)
-	for _, bot := range botUsernames {
-		if strings.Contains(authorLower, strings.ToLower(bot)) {
-			result.Classification = ClassificationIgnore
-			result.Severity = "info"
-			result.Reason = fmt.Sprintf("comment by known automation account %q", comment.Author)
-			return result, nil
+	// Inline diff comments (with a file position) are always evaluated —
+	// they represent specific code review feedback we should act on,
+	// regardless of whether the author is a bot (e.g. CodeRabbit).
+	// Non-inline comments from known bots are ignored (summaries, coverage
+	// reports, etc.).
+	if comment.FilePath == "" {
+		authorLower := strings.ToLower(comment.Author)
+		for _, pat := range c.summaryAuthorPatterns {
+			if pat.MatchString(authorLower) {
+				result.Classification = ClassificationIgnore
+				result.Severity = "info"
+				result.Reason = fmt.Sprintf("non-inline comment by known automation account %q", comment.Author)
+				return result, nil
+			}
 		}
 	}
 
@@ -161,11 +196,11 @@ type LLMClassifier struct {
 }
 
 // NewLLMClassifier creates an LLMClassifier backed by a ChainOfThought module.
-func NewLLMClassifier(client llm.Client, logger *slog.Logger) *LLMClassifier {
+func NewLLMClassifier(client llm.Client, logger *slog.Logger, extraPatterns []string) *LLMClassifier {
 	module := llm.NewChainOfThought(classifyCommentSignature, client, nil)
 	return &LLMClassifier{
 		module:   module,
-		fallback: NewRuleBasedClassifier(),
+		fallback: NewRuleBasedClassifier(extraPatterns),
 		logger:   logger,
 	}
 }

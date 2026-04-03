@@ -131,8 +131,22 @@ func (p *Poller) poll(ctx context.Context) {
 }
 
 // pollPR inspects a single tracked PR. Untracked PRs (merged/closed) are
-// removed; new actionable comments trigger follow-up requests.
+// removed; new actionable comments are batched into a single follow-up request.
 func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
+	// Skip PRs still in the settling period — give review bots time to
+	// finish posting all their comments before acting.
+	if p.cfg.SettlingMinutes > 0 {
+		settlingDuration := time.Duration(p.cfg.SettlingMinutes) * time.Minute
+		if time.Since(pr.RegisteredAt) < settlingDuration {
+			p.logger.Debug("PR still in settling period, skipping",
+				"pr_url", prURL,
+				"registered_at", pr.RegisteredAt,
+				"settling_minutes", p.cfg.SettlingMinutes,
+			)
+			return
+		}
+	}
+
 	backend, err := p.scmFor(pr.RepoURL)
 	if err != nil {
 		p.logger.Warn("no SCM backend for PR, skipping",
@@ -173,6 +187,10 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 		minSeverity = "warning"
 	}
 
+	// Collect all actionable comments from this poll, then emit a single
+	// batched follow-up request rather than one per comment.
+	var actionable []ClassifiedComment
+
 	for _, comment := range comments {
 		p.mu.Lock()
 		alreadyProcessed := pr.ProcessedIDs[comment.ID]
@@ -209,57 +227,69 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 			continue
 		}
 
-		p.mu.Lock()
-		if pr.FollowUpCount >= maxFollowUps {
-			p.mu.Unlock()
-			p.logger.Info("max follow-up limit reached for PR, skipping comment",
-				"pr_url", prURL,
-				"follow_up_count", pr.FollowUpCount,
-				"max", maxFollowUps,
-			)
-			continue
-		}
-		pr.FollowUpCount++
-		p.mu.Unlock()
+		actionable = append(actionable, classified)
+	}
 
-		// Optionally reply to the comment to acknowledge it.
+	if len(actionable) == 0 {
+		return
+	}
+
+	// Check follow-up limit before emitting.
+	p.mu.Lock()
+	if pr.FollowUpCount >= maxFollowUps {
+		p.mu.Unlock()
+		p.logger.Info("max follow-up limit reached for PR, skipping batch",
+			"pr_url", prURL,
+			"follow_up_count", pr.FollowUpCount,
+			"max", maxFollowUps,
+			"actionable_comments", len(actionable),
+		)
+		return
+	}
+	pr.FollowUpCount++
+	p.mu.Unlock()
+
+	// Reply to each actionable comment individually for visibility.
+	var replyIDs []string
+	var threadIDs []string
+	for _, c := range actionable {
 		if p.cfg.ReplyToComments {
-			if replyErr := backend.ReplyToComment(ctx, prURL, comment.ID,
+			if replyErr := backend.ReplyToComment(ctx, prURL, c.ID,
 				"👋 Osmia is addressing this feedback."); replyErr != nil {
 				p.logger.Warn("failed to reply to comment",
 					"pr_url", prURL,
-					"comment_id", comment.ID,
+					"comment_id", c.ID,
 					"error", replyErr,
 				)
 			}
+			replyIDs = append(replyIDs, c.ID)
 		}
-
-		req := FollowUpRequest{
-			PRURL:               pr.PRURL,
-			TicketID:            pr.TicketID,
-			OriginalTitle:       pr.OriginalTitle,
-			OriginalDescription: pr.OriginalDescription,
-			RepoURL:             pr.RepoURL,
-			Comment:             classified,
-			EnrichedDescription: buildEnrichedDescription(pr.OriginalDescription, classified),
-			ThreadID:            comment.ThreadID,
+		if c.ThreadID != "" {
+			threadIDs = append(threadIDs, c.ThreadID)
 		}
-
-		if p.cfg.ReplyToComments {
-			req.ReplyCommentID = comment.ID
-		}
-
-		p.mu.Lock()
-		p.followUps = append(p.followUps, req)
-		p.mu.Unlock()
-
-		p.logger.Info("follow-up request emitted",
-			"pr_url", prURL,
-			"ticket_id", pr.TicketID,
-			"comment_id", comment.ID,
-			"severity", classified.Severity,
-		)
 	}
+
+	req := FollowUpRequest{
+		PRURL:               pr.PRURL,
+		TicketID:            pr.TicketID,
+		OriginalTitle:       pr.OriginalTitle,
+		OriginalDescription: pr.OriginalDescription,
+		RepoURL:             pr.RepoURL,
+		Comments:            actionable,
+		EnrichedDescription: buildEnrichedDescription(pr.OriginalDescription, actionable),
+		ReplyCommentIDs:     replyIDs,
+		ThreadIDs:           threadIDs,
+	}
+
+	p.mu.Lock()
+	p.followUps = append(p.followUps, req)
+	p.mu.Unlock()
+
+	p.logger.Info("batched follow-up request emitted",
+		"pr_url", prURL,
+		"ticket_id", pr.TicketID,
+		"comments", len(actionable),
+	)
 }
 
 // scmFor returns the appropriate SCM backend for the given repository URL.
@@ -274,26 +304,34 @@ func (p *Poller) scmFor(repoURL string) (scm.Backend, error) {
 }
 
 // buildEnrichedDescription constructs the follow-up task description by
-// appending the review comment context to the original ticket description.
-func buildEnrichedDescription(originalDescription string, comment ClassifiedComment) string {
+// appending all review comment contexts to the original ticket description.
+func buildEnrichedDescription(originalDescription string, comments []ClassifiedComment) string {
 	var sb strings.Builder
 	sb.WriteString(originalDescription)
-	sb.WriteString("\n\n---\n\n# Review Comment from @")
-	sb.WriteString(comment.Author)
-	sb.WriteString("\n\n> ")
-	// Quote the comment body (prefix each line with "> ").
-	lines := strings.Split(comment.Body, "\n")
-	sb.WriteString(strings.Join(lines, "\n> "))
 
-	if comment.FilePath != "" {
-		sb.WriteString("\n\n")
-		sb.WriteString(comment.FilePath)
-		if comment.Line > 0 {
-			sb.WriteString(fmt.Sprintf(":%d", comment.Line))
+	sb.WriteString("\n\n---\n\n# Review Comments\n")
+	for i, comment := range comments {
+		if i > 0 {
+			sb.WriteString("\n---\n")
 		}
+		sb.WriteString("\n## Comment from @")
+		sb.WriteString(comment.Author)
+		sb.WriteString("\n\n> ")
+		// Quote the comment body (prefix each line with "> ").
+		lines := strings.Split(comment.Body, "\n")
+		sb.WriteString(strings.Join(lines, "\n> "))
+
+		if comment.FilePath != "" {
+			sb.WriteString("\n\n")
+			sb.WriteString(comment.FilePath)
+			if comment.Line > 0 {
+				sb.WriteString(fmt.Sprintf(":%d", comment.Line))
+			}
+		}
+		sb.WriteString("\n")
 	}
 
-	sb.WriteString("\n\nPlease address the above review comment. Open a new merge request with the fix.")
+	sb.WriteString("\nPlease address all of the above review comments.")
 	return sb.String()
 }
 

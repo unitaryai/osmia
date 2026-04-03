@@ -19,6 +19,27 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
+func TestWithBaseURL_AppendsAPISuffix(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantURL string
+	}{
+		{"instance URL", "https://gitlab.com", "https://gitlab.com/api/v4"},
+		{"instance URL with trailing slash", "https://gitlab.com/", "https://gitlab.com/api/v4"},
+		{"full API URL", "https://gitlab.com/api/v4", "https://gitlab.com/api/v4"},
+		{"full API URL with trailing slash", "https://gitlab.com/api/v4/", "https://gitlab.com/api/v4"},
+		{"self-managed", "https://git.example.com", "https://git.example.com/api/v4"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(tt.input))
+			assert.Equal(t, tt.wantURL, b.baseURL)
+		})
+	}
+}
+
 func TestGitLabSCMBackend_Name(t *testing.T) {
 	b := NewGitLabSCMBackend("tok", testLogger())
 	assert.Equal(t, "gitlab", b.Name())
@@ -160,7 +181,7 @@ func TestGitLabSCMBackend_CreateBranch(t *testing.T) {
 	err := b.CreateBranch(context.Background(), "https://gitlab.com/acme/widgets", "feature/fix-bug", "main")
 	require.NoError(t, err)
 
-	assert.Equal(t, "/projects/acme%2Fwidgets/repository/branches", receivedPath)
+	assert.Equal(t, "/api/v4/projects/acme%2Fwidgets/repository/branches", receivedPath)
 	assert.Equal(t, "feature/fix-bug", receivedPayload["branch"])
 	assert.Equal(t, "main", receivedPayload["ref"])
 }
@@ -185,7 +206,7 @@ func TestGitLabSCMBackend_CreateBranch_DefaultBase(t *testing.T) {
 func TestGitLabSCMBackend_CreatePullRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/projects/acme%2Fwidgets/merge_requests", r.URL.EscapedPath())
+		assert.Equal(t, "/api/v4/projects/acme%2Fwidgets/merge_requests", r.URL.EscapedPath())
 
 		var payload map[string]string
 		_ = json.NewDecoder(r.Body).Decode(&payload)
@@ -228,7 +249,7 @@ func TestGitLabSCMBackend_CreatePullRequest(t *testing.T) {
 func TestGitLabSCMBackend_GetPullRequestStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
-		assert.Equal(t, "/projects/acme%2Fwidgets/merge_requests/42", r.URL.EscapedPath())
+		assert.Equal(t, "/api/v4/projects/acme%2Fwidgets/merge_requests/42", r.URL.EscapedPath())
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(glMR{
@@ -260,6 +281,21 @@ func TestGitLabSCMBackend_GetPullRequestStatus_APIError(t *testing.T) {
 	_, err := b.GetPullRequestStatus(context.Background(), "https://gitlab.com/acme/widgets/-/merge_requests/999")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unexpected status 404")
+}
+
+func TestGitLabSCMBackend_GetPullRequestStatus_HTMLResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html><body>Sign in</body></html>"))
+	}))
+	defer srv.Close()
+
+	b := NewGitLabSCMBackend("bad-token", testLogger(), WithBaseURL(srv.URL))
+	_, err := b.GetPullRequestStatus(context.Background(), "https://gitlab.com/acme/widgets/-/merge_requests/42")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected content-type")
+	assert.Contains(t, err.Error(), "token may lack access")
 }
 
 func TestGitLabSCMBackend_AuthHeader(t *testing.T) {
@@ -306,10 +342,10 @@ func TestGitLabSCMBackend_GetDiff(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				switch {
-				case r.URL.EscapedPath() == "/projects/acme%2Fwidgets" && r.Method == http.MethodGet:
+				case r.URL.EscapedPath() == "/api/v4/projects/acme%2Fwidgets" && r.Method == http.MethodGet:
 					projectFetched = true
 					_ = json.NewEncoder(w).Encode(map[string]string{"default_branch": "trunk"})
-				case r.URL.EscapedPath() == "/projects/acme%2Fwidgets/repository/compare":
+				case r.URL.EscapedPath() == "/api/v4/projects/acme%2Fwidgets/repository/compare":
 					capturedFrom = r.URL.Query().Get("from")
 					_ = json.NewEncoder(w).Encode(map[string]any{
 						"diffs": []map[string]string{
@@ -360,5 +396,5 @@ func TestGitLabSCMBackend_SubgroupProject(t *testing.T) {
 	err := b.CreateBranch(context.Background(), "https://gitlab.com/acme/platform/widgets", "test-branch", "main")
 	require.NoError(t, err)
 
-	assert.Equal(t, "/projects/acme%2Fplatform%2Fwidgets/repository/branches", receivedPath)
+	assert.Equal(t, "/api/v4/projects/acme%2Fplatform%2Fwidgets/repository/branches", receivedPath)
 }

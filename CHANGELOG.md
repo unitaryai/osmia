@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   called after the concurrent-limit early-return, so completed K8s jobs were
   never reaped when the controller was at capacity. The active count never
   decreased, permanently stalling all new work.
+- **GitLab/GitHub SCM HTML response detection**: when a token lacks access to a
+  resource the API may redirect to a sign-in page returning 200 OK with HTML.
+  `doGet` now validates the `Content-Type` header and rejects non-JSON responses
+  with a clear diagnostic message instead of failing with a cryptic JSON decode
+  error.
+- **GitLab base URL normalisation**: `WithBaseURL` now appends `/api/v4` if the
+  supplied URL is an instance URL (e.g. `https://gitlab.com`) rather than a full
+  API URL. Previously, omitting the suffix caused all API requests to hit the
+  GitLab web frontend, returning HTML instead of JSON.
 
 ### Added
 

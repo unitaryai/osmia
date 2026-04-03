@@ -431,6 +431,13 @@ func (b *GitHubSCMBackend) doGet(ctx context.Context, url string) (io.ReadCloser
 		resp.Body.Close()
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
+
+	ct := resp.Header.Get("Content-Type")
+	if ct != "" && !strings.HasPrefix(ct, "application/json") {
+		resp.Body.Close()
+		return nil, fmt.Errorf("unexpected content-type %q (expected application/json) — the token may lack access to this resource", ct)
+	}
+
 	return resp.Body, nil
 }
 

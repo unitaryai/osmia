@@ -56,12 +56,16 @@ type Task struct {
 	// TaskRunID uniquely identifies this execution attempt. Multiple retries
 	// of the same ticket produce different TaskRunIDs. Used by the session
 	// store to isolate per-run storage paths.
-	TaskRunID   string            `json:"task_run_id,omitempty"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	RepoURL     string            `json:"repo_url"`
-	Labels      []string          `json:"labels,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	TaskRunID   string `json:"task_run_id,omitempty"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	RepoURL     string `json:"repo_url"`
+	// TicketURL is the web URL of the originating ticket (e.g. Shortcut story
+	// URL). Used in the prompt to instruct the agent to reference the ticket
+	// in merge request titles and descriptions.
+	TicketURL string            `json:"ticket_url,omitempty"`
+	Labels    []string          `json:"labels,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
 	// MemoryContext is pre-formatted prior knowledge from episodic memory,
 	// injected into the prompt when memory is enabled.
 	MemoryContext string `json:"memory_context,omitempty"`

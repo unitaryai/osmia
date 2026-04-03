@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Ticket references in merge requests**: the agent prompt now instructs the
+  agent to include the ticket ID in the MR title (e.g. `fix: resolve null check
+  [sc-28671]`) and a `References:` link to the ticket URL in the MR description.
+  A new `TicketURL` field on `engine.Task` carries the ticket's external URL
+  through to the prompt builder.
 - **Automatic repo URL resolution**: when a ticket has no explicit repository URL
   (e.g. no external link on a Shortcut story), the controller now extracts a
   GitHub or GitLab URL from the ticket description. If none is found and Slack is

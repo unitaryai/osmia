@@ -1020,6 +1020,73 @@ func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {
 	assert.NotContains(t, prompt, "## Continuation")
 }
 
+func TestBuildPrompt_TicketReferenceInMR(t *testing.T) {
+	e := New()
+
+	t.Run("ticket ID and URL included in MR instructions", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:        "task-1",
+			TicketID:  "sc-28671",
+			Title:     "Fix the bug",
+			RepoURL:   "https://gitlab.com/org/repo",
+			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "[sc-28671]")
+		assert.Contains(t, prompt, "https://app.shortcut.com/unitaryai/story/28671")
+		assert.Contains(t, prompt, "References:")
+	})
+
+	t.Run("ticket ID without URL still adds title suffix", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:       "task-1",
+			TicketID: "sc-12345",
+			Title:    "Fix the bug",
+			RepoURL:  "https://gitlab.com/org/repo",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "[sc-12345]")
+		assert.NotContains(t, prompt, "References:")
+	})
+
+	t.Run("no ticket ID omits reference", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:      "task-1",
+			Title:   "Fix the bug",
+			RepoURL: "https://gitlab.com/org/repo",
+		})
+		require.NoError(t, err)
+		assert.NotContains(t, prompt, "MUST end with")
+		assert.NotContains(t, prompt, "References:")
+	})
+
+	t.Run("ticket URL in Ticket section", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:        "task-1",
+			TicketID:  "sc-28671",
+			Title:     "Fix the bug",
+			RepoURL:   "https://gitlab.com/org/repo",
+			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "## Ticket")
+	})
+
+	t.Run("resume path also includes ticket reference", func(t *testing.T) {
+		prompt, err := e.BuildPrompt(engine.Task{
+			ID:        "task-1",
+			TicketID:  "sc-28671",
+			Title:     "Fix the bug",
+			RepoURL:   "https://gitlab.com/org/repo",
+			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
+			SessionID: "sess-123",
+		})
+		require.NoError(t, err)
+		assert.Contains(t, prompt, "[sc-28671]")
+		assert.Contains(t, prompt, "References:")
+	})
+}
+
 func TestGenerateHooksConfig(t *testing.T) {
 	tests := []struct {
 		name                string

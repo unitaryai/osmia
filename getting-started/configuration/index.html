@@ -825,6 +825,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#review-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Review Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#settling-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settling period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comment-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment batching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bot-summary-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bot summary filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#process-reward-model-prm" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2304,6 +2354,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#review-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Review Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#settling-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settling period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comment-batching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comment batching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bot-summary-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bot summary filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#process-reward-model-prm" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2407,6 +2507,10 @@
 <tr>
 <td><code>review</code></td>
 <td>Review backend configuration</td>
+</tr>
+<tr>
+<td><code>review_response</code></td>
+<td>Automated follow-up on PR/MR review comments</td>
 </tr>
 <tr>
 <td><code>progress_watchdog</code></td>
@@ -2907,16 +3011,102 @@
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;coderabbit-api-key&quot;</span>
 </code></pre></div>
+<h2 id="review-response">Review Response<a class="headerlink" href="#review-response" title="Permanent link">&para;</a></h2>
+<p>When enabled, Osmia monitors merge requests it has opened for new review comments. Actionable comments (e.g. inline suggestions from CodeRabbit or human reviewers) trigger a follow-up job that addresses the feedback and pushes to the existing MR branch.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">review_response</span><span class="p">:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">poll_interval_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">        </span><span class="c1"># How often to check for new comments</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">settling_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">            </span><span class="c1"># Wait before first poll (for bots to finish)</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">min_severity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;warning&quot;</span><span class="w">         </span><span class="c1"># Minimum severity to act on</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">max_follow_up_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># Max batched follow-ups per PR</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">reply_to_comments</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">         </span><span class="c1"># Post acknowledgement replies</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="nt">resolve_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">           </span><span class="c1"># Resolve threads on completion (GitLab only)</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span><span class="nt">ignore_summary_authors</span><span class="p">:</span><span class="w">         </span><span class="c1"># Regex patterns for bot summary filtering</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^group_\\d+_bot_&quot;</span><span class="w">          </span><span class="c1"># GitLab group bot tokens</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Enables the review response subsystem</td>
+</tr>
+<tr>
+<td><code>poll_interval_minutes</code></td>
+<td>int</td>
+<td><code>5</code></td>
+<td>Minutes between comment polling cycles</td>
+</tr>
+<tr>
+<td><code>settling_minutes</code></td>
+<td>int</td>
+<td><code>0</code></td>
+<td>Minimum minutes to wait after a PR is registered before polling. Set this to give review bots time to finish posting — e.g. <code>10</code> for CodeRabbit which typically takes 8-10 minutes</td>
+</tr>
+<tr>
+<td><code>min_severity</code></td>
+<td>string</td>
+<td><code>"warning"</code></td>
+<td>Minimum comment severity that triggers a follow-up. One of <code>info</code>, <code>warning</code>, <code>error</code></td>
+</tr>
+<tr>
+<td><code>max_follow_up_jobs</code></td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Maximum number of batched follow-up jobs per PR over its lifetime</td>
+</tr>
+<tr>
+<td><code>reply_to_comments</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Post an acknowledgement reply to each actionable comment</td>
+</tr>
+<tr>
+<td><code>resolve_threads</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Resolve discussion threads on follow-up completion. Only supported on GitLab</td>
+</tr>
+<tr>
+<td><code>llm_classifier</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Use LLM-backed classification with rule-based fallback</td>
+</tr>
+<tr>
+<td><code>ignore_summary_authors</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Regex patterns for author usernames whose non-inline comments (summaries, coverage reports) are ignored. Inline diff comments from these authors are still processed. Merged with built-in defaults (<code>osmia</code>, <code>dependabot</code>, <code>github-actions[bot]</code>, <code>copilot</code>, <code>gemini-code-assist</code>, <code>coderabbit-ai</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="settling-period">Settling period<a class="headerlink" href="#settling-period" title="Permanent link">&para;</a></h3>
+<p>Review bots like CodeRabbit take several minutes to analyse a diff and post all their comments. Without a settling period, Osmia may poll the MR before the bot has finished, act on the first few comments, and miss later ones. Setting <code>settling_minutes: 10</code> ensures Osmia waits at least 10 minutes after the MR is opened before checking for comments.</p>
+<h3 id="comment-batching">Comment batching<a class="headerlink" href="#comment-batching" title="Permanent link">&para;</a></h3>
+<p>All actionable comments discovered in a single poll cycle are batched into one follow-up job. The job receives an enriched description containing all comments. This prevents multiple separate jobs from being spawned for what is logically one round of review feedback.</p>
+<h3 id="bot-summary-filtering">Bot summary filtering<a class="headerlink" href="#bot-summary-filtering" title="Permanent link">&para;</a></h3>
+<p>Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The <code>ignore_summary_authors</code> patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.</p>
+<p>For GitLab, group bot tokens use usernames like <code>group_123456_bot_abcdef...</code>. Add <code>"^group_\\d+_bot_"</code> to catch all of them.</p>
 <h2 id="process-reward-model-prm">Process Reward Model (PRM)<a class="headerlink" href="#process-reward-model-prm" title="Permanent link">&para;</a></h2>
 <p>Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See <a href="../../concepts/prm/">Real-Time Agent Coaching</a> for a full explanation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">prm</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable PRM scoring</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">            </span><span class="c1"># Evaluate every N tool calls</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">window_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">                   </span><span class="c1"># Rolling window of recent events</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">          </span><span class="c1"># Scores below this trigger a nudge</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># Scores below this trigger escalation</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/workspace/.osmia-hint.md&quot;</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">         </span><span class="c1"># Maximum trajectory points stored</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">prm</span><span class="p">:</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable PRM scoring</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">            </span><span class="c1"># Evaluate every N tool calls</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">window_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">                   </span><span class="c1"># Rolling window of recent events</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">          </span><span class="c1"># Scores below this trigger a nudge</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># Scores below this trigger escalation</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/workspace/.osmia-hint.md&quot;</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">         </span><span class="c1"># Maximum trajectory points stored</span>
 </code></pre></div>
 <table>
 <thead>
@@ -2974,13 +3164,13 @@
 </table>
 <h2 id="episodic-memory">Episodic Memory<a class="headerlink" href="#episodic-memory" title="Permanent link">&para;</a></h2>
 <p>Cross-task knowledge graph that accumulates lessons from every completed task and injects relevant prior knowledge into future prompts. See <a href="../../concepts/memory/">Episodic Memory</a> for a full explanation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">memory</span><span class="p">:</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable episodic memory</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">store_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/memory.db&quot;</span><span class="w">     </span><span class="c1"># SQLite database path</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">decay_interval_hours</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span><span class="w">          </span><span class="c1"># Hours between decay cycles</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">prune_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span><span class="w">             </span><span class="c1"># Remove facts below this confidence</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">max_facts_per_query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">           </span><span class="c1"># Max facts injected per prompt</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">tenant_isolation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># Enforce cross-tenant boundaries</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">memory</span><span class="p">:</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable episodic memory</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">store_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/memory.db&quot;</span><span class="w">     </span><span class="c1"># SQLite database path</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">decay_interval_hours</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span><span class="w">          </span><span class="c1"># Hours between decay cycles</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="nt">prune_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span><span class="w">             </span><span class="c1"># Remove facts below this confidence</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">  </span><span class="nt">max_facts_per_query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">           </span><span class="c1"># Max facts injected per prompt</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">  </span><span class="nt">tenant_isolation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># Enforce cross-tenant boundaries</span>
 </code></pre></div>
 <table>
 <thead>

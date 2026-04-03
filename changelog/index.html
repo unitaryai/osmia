@@ -4689,6 +4689,10 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Review comment settling period and batching</strong>: new <code>settling_minutes</code> config
+  field delays polling a PR after registration, giving review bots time to finish
+  posting all comments. All actionable comments from a single poll are now batched
+  into one follow-up job instead of spawning a separate job per comment.</li>
 <li><strong>Ticket references in merge requests</strong>: the agent prompt now instructs the
   agent to include the ticket ID in the MR title (e.g. <code>fix: resolve null check
   [sc-28671]</code>) and a <code>References:</code> link to the ticket URL in the MR description.

@@ -4664,6 +4664,11 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 <h2 id="unreleased">[Unreleased]<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Review poller acting on bot summary comments</strong>: the classifier now only
+  ignores bot comments that lack a file position (summaries, coverage reports).
+  Inline diff comments from bots (e.g. CodeRabbit review suggestions) are still
+  evaluated as actionable. A new <code>ignore_summary_authors</code> config field accepts
+  regex patterns for additional bot usernames (e.g. GitLab group bot tokens).</li>
 <li><strong>Duplicate MRs on retry/continuation</strong>: diagnosis retries, engine fallbacks,
   and continuation jobs now pass the prior MR URL through to the prompt. When a
   previous run already opened an MR, the agent is instructed to push to the

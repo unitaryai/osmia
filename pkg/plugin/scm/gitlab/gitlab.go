@@ -40,9 +40,15 @@ type GitLabSCMBackend struct {
 type Option func(*GitLabSCMBackend)
 
 // WithBaseURL sets a custom API base URL (e.g. for self-managed GitLab).
+// Accepts both instance URLs (https://gitlab.com) and full API URLs
+// (https://gitlab.com/api/v4) — the /api/v4 suffix is appended if absent.
 func WithBaseURL(u string) Option {
 	return func(b *GitLabSCMBackend) {
-		b.baseURL = strings.TrimRight(u, "/")
+		u = strings.TrimRight(u, "/")
+		if !strings.HasSuffix(u, "/api/v4") {
+			u += "/api/v4"
+		}
+		b.baseURL = u
 	}
 }
 

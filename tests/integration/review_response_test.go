@@ -165,6 +165,34 @@ func TestClassifier_BotInlineDiffCommentsAreActionable(t *testing.T) {
 		"inline diff comment from bot should still be classified by keywords")
 }
 
+// TestClassifier_BuiltinPatternMatchesGitLabGroupBot verifies that GitLab
+// group bot tokens are caught by the built-in pattern without extra config.
+func TestClassifier_BuiltinPatternMatchesGitLabGroupBot(t *testing.T) {
+	t.Parallel()
+	classifier := reviewpoller.NewRuleBasedClassifier(nil)
+	ctx := context.Background()
+
+	bots := []string{
+		"group_101508187_bot_f1eac3692eaf8315c51fba127e720935",
+		"group_101508187_bot_db1140f85db643c4fc50b1a43fa6760b",
+		"group_999_bot_abcdef0123456789",
+	}
+	for _, bot := range bots {
+		t.Run(bot, func(t *testing.T) {
+			comment := scm.ReviewComment{
+				ID:      "30",
+				Author:  bot,
+				Body:    "You should fix the error handling.",
+				Created: time.Now(),
+			}
+			result, err := classifier.Classify(ctx, comment)
+			require.NoError(t, err)
+			assert.Equal(t, reviewpoller.ClassificationIgnore, result.Classification,
+				"non-inline comment from GitLab group bot should be ignored by built-in pattern")
+		})
+	}
+}
+
 // TestClassifier_CustomPatternMatchesGroupBot verifies that user-provided
 // regex patterns in ignore_summary_authors match GitLab group bot usernames.
 func TestClassifier_CustomPatternMatchesGroupBot(t *testing.T) {

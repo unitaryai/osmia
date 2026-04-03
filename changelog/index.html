@@ -4680,6 +4680,11 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
 </ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
+<li><strong>Ticket references in merge requests</strong>: the agent prompt now instructs the
+  agent to include the ticket ID in the MR title (e.g. <code>fix: resolve null check
+  [sc-28671]</code>) and a <code>References:</code> link to the ticket URL in the MR description.
+  A new <code>TicketURL</code> field on <code>engine.Task</code> carries the ticket's external URL
+  through to the prompt builder.</li>
 <li><strong>Automatic repo URL resolution</strong>: when a ticket has no explicit repository URL
   (e.g. no external link on a Shortcut story), the controller now extracts a
   GitHub or GitLab URL from the ticket description. If none is found and Slack is

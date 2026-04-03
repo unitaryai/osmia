@@ -498,10 +498,10 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
 			b.WriteString("   glab mr create --fill --title \"<concise title>")
 			writeMRTitleSuffix(&b, task)
-			b.WriteString("\" --description \"<full description>")
+			b.WriteString("\" --description \"<full description>\"\n")
+			b.WriteString("   ```\n")
 			writeMRDescriptionFooter(&b, task)
-			b.WriteString("\"\n")
-			b.WriteString("   ```\n\n")
+			b.WriteString("\n")
 			b.WriteString("4. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
@@ -555,10 +555,10 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 			b.WriteString("   glab auth login --hostname gitlab.com --token \"$GITLAB_TOKEN\"\n")
 			b.WriteString("   glab mr create --fill --title \"<concise title>")
 			writeMRTitleSuffix(&b, task)
-			b.WriteString("\" --description \"<full description>")
+			b.WriteString("\" --description \"<full description>\"\n")
+			b.WriteString("   ```\n")
 			writeMRDescriptionFooter(&b, task)
-			b.WriteString("\"\n")
-			b.WriteString("   ```\n\n")
+			b.WriteString("\n")
 			b.WriteString("6. When the full task is complete, write /workspace/result.json containing:\n")
 			b.WriteString("   `{\"success\": true, \"summary\": \"<one-line summary>\", \"branch_name\": \"")
 			b.WriteString(branchName)
@@ -594,12 +594,14 @@ func writeMRTitleSuffix(b *strings.Builder, task engine.Task) {
 	b.WriteString("]")
 }
 
-// writeMRDescriptionFooter appends a ticket reference line for the glab/gh
-// example command.
+// writeMRDescriptionFooter appends a ticket reference instruction after the
+// shell example code block. The URL is kept outside the shell command to avoid
+// escaping issues with special characters in the URL.
 func writeMRDescriptionFooter(b *strings.Builder, task engine.Task) {
 	if task.TicketURL == "" {
 		return
 	}
-	b.WriteString("\n\nReferences: ")
+	b.WriteString("   Include `References: ")
 	b.WriteString(task.TicketURL)
+	b.WriteString("` in the MR description body.\n")
 }

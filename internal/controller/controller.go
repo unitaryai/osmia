@@ -1220,7 +1220,10 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		Description: ticket.Description,
 		RepoURL:     ticket.RepoURL,
 	}
-	if parentTicket, ok := r.ticketCache[req.TicketID]; ok {
+	r.mu.RLock()
+	parentTicket, parentOK := r.ticketCache[req.TicketID]
+	r.mu.RUnlock()
+	if parentOK {
 		task.TicketURL = parentTicket.ExternalURL
 	}
 
@@ -1523,8 +1526,11 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		TicketID:  tr.TicketID,
 		TaskRunID: tr.ID,
 	}
-	if cachedTicket, ok := r.ticketCache[tr.TicketID]; ok {
-		task.TicketURL = cachedTicket.ExternalURL
+	r.mu.RLock()
+	fallbackCachedTicket, fallbackOK := r.ticketCache[tr.TicketID]
+	r.mu.RUnlock()
+	if fallbackOK {
+		task.TicketURL = fallbackCachedTicket.ExternalURL
 	}
 
 	engineCfg := r.baseEngineConfig(engineName)

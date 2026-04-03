@@ -75,6 +75,11 @@ type Task struct {
 	// where the prior run left off. Ignored when SessionID is set (session
 	// persistence handles context resumption via --resume).
 	PriorBranchName string `json:"prior_branch_name,omitempty"`
+	// PriorMergeRequestURL, when non-empty, tells the engine that a previous
+	// attempt already opened a merge request at this URL. The prompt should
+	// instruct the agent to push additional commits to the existing branch
+	// rather than creating a new MR.
+	PriorMergeRequestURL string `json:"prior_merge_request_url,omitempty"`
 	// SessionID, when non-empty, tells the engine to resume the named Claude
 	// Code session via --resume. Set by the controller on retry jobs when
 	// session persistence is enabled.

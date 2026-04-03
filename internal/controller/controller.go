@@ -1532,6 +1532,9 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	if fallbackOK {
 		task.TicketURL = fallbackCachedTicket.ExternalURL
 	}
+	if tr.Result != nil && tr.Result.MergeRequestURL != "" {
+		task.PriorMergeRequestURL = tr.Result.MergeRequestURL
+	}
 
 	engineCfg := r.baseEngineConfig(engineName)
 
@@ -2093,6 +2096,12 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 	}
 	task.Description = desc
 
+	// If a prior run already opened an MR, pass its URL so the continuation
+	// agent pushes to the existing branch rather than creating a duplicate MR.
+	if tr.Result != nil && tr.Result.MergeRequestURL != "" {
+		task.PriorMergeRequestURL = tr.Result.MergeRequestURL
+	}
+
 	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
@@ -2629,6 +2638,12 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		// Fall back to the predictable naming convention even if result.json
 		// was not written (e.g. pod killed before stop hook ran).
 		task.PriorBranchName = "osmia/" + tr.TicketID
+	}
+
+	// If a prior run already opened an MR, pass its URL so the retry agent
+	// pushes to the existing branch rather than creating a duplicate MR.
+	if tr.Result != nil && tr.Result.MergeRequestURL != "" {
+		task.PriorMergeRequestURL = tr.Result.MergeRequestURL
 	}
 
 	engineCfg := r.baseEngineConfig(tr.CurrentEngine)

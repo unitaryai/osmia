@@ -63,9 +63,13 @@ type Task struct {
 	// TicketURL is the web URL of the originating ticket (e.g. Shortcut story
 	// URL). Used in the prompt to instruct the agent to reference the ticket
 	// in merge request titles and descriptions.
-	TicketURL string            `json:"ticket_url,omitempty"`
-	Labels    []string          `json:"labels,omitempty"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
+	TicketURL string `json:"ticket_url,omitempty"`
+	// BranchPrefix is prepended to the ticket ID to form the branch name
+	// and the ticket reference in MR titles (e.g. "sc-" for Shortcut).
+	// Default: "osmia/".
+	BranchPrefix string            `json:"branch_prefix,omitempty"`
+	Labels       []string          `json:"labels,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
 	// MemoryContext is pre-formatted prior knowledge from episodic memory,
 	// injected into the prompt when memory is enabled.
 	MemoryContext string `json:"memory_context,omitempty"`

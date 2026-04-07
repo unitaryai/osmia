@@ -147,5 +147,11 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if p := c.SCM.BranchPrefix; p != "" {
+		if strings.ContainsAny(p, " \t\n\r~^:?*[\\") {
+			return fmt.Errorf("scm.branch_prefix contains invalid git ref characters: %q", p)
+		}
+	}
+
 	return nil
 }

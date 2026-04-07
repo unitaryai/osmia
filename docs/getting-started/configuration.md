@@ -411,6 +411,27 @@ scm:
     token_secret: "osmia-github-token"
 ```
 
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `backend` | string | — | SCM backend: `github` or `gitlab` |
+| `config` | map | — | Backend-specific settings (e.g. `token_secret`, `base_url`, `group`) |
+| `branch_prefix` | string | `"osmia/"` | Prepended to the ticket ID to form branch names and MR title references. Set to `"sc-"` for Shortcut VCS integration so branches like `sc-28671` auto-link to stories |
+| `backends` | list | `[]` | Multi-backend routing entries (advanced) |
+
+### Shortcut VCS integration
+
+Shortcut auto-links branches and MRs to stories when the branch name contains `sc-<storyID>`. Set `branch_prefix: "sc-"` to enable this:
+
+```yaml
+scm:
+  backend: gitlab
+  branch_prefix: "sc-"
+  config:
+    token_secret: "osmia-gitlab"
+```
+
+This produces branches like `sc-28671` and MR titles like `fix: resolve null check [sc-28671]`, both of which Shortcut recognises automatically.
+
 ## Review
 
 ```yaml

@@ -811,6 +811,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="SCM">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shortcut-vcs-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shortcut VCS integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2340,6 +2357,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="SCM">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shortcut-vcs-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shortcut VCS integration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3005,24 +3039,69 @@
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
 <a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="nt">token_secret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;osmia-github-token&quot;</span>
 </code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>backend</code></td>
+<td>string</td>
+<td>—</td>
+<td>SCM backend: <code>github</code> or <code>gitlab</code></td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>map</td>
+<td>—</td>
+<td>Backend-specific settings (e.g. <code>token_secret</code>, <code>base_url</code>, <code>group</code>)</td>
+</tr>
+<tr>
+<td><code>branch_prefix</code></td>
+<td>string</td>
+<td><code>"osmia/"</code></td>
+<td>Prepended to the ticket ID to form branch names and MR title references. Set to <code>"sc-"</code> for Shortcut VCS integration so branches like <code>sc-28671</code> auto-link to stories</td>
+</tr>
+<tr>
+<td><code>backends</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Multi-backend routing entries (advanced)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="shortcut-vcs-integration">Shortcut VCS integration<a class="headerlink" href="#shortcut-vcs-integration" title="Permanent link">&para;</a></h3>
+<p>Shortcut auto-links branches and MRs to stories when the branch name contains <code>sc-&lt;storyID&gt;</code>. Set <code>branch_prefix: "sc-"</code> to enable this:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">scm</span><span class="p">:</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">gitlab</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">branch_prefix</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;sc-&quot;</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="nt">token_secret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;osmia-gitlab&quot;</span>
+</code></pre></div>
+<p>This produces branches like <code>sc-28671</code> and MR titles like <code>fix: resolve null check [sc-28671]</code>, both of which Shortcut recognises automatically.</p>
 <h2 id="review">Review<a class="headerlink" href="#review" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">review</span><span class="p">:</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coderabbit</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;coderabbit-api-key&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">review</span><span class="p">:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coderabbit</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;coderabbit-api-key&quot;</span>
 </code></pre></div>
 <h2 id="review-response">Review Response<a class="headerlink" href="#review-response" title="Permanent link">&para;</a></h2>
 <p>When enabled, Osmia monitors merge requests it has opened for new review comments. Actionable comments (e.g. inline suggestions from CodeRabbit or human reviewers) trigger a follow-up job that addresses the feedback and pushes to the existing MR branch.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">review_response</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">poll_interval_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">        </span><span class="c1"># How often to check for new comments</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">settling_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">            </span><span class="c1"># Wait before first poll (for bots to finish)</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">min_severity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;warning&quot;</span><span class="w">         </span><span class="c1"># Minimum severity to act on</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">max_follow_up_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># Max batched follow-ups per PR</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">reply_to_comments</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">         </span><span class="c1"># Post acknowledgement replies</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="nt">resolve_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">           </span><span class="c1"># Resolve threads on completion (GitLab only)</span>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span><span class="nt">ignore_summary_authors</span><span class="p">:</span><span class="w">         </span><span class="c1"># Regex patterns for bot summary filtering</span>
-<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^group_\\d+_bot_&quot;</span><span class="w">          </span><span class="c1"># GitLab group bot tokens</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">review_response</span><span class="p">:</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">poll_interval_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">        </span><span class="c1"># How often to check for new comments</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">settling_minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">            </span><span class="c1"># Wait before first poll (for bots to finish)</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">min_severity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;warning&quot;</span><span class="w">         </span><span class="c1"># Minimum severity to act on</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">max_follow_up_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># Max batched follow-ups per PR</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">reply_to_comments</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">         </span><span class="c1"># Post acknowledgement replies</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span><span class="nt">resolve_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">           </span><span class="c1"># Resolve threads on completion (GitLab only)</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">  </span><span class="nt">ignore_summary_authors</span><span class="p">:</span><span class="w">         </span><span class="c1"># Regex patterns for bot summary filtering</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^group_\\d+_bot_&quot;</span><span class="w">          </span><span class="c1"># GitLab group bot tokens</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3099,14 +3178,14 @@
 <p>For GitLab, group bot tokens use usernames like <code>group_123456_bot_abcdef...</code>. Add <code>"^group_\\d+_bot_"</code> to catch all of them.</p>
 <h2 id="process-reward-model-prm">Process Reward Model (PRM)<a class="headerlink" href="#process-reward-model-prm" title="Permanent link">&para;</a></h2>
 <p>Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See <a href="../../concepts/prm/">Real-Time Agent Coaching</a> for a full explanation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">prm</span><span class="p">:</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable PRM scoring</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">            </span><span class="c1"># Evaluate every N tool calls</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">window_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">                   </span><span class="c1"># Rolling window of recent events</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">          </span><span class="c1"># Scores below this trigger a nudge</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># Scores below this trigger escalation</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/workspace/.osmia-hint.md&quot;</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">         </span><span class="c1"># Maximum trajectory points stored</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">prm</span><span class="p">:</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable PRM scoring</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">            </span><span class="c1"># Evaluate every N tool calls</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">window_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">                   </span><span class="c1"># Rolling window of recent events</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">          </span><span class="c1"># Scores below this trigger a nudge</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># Scores below this trigger escalation</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/workspace/.osmia-hint.md&quot;</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">         </span><span class="c1"># Maximum trajectory points stored</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3164,13 +3243,13 @@
 </table>
 <h2 id="episodic-memory">Episodic Memory<a class="headerlink" href="#episodic-memory" title="Permanent link">&para;</a></h2>
 <p>Cross-task knowledge graph that accumulates lessons from every completed task and injects relevant prior knowledge into future prompts. See <a href="../../concepts/memory/">Episodic Memory</a> for a full explanation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">memory</span><span class="p">:</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable episodic memory</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">store_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/memory.db&quot;</span><span class="w">     </span><span class="c1"># SQLite database path</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">decay_interval_hours</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span><span class="w">          </span><span class="c1"># Hours between decay cycles</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="nt">prune_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span><span class="w">             </span><span class="c1"># Remove facts below this confidence</span>
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">  </span><span class="nt">max_facts_per_query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">           </span><span class="c1"># Max facts injected per prompt</span>
-<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">  </span><span class="nt">tenant_isolation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># Enforce cross-tenant boundaries</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">memory</span><span class="p">:</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                     </span><span class="c1"># Enable episodic memory</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span><span class="nt">store_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/memory.db&quot;</span><span class="w">     </span><span class="c1"># SQLite database path</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span><span class="nt">decay_interval_hours</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">24</span><span class="w">          </span><span class="c1"># Hours between decay cycles</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span><span class="nt">prune_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.05</span><span class="w">             </span><span class="c1"># Remove facts below this confidence</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">  </span><span class="nt">max_facts_per_query</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">           </span><span class="c1"># Max facts injected per prompt</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">  </span><span class="nt">tenant_isolation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">            </span><span class="c1"># Enforce cross-tenant boundaries</span>
 </code></pre></div>
 <table>
 <thead>

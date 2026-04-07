@@ -4693,6 +4693,10 @@ and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semant
   field delays polling a PR after registration, giving review bots time to finish
   posting all comments. All actionable comments from a single poll are now batched
   into one follow-up job instead of spawning a separate job per comment.</li>
+<li><strong>Configurable branch prefix</strong>: new <code>scm.branch_prefix</code> config field controls
+  the branch name prefix (default <code>"osmia/"</code>). Set to <code>"sc-"</code> for Shortcut VCS
+  integration so branches like <code>sc-28671</code> auto-link to stories. The prefix is
+  also used in MR title references (e.g. <code>[sc-28671]</code>).</li>
 <li><strong>Ticket references in merge requests</strong>: the agent prompt now instructs the
   agent to include the ticket ID in the MR title (e.g. <code>fix: resolve null check
   [sc-28671]</code>) and a <code>References:</code> link to the ticket URL in the MR description.

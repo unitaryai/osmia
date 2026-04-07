@@ -225,7 +225,7 @@ func TestSlackChannel_NotifyComplete(t *testing.T) {
 			wantSummaryText: "Fixed the login flow",
 		},
 		{
-			name:      "successful completion threaded without broadcast",
+			name:      "successful completion threaded with broadcast",
 			ticket:    sampleTicket(),
 			threadRef: "1234567890.000001",
 			result: engine.TaskResult{
@@ -233,7 +233,7 @@ func TestSlackChannel_NotifyComplete(t *testing.T) {
 				Summary: "Applied dependency upgrade",
 			},
 			wantSuccess:        true,
-			wantReplyBroadcast: false,
+			wantReplyBroadcast: true,
 		},
 		{
 			name:   "failed completion",

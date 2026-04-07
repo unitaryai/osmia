@@ -12,7 +12,7 @@ import (
 )
 
 // InterfaceVersion is the current version of the NotificationChannel interface.
-const InterfaceVersion = 2
+const InterfaceVersion = 3
 
 // Channel is the interface that notification backends must implement.
 // All methods are fire-and-forget — errors are logged but do not block
@@ -35,6 +35,11 @@ type Channel interface {
 	// threadRef, when non-empty, causes the completion message to be posted as a
 	// reply (and, where supported, broadcast to the channel) in the identified thread.
 	NotifyComplete(ctx context.Context, ticket ticketing.Ticket, result engine.TaskResult, threadRef string) error
+
+	// UpdateMessage replaces the content of a previously posted message
+	// identified by messageRef (e.g. a Slack message timestamp). Backends
+	// that do not support updates should return nil (no-op).
+	UpdateMessage(ctx context.Context, messageRef string, text string) error
 
 	// Name returns the unique identifier for this channel (e.g. "slack", "teams").
 	Name() string

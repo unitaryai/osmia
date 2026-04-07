@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Quieter Slack notifications**: the original "started working on" message is
+  now updated in-place with status changes (retrying, completed, failed) instead
+  of posting new messages. Completion details go in the thread only — no more
+  broadcast to the main channel. Retries and fallbacks reuse the existing thread
+  instead of posting duplicate start messages. Notifications interface bumped to
+  version 3 with new `UpdateMessage` method (`chat.update` for Slack).
+
 ### Fixed
 
 - **Review poller acting on bot summary comments**: the classifier now only

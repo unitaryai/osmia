@@ -145,6 +145,11 @@ func (d *DiscordChannel) NotifyComplete(ctx context.Context, ticket ticketing.Ti
 	return d.sendEmbed(ctx, embed)
 }
 
+// UpdateMessage is a no-op — Discord webhook messages cannot be updated.
+func (d *DiscordChannel) UpdateMessage(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 // Name returns the unique identifier for this notification channel.
 func (d *DiscordChannel) Name() string {
 	return channelName

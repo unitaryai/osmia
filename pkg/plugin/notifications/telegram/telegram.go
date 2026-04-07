@@ -132,6 +132,12 @@ func (t *TelegramChannel) NotifyComplete(ctx context.Context, ticket ticketing.T
 	return t.sendMessage(ctx, text)
 }
 
+// UpdateMessage is a no-op — Telegram bot messages would require storing
+// message IDs which is not currently supported.
+func (t *TelegramChannel) UpdateMessage(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 // Name returns the unique identifier for this notification channel.
 func (t *TelegramChannel) Name() string {
 	return channelName

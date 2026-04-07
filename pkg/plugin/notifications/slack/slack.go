@@ -199,11 +199,27 @@ func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Tick
 		})
 	}
 
-	// Broadcast to the channel when posting as a thread reply so that the
-	// completion message is visible to anyone not following the thread.
-	replyBroadcast := threadRef != ""
-	_, err := s.postMessage(ctx, summary, blocks, threadRef, replyBroadcast)
+	// Post completion details in the thread only — the controller updates the
+	// original message in the main channel separately via UpdateMessage.
+	_, err := s.postMessage(ctx, summary, blocks, threadRef, false)
 	return err
+}
+
+// UpdateMessage replaces the content of a previously posted message.
+// messageRef must be the Slack message timestamp returned by NotifyStart.
+func (s *SlackChannel) UpdateMessage(ctx context.Context, messageRef string, text string) error {
+	if messageRef == "" {
+		return nil
+	}
+
+	blocks := []slackBlock{
+		{
+			Type: "section",
+			Text: &slackText{Type: "mrkdwn", Text: text},
+		},
+	}
+
+	return s.updateMessage(ctx, messageRef, text, blocks)
 }
 
 // Name returns the unique identifier for this notification channel.
@@ -273,4 +289,67 @@ func (s *SlackChannel) postMessage(ctx context.Context, fallbackText string, blo
 	)
 
 	return slackResp.TS, nil
+}
+
+// slackUpdateMessage is the payload sent to chat.update.
+type slackUpdateMessage struct {
+	Channel string       `json:"channel"`
+	TS      string       `json:"ts"`
+	Text    string       `json:"text"`
+	Blocks  []slackBlock `json:"blocks"`
+}
+
+// updateMessage replaces the content of a previously posted message via
+// chat.update. Requires the same chat:write scope as chat.postMessage.
+func (s *SlackChannel) updateMessage(ctx context.Context, ts string, fallbackText string, blocks []slackBlock) error {
+	msg := slackUpdateMessage{
+		Channel: s.channelID,
+		TS:      ts,
+		Text:    fallbackText,
+		Blocks:  blocks,
+	}
+
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshalling slack update: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.apiURL+"/chat.update", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("creating slack update request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Authorization", "Bearer "+s.token)
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("sending slack update: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading slack update response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("slack API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var slackResp slackResponse
+	if err := json.Unmarshal(respBody, &slackResp); err != nil {
+		return fmt.Errorf("unmarshalling slack update response: %w", err)
+	}
+
+	if !slackResp.OK {
+		return fmt.Errorf("slack API error: %s", slackResp.Error)
+	}
+
+	s.logger.DebugContext(ctx, "slack message updated",
+		slog.String("channel", s.channelID),
+		slog.String("ts", ts),
+	)
+
+	return nil
 }

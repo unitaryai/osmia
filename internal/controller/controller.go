@@ -1046,14 +1046,8 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 				)
 			}
 		}
-		// Update the original message in the main channel with final status.
-		statusEmoji := "\u2705"
-		statusText := "completed"
-		if !result.Success {
-			statusEmoji = "\u274C"
-			statusText = "failed"
-		}
-		statusLine := fmt.Sprintf("%s *Osmia %s:* %s", statusEmoji, statusText, cachedTicket.Title)
+		// Update the original message in the main channel with success status.
+		statusLine := fmt.Sprintf("\u2705 *Osmia completed:* %s", cachedTicket.Title)
 		if result.MergeRequestURL != "" {
 			statusLine += fmt.Sprintf(" — <%s|View MR>", result.MergeRequestURL)
 		}
@@ -1575,10 +1569,8 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 
 	engineCfg := r.baseEngineConfig(engineName)
 
-	// Reuse the existing notification thread and update the original message.
+	// Reuse the existing notification thread.
 	injectThreadRef(&engineCfg, tr.NotificationThreadRef)
-	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
-		fmt.Sprintf("\U0001F504 *Switching engine:* %s", engineName))
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for fallback job",
@@ -1638,6 +1630,9 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	}
 	tr.JobName = job.Name
 	r.mu.Unlock()
+
+	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
+		fmt.Sprintf("\U0001F504 *Switching engine:* %s", engineName))
 
 	r.logger.InfoContext(ctx, "fallback job created",
 		"engine", engineName,
@@ -1914,13 +1909,7 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 				)
 			}
 		}
-		statusEmoji := "\u2705"
-		statusText := "completed"
-		if !result.Success {
-			statusEmoji = "\u274C"
-			statusText = "failed"
-		}
-		statusLine := fmt.Sprintf("%s *Osmia %s:* %s", statusEmoji, statusText, cachedTicket.Title)
+		statusLine := fmt.Sprintf("\u2705 *Osmia completed:* %s", cachedTicket.Title)
 		if result.MergeRequestURL != "" {
 			statusLine += fmt.Sprintf(" — <%s|View MR>", result.MergeRequestURL)
 		}
@@ -2749,10 +2738,8 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 
 	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
 
-	// Reuse the existing notification thread and update the original message.
+	// Reuse the existing notification thread.
 	injectThreadRef(&engineCfg, tr.NotificationThreadRef)
-	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
-		fmt.Sprintf("\U0001F504 *Retrying:* %s", task.Title))
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for retry job",
@@ -2810,6 +2797,9 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	}
 	tr.JobName = job.Name
 	r.mu.Unlock()
+
+	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
+		fmt.Sprintf("\U0001F504 *Retrying:* %s", task.Title))
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
 		r.logger.ErrorContext(ctx, "failed to save task run to store after retry launch",
@@ -3757,13 +3747,7 @@ func (r *Reconciler) handleJudgeComplete(ctx context.Context, tr *taskrun.TaskRu
 				)
 			}
 		}
-		statusEmoji := "\u2705"
-		statusText := "completed"
-		if !result.Success {
-			statusEmoji = "\u274C"
-			statusText = "failed"
-		}
-		statusLine := fmt.Sprintf("%s *Osmia %s:* %s", statusEmoji, statusText, cachedTicket.Title)
+		statusLine := fmt.Sprintf("\u2705 *Osmia completed:* %s", cachedTicket.Title)
 		if result.MergeRequestURL != "" {
 			statusLine += fmt.Sprintf(" — <%s|View MR>", result.MergeRequestURL)
 		}

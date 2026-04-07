@@ -94,7 +94,7 @@ func NewHost(healthCfg HealthConfig, logger *slog.Logger) *Host {
 // are refused at load time.
 var knownInterfaceVersions = map[PluginType]int{
 	PluginTypeTicketing:     1,
-	PluginTypeNotifications: 1,
+	PluginTypeNotifications: 3,
 	PluginTypeApproval:      1,
 	PluginTypeSecrets:       1,
 	PluginTypeReview:        1,

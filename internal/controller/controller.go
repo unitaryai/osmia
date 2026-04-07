@@ -681,6 +681,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		Description:   ticket.Description,
 		RepoURL:       ticket.RepoURL,
 		TicketURL:     ticket.ExternalURL,
+		BranchPrefix:  r.branchPrefix(),
 		Labels:        ticket.Labels,
 		MemoryContext: memoryContext,
 	}
@@ -1232,7 +1233,8 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		Title:           ticket.Title,
 		Description:     ticket.Description,
 		RepoURL:         ticket.RepoURL,
-		PriorBranchName: "osmia/" + req.TicketID,
+		BranchPrefix:    r.branchPrefix(),
+		PriorBranchName: r.branchPrefix() + req.TicketID,
 		PriorMergeRequestURL: validatedMergeRequestURL(&engine.TaskResult{
 			MergeRequestURL: req.PRURL,
 		}),
@@ -1539,9 +1541,10 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	}
 
 	task := engine.Task{
-		ID:        tr.TicketID,
-		TicketID:  tr.TicketID,
-		TaskRunID: tr.ID,
+		ID:           tr.TicketID,
+		TicketID:     tr.TicketID,
+		TaskRunID:    tr.ID,
+		BranchPrefix: r.branchPrefix(),
 	}
 	r.mu.RLock()
 	fallbackCachedTicket, fallbackOK := r.ticketCache[tr.TicketID]
@@ -1767,6 +1770,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		Description:   cachedTicket.Description,
 		RepoURL:       cachedTicket.RepoURL,
 		TicketURL:     cachedTicket.ExternalURL,
+		BranchPrefix:  r.branchPrefix(),
 		Labels:        cachedTicket.Labels,
 		MemoryContext: memoryContext,
 	}
@@ -2100,10 +2104,11 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 	}
 
 	task := engine.Task{
-		ID:        tr.TicketID,
-		TicketID:  tr.TicketID,
-		TaskRunID: tr.ID,
-		SessionID: tr.SessionID,
+		ID:           tr.TicketID,
+		TicketID:     tr.TicketID,
+		TaskRunID:    tr.ID,
+		SessionID:    tr.SessionID,
+		BranchPrefix: r.branchPrefix(),
 	}
 	if hasTicket {
 		task.Title = cachedTicket.Title
@@ -2617,6 +2622,14 @@ func validatedMergeRequestURL(result *engine.TaskResult) string {
 	return u.String()
 }
 
+// branchPrefix returns the configured branch prefix or "osmia/" as the default.
+func (r *Reconciler) branchPrefix() string {
+	if p := r.config.SCM.BranchPrefix; p != "" {
+		return p
+	}
+	return "osmia/"
+}
+
 // hasApprovalGate returns true if the given gate name is present in the
 // configured approval gates list.
 func (r *Reconciler) hasApprovalGate(gate string) bool {
@@ -2654,9 +2667,10 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	}
 
 	task := engine.Task{
-		ID:        tr.TicketID,
-		TicketID:  tr.TicketID,
-		TaskRunID: tr.ID,
+		ID:           tr.TicketID,
+		TicketID:     tr.TicketID,
+		TaskRunID:    tr.ID,
+		BranchPrefix: r.branchPrefix(),
 	}
 	if hasTicket {
 		task.Title = cachedTicket.Title
@@ -2673,7 +2687,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 	} else if tr.RetryCount > 0 {
 		// Fall back to the predictable naming convention even if result.json
 		// was not written (e.g. pod killed before stop hook ran).
-		task.PriorBranchName = "osmia/" + tr.TicketID
+		task.PriorBranchName = r.branchPrefix() + tr.TicketID
 	}
 
 	// If a prior run already opened an MR, pass its URL so the retry agent
@@ -3193,6 +3207,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			Description:   ticket.Description,
 			RepoURL:       ticket.RepoURL,
 			TicketURL:     ticket.ExternalURL,
+			BranchPrefix:  r.branchPrefix(),
 			Labels:        ticket.Labels,
 			MemoryContext: memoryContext,
 		}

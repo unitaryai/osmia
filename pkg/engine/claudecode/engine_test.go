@@ -1023,29 +1023,32 @@ func TestBuildPrompt_NoContinuationSectionWhenEmpty(t *testing.T) {
 func TestBuildPrompt_TicketReferenceInMR(t *testing.T) {
 	e := New()
 
-	t.Run("ticket ID and URL included in MR instructions", func(t *testing.T) {
+	t.Run("shortcut prefix produces sc-ID branch and title", func(t *testing.T) {
 		prompt, err := e.BuildPrompt(engine.Task{
-			ID:        "task-1",
-			TicketID:  "sc-28671",
-			Title:     "Fix the bug",
-			RepoURL:   "https://gitlab.com/org/repo",
-			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
+			ID:           "task-1",
+			TicketID:     "28671",
+			Title:        "Fix the bug",
+			RepoURL:      "https://gitlab.com/org/repo",
+			TicketURL:    "https://app.shortcut.com/unitaryai/story/28671",
+			BranchPrefix: "sc-",
 		})
 		require.NoError(t, err)
+		assert.Contains(t, prompt, "sc-28671")
 		assert.Contains(t, prompt, "[sc-28671]")
 		assert.Contains(t, prompt, "https://app.shortcut.com/unitaryai/story/28671")
 		assert.Contains(t, prompt, "References:")
 	})
 
-	t.Run("ticket ID without URL still adds title suffix", func(t *testing.T) {
+	t.Run("default prefix produces osmia/ID branch and title", func(t *testing.T) {
 		prompt, err := e.BuildPrompt(engine.Task{
 			ID:       "task-1",
-			TicketID: "sc-12345",
+			TicketID: "12345",
 			Title:    "Fix the bug",
 			RepoURL:  "https://gitlab.com/org/repo",
 		})
 		require.NoError(t, err)
-		assert.Contains(t, prompt, "[sc-12345]")
+		assert.Contains(t, prompt, "osmia/12345")
+		assert.Contains(t, prompt, "[osmia/12345]")
 		assert.NotContains(t, prompt, "References:")
 	})
 
@@ -1063,7 +1066,7 @@ func TestBuildPrompt_TicketReferenceInMR(t *testing.T) {
 	t.Run("ticket URL in Ticket section", func(t *testing.T) {
 		prompt, err := e.BuildPrompt(engine.Task{
 			ID:        "task-1",
-			TicketID:  "sc-28671",
+			TicketID:  "28671",
 			Title:     "Fix the bug",
 			RepoURL:   "https://gitlab.com/org/repo",
 			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
@@ -1074,12 +1077,13 @@ func TestBuildPrompt_TicketReferenceInMR(t *testing.T) {
 
 	t.Run("resume path also includes ticket reference", func(t *testing.T) {
 		prompt, err := e.BuildPrompt(engine.Task{
-			ID:        "task-1",
-			TicketID:  "sc-28671",
-			Title:     "Fix the bug",
-			RepoURL:   "https://gitlab.com/org/repo",
-			TicketURL: "https://app.shortcut.com/unitaryai/story/28671",
-			SessionID: "sess-123",
+			ID:           "task-1",
+			TicketID:     "28671",
+			Title:        "Fix the bug",
+			RepoURL:      "https://gitlab.com/org/repo",
+			TicketURL:    "https://app.shortcut.com/unitaryai/story/28671",
+			BranchPrefix: "sc-",
+			SessionID:    "sess-123",
 		})
 		require.NoError(t, err)
 		assert.Contains(t, prompt, "[sc-28671]")

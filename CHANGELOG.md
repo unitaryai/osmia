@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   field delays polling a PR after registration, giving review bots time to finish
   posting all comments. All actionable comments from a single poll are now batched
   into one follow-up job instead of spawning a separate job per comment.
+- **Configurable branch prefix**: new `scm.branch_prefix` config field controls
+  the branch name prefix (default `"osmia/"`). Set to `"sc-"` for Shortcut VCS
+  integration so branches like `sc-28671` auto-link to stories. The prefix is
+  also used in MR title references (e.g. `[sc-28671]`).
 - **Ticket references in merge requests**: the agent prompt now instructs the
   agent to include the ticket ID in the MR title (e.g. `fix: resolve null check
   [sc-28671]`) and a `References:` link to the ticket URL in the MR description.

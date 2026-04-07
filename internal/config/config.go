@@ -518,6 +518,11 @@ type SCMConfig struct {
 	Backend  string            `yaml:"backend"`
 	Config   map[string]any    `yaml:"config"`
 	Backends []SCMBackendEntry `yaml:"backends,omitempty"`
+	// BranchPrefix is prepended to the ticket ID to form the git branch
+	// name (e.g. "sc-" produces "sc-28671", "osmia/" produces "osmia/28671").
+	// Also used as the ticket reference prefix in MR titles (e.g. "[sc-28671]").
+	// Default: "osmia/".
+	BranchPrefix string `yaml:"branch_prefix"`
 }
 
 // ShortcutWorkflow configures a single trigger→in-progress workflow mapping for

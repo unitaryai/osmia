@@ -469,7 +469,11 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	b.WriteString("## Instructions\n\n")
 
 	if task.RepoURL != "" {
-		branchName := "osmia/" + task.TicketID
+		prefix := task.BranchPrefix
+		if prefix == "" {
+			prefix = "osmia/"
+		}
+		branchName := prefix + task.TicketID
 
 		if task.PriorMergeRequestURL != "" {
 			b.WriteString("**IMPORTANT: A merge request already exists for this task at:\n")
@@ -575,7 +579,7 @@ func writeMRStep(b *strings.Builder, task engine.Task, branchName, stepNum strin
 	b.WriteString("   Write a clear, well-structured MR description covering: what changed, why, and how to verify.\n")
 	if task.TicketID != "" {
 		b.WriteString("   The MR title MUST end with ` [")
-		b.WriteString(task.TicketID)
+		b.WriteString(branchName)
 		b.WriteString("]` so the ticket is traceable from the MR.\n")
 	}
 	if task.TicketURL != "" {
@@ -590,7 +594,7 @@ func writeMRStep(b *strings.Builder, task engine.Task, branchName, stepNum strin
 	b.WriteString("   glab mr create --fill --title \"<concise title>")
 	if task.TicketID != "" {
 		b.WriteString(" [")
-		b.WriteString(task.TicketID)
+		b.WriteString(branchName)
 		b.WriteString("]")
 	}
 	b.WriteString("\" --description \"<full description>\"\n")

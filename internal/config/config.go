@@ -514,6 +514,9 @@ type SCMBackendEntry struct {
 // Use the Backends array for multi-backend routing; the single Backend/Config
 // fields are kept for backwards compatibility and take effect when Backends is
 // empty.
+// DefaultSCMBranchPrefix is the default branch prefix when none is configured.
+const DefaultSCMBranchPrefix = "osmia/"
+
 type SCMConfig struct {
 	Backend  string            `yaml:"backend"`
 	Config   map[string]any    `yaml:"config"`

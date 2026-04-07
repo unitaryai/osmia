@@ -2622,12 +2622,13 @@ func validatedMergeRequestURL(result *engine.TaskResult) string {
 	return u.String()
 }
 
-// branchPrefix returns the configured branch prefix or "osmia/" as the default.
+// branchPrefix returns the configured branch prefix, falling back to the
+// package-level default constant.
 func (r *Reconciler) branchPrefix() string {
 	if p := r.config.SCM.BranchPrefix; p != "" {
 		return p
 	}
-	return "osmia/"
+	return config.DefaultSCMBranchPrefix
 }
 
 // hasApprovalGate returns true if the given gate name is present in the

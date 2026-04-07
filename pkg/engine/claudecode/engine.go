@@ -469,11 +469,14 @@ func (e *ClaudeCodeEngine) BuildPrompt(task engine.Task) (string, error) {
 	b.WriteString("## Instructions\n\n")
 
 	if task.RepoURL != "" {
-		prefix := task.BranchPrefix
-		if prefix == "" {
-			prefix = "osmia/"
+		branchName := task.ID
+		if task.TicketID != "" {
+			prefix := task.BranchPrefix
+			if prefix == "" {
+				prefix = "osmia/"
+			}
+			branchName = prefix + task.TicketID
 		}
-		branchName := prefix + task.TicketID
 
 		if task.PriorMergeRequestURL != "" {
 			b.WriteString("**IMPORTANT: A merge request already exists for this task at:\n")

@@ -199,11 +199,9 @@ func (s *SlackChannel) NotifyComplete(ctx context.Context, ticket ticketing.Tick
 		})
 	}
 
-	// Post completion details in the thread and broadcast to the channel so
-	// the summary is visible. The controller also updates the original message
-	// in-place with the final status via UpdateMessage.
-	replyBroadcast := threadRef != ""
-	_, err := s.postMessage(ctx, summary, blocks, threadRef, replyBroadcast)
+	// Post completion details in the thread only — the controller updates the
+	// original message in the main channel separately via UpdateMessage.
+	_, err := s.postMessage(ctx, summary, blocks, threadRef, false)
 	return err
 }
 

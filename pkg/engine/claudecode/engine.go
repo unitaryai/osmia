@@ -315,8 +315,12 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	if config.APIKeySecret != "" {
 		apiSecretName = config.APIKeySecret
 	}
+	apiSecretKey := config.APIKeyKey
+	if apiSecretKey == "" {
+		apiSecretKey = apiKeySecretKey
+	}
 	secretKeyRefs := map[string]engine.SecretKeyRef{
-		"ANTHROPIC_API_KEY": {SecretName: apiSecretName, Key: apiKeySecretKey},
+		"ANTHROPIC_API_KEY": {SecretName: apiSecretName, Key: apiSecretKey},
 	}
 	// Merge any additional secret refs from the engine config (e.g. SCM tokens).
 	for k, v := range config.SecretKeyRefs {

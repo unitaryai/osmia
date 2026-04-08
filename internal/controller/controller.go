@@ -266,7 +266,7 @@ func WithSessionStore(s engine.SessionStore) ReconcilerOption {
 // baseEngineConfig returns an EngineConfig pre-populated with the fields that
 // are common across all job creation sites: timeout, image, secret refs, env,
 // and the API key secret name resolved from the engine's auth config.
-func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
+func (r *Reconciler) baseEngineConfig(ctx context.Context, engineName string) engine.EngineConfig {
 	apiKeySecret := ""
 	apiKeyKey := ""
 	if r.config.Engines.ClaudeCode != nil && engineName == "claude-code" {
@@ -274,7 +274,7 @@ func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
 		apiKeyKey = r.config.Engines.ClaudeCode.Auth.APIKeyKey
 		// If no explicit key, probe the secret for well-known key names.
 		if apiKeyKey == "" && apiKeySecret != "" && r.k8sClient != nil {
-			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), apiKeySecret, metav1.GetOptions{}); err == nil {
+			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(ctx, apiKeySecret, metav1.GetOptions{}); err == nil {
 				for _, candidate := range []string{"ANTHROPIC_API_KEY", "api_key"} {
 					if _, ok := secret.Data[candidate]; ok {
 						apiKeyKey = candidate
@@ -287,7 +287,7 @@ func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
 	return engine.EngineConfig{
 		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
 		Image:          r.config.Engines.ImageFor(engineName),
-		SecretKeyRefs:  r.agentSecretKeyRefs(),
+		SecretKeyRefs:  r.agentSecretKeyRefs(ctx),
 		Env:            r.slackEnv(),
 		APIKeySecret:   apiKeySecret,
 		APIKeyKey:      apiKeyKey,
@@ -700,7 +700,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		MemoryContext: memoryContext,
 	}
 
-	engineCfg := r.baseEngineConfig(engineName)
+	engineCfg := r.baseEngineConfig(ctx, engineName)
 
 	// Send start notification before building the spec so that the returned
 	// thread reference can be injected into the container environment, allowing
@@ -1267,7 +1267,7 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 		task.TicketURL = parentTicket.ExternalURL
 	}
 
-	engineCfg := r.baseEngineConfig(engineName)
+	engineCfg := r.baseEngineConfig(ctx, engineName)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for review follow-up",
@@ -1581,7 +1581,7 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		task.PriorMergeRequestURL = mrURL
 	}
 
-	engineCfg := r.baseEngineConfig(engineName)
+	engineCfg := r.baseEngineConfig(ctx, engineName)
 
 	// Reuse the existing notification thread.
 	injectThreadRef(&engineCfg, tr.NotificationThreadRef)
@@ -1806,7 +1806,7 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		MemoryContext: memoryContext,
 	}
 
-	engineCfg := r.baseEngineConfig(engineName)
+	engineCfg := r.baseEngineConfig(ctx, engineName)
 
 	// Send start notification before building the spec so that the returned
 	// thread reference can be injected into the container environment.
@@ -2160,7 +2160,7 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 		task.PriorMergeRequestURL = mrURL
 	}
 
-	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
+	engineCfg := r.baseEngineConfig(ctx, tr.CurrentEngine)
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		r.logger.ErrorContext(ctx, "failed to prepare session storage for continuation job",
@@ -2525,7 +2525,7 @@ func (r *Reconciler) extractMemory(ctx context.Context, tr *taskrun.TaskRun) {
 // slackSecretKeyRefs returns a SecretKeyRef for the Slack bot token read from
 // the first configured Slack notification channel. Returns nil when no Slack
 // channel is configured or the token secret is absent.
-func (r *Reconciler) slackSecretKeyRefs() map[string]engine.SecretKeyRef {
+func (r *Reconciler) slackSecretKeyRefs(ctx context.Context) map[string]engine.SecretKeyRef {
 	for _, ch := range r.config.Notifications.Channels {
 		if ch.Backend != "slack" {
 			continue
@@ -2540,7 +2540,7 @@ func (r *Reconciler) slackSecretKeyRefs() map[string]engine.SecretKeyRef {
 		if k, ok := m["token_key"].(string); ok && k != "" {
 			secretKey = k
 		} else if r.k8sClient != nil {
-			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), tokenSecret, metav1.GetOptions{}); err == nil {
+			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(ctx, tokenSecret, metav1.GetOptions{}); err == nil {
 				for _, candidate := range []string{"SLACK_BOT_TOKEN", "SLACK_TOKEN"} {
 					if _, ok := secret.Data[candidate]; ok {
 						secretKey = candidate
@@ -2632,12 +2632,12 @@ func (r *Reconciler) slackEnv() map[string]string {
 
 // agentSecretKeyRefs returns all SecretKeyRef entries for agent pods,
 // combining SCM and Slack credentials.
-func (r *Reconciler) agentSecretKeyRefs() map[string]engine.SecretKeyRef {
+func (r *Reconciler) agentSecretKeyRefs(ctx context.Context) map[string]engine.SecretKeyRef {
 	refs := make(map[string]engine.SecretKeyRef)
-	for k, v := range r.scmSecretKeyRefs() {
+	for k, v := range r.scmSecretKeyRefs(ctx) {
 		refs[k] = v
 	}
-	for k, v := range r.slackSecretKeyRefs() {
+	for k, v := range r.slackSecretKeyRefs(ctx) {
 		refs[k] = v
 	}
 	if len(refs) == 0 {
@@ -2649,7 +2649,7 @@ func (r *Reconciler) agentSecretKeyRefs() map[string]engine.SecretKeyRef {
 // scmSecretKeyRefs returns SecretKeyRef entries for the configured SCM token
 // so that agent pods can authenticate with the SCM provider when cloning
 // private repositories. Returns nil when no SCM backend is configured.
-func (r *Reconciler) scmSecretKeyRefs() map[string]engine.SecretKeyRef {
+func (r *Reconciler) scmSecretKeyRefs(ctx context.Context) map[string]engine.SecretKeyRef {
 	scm := r.config.SCM
 	if scm.Backend == "" {
 		return nil
@@ -2676,7 +2676,7 @@ func (r *Reconciler) scmSecretKeyRefs() map[string]engine.SecretKeyRef {
 	if k, ok := scm.Config["token_key"].(string); ok && k != "" {
 		secretKey = k
 	} else if r.k8sClient != nil {
-		if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), tokenSecret, metav1.GetOptions{}); err == nil {
+		if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(ctx, tokenSecret, metav1.GetOptions{}); err == nil {
 			for _, candidate := range wellKnownKeys {
 				if _, ok := secret.Data[candidate]; ok {
 					secretKey = candidate
@@ -2785,7 +2785,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		task.PriorMergeRequestURL = mrURL
 	}
 
-	engineCfg := r.baseEngineConfig(tr.CurrentEngine)
+	engineCfg := r.baseEngineConfig(ctx, tr.CurrentEngine)
 
 	// Reuse the existing notification thread.
 	injectThreadRef(&engineCfg, tr.NotificationThreadRef)
@@ -3307,7 +3307,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 			MemoryContext: memoryContext,
 		}
 
-		engineCfg := r.baseEngineConfig(engineName)
+		engineCfg := r.baseEngineConfig(ctx, engineName)
 		injectThreadRef(&engineCfg, tournamentThreadRef)
 
 		if err := r.prepareSession(ctx, tr.ID); err != nil {
@@ -3593,7 +3593,7 @@ func (r *Reconciler) launchJudge(ctx context.Context, tournamentID string) {
 		judgeTask.RepoURL = cachedTicket.RepoURL
 	}
 
-	judgeEngineCfg := r.baseEngineConfig(judgeEngineName)
+	judgeEngineCfg := r.baseEngineConfig(ctx, judgeEngineName)
 
 	spec, err := judgeEng.BuildExecutionSpec(judgeTask, judgeEngineCfg)
 	if err != nil {

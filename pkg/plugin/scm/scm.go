@@ -75,10 +75,12 @@ type Backend interface {
 	ListReviewComments(ctx context.Context, prURL string) ([]ReviewComment, error)
 
 	// ReplyToComment posts a reply to an existing comment on a pull or
-	// merge request. For line-level review comments the reply is attached
-	// to the same thread; for general comments a new top-level comment is
-	// posted.
-	ReplyToComment(ctx context.Context, prURL string, commentID string, body string) error
+	// merge request. When threadID is non-empty, the reply is posted
+	// directly to that discussion thread (most reliable for DiffNotes).
+	// When threadID is empty, the implementation looks up the thread from
+	// commentID. Falls back to a standalone note if the thread cannot be
+	// determined.
+	ReplyToComment(ctx context.Context, prURL string, commentID string, threadID string, body string) error
 
 	// ResolveThread marks a review thread as resolved. Implementations
 	// that do not support thread resolution (e.g. GitHub REST) should

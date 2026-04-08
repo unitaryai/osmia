@@ -256,9 +256,10 @@ func (b *GitLabSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 }
 
 // ReplyToComment posts a reply to an existing comment on the merge request.
-// When threadID is non-empty the reply is added to the discussion; otherwise
-// a standalone note is posted.
-func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, commentID string, body string) error {
+// When threadID is provided, the reply is posted directly to that discussion.
+// When threadID is empty, the discussion ID is looked up from commentID.
+// Falls back to a standalone note if the thread cannot be determined.
+func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, commentID string, threadID string, body string) error {
 	projectPath, mrIID, err := parseMRURL(prURL)
 	if err != nil {
 		return fmt.Errorf("parsing merge request URL: %w", err)
@@ -266,26 +267,32 @@ func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, com
 
 	encodedPath := url.PathEscape(projectPath)
 
-	// Look up the discussion ID for this comment by fetching the notes list.
-	// We need the discussion_id to post a reply to the correct thread.
-	notesURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes?sort=asc&order_by=created_at",
-		b.baseURL, encodedPath, mrIID)
-	notesBody, err := b.doGet(ctx, notesURL)
-	if err != nil {
-		return fmt.Errorf("fetching notes to locate discussion: %w", err)
-	}
-	defer notesBody.Close()
-
-	var notes []glNote
-	if err := json.NewDecoder(notesBody).Decode(&notes); err != nil {
-		return fmt.Errorf("decoding notes: %w", err)
-	}
-
-	threadID := ""
-	for _, n := range notes {
-		if strconv.Itoa(n.ID) == commentID {
-			threadID = n.DiscussionID
-			break
+	// Use the provided threadID if available (avoids the expensive note lookup).
+	if threadID == "" && commentID != "" {
+		// Fall back to looking up the discussion ID from the notes list.
+		// Use per_page=100 and the discussions endpoint to find DiffNotes.
+		discURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/discussions?per_page=100",
+			b.baseURL, encodedPath, mrIID)
+		discBody, err := b.doGet(ctx, discURL)
+		if err == nil {
+			defer discBody.Close()
+			var discussions []struct {
+				ID    string   `json:"id"`
+				Notes []glNote `json:"notes"`
+			}
+			if json.NewDecoder(discBody).Decode(&discussions) == nil {
+				for _, d := range discussions {
+					for _, n := range d.Notes {
+						if strconv.Itoa(n.ID) == commentID {
+							threadID = d.ID
+							break
+						}
+					}
+					if threadID != "" {
+						break
+					}
+				}
+			}
 		}
 	}
 
@@ -296,6 +303,10 @@ func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, com
 	}
 
 	// Fall back to posting a standalone note.
+	b.logger.Warn("could not determine thread for comment, posting standalone note",
+		"pr_url", prURL,
+		"comment_id", commentID,
+	)
 	apiURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes", b.baseURL, encodedPath, mrIID)
 	return b.doPost(ctx, apiURL, map[string]string{"body": body})
 }

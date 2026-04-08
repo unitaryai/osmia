@@ -2530,12 +2530,28 @@ func (r *Reconciler) slackSecretKeyRefs() map[string]engine.SecretKeyRef {
 		if ch.Backend != "slack" {
 			continue
 		}
-		tokenSecret, _ := ch.Config["token_secret"].(string)
+		m := ch.Config
+		tokenSecret, _ := m["token_secret"].(string)
 		if tokenSecret == "" {
 			continue
 		}
+
+		secretKey := "token"
+		if k, ok := m["token_key"].(string); ok && k != "" {
+			secretKey = k
+		} else if r.k8sClient != nil {
+			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), tokenSecret, metav1.GetOptions{}); err == nil {
+				for _, candidate := range []string{"SLACK_BOT_TOKEN", "SLACK_TOKEN"} {
+					if _, ok := secret.Data[candidate]; ok {
+						secretKey = candidate
+						break
+					}
+				}
+			}
+		}
+
 		return map[string]engine.SecretKeyRef{
-			"SLACK_BOT_TOKEN": {SecretName: tokenSecret, Key: "token"},
+			"SLACK_BOT_TOKEN": {SecretName: tokenSecret, Key: secretKey},
 		}
 	}
 	return nil

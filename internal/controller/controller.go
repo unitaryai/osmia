@@ -268,8 +268,21 @@ func WithSessionStore(s engine.SessionStore) ReconcilerOption {
 // and the API key secret name resolved from the engine's auth config.
 func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
 	apiKeySecret := ""
+	apiKeyKey := ""
 	if r.config.Engines.ClaudeCode != nil && engineName == "claude-code" {
 		apiKeySecret = r.config.Engines.ClaudeCode.Auth.APIKeySecret
+		apiKeyKey = r.config.Engines.ClaudeCode.Auth.APIKeyKey
+		// If no explicit key, probe the secret for well-known key names.
+		if apiKeyKey == "" && apiKeySecret != "" && r.k8sClient != nil {
+			if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), apiKeySecret, metav1.GetOptions{}); err == nil {
+				for _, candidate := range []string{"ANTHROPIC_API_KEY", "api_key"} {
+					if _, ok := secret.Data[candidate]; ok {
+						apiKeyKey = candidate
+						break
+					}
+				}
+			}
+		}
 	}
 	return engine.EngineConfig{
 		TimeoutSeconds: r.config.GuardRails.MaxJobDurationMinutes * 60,
@@ -277,6 +290,7 @@ func (r *Reconciler) baseEngineConfig(engineName string) engine.EngineConfig {
 		SecretKeyRefs:  r.agentSecretKeyRefs(),
 		Env:            r.slackEnv(),
 		APIKeySecret:   apiKeySecret,
+		APIKeyKey:      apiKeyKey,
 	}
 }
 
@@ -2629,16 +2643,35 @@ func (r *Reconciler) scmSecretKeyRefs() map[string]engine.SecretKeyRef {
 		return nil
 	}
 	var envVarName string
+	var wellKnownKeys []string
 	switch scm.Backend {
 	case "gitlab":
 		envVarName = "GITLAB_TOKEN"
+		wellKnownKeys = []string{"GITLAB_TOKEN"}
 	case "github":
 		envVarName = "GITHUB_TOKEN"
+		wellKnownKeys = []string{"GITHUB_TOKEN"}
 	default:
 		return nil
 	}
+
+	// Resolve the secret key: explicit config, then well-known, then "token".
+	secretKey := "token"
+	if k, ok := scm.Config["token_key"].(string); ok && k != "" {
+		secretKey = k
+	} else if r.k8sClient != nil {
+		if secret, err := r.k8sClient.CoreV1().Secrets(r.namespace).Get(context.Background(), tokenSecret, metav1.GetOptions{}); err == nil {
+			for _, candidate := range wellKnownKeys {
+				if _, ok := secret.Data[candidate]; ok {
+					secretKey = candidate
+					break
+				}
+			}
+		}
+	}
+
 	return map[string]engine.SecretKeyRef{
-		envVarName: {SecretName: tokenSecret, Key: "token"},
+		envVarName: {SecretName: tokenSecret, Key: secretKey},
 	}
 }
 

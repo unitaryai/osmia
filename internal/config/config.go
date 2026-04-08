@@ -399,6 +399,7 @@ type AiderEngineConfig struct {
 type AuthConfig struct {
 	Method            string `yaml:"method"`             // "api_key", "setup_token", "bedrock", "vertex", "credentials_file"
 	APIKeySecret      string `yaml:"api_key_secret"`     // K8s Secret name for API key
+	APIKeyKey         string `yaml:"api_key_key"`        // Key within the secret (default: tries ANTHROPIC_API_KEY, then api_key)
 	BedrockRegion     string `yaml:"bedrock_region"`     // AWS region for Bedrock
 	CredentialsSecret string `yaml:"credentials_secret"` // K8s Secret name for credentials file
 }

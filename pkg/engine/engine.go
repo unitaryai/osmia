@@ -113,6 +113,9 @@ type EngineConfig struct {
 	// APIKeySecret is the name of the Kubernetes Secret containing the engine's
 	// API key (e.g. ANTHROPIC_API_KEY). Overrides any engine-level default.
 	APIKeySecret string `json:"api_key_secret,omitempty"`
+	// APIKeyKey is the key within the secret. When empty, the engine tries
+	// well-known keys (e.g. ANTHROPIC_API_KEY) then falls back to "api_key".
+	APIKeyKey string `json:"api_key_key,omitempty"`
 }
 
 // SecretKeyRef identifies a specific key within a Kubernetes Secret.

@@ -153,5 +153,11 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if cc := c.Engines.ClaudeCode; cc != nil {
+		if m := strings.TrimSpace(cc.AgentTeams.TeammateModel); m != "" {
+			cc.AgentTeams.TeammateModel = m
+		}
+	}
+
 	return nil
 }

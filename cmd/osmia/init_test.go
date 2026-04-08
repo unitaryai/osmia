@@ -312,6 +312,43 @@ func TestInitSCMBackend_GitLab_WithBaseURL(t *testing.T) {
 	assert.NotNil(t, backend)
 }
 
+func TestInitSCMBackend_GitLab_WellKnownKey(t *testing.T) {
+	// Shared secret with GITLAB_TOKEN key (no "token" key).
+	k8s := fakeClient(map[string]map[string]string{
+		"osmia": {"GITLAB_TOKEN": "glpat_well_known"},
+	})
+	cfg := &config.Config{
+		SCM: config.SCMConfig{
+			Backend: "gitlab",
+			Config: map[string]any{
+				"token_secret": "osmia",
+			},
+		},
+	}
+	backend, err := initSCMBackend(cfg, k8s, testNamespace, testLogger())
+	require.NoError(t, err)
+	assert.NotNil(t, backend)
+}
+
+func TestInitSCMBackend_GitLab_ExplicitTokenKey(t *testing.T) {
+	// Explicit token_key overrides well-known and generic keys.
+	k8s := fakeClient(map[string]map[string]string{
+		"osmia": {"MY_CUSTOM_KEY": "glpat_custom", "GITLAB_TOKEN": "glpat_wrong", "token": "glpat_wrong2"},
+	})
+	cfg := &config.Config{
+		SCM: config.SCMConfig{
+			Backend: "gitlab",
+			Config: map[string]any{
+				"token_secret": "osmia",
+				"token_key":    "MY_CUSTOM_KEY",
+			},
+		},
+	}
+	backend, err := initSCMBackend(cfg, k8s, testNamespace, testLogger())
+	require.NoError(t, err)
+	assert.NotNil(t, backend)
+}
+
 func TestInitSCMBackend_UnsupportedReturnsError(t *testing.T) {
 	k8s := fakeClient(nil)
 	cfg := &config.Config{

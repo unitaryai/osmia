@@ -936,6 +936,27 @@ func readSecretValue(ctx context.Context, client kubernetes.Interface, namespace
 	return string(val), nil
 }
 
+// resolveSecretToken reads a token from a Kubernetes secret by trying keys in
+// priority order: an explicit token_key from the config map, then well-known
+// key names for the specific backend, then the generic "token" fallback. This
+// allows users to use a single shared secret with descriptive key names
+// (e.g. SHORTCUT_API_TOKEN) or dedicated per-service secrets with a "token" key.
+func resolveSecretToken(ctx context.Context, client kubernetes.Interface, namespace, secretName string, m map[string]any, wellKnownKeys ...string) (string, error) {
+	// 1. Explicit override from config.
+	if key, ok := m["token_key"].(string); ok && key != "" {
+		return readSecretValue(ctx, client, namespace, secretName, key)
+	}
+	// 2. Try well-known keys for this backend.
+	for _, key := range wellKnownKeys {
+		val, err := readSecretValue(ctx, client, namespace, secretName, key)
+		if err == nil {
+			return val, nil
+		}
+	}
+	// 3. Generic fallback.
+	return readSecretValue(ctx, client, namespace, secretName, "token")
+}
+
 // configString extracts a string value from a map[string]any config map.
 func configString(m map[string]any, key string) (string, error) {
 	v, ok := m[key]
@@ -1010,7 +1031,7 @@ func initGitHubBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 		return nil, err
 	}
 
-	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "GITHUB_TOKEN")
 	if err != nil {
 		return nil, fmt.Errorf("reading github token: %w", err)
 	}
@@ -1057,7 +1078,7 @@ func initShortcutBackend(cfg *config.Config, k8sClient kubernetes.Interface, nam
 		return nil, err
 	}
 
-	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "SHORTCUT_API_TOKEN", "SHORTCUT_TOKEN")
 	if err != nil {
 		return nil, fmt.Errorf("reading shortcut token: %w", err)
 	}
@@ -1208,7 +1229,7 @@ func initLinearBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 		return nil, err
 	}
 
-	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "LINEAR_API_KEY", "LINEAR_TOKEN")
 	if err != nil {
 		return nil, fmt.Errorf("reading linear token: %w", err)
 	}
@@ -1268,7 +1289,7 @@ func initTelegramChannel(chCfg config.ChannelConfig, k8sClient kubernetes.Interf
 		return nil, err
 	}
 
-	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN")
 	if err != nil {
 		return nil, fmt.Errorf("reading telegram token: %w", err)
 	}
@@ -1303,7 +1324,7 @@ func initApprovalBackend(cfg *config.Config, k8sClient kubernetes.Interface, nam
 		if err != nil {
 			return nil, err
 		}
-		token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+		token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "SLACK_BOT_TOKEN", "SLACK_TOKEN")
 		if err != nil {
 			return nil, fmt.Errorf("reading slack approval token: %w", err)
 		}
@@ -1325,13 +1346,13 @@ func initSCMBackend(cfg *config.Config, k8sClient kubernetes.Interface, namespac
 
 	switch cfg.SCM.Backend {
 	case "github":
-		token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+		token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "GITHUB_TOKEN")
 		if err != nil {
 			return nil, fmt.Errorf("reading github SCM token: %w", err)
 		}
 		return ghscm.NewGitHubSCMBackend(token, logger), nil
 	case "gitlab":
-		token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+		token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "GITLAB_TOKEN")
 		if err != nil {
 			return nil, fmt.Errorf("reading gitlab SCM token: %w", err)
 		}
@@ -1358,7 +1379,7 @@ func initReviewBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 		if err != nil {
 			return nil, err
 		}
-		apiKey, err := readSecretValue(context.Background(), k8sClient, namespace, apiKeySecret, "api_key")
+		apiKey, err := resolveSecretToken(context.Background(), k8sClient, namespace, apiKeySecret, m, "CODERABBIT_API_KEY", "api_key")
 		if err != nil {
 			return nil, fmt.Errorf("reading coderabbit api key: %w", err)
 		}
@@ -1448,7 +1469,7 @@ func initSlackChannel(chCfg config.ChannelConfig, k8sClient kubernetes.Interface
 		return nil, nil, err
 	}
 
-	token, err := readSecretValue(context.Background(), k8sClient, namespace, tokenSecret, "token")
+	token, err := resolveSecretToken(context.Background(), k8sClient, namespace, tokenSecret, m, "SLACK_BOT_TOKEN", "SLACK_TOKEN")
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading slack token: %w", err)
 	}

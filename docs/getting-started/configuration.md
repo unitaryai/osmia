@@ -266,6 +266,56 @@ secrets:
 
 For external secret stores, see the [Secrets plugin documentation](../plugins/secrets.md).
 
+### Secret key resolution
+
+When a backend reads a token from a Kubernetes Secret, it tries keys in this order:
+
+1. **Explicit `token_key`** from the backend's config (if set)
+2. **Well-known key** for the specific backend (e.g. `SHORTCUT_API_TOKEN`, `GITLAB_TOKEN`)
+3. **Generic `token`** fallback
+
+This means you can use a single shared secret with descriptive key names:
+
+```yaml
+# Single secret with all tokens
+apiVersion: v1
+kind: Secret
+metadata:
+  name: osmia
+data:
+  SHORTCUT_API_TOKEN: ...
+  GITLAB_TOKEN: ...
+  SLACK_BOT_TOKEN: ...
+  ANTHROPIC_API_KEY: ...
+```
+
+```yaml
+# Config — all backends point to the same secret
+ticketing:
+  config:
+    token_secret: osmia    # finds SHORTCUT_API_TOKEN automatically
+scm:
+  config:
+    token_secret: osmia    # finds GITLAB_TOKEN automatically
+notifications:
+  channels:
+    - backend: slack
+      config:
+        token_secret: osmia  # finds SLACK_BOT_TOKEN automatically
+```
+
+Or use dedicated per-service secrets with a `token` key — both patterns work without any `token_key` configuration.
+
+| Backend | Well-known keys tried |
+|---|---|
+| Shortcut | `SHORTCUT_API_TOKEN`, `SHORTCUT_TOKEN` |
+| GitHub (ticketing + SCM) | `GITHUB_TOKEN` |
+| GitLab (SCM) | `GITLAB_TOKEN` |
+| Linear | `LINEAR_API_KEY`, `LINEAR_TOKEN` |
+| Slack (notifications + approval) | `SLACK_BOT_TOKEN`, `SLACK_TOKEN` |
+| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TOKEN` |
+| CodeRabbit | `CODERABBIT_API_KEY` |
+
 ## Secret Resolver
 
 The secret resolver provides task-scoped secret resolution with policy enforcement:

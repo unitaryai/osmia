@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Smart secret key resolution**: backends now try well-known key names
+  (e.g. `SHORTCUT_API_TOKEN`, `GITLAB_TOKEN`, `SLACK_BOT_TOKEN`) before falling
+  back to `token`. A single shared secret with descriptive keys works out of the
+  box — no need for separate per-service secrets. An explicit `token_key` config
+  field is also supported for non-standard setups.
 - **Review comment settling period and batching**: new `settling_minutes` config
   field delays polling a PR after registration, giving review bots time to finish
   posting all comments. All actionable comments from a single poll are now batched

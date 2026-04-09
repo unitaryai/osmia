@@ -78,7 +78,7 @@ func (m *mockSCMBackend) ListReviewComments(_ context.Context, _ string) ([]scm.
 	return out, nil
 }
 
-func (m *mockSCMBackend) ReplyToComment(_ context.Context, prURL, commentID, body string) error {
+func (m *mockSCMBackend) ReplyToComment(_ context.Context, prURL, commentID, _, body string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.replyToCommentCalls = append(m.replyToCommentCalls, replyCall{prURL: prURL, commentID: commentID, body: body})

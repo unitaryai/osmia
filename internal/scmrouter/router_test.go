@@ -39,7 +39,7 @@ func (s *stubBackend) ListReviewComments(_ context.Context, _ string) ([]scm.Rev
 	panic("stubBackend.ListReviewComments not implemented")
 }
 
-func (s *stubBackend) ReplyToComment(_ context.Context, _, _, _ string) error {
+func (s *stubBackend) ReplyToComment(_ context.Context, _, _, _, _ string) error {
 	panic("stubBackend.ReplyToComment not implemented")
 }
 

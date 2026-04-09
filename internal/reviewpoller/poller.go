@@ -254,7 +254,7 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 	var threadIDs []string
 	for _, c := range actionable {
 		if p.cfg.ReplyToComments {
-			if replyErr := backend.ReplyToComment(ctx, prURL, c.ID,
+			if replyErr := backend.ReplyToComment(ctx, prURL, c.ID, c.ThreadID,
 				"👋 Osmia is addressing this feedback."); replyErr != nil {
 				p.logger.Warn("failed to reply to comment",
 					"pr_url", prURL,
@@ -264,9 +264,8 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 			}
 			replyIDs = append(replyIDs, c.ID)
 		}
-		if c.ThreadID != "" {
-			threadIDs = append(threadIDs, c.ThreadID)
-		}
+		// Always append to maintain 1:1 correspondence with replyIDs.
+		threadIDs = append(threadIDs, c.ThreadID)
 	}
 
 	req := FollowUpRequest{

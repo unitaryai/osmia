@@ -297,7 +297,7 @@ func (b *GitHubSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 // it posts to the review comment reply endpoint; for general comments it
 // posts a new issue comment. It attempts the review endpoint first and falls
 // back to the issue comment endpoint.
-func (b *GitHubSCMBackend) ReplyToComment(ctx context.Context, prURL string, commentID string, body string) error {
+func (b *GitHubSCMBackend) ReplyToComment(ctx context.Context, prURL string, commentID string, _ string, body string) error {
 	owner, repo, number, err := parsePRURL(prURL)
 	if err != nil {
 		return fmt.Errorf("parsing pull request URL: %w", err)

@@ -1149,12 +1149,18 @@ func (r *Reconciler) handleFollowUpComplete(ctx context.Context, tr *taskrun.Tas
 		backend, scmErr := r.scmFor(tr.ReviewPRURL)
 		if scmErr == nil {
 			replyBody := "Addressed. " + result.Summary
-			for _, commentID := range strings.Split(tr.ReviewCommentID, ",") {
+			commentIDs := strings.Split(tr.ReviewCommentID, ",")
+			threadIDs := strings.Split(tr.ReviewThreadID, ",")
+			for i, commentID := range commentIDs {
 				commentID = strings.TrimSpace(commentID)
 				if commentID == "" {
 					continue
 				}
-				if replyErr := backend.ReplyToComment(ctx, tr.ReviewPRURL, commentID, replyBody); replyErr != nil {
+				threadID := ""
+				if i < len(threadIDs) {
+					threadID = strings.TrimSpace(threadIDs[i])
+				}
+				if replyErr := backend.ReplyToComment(ctx, tr.ReviewPRURL, commentID, threadID, replyBody); replyErr != nil {
 					r.logger.WarnContext(ctx, "failed to reply to review comment",
 						"pr_url", tr.ReviewPRURL,
 						"comment_id", commentID,

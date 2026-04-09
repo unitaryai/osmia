@@ -28,6 +28,11 @@ type TeamsConfig struct {
 	// MaxTeammates is the maximum number of teammate agents that can be
 	// spawned within a single job. Defaults to 3.
 	MaxTeammates int `json:"max_teammates" yaml:"max_teammates"`
+
+	// TeammateModel overrides the model used by teammate agents. When empty,
+	// Claude Code defaults to Haiku. Set to e.g. "claude-sonnet-4-6" or
+	// "sonnet" to use a more capable model for teammates.
+	TeammateModel string `json:"teammate_model" yaml:"teammate_model"`
 }
 
 // DefaultTeamsConfig returns the default agent teams configuration.
@@ -52,6 +57,10 @@ func TeamsEnvVars(cfg TeamsConfig) map[string]string {
 
 	if cfg.MaxTeammates > 0 {
 		env["CLAUDE_CODE_MAX_TEAMMATES"] = strconv.Itoa(cfg.MaxTeammates)
+	}
+
+	if cfg.TeammateModel != "" {
+		env["CLAUDE_CODE_SUBAGENT_MODEL"] = cfg.TeammateModel
 	}
 
 	return env

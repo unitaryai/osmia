@@ -264,9 +264,8 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 			}
 			replyIDs = append(replyIDs, c.ID)
 		}
-		if c.ThreadID != "" {
-			threadIDs = append(threadIDs, c.ThreadID)
-		}
+		// Always append to maintain 1:1 correspondence with replyIDs.
+		threadIDs = append(threadIDs, c.ThreadID)
 	}
 
 	req := FollowUpRequest{

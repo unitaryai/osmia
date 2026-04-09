@@ -2277,7 +2277,25 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 			forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(transcriptProcessor))
 		}
 
+		// Track the latest cost data from periodic cost events.
+		var lastCost agentstream.CostEvent
+		costProcessor := func(_ context.Context, event *agentstream.StreamEvent) {
+			if event.Type != agentstream.EventCost {
+				return
+			}
+			ce, ok := event.Parsed.(*agentstream.CostEvent)
+			if !ok || ce == nil {
+				return
+			}
+			r.mu.Lock()
+			lastCost = *ce
+			tr.CostUSD = ce.CostUSD
+			r.mu.Unlock()
+		}
+		forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(costProcessor))
+
 		// Capture the final result event so handleJobComplete can use it.
+		// Merges the latest cost data into the result.
 		resultProcessor := func(_ context.Context, event *agentstream.StreamEvent) {
 			if event.Type != agentstream.EventResult {
 				return
@@ -2292,6 +2310,11 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 				Summary:         re.Summary,
 				MergeRequestURL: re.MergeRequestURL,
 				BranchName:      re.BranchName,
+				CostEstimateUSD: lastCost.CostUSD,
+				TokenUsage: &engine.TokenUsage{
+					InputTokens:  lastCost.InputTokens,
+					OutputTokens: lastCost.OutputTokens,
+				},
 			}
 			r.mu.Unlock()
 		}

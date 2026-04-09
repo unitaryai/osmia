@@ -233,9 +233,10 @@ func main() {
 	}
 	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled {
 		claudeOpts = append(claudeOpts, claudecode.WithTeamsConfig(claudecode.TeamsConfig{
-			Enabled:      true,
-			Mode:         cfg.Engines.ClaudeCode.AgentTeams.Mode,
-			MaxTeammates: cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
+			Enabled:       true,
+			Mode:          cfg.Engines.ClaudeCode.AgentTeams.Mode,
+			MaxTeammates:  cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
+			TeammateModel: cfg.Engines.ClaudeCode.AgentTeams.TeammateModel,
 		}))
 		logger.Info("claude-code agent teams enabled",
 			"mode", cfg.Engines.ClaudeCode.AgentTeams.Mode,

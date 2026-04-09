@@ -409,9 +409,10 @@ type AuthConfig struct {
 // via shared task lists and inter-agent messaging. The team lead dynamically
 // creates teammates based on the task — agents are not pre-defined.
 type AgentTeamsConfig struct {
-	Enabled      bool   `yaml:"enabled"`
-	Mode         string `yaml:"mode"` // "in-process" (default) or "tmux"
-	MaxTeammates int    `yaml:"max_teammates"`
+	Enabled       bool   `yaml:"enabled"`
+	Mode          string `yaml:"mode"` // "in-process" (default) or "tmux"
+	MaxTeammates  int    `yaml:"max_teammates"`
+	TeammateModel string `yaml:"teammate_model"` // e.g. "sonnet", "claude-sonnet-4-6"
 }
 
 // GuardRailsConfig configures controller-level safety boundaries.

@@ -141,10 +141,17 @@ func (s *Server) handleGeneric(w http.ResponseWriter, r *http.Request) {
 }
 
 // extractJSONPath extracts a value from a nested map using simple dot-notation
-// paths (e.g. "issue.title"). This is intentionally simple — it does not
-// support array indexing or complex JSONPath expressions.
+// paths (e.g. "issue.title"). Path segments containing literal dots can be
+// addressed by escaping the dot with a backslash. For example, given a payload
+// with a top-level key "public_alert.alert_created_v1" (an event-namespaced
+// wrapper key, as used by incident.io), the path
+// `public_alert\.alert_created_v1.id` resolves the "id" field inside that
+// wrapper. A literal backslash in a segment is written as `\\`.
+//
+// This is intentionally simple — it does not support array indexing or
+// complex JSONPath expressions.
 func extractJSONPath(data map[string]any, path string) string {
-	parts := strings.Split(path, ".")
+	parts := splitEscapedPath(path)
 	var current any = data
 
 	for _, part := range parts {
@@ -172,6 +179,35 @@ func extractJSONPath(data map[string]any, path string) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// splitEscapedPath splits a dot-notation path on unescaped dots. A backslash
+// escapes the following character, allowing path segments to contain literal
+// dots (`\.`) or backslashes (`\\`). A trailing backslash with nothing to
+// escape is treated as a literal backslash.
+func splitEscapedPath(path string) []string {
+	var parts []string
+	var current strings.Builder
+	escaped := false
+	for _, r := range path {
+		switch {
+		case escaped:
+			current.WriteRune(r)
+			escaped = false
+		case r == '\\':
+			escaped = true
+		case r == '.':
+			parts = append(parts, current.String())
+			current.Reset()
+		default:
+			current.WriteRune(r)
+		}
+	}
+	if escaped {
+		current.WriteRune('\\')
+	}
+	parts = append(parts, current.String())
+	return parts
 }
 
 // validateGenericHMACSignature checks the signature header against the

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	svix "github.com/svix/svix-webhooks/go"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -23,18 +24,29 @@ const (
 
 	// GenericAuthBearer validates requests using a bearer token.
 	GenericAuthBearer GenericAuthMode = "bearer"
+
+	// GenericAuthSvix validates requests using Svix-style signing
+	// (used by incident.io, Stripe, OpenAI, Linear, and many other SaaS
+	// providers built on Svix). Verification is delegated to the official
+	// Svix Go library, which enforces a fixed five-minute timestamp
+	// tolerance and accepts both "svix-*" and enterprise "webhook-*"
+	// header prefixes.
+	GenericAuthSvix GenericAuthMode = "svix"
 )
 
 // GenericConfig holds the configuration for the generic webhook handler.
 type GenericConfig struct {
-	// AuthMode is the authentication method: "hmac" or "bearer".
+	// AuthMode is the authentication method: "hmac", "bearer", or "svix".
 	AuthMode GenericAuthMode `json:"auth_mode" yaml:"auth_mode"`
 
-	// Secret is the HMAC secret or bearer token, depending on AuthMode.
+	// Secret is the HMAC secret, Svix signing key, or bearer token,
+	// depending on AuthMode. For Svix mode, a "whsec_" prefix is
+	// recognised and the remainder is base64-decoded before use.
 	Secret string `json:"secret" yaml:"secret"`
 
 	// SignatureHeader is the header containing the HMAC signature.
-	// Defaults to "X-Webhook-Signature" if empty.
+	// Defaults to "X-Webhook-Signature" if empty. Only used in HMAC mode;
+	// Svix mode uses fixed headers (svix-signature or webhook-signature).
 	SignatureHeader string `json:"signature_header" yaml:"signature_header"`
 
 	// FieldMapping maps dot-notation JSON paths to ticket fields.
@@ -80,6 +92,18 @@ func (s *Server) handleGeneric(w http.ResponseWriter, r *http.Request) {
 		if auth != expected {
 			s.logger.Warn("invalid generic webhook bearer token")
 			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+	case GenericAuthSvix:
+		wh, err := svix.NewWebhook(cfg.Secret)
+		if err != nil {
+			s.logger.Error("invalid svix secret", slog.String("error", err.Error()))
+			http.Error(w, "invalid auth configuration", http.StatusInternalServerError)
+			return
+		}
+		if err := wh.Verify(body, r.Header); err != nil {
+			s.logger.Warn("invalid generic webhook svix signature", slog.String("error", err.Error()))
+			http.Error(w, "invalid signature", http.StatusUnauthorized)
 			return
 		}
 	default:

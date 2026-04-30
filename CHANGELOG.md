@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Svix-style signature verification on the generic webhook**: new
+  `auth_mode: svix` for sources that sign with Svix conventions (incident.io,
+  Stripe, OpenAI, Linear, and many others). Verification is delegated to the
+  official `github.com/svix/svix-webhooks/go` library, which enforces the
+  five-minute replay window, supports both `svix-*` and enterprise
+  `webhook-*` header prefixes, handles `whsec_`-prefixed secrets, and
+  honours space-delimited signatures for key rotation.
 - **Smart secret key resolution**: backends now try well-known key names
   (e.g. `SHORTCUT_API_TOKEN`, `GITLAB_TOKEN`, `SLACK_BOT_TOKEN`) before falling
   back to `token`. A single shared secret with descriptive keys works out of the

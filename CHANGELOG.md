@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Escaped dots in generic webhook field_map paths**: path segments containing
+  literal dots can now be addressed by escaping the dot with a backslash (e.g.
+  `public_alert\.alert_created_v1.id`). This unblocks integration with sources
+  like incident.io, where the event type itself appears as a wrapper key in
+  the payload. A literal backslash in a segment is written as `\\`.
 - **Smart secret key resolution**: backends now try well-known key names
   (e.g. `SHORTCUT_API_TOKEN`, `GITLAB_TOKEN`, `SLACK_BOT_TOKEN`) before falling
   back to `token`. A single shared secret with descriptive keys works out of the

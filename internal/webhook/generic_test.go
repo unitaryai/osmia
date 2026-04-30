@@ -353,11 +353,103 @@ func TestExtractJSONPath(t *testing.T) {
 			path: "title",
 			want: "",
 		},
+		{
+			name: "escaped dot in top-level key",
+			data: map[string]any{
+				"public_alert.alert_created_v1": map[string]any{
+					"id": "01ABC",
+				},
+			},
+			path: `public_alert\.alert_created_v1.id`,
+			want: "01ABC",
+		},
+		{
+			name: "escaped dots in multiple segments",
+			data: map[string]any{
+				"a.b": map[string]any{
+					"c.d": "value",
+				},
+			},
+			path: `a\.b.c\.d`,
+			want: "value",
+		},
+		{
+			name: "escaped backslash in key",
+			data: map[string]any{
+				`weird\key`: "value",
+			},
+			path: `weird\\key`,
+			want: "value",
+		},
+		{
+			name: "trailing backslash is literal",
+			data: map[string]any{
+				`trailing\`: "value",
+			},
+			path: `trailing\`,
+			want: "value",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			got := extractJSONPath(tc.data, tc.path)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSplitEscapedPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{
+			name: "empty path",
+			path: "",
+			want: []string{""},
+		},
+		{
+			name: "simple single segment",
+			path: "title",
+			want: []string{"title"},
+		},
+		{
+			name: "simple nested path",
+			path: "issue.title",
+			want: []string{"issue", "title"},
+		},
+		{
+			name: "escaped dot",
+			path: `public_alert\.alert_created_v1.id`,
+			want: []string{"public_alert.alert_created_v1", "id"},
+		},
+		{
+			name: "escaped backslash",
+			path: `weird\\key`,
+			want: []string{`weird\key`},
+		},
+		{
+			name: "escaped dot at start of segment",
+			path: `\.starts.middle`,
+			want: []string{".starts", "middle"},
+		},
+		{
+			name: "trailing backslash treated as literal",
+			path: `trailing\`,
+			want: []string{`trailing\`},
+		},
+		{
+			name: "consecutive escaped dots",
+			path: `a\.\.b`,
+			want: []string{"a..b"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := splitEscapedPath(tc.path)
 			assert.Equal(t, tc.want, got)
 		})
 	}

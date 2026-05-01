@@ -12,6 +12,7 @@ require (
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/stretchr/testify v1.10.0
+	github.com/svix/svix-webhooks v1.92.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.0
 	k8s.io/apimachinery v0.31.0

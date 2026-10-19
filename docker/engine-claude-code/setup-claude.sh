@@ -54,12 +54,20 @@ CLAUDE_DIR=$(cd "${CLAUDE_DIR}" && pwd -P) || {
 # satisfy the nested-path check below while still meaning the root.
 CLAUDE_DIR=$(printf '%s' "${CLAUDE_DIR}" | tr -s '/')
 
-# Require at least one directory below the root. "/" and "/skills" are both
-# too close to the mount points this script writes to and deletes.
+# Refuse exactly the two values that would aim the clear below at something it
+# must not touch: "/", which puts the skills path at /skills where the
+# ConfigMap volumes are mounted, and /skills itself. Anything else absolute is
+# fine — including a single-segment path. The per-taskrun-pvc session store
+# sets CLAUDE_CONFIG_DIR=/session, and an earlier version of this check
+# demanded two segments and so refused every job on that backend.
 case "${CLAUDE_DIR}" in
-    /*/*) ;;
+    / | /skills | /skills/*)
+        echo "setup-claude.sh: refusing to run: CLAUDE_DIR resolves to '${CLAUDE_DIR}', which would point skill cleanup at the root or the ConfigMap mounts" >&2
+        exit 1
+        ;;
+    /*) ;;
     *)
-        echo "setup-claude.sh: refusing to run: CLAUDE_DIR resolves to '${CLAUDE_DIR}', which is not a nested absolute path" >&2
+        echo "setup-claude.sh: refusing to run: CLAUDE_DIR resolves to '${CLAUDE_DIR}', which is not an absolute path" >&2
         exit 1
         ;;
 esac

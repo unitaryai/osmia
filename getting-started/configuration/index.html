@@ -942,6 +942,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#osmias-own-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Osmia's own comments
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2572,6 +2583,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#osmias-own-comments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Osmia's own comments
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3445,6 +3467,9 @@ the collision check would catch it.</p>
 <h3 id="bot-summary-filtering">Bot summary filtering<a class="headerlink" href="#bot-summary-filtering" title="Permanent link">&para;</a></h3>
 <p>Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The <code>ignore_summary_authors</code> patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.</p>
 <p>For GitLab, group bot tokens use usernames like <code>group_123456_bot_abcdef...</code>. Add <code>"^group_\\d+_bot_"</code> to catch all of them.</p>
+<h3 id="osmias-own-comments">Osmia's own comments<a class="headerlink" href="#osmias-own-comments" title="Permanent link">&para;</a></h3>
+<p>Osmia never acts on a comment its own SCM account posted, inline or not. At startup it asks GitHub or GitLab which account its token belongs to (<code>GET /user</code>) and ignores that account's comments. This matters because a follow-up job ends by posting a summary such as "Addressed. Fixed the 2 pyright errors", which is full of words the classifier treats as actionable; without the check, each follow-up would trigger the next until <code>max_follow_up_jobs</code> ran out.</p>
+<p>You do not need to list Osmia's own account in <code>ignore_summary_authors</code>. If the lookup fails, for example because a GitHub App installation token cannot call <code>GET /user</code>, Osmia logs a warning and falls back to recognising itself by name: only an account whose username contains <code>osmia</code> is caught by the built-in list. In that case add your account to <code>ignore_summary_authors</code>, anchored, such as <code>"^my_bot_account$"</code>.</p>
 <h2 id="process-reward-model-prm">Process Reward Model (PRM)<a class="headerlink" href="#process-reward-model-prm" title="Permanent link">&para;</a></h2>
 <p>Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See <a href="../../concepts/prm/">Real-Time Agent Coaching</a> for a full explanation.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">prm</span><span class="p">:</span>

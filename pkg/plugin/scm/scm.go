@@ -101,3 +101,23 @@ type Backend interface {
 	// that this backend implements.
 	InterfaceVersion() int
 }
+
+// IdentityProvider is an optional capability for SCM backends that can report
+// which account their credentials authenticate as.
+//
+// The review poller uses it to ignore comments Osmia posted itself. Without
+// it, the only way to recognise those comments is by the account's name,
+// which breaks whenever a deployment's bot account is not named after the
+// project, and a follow-up job's own "Addressed. Fixed ..." summary then reads
+// as fresh feedback and spawns another job.
+//
+// It is deliberately separate from Backend rather than a new method on it:
+// callers type-assert for it and fall back gracefully when it is absent, so
+// gRPC plugin backends keep working unchanged and the plugin wire protocol
+// does not move.
+type IdentityProvider interface {
+	// AuthenticatedUser returns the username the backend's credentials act
+	// as, exactly as it appears in the author field of comments that
+	// account posts.
+	AuthenticatedUser(ctx context.Context) (string, error)
+}

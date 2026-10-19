@@ -25,8 +25,12 @@ const (
 	backendName    = "github"
 )
 
-// Compile-time check that GitHubSCMBackend implements scm.Backend.
-var _ scm.Backend = (*GitHubSCMBackend)(nil)
+// Compile-time checks that GitHubSCMBackend implements scm.Backend and the
+// optional scm.IdentityProvider capability.
+var (
+	_ scm.Backend          = (*GitHubSCMBackend)(nil)
+	_ scm.IdentityProvider = (*GitHubSCMBackend)(nil)
+)
 
 // GitHubSCMBackend implements scm.Backend using the GitHub REST API.
 type GitHubSCMBackend struct {
@@ -195,6 +199,31 @@ func (b *GitHubSCMBackend) Name() string {
 // InterfaceVersion returns the SCM interface version implemented.
 func (b *GitHubSCMBackend) InterfaceVersion() int {
 	return scm.InterfaceVersion
+}
+
+// AuthenticatedUser returns the login of the account the backend's token
+// authenticates as, from GitHub's GET /user endpoint.
+//
+// GitHub App installation tokens cannot call this endpoint and receive an
+// error; callers are expected to fall back to name-based filtering in that
+// case rather than treat it as fatal.
+func (b *GitHubSCMBackend) AuthenticatedUser(ctx context.Context) (string, error) {
+	body, err := b.doGet(ctx, b.baseURL+"/user")
+	if err != nil {
+		return "", fmt.Errorf("fetching authenticated user: %w", err)
+	}
+	defer body.Close()
+
+	var user struct {
+		Login string `json:"login"`
+	}
+	if err := json.NewDecoder(body).Decode(&user); err != nil {
+		return "", fmt.Errorf("decoding authenticated user: %w", err)
+	}
+	if user.Login == "" {
+		return "", fmt.Errorf("authenticated user response has no login")
+	}
+	return user.Login, nil
 }
 
 // ghReviewComment is the subset of a GitHub pull request review comment we parse.

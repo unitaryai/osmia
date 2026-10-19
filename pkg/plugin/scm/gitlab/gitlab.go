@@ -25,8 +25,12 @@ const (
 	backendName    = "gitlab"
 )
 
-// Compile-time check that GitLabSCMBackend implements scm.Backend.
-var _ scm.Backend = (*GitLabSCMBackend)(nil)
+// Compile-time checks that GitLabSCMBackend implements scm.Backend and the
+// optional scm.IdentityProvider capability.
+var (
+	_ scm.Backend          = (*GitLabSCMBackend)(nil)
+	_ scm.IdentityProvider = (*GitLabSCMBackend)(nil)
+)
 
 // GitLabSCMBackend implements scm.Backend using the GitLab REST API.
 type GitLabSCMBackend struct {
@@ -188,6 +192,29 @@ func (b *GitLabSCMBackend) Name() string {
 // InterfaceVersion returns the SCM interface version implemented.
 func (b *GitLabSCMBackend) InterfaceVersion() int {
 	return scm.InterfaceVersion
+}
+
+// AuthenticatedUser returns the username of the account the backend's token
+// authenticates as, from GitLab's GET /user endpoint. Group and project
+// access tokens resolve to their bot user, which is the author GitLab records
+// on any comment the token posts.
+func (b *GitLabSCMBackend) AuthenticatedUser(ctx context.Context) (string, error) {
+	body, err := b.doGet(ctx, b.baseURL+"/user")
+	if err != nil {
+		return "", fmt.Errorf("fetching authenticated user: %w", err)
+	}
+	defer body.Close()
+
+	var user struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(body).Decode(&user); err != nil {
+		return "", fmt.Errorf("decoding authenticated user: %w", err)
+	}
+	if user.Username == "" {
+		return "", fmt.Errorf("authenticated user response has no username")
+	}
+	return user.Username, nil
 }
 
 // glNote is the subset of a GitLab MR note (comment) we parse.

@@ -332,3 +332,59 @@ func TestGitHubSCMBackend_AuthHeader(t *testing.T) {
 	_, _ = b.GetPullRequestStatus(context.Background(), "https://github.com/o/r/pull/1")
 	assert.Equal(t, "Bearer my-secret-token", authHeader)
 }
+
+func TestGitHubSCMBackend_AuthenticatedUser(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		body     string
+		wantUser string
+		wantErr  string
+	}{
+		{
+			name:     "returns the token's login",
+			status:   http.StatusOK,
+			body:     `{"id": 7, "login": "osmia-bot", "type": "User"}`,
+			wantUser: "osmia-bot",
+		},
+		{
+			// GitHub App installation tokens cannot call GET /user.
+			name:    "installation token is rejected with an error the poller can fall back from",
+			status:  http.StatusForbidden,
+			body:    `{"message": "Resource not accessible by integration"}`,
+			wantErr: "unexpected status 403",
+		},
+		{
+			name:    "missing login is an error rather than an empty identity",
+			status:  http.StatusOK,
+			body:    `{"id": 7}`,
+			wantErr: "no login",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotPath string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				assert.Equal(t, http.MethodGet, r.Method)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			b := NewGitHubSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+			user, err := b.AuthenticatedUser(context.Background())
+
+			assert.Equal(t, "/user", gotPath)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantUser, user)
+		})
+	}
+}

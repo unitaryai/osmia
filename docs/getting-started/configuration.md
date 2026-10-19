@@ -609,6 +609,12 @@ Bots like CodeRabbit post both summary comments (general MR notes) and inline di
 
 For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Add `"^group_\\d+_bot_"` to catch all of them.
 
+### Osmia's own comments
+
+Osmia never acts on a comment its own SCM account posted, inline or not. At startup it asks GitHub or GitLab which account its token belongs to (`GET /user`) and ignores that account's comments. This matters because a follow-up job ends by posting a summary such as "Addressed. Fixed the 2 pyright errors", which is full of words the classifier treats as actionable; without the check, each follow-up would trigger the next until `max_follow_up_jobs` ran out.
+
+You do not need to list Osmia's own account in `ignore_summary_authors`. If the lookup fails, for example because a GitHub App installation token cannot call `GET /user`, Osmia logs a warning and falls back to recognising itself by name: only an account whose username contains `osmia` is caught by the built-in list. In that case add your account to `ignore_summary_authors`, anchored, such as `"^my_bot_account$"`.
+
 ## Process Reward Model (PRM)
 
 Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See [Real-Time Agent Coaching](../concepts/prm.md) for a full explanation.

@@ -117,6 +117,15 @@ assert_absent "${OUT}" "/home/osmia/.claude/skills/probe/SKILL.md" \
   "inline skill is not also written under HOME"
 
 echo ""
+echo "=== Case 1b: single-segment CLAUDE_CONFIG_DIR (per-taskrun-pvc) ==="
+# The per-taskrun-pvc store sets CLAUDE_CONFIG_DIR=/session. A path guard that
+# demanded two segments once refused every job on that backend, and Case 1
+# could not catch it because it uses the shared-pvc shape. Pin the real value.
+OUT="$(run_case -e "CLAUDE_CONFIG_DIR=/session" -e "CLAUDE_SKILL_INLINE_PROBE=${INLINE_B64}")"
+assert_contains "${OUT}" "/session/skills/probe/SKILL.md" \
+  "inline skill lands under a single-segment CLAUDE_CONFIG_DIR"
+
+echo ""
 echo "=== Case 2: CLAUDE_CONFIG_DIR unset ==="
 OUT="$(run_case -e "CLAUDE_SKILL_INLINE_PROBE=${INLINE_B64}")"
 assert_contains "${OUT}" "/home/osmia/.claude/skills/probe/SKILL.md" \
@@ -202,7 +211,7 @@ echo ""
 echo "=== Case 6: a config dir that normalises outside itself is refused ==="
 # "/tmp/.." passes a naive "nested absolute path" check but resolves to "/",
 # which would put the skills path at /skills — the ConfigMap mount point.
-for bad in "/tmp/.." "//" "/"; do
+for bad in "/tmp/.." "//" "/" "/skills"; do
   if docker run --rm \
       -v "${FIXTURE_DIR}/mcp.json:/etc/claude-code/mcp.json:ro" \
       -v "${FIXTURE_DIR}/settings.json:/etc/claude-code/settings.json:ro" \

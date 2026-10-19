@@ -398,3 +398,58 @@ func TestGitLabSCMBackend_SubgroupProject(t *testing.T) {
 
 	assert.Equal(t, "/api/v4/projects/acme%2Fplatform%2Fwidgets/repository/branches", receivedPath)
 }
+
+func TestGitLabSCMBackend_AuthenticatedUser(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		body     string
+		wantUser string
+		wantErr  string
+	}{
+		{
+			name:     "returns the token's username",
+			status:   http.StatusOK,
+			body:     `{"id": 42, "username": "unitary_robodev", "name": "Robodev"}`,
+			wantUser: "unitary_robodev",
+		},
+		{
+			name:    "non-200 is an error",
+			status:  http.StatusUnauthorized,
+			body:    `{"message": "401 Unauthorized"}`,
+			wantErr: "unexpected status 401",
+		},
+		{
+			name:    "missing username is an error rather than an empty identity",
+			status:  http.StatusOK,
+			body:    `{"id": 42}`,
+			wantErr: "no username",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotPath string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotPath = r.URL.Path
+				assert.Equal(t, http.MethodGet, r.Method)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+			user, err := b.AuthenticatedUser(context.Background())
+
+			assert.Equal(t, "/api/v4/user", gotPath)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantUser, user)
+		})
+	}
+}

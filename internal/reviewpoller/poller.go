@@ -25,6 +25,12 @@ type Poller struct {
 	mu        sync.Mutex
 	tracked   map[string]*TrackedPR // keyed by PR URL
 	followUps []FollowUpRequest
+
+	// selfUsers caches, per backend, the username Osmia's own credentials
+	// post comments as, so the poller can ignore its own comments. An empty
+	// string records a backend that cannot report its identity, so it is not
+	// asked again.
+	selfUsers map[scm.Backend]string
 }
 
 // New creates a new Poller with the given configuration and classifier.
@@ -35,6 +41,7 @@ func New(cfg config.ReviewResponseConfig, classifier Classifier, logger *slog.Lo
 		classifier: classifier,
 		logger:     logger,
 		tracked:    make(map[string]*TrackedPR),
+		selfUsers:  make(map[scm.Backend]string),
 	}
 }
 
@@ -191,12 +198,27 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 	// batched follow-up request rather than one per comment.
 	var actionable []ClassifiedComment
 
+	self := p.selfUser(ctx, backend)
+
 	for _, comment := range comments {
 		p.mu.Lock()
 		alreadyProcessed := pr.ProcessedIDs[comment.ID]
 		p.mu.Unlock()
 
 		if alreadyProcessed {
+			continue
+		}
+
+		// Never act on a comment Osmia posted itself. A follow-up job ends by
+		// summarising what it did ("Addressed. Fixed the 2 ... errors"), and
+		// that summary is full of the words the classifier treats as
+		// actionable, so without this each follow-up triggers the next until
+		// MaxFollowUpJobs runs out. Applies to inline replies as well as
+		// top-level notes.
+		if self != "" && strings.EqualFold(comment.Author, self) {
+			p.mu.Lock()
+			pr.ProcessedIDs[comment.ID] = true
+			p.mu.Unlock()
 			continue
 		}
 
@@ -289,6 +311,50 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 		"ticket_id", pr.TicketID,
 		"comments", len(actionable),
 	)
+}
+
+// selfUser returns the username backend's credentials authenticate as, or
+// an empty string when it cannot be determined.
+//
+// The answer is cached per backend. A backend that does not implement
+// scm.IdentityProvider is cached as unknown and not asked again. A failed
+// lookup is not cached, so a transient API error is retried on the next
+// poll; until it succeeds the poller falls back to the classifier's
+// name-based bot filtering, which is the behaviour before this existed.
+func (p *Poller) selfUser(ctx context.Context, backend scm.Backend) string {
+	p.mu.Lock()
+	user, cached := p.selfUsers[backend]
+	p.mu.Unlock()
+	if cached {
+		return user
+	}
+
+	provider, ok := backend.(scm.IdentityProvider)
+	if !ok {
+		p.mu.Lock()
+		p.selfUsers[backend] = ""
+		p.mu.Unlock()
+		return ""
+	}
+
+	user, err := provider.AuthenticatedUser(ctx)
+	if err != nil {
+		p.logger.Warn("could not determine Osmia's own SCM identity; its own comments will only be ignored if its account name matches a known bot pattern",
+			"backend", backend.Name(),
+			"error", err,
+		)
+		return ""
+	}
+
+	p.mu.Lock()
+	p.selfUsers[backend] = user
+	p.mu.Unlock()
+
+	p.logger.Info("ignoring review comments from Osmia's own SCM account",
+		"backend", backend.Name(),
+		"username", user,
+	)
+	return user
 }
 
 // scmFor returns the appropriate SCM backend for the given repository URL.

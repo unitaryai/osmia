@@ -25,8 +25,9 @@ to add one.
   `CLAUDE_CONFIG_DIR=/session`, which has one. Every job on that backend
   exited immediately with "CLAUDE_DIR resolves to '/session', which is not a
   nested absolute path". The check now refuses exactly what it exists to
-  prevent, `/` and `/skills` (where the ConfigMap volumes are mounted), and
-  accepts any other absolute path. The shared-pvc backend, which uses
+  prevent: `/`, and `/skills` or any path beneath it such as `/skills/foo`,
+  since that is where the ConfigMap volumes are mounted. Every other absolute
+  path is accepted. The shared-pvc backend, which uses
   `/session-store/claude`, was never affected.
 
 

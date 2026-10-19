@@ -57,23 +57,6 @@ complete or as behaving differently from the actual implementation.
 
 ---
 
-### Task-Scoped Secret References
-
-**Priority:** Medium
-**Scope:** Medium
-
-The `secretresolver` package (`internal/secretresolver/`) and the `secret_resolver`
-config block exist. The `agentSecretKeyRefs()` function in the controller
-currently merges only SCM and Slack credentials. Ticket-level secret references
-(parsed from ticket descriptions and resolved per-task) are not wired into
-`ProcessTicket`.
-
-- [ ] Wire ticket secret parser into `ProcessTicket`
-- [ ] Inject resolved per-task refs into `engine.EngineConfig.SecretKeyRefs`
-- [ ] Policy enforcement and structured audit logging per-task
-
----
-
 ### Guardrails.md Prompt Injection
 
 **Priority:** Medium
@@ -220,6 +203,55 @@ A web dashboard for real-time agent observability and control.
 
 ---
 
+### 26. React to Failed CI Pipelines
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** Item 20 (PR/MR Comment Response, complete)
+
+Item 20 made Osmia follow up on the merge requests it opens, but only in
+response to review comments. It never looks at whether the MR's pipeline
+passed. When a lint or test stage fails, nothing happens until a human pastes
+the failing output into a comment containing a trigger word such as "fix". The
+agent that opened the MR is the one best placed to fix its own red pipeline,
+and today it is never told.
+
+Found on attune-workflows!502 (2026-10-19): the MR was raised cleanly, CI
+then failed on the lint stage, and the only way to get Osmia to fix it was a
+hand-written comment.
+
+**Current shape, for reference:** `internal/reviewpoller` polls each tracked
+MR every `poll_interval_minutes`, lists its comments, classifies them with the
+keyword-based `RuleBasedClassifier`, and batches actionable ones into a
+`FollowUpRequest` that pushes to the original branch. `scm.PullRequest`
+carries only `State` (open/closed/merged); no SCM backend exposes pipeline
+status.
+
+- [ ] SCM interface: a pipeline-status method returning the latest pipeline's
+  state and its failed jobs, with protobuf definition to match
+- [ ] GitLab (`/merge_requests/:iid/pipelines`, job traces) and GitHub (check
+  runs) implementations
+- [ ] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
+  carrying the failing job names and a bounded tail of each job's log
+- [ ] Count CI-triggered follow-ups against the same `max_follow_up_jobs`
+  budget as comment-triggered ones, so a pipeline that fails for reasons the
+  agent cannot fix (missing credentials, external access, flaky runners) does
+  not loop
+- [ ] Do not react to a pipeline that is still running, or one already
+  superseded by a newer commit
+- [ ] Config switch, off by default, so existing deployments do not start
+  spawning jobs on upgrade
+
+**Open questions:**
+- Failures outside the agent's control, like the external-access failure on
+  the same MR, look identical to a lint failure from the pipeline API. Is the
+  follow-up budget enough of a guard, or does it need a way to classify a
+  failure as not fixable before spending a job on it?
+- Tracked MRs live in memory and are lost on controller restart; this inherits
+  that limitation, and makes it more costly.
+
+---
+
 ## 3. Design-First — ADR Required Before Implementation
 
 These items have a clear problem and rough direction but need a design document or ADR
@@ -326,6 +358,30 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 ## 5. Completed
 
 Everything below is implemented and merged.
+
+---
+
+### Task-Scoped Secret References ✅ (2026-08-27, v0.5.0)
+
+Previously listed above as "not wired". The `secretresolver` package and its
+config had existed for some time, but nothing called `Resolve`, so every
+ticket-level secret declaration was silently ignored.
+
+**Implemented:**
+
+- Ticket secret declarations (`osmia:secrets` comment block and
+  `osmia:secret:ENV=URI` labels) parsed and resolved in the shared launch
+  pipeline, so both ticketing and incident triage get them (#66)
+- Resolved refs injected via `SecretKeyRefs`; values from non-Kubernetes
+  backends staged in an ephemeral Secret owned by the agent Job, so plaintext
+  never appears in the Job manifest (#66)
+- Fail-closed policy enforcement, with the raw-ref check applied before alias
+  expansion and scheme/env-name checks after it (#66)
+- Helm RBAC for the new verbs, an orphan sweep for Secrets stranded by a
+  controller crash, and bounds on declaration size and count (#69)
+
+Structured per-task audit logging, the third item originally listed here, is
+still not done.
 
 ---
 
@@ -483,7 +539,7 @@ live controller and `main.go`:
 | 7 | Linear Ticketing Backend | ✅ |
 | 8 | Discord Notification Channel | ✅ |
 | 9 | HashiCorp Vault Secrets Backend | ✅ |
-| 10 | Task-Scoped Secret Resolution | 🚧 Infrastructure in place; per-task ticket references not wired — see Section 2 |
+| 10 | Task-Scoped Secret Resolution | ✅ Complete in v0.5.0 — see Task-Scoped Secret References under Completed |
 | 11 | NetworkPolicy & Security Hardening | ✅ (opt-in; disabled by default) |
 | 12 | Plugin SDKs (Python, Go, TypeScript) | 🚧 Helper libraries checked in; generated stubs require `make sdk-gen` |
 | 13 | Local Development Mode (Docker Compose) | ✅ |
@@ -495,12 +551,12 @@ live controller and `main.go`:
 | # | Feature | Priority | Status |
 |---|---------|----------|--------|
 | 10 | Agent Dashboard | High | Not started |
+| 26 | React to Failed CI Pipelines | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | 🚧 In progress |
 | 11 | Documentation Site | High | Partially complete |
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
-| — | Task-Scoped Secret References (per-task) | Medium | 🚧 Not wired |
 | — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
 | — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
 | — | Orphaned TaskRun Recovery | High | 🚧 Not started |
@@ -508,6 +564,7 @@ live controller and `main.go`:
 | — | Built-in AWS Secrets Manager Backend | Medium | 🚧 Core complete; IRSA Helm annotation + localstack tests remaining |
 | — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |
 | 20 | PR/MR Comment Response | High | ✅ Complete |
+| — | Task-Scoped Secret References (per-task) | Medium | ✅ Complete (v0.5.0); per-task audit logging remaining |
 | — | Cost & token usage in notifications | Low | ✅ Complete |
 | — | E2E workflow suite (fake-agent, 7 tests) | High | ✅ Complete |
 | — | E2E live-backend validation (initial 2 tests) | High | ✅ Complete |

@@ -25,7 +25,9 @@ import (
 // The trade-off: with PullAlways a pod cannot start while the registry is
 // unreachable, even if the node already has the image. Deployments that need
 // to survive a registry outage, or that run air-gapped, should pin agent
-// images by digest, which restores PullIfNotPresent.
+// images by digest, which restores PullIfNotPresent, and pre-pull that digest
+// onto every node that can run agent jobs: PullIfNotPresent only avoids the
+// registry on a node that already has the image.
 func PullPolicyFor(image string) corev1.PullPolicy {
 	if strings.Contains(image, "@") {
 		return corev1.PullIfNotPresent

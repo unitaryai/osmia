@@ -20,7 +20,7 @@ Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into 
 | `plugin_health` | Health monitoring and restart behaviour for gRPC plugins |
 | `execution` | Execution backend (`job`, `sandbox`, or `local`) |
 | `webhook` | Optional webhook receiver for instant ticket ingestion |
-| `secret_resolver` | Secret resolution policy configuration (infrastructure in place; per-task ticket references not yet wired into the execution path) |
+| `secret_resolver` | Task-scoped secret resolution: backends, aliases and the policy that decides what a task may request (see [Secret Resolver](#secret-resolver)) |
 | `streaming` | Real-time agent output streaming configuration |
 | `taskrun_store` | Persistent TaskRun store backend (`memory`, `sqlite`, `postgres`) |
 | `prm` | Process Reward Model for real-time agent coaching (disabled by default) |

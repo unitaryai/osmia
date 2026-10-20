@@ -200,6 +200,20 @@ engines:
 
 See [Engine Reference](../plugins/engines.md) for the full list of Claude Code fields (skills, agent teams, tool whitelist/blacklist, JSON schema, etc.) and detailed per-engine configuration.
 
+### Engine image updates
+
+Agent jobs re-check the registry for the engine image every time they start, unless the image is pinned by digest. A tag such as `main` is rewritten on every build, and without this a node that had downloaded an earlier `main` would keep running it, so which version a job got depended on which node it landed on. Layers the node already has are not downloaded again, so an unchanged tag costs one small registry request.
+
+The trade-off is that a job cannot start while the registry is unreachable, even on a node that already has the image. If you need jobs to survive a registry outage, or you run without registry access, pin the engine image by digest:
+
+```yaml
+engines:
+  claude_code:
+    image: ghcr.io/unitaryai/osmia/engine-claude-code@sha256:<digest>
+```
+
+A digest can only ever mean one image, so jobs then use the node's cached copy.
+
 ### Authentication Methods
 
 | Method | Description |

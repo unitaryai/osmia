@@ -101,13 +101,14 @@ func (b *DockerBuilder) Build(taskRunID string, engineName string, spec *engine.
 					},
 					Containers: []corev1.Container{
 						{
-							Name:         containerName,
-							Image:        spec.Image,
-							Command:      spec.Command,
-							Env:          envVars,
-							EnvFrom:      envFromSources,
-							Resources:    resources,
-							VolumeMounts: volumeMounts,
+							Name:            containerName,
+							Image:           spec.Image,
+							ImagePullPolicy: PullPolicyFor(spec.Image),
+							Command:         spec.Command,
+							Env:             envVars,
+							EnvFrom:         envFromSources,
+							Resources:       resources,
+							VolumeMounts:    volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot:             &runAsNonRoot,
 								RunAsUser:                &runAsUser,

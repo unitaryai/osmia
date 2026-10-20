@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/unitaryai/osmia/internal/config"
+	"github.com/unitaryai/osmia/internal/jobbuilder"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -145,13 +146,14 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 					},
 					Containers: []corev1.Container{
 						{
-							Name:         containerName,
-							Image:        spec.Image,
-							Command:      spec.Command,
-							Env:          envVars,
-							EnvFrom:      envFromSources,
-							Resources:    resources,
-							VolumeMounts: volumeMounts,
+							Name:            containerName,
+							Image:           spec.Image,
+							ImagePullPolicy: jobbuilder.PullPolicyFor(spec.Image),
+							Command:         spec.Command,
+							Env:             envVars,
+							EnvFrom:         envFromSources,
+							Resources:       resources,
+							VolumeMounts:    volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot:             &runAsNonRoot,
 								RunAsUser:                &runAsUser,

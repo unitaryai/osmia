@@ -316,3 +316,29 @@ func TestBuild_ActiveDeadline_ZeroOmitted(t *testing.T) {
 
 	assert.Nil(t, job.Spec.ActiveDeadlineSeconds)
 }
+
+// TestBuild_SetsPullPolicy pins that sandboxed agent containers get the same
+// pull policy as standard ones, so a moving tag such as `main` is re-checked
+// against the registry rather than served from a stale node cache.
+func TestBuild_SetsPullPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		image string
+		want  corev1.PullPolicy
+	}{
+		{name: "tagged image is always re-checked", image: "ghcr.io/unitaryai/osmia/engine-claude-code:main", want: corev1.PullAlways},
+		{name: "digest-pinned image uses the node cache", image: "ghcr.io/unitaryai/osmia/engine-claude-code@sha256:896e95151a23c6cf2afe691e13aa3c477aaa7010345399a529b14aa216e2a56a", want: corev1.PullIfNotPresent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := validSpec()
+			spec.Image = tt.image
+
+			job, err := New("default", defaultSandboxConfig()).Build("tr-pull", "claude-code", spec)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want, job.Spec.Template.Spec.Containers[0].ImagePullPolicy)
+		})
+	}
+}

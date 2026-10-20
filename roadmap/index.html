@@ -1783,17 +1783,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#task-scoped-secret-references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Task-Scoped Secret References
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#guardrailsmd-prompt-injection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1881,6 +1870,17 @@
     <span class="md-ellipsis">
       
         10. Agent Dashboard (Web UI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-react-to-failed-ci-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        26. React to Failed CI Pipelines
       
     </span>
   </a>
@@ -1981,6 +1981,17 @@
   
     <nav class="md-nav" aria-label="5. Completed">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-scoped-secret-references-2026-08-27-v050" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task-Scoped Secret References ✅ (2026-08-27, v0.5.0)
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#item-20-prmr-comment-response-2026-03-04" class="md-nav__link">
@@ -2219,17 +2230,6 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#task-scoped-secret-references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Task-Scoped Secret References
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#guardrailsmd-prompt-injection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2317,6 +2317,17 @@
     <span class="md-ellipsis">
       
         10. Agent Dashboard (Web UI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-react-to-failed-ci-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        26. React to Failed CI Pipelines
       
     </span>
   </a>
@@ -2417,6 +2428,17 @@
   
     <nav class="md-nav" aria-label="5. Completed">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-scoped-secret-references-2026-08-27-v050" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task-Scoped Secret References ✅ (2026-08-27, v0.5.0)
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#item-20-prmr-comment-response-2026-03-04" class="md-nav__link">
@@ -2592,20 +2614,6 @@ label is triggered by K8s-level failures only (watchdog termination, OOM kill, e
 wired into the live execution path</strong>. They were previously documented as
 complete or as behaving differently from the actual implementation.</p>
 <hr />
-<h3 id="task-scoped-secret-references">Task-Scoped Secret References<a class="headerlink" href="#task-scoped-secret-references" title="Permanent link">&para;</a></h3>
-<p><strong>Priority:</strong> Medium
-<strong>Scope:</strong> Medium</p>
-<p>The <code>secretresolver</code> package (<code>internal/secretresolver/</code>) and the <code>secret_resolver</code>
-config block exist. The <code>agentSecretKeyRefs()</code> function in the controller
-currently merges only SCM and Slack credentials. Ticket-level secret references
-(parsed from ticket descriptions and resolved per-task) are not wired into
-<code>ProcessTicket</code>.</p>
-<ul>
-<li>[ ] Wire ticket secret parser into <code>ProcessTicket</code></li>
-<li>[ ] Inject resolved per-task refs into <code>engine.EngineConfig.SecretKeyRefs</code></li>
-<li>[ ] Policy enforcement and structured audit logging per-task</li>
-</ul>
-<hr />
 <h3 id="guardrailsmd-prompt-injection">Guardrails.md Prompt Injection<a class="headerlink" href="#guardrailsmd-prompt-injection" title="Permanent link">&para;</a></h3>
 <p><strong>Priority:</strong> Medium
 <strong>Scope:</strong> Small</p>
@@ -2723,6 +2731,49 @@ per tenant) is not implemented.</p>
 - [ ] Loki log aggregation for structured slog output
 - [ ] Alert rules for cost velocity, stalled agents, failed tasks</p>
 <hr />
+<h3 id="26-react-to-failed-ci-pipelines">26. React to Failed CI Pipelines<a class="headerlink" href="#26-react-to-failed-ci-pipelines" title="Permanent link">&para;</a></h3>
+<p><strong>Priority:</strong> High
+<strong>Scope:</strong> Medium
+<strong>Dependencies:</strong> Item 20 (PR/MR Comment Response, complete)</p>
+<p>Item 20 made Osmia follow up on the merge requests it opens, but only in
+response to review comments. It never looks at whether the MR's pipeline
+passed. When a lint or test stage fails, nothing happens until a human pastes
+the failing output into a comment containing a trigger word such as "fix". The
+agent that opened the MR is the one best placed to fix its own red pipeline,
+and today it is never told.</p>
+<p>Found on attune-workflows!502 (2026-10-19): the MR was raised cleanly, CI
+then failed on the lint stage, and the only way to get Osmia to fix it was a
+hand-written comment.</p>
+<p><strong>Current shape, for reference:</strong> <code>internal/reviewpoller</code> polls each tracked
+MR every <code>poll_interval_minutes</code>, lists its comments, classifies them with the
+keyword-based <code>RuleBasedClassifier</code>, and batches actionable ones into a
+<code>FollowUpRequest</code> that pushes to the original branch. <code>scm.PullRequest</code>
+carries only <code>State</code> (open/closed/merged); no SCM backend exposes pipeline
+status.</p>
+<ul>
+<li>[ ] SCM interface: a pipeline-status method returning the latest pipeline's
+  state and its failed jobs, with protobuf definition to match</li>
+<li>[ ] GitLab (<code>/merge_requests/:iid/pipelines</code>, job traces) and GitHub (check
+  runs) implementations</li>
+<li>[ ] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
+  carrying the failing job names and a bounded tail of each job's log</li>
+<li>[ ] Count CI-triggered follow-ups against the same <code>max_follow_up_jobs</code>
+  budget as comment-triggered ones, so a pipeline that fails for reasons the
+  agent cannot fix (missing credentials, external access, flaky runners) does
+  not loop</li>
+<li>[ ] Do not react to a pipeline that is still running, or one already
+  superseded by a newer commit</li>
+<li>[ ] Config switch, off by default, so existing deployments do not start
+  spawning jobs on upgrade</li>
+</ul>
+<p><strong>Open questions:</strong>
+- Failures outside the agent's control, like the external-access failure on
+  the same MR, look identical to a lint failure from the pipeline API. Is the
+  follow-up budget enough of a guard, or does it need a way to classify a
+  failure as not fixable before spending a job on it?
+- Tracked MRs live in memory and are lost on controller restart; this inherits
+  that limitation, and makes it more costly.</p>
+<hr />
 <h2 id="3-design-first-adr-required-before-implementation">3. Design-First — ADR Required Before Implementation<a class="headerlink" href="#3-design-first-adr-required-before-implementation" title="Permanent link">&para;</a></h2>
 <p>These items have a clear problem and rough direction but need a design document or ADR
 agreed before writing code.</p>
@@ -2805,6 +2856,26 @@ optional LLM scoring backend (PRM V2) rather than a parallel <code>internal/supe
 <hr />
 <h2 id="5-completed">5. Completed<a class="headerlink" href="#5-completed" title="Permanent link">&para;</a></h2>
 <p>Everything below is implemented and merged.</p>
+<hr />
+<h3 id="task-scoped-secret-references-2026-08-27-v050">Task-Scoped Secret References ✅ (2026-08-27, v0.5.0)<a class="headerlink" href="#task-scoped-secret-references-2026-08-27-v050" title="Permanent link">&para;</a></h3>
+<p>Previously listed above as "not wired". The <code>secretresolver</code> package and its
+config had existed for some time, but nothing called <code>Resolve</code>, so every
+ticket-level secret declaration was silently ignored.</p>
+<p><strong>Implemented:</strong></p>
+<ul>
+<li>Ticket secret declarations (<code>osmia:secrets</code> comment block and
+  <code>osmia:secret:ENV=URI</code> labels) parsed and resolved in the shared launch
+  pipeline, so both ticketing and incident triage get them (#66)</li>
+<li>Resolved refs injected via <code>SecretKeyRefs</code>; values from non-Kubernetes
+  backends staged in an ephemeral Secret owned by the agent Job, so plaintext
+  never appears in the Job manifest (#66)</li>
+<li>Fail-closed policy enforcement, with the raw-ref check applied before alias
+  expansion and scheme/env-name checks after it (#66)</li>
+<li>Helm RBAC for the new verbs, an orphan sweep for Secrets stranded by a
+  controller crash, and bounds on declaration size and count (#69)</li>
+</ul>
+<p>Structured per-task audit logging, the third item originally listed here, is
+still not done.</p>
 <hr />
 <h3 id="item-20-prmr-comment-response-2026-03-04">Item 20: PR/MR Comment Response ✅ (2026-03-04)<a class="headerlink" href="#item-20-prmr-comment-response-2026-03-04" title="Permanent link">&para;</a></h3>
 <p>Osmia now monitors open pull/merge requests it creates and spawns follow-up
@@ -3146,7 +3217,7 @@ live controller and <code>main.go</code>:</p>
 <tr>
 <td>10</td>
 <td>Task-Scoped Secret Resolution</td>
-<td>🚧 Infrastructure in place; per-task ticket references not wired — see Section 2</td>
+<td>✅ Complete in v0.5.0 — see Task-Scoped Secret References under Completed</td>
 </tr>
 <tr>
 <td>11</td>
@@ -3184,6 +3255,12 @@ live controller and <code>main.go</code>:</p>
 <td>Not started</td>
 </tr>
 <tr>
+<td>26</td>
+<td>React to Failed CI Pipelines</td>
+<td>High</td>
+<td>Not started</td>
+</tr>
+<tr>
 <td>24</td>
 <td>Non-Standard Task Types</td>
 <td>Medium</td>
@@ -3212,12 +3289,6 @@ live controller and <code>main.go</code>:</p>
 <td>E2E live-backend extended coverage (50+ tasks)</td>
 <td>High</td>
 <td>In progress</td>
-</tr>
-<tr>
-<td>—</td>
-<td>Task-Scoped Secret References (per-task)</td>
-<td>Medium</td>
-<td>🚧 Not wired</td>
 </tr>
 <tr>
 <td>—</td>
@@ -3260,6 +3331,12 @@ live controller and <code>main.go</code>:</p>
 <td>PR/MR Comment Response</td>
 <td>High</td>
 <td>✅ Complete</td>
+</tr>
+<tr>
+<td>—</td>
+<td>Task-Scoped Secret References (per-task)</td>
+<td>Medium</td>
+<td>✅ Complete (v0.5.0); per-task audit logging remaining</td>
 </tr>
 <tr>
 <td>—</td>

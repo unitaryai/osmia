@@ -1,16 +1,16 @@
 # Guide: Shortcut + Slack
 
-This guide walks you through connecting Osmia to a Shortcut workspace and a Slack workspace so that:
+This guide connects Osmia to a Shortcut workspace and a Slack workspace, so that:
 
-- Stories assigned to **@osmia** and moved to **Ready for Development** are automatically picked up
-- The story moves to **In Development** and receives a comment when work begins
-- You receive a Slack message when work completes or fails
+- Stories assigned to `@osmia` and moved to `Ready for Development` are picked up
+- The story moves to `In Development` and gets a comment when work begins
+- You get a Slack message when work completes or fails
 
 ## Prerequisites
 
 | Requirement | Notes |
 |---|---|
-| Kubernetes cluster | [Set one up first](kubernetes.md) if you don't have one |
+| Kubernetes cluster | [Set one up first](kubernetes.md) if you do not have one |
 | `kubectl` configured | Pointing at the target cluster and namespace |
 | `helm` 3+ | For deploying Osmia |
 | Shortcut workspace | With admin access to create API tokens and webhooks |
@@ -18,27 +18,27 @@ This guide walks you through connecting Osmia to a Shortcut workspace and a Slac
 
 ---
 
-## Step 1 — Create a Shortcut API token
+## Step 1: Create a Shortcut API token
 
 1. In Shortcut, go to **Settings → API Tokens**.
 2. Click **Generate Token**, name it `osmia`, and copy the value.
 
 ---
 
-## Step 2 — Create a Shortcut user for Osmia
+## Step 2: Create a Shortcut user for Osmia
 
-Osmia filters stories by assignee so it only picks up work explicitly assigned to it.
+Osmia filters stories by assignee, so it only picks up work explicitly assigned to it.
 
 1. In Shortcut, go to **Settings → Members → Invite a member**.
 2. Create a member with the email address you control (e.g. `osmia@your-company.com`) and the mention name `osmia`.
-3. Accept the invitation and note the exact mention name — you will need it for the config.
+3. Accept the invitation and note the exact mention name. You will need it for the config.
 
 !!! note
     If you already have an `@osmia` user, skip this step. Use whatever mention name they have.
 
 ---
 
-## Step 3 — Find your workflow state names
+## Step 3: Find your workflow state names
 
 Osmia needs to know the exact names of your "trigger" state and your "in progress" state. Use the helper script:
 
@@ -64,7 +64,7 @@ Note the exact names (including capitalisation) of:
 
 ---
 
-## Step 4 — Create a Slack bot
+## Step 4: Create a Slack bot
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**.
 2. Name it `Osmia` and select your workspace.
@@ -75,7 +75,7 @@ Note the exact names (including capitalisation) of:
 
 ---
 
-## Step 5 — Store credentials as Kubernetes secrets
+## Step 5: Store credentials as Kubernetes secrets
 
 ```bash
 # Shortcut API token
@@ -96,7 +96,7 @@ kubectl create secret generic osmia-slack-token \
 
 ---
 
-## Step 6 — Write `osmia-config.yaml`
+## Step 6: Write `osmia-config.yaml`
 
 ```yaml
 ticketing:
@@ -141,7 +141,7 @@ guardrails:
 ```
 
 !!! tip "Polling vs. webhooks"
-    With only polling configured, Osmia checks Shortcut every 30 seconds. Adding the webhook (above) means work starts within a second or two of you moving a story. Both can run together — the webhook speeds things up and polling is the safety net.
+    With only polling configured, Osmia checks Shortcut every 30 seconds. Adding the webhook (above) means work starts within a second or two of you moving a story. Both can run together: the webhook speeds things up and polling is the safety net.
 
 !!! tip "Multiple workflows"
     If your workspace has several Shortcut workflows with different state names, replace `workflow_state_name` and `in_progress_state_name` with a `workflows` array:
@@ -162,7 +162,7 @@ guardrails:
 
 ---
 
-## Step 7 — Deploy with Helm
+## Step 7: Deploy with Helm
 
 ```bash
 helm repo add osmia https://unitaryai.github.io/osmia
@@ -193,7 +193,7 @@ You should see:
 
 ---
 
-## Step 8 — Register the Shortcut webhook (optional but recommended)
+## Step 8: Register the Shortcut webhook (optional but recommended)
 
 1. In Shortcut, go to **Settings → Integrations → Webhooks**.
 2. Click **Add Webhook**.
@@ -206,7 +206,7 @@ You should see:
 
 ---
 
-## Step 9 — Create your first story
+## Step 9: Create your first story
 
 1. In Shortcut, create a story in your chosen project with a specific, well-scoped task:
 
@@ -214,12 +214,12 @@ You should see:
     >
     > **Description:** The handler does not validate the `email` field. Reject requests with a missing or malformed email with a 400 and a descriptive error. Include unit tests.
 
-2. Assign the story to **@osmia**.
-3. Move the story to **Ready for Development**.
+2. Assign the story to `@osmia`.
+3. Move the story to `Ready for Development`.
 
 Within seconds (webhook) or up to 30 seconds (polling):
 
-- The story moves to **In Development**
+- The story moves to `In Development`
 - A comment appears on the story: *"Osmia has started work on this story."*
 - A Slack message appears in your configured channel
 
@@ -230,7 +230,7 @@ When the agent finishes, a pull request is opened and another Slack message conf
 ## Troubleshooting
 
 **The state name could not be resolved at startup.**
-The controller logs will list every available state in your workspace if the name doesn't match. Check for extra spaces or capitalisation differences. Run the helper script again to copy the name exactly:
+The controller logs list every available state in your workspace if the name does not match. Check for extra spaces or capitalisation differences. Run the helper script again to copy the name exactly:
 
 ```bash
 SHORTCUT_TOKEN=your_token ./hack/shortcut-list-states.sh
@@ -248,14 +248,14 @@ SHORTCUT_TOKEN=your_token ./hack/shortcut-list-states.sh
 
 **No Slack message received.**
 - Confirm the bot is invited to the channel (`/invite @Osmia`).
-- Verify the channel ID (`C0XXXXXXXXX`) is correct — not the channel name.
+- Verify the channel ID (`C0XXXXXXXXX`) is correct, not the channel name.
 - Check logs for `"failed to send slack notification"`.
 
 ---
 
-## Next Steps
+## Next steps
 
-- [Configuration Reference](configuration.md) — all available config options
-- [Kubernetes Quick Start](kubernetes.md) — full Helm deployment walkthrough
-- [Guard Rails Overview](../concepts/guardrails-overview.md) — safety limits explained
-- [GitHub Issues + Slack guide](github-issues-slack.md) — if you use GitHub Issues instead of Shortcut
+- [Configuration Reference](configuration.md): all available config options
+- [Kubernetes Quick Start](kubernetes.md): full Helm deployment walkthrough
+- [Guard Rails Overview](../concepts/guardrails-overview.md): safety limits explained
+- [GitHub Issues + Slack guide](github-issues-slack.md): if you use GitHub Issues instead of Shortcut

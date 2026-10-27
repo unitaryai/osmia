@@ -1,8 +1,8 @@
-# Configuration Reference
+# Configuration reference
 
 Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into the controller pod as a ConfigMap. When deploying with Helm, you set configuration under the `config:` key in your `values.yaml` and the chart creates the ConfigMap for you.
 
-## Top-Level Sections
+## Top-level sections
 
 | Section | Purpose |
 |---|---|
@@ -11,7 +11,7 @@ Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into 
 | `notifications` | Where status updates are sent (Slack, Microsoft Teams via plugin) |
 | `secrets` | How the controller retrieves credentials (`k8s` for Kubernetes Secrets) |
 | `scm` | Source code management backend for cloning and opening PRs |
-| `guardrails` | Safety boundaries — cost limits, concurrency limits, blocked file patterns |
+| `guardrails` | Safety boundaries: cost limits, concurrency limits, blocked file patterns |
 | `tenancy` | Multi-tenancy config schema (namespace-per-tenant runtime isolation is planned) |
 | `quality_gate` | Optional AI-powered review of agent output before merging |
 | `review` | Review backend configuration |
@@ -31,7 +31,7 @@ Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into 
 | `competitive_execution` | Tournament-style parallel execution (disabled by default) |
 
 !!! note "Intelligence features"
-    All intelligence subsystems (`prm`, `memory`, `diagnosis`, `routing`, `estimator`, `competitive_execution`) are fully integrated into the controller and functional when enabled. They are all disabled by default and have no effect unless you add their configuration blocks.
+    The intelligence subsystems (`prm`, `memory`, `diagnosis`, `routing`, `estimator`, `competitive_execution`) are integrated into the controller and work when enabled. They are all disabled by default and have no effect unless you add their configuration blocks.
 
 For the full set of fields and their defaults, see `charts/osmia/values.yaml` and the struct definitions in [`internal/config/config.go`](https://github.com/unitaryai/osmia/blob/main/internal/config/config.go).
 
@@ -87,7 +87,7 @@ ticketing:
 | `owner_mention_name` | No | Only pick up stories assigned to this Shortcut user (e.g. `"osmia"`) |
 | `exclude_labels` | No | Stories with any of these labels are skipped |
 
-**Multi-workflow support** — if your workspace has several workflows with different state names, use the `workflows` array instead of the flat keys above:
+**Multi-workflow support.** If your workspace has several workflows with different state names, use the `workflows` array instead of the flat keys above:
 
 ```yaml
 ticketing:
@@ -214,7 +214,7 @@ engines:
 
 A digest can only ever mean one image, so a node that already has it uses its cached copy without asking the registry. Pinning does not put the image on a node, though: a job scheduled onto a node that has never pulled that digest still needs the registry to fetch it. To keep jobs starting through an outage, or to run with no registry access at all, pre-pull the pinned image onto every node that can run agent jobs, for example by baking it into the node image or running a DaemonSet that references it, and pull it again whenever you change the digest.
 
-### Authentication Methods
+### Authentication methods
 
 | Method | Description |
 |---|---|
@@ -224,7 +224,7 @@ A digest can only ever mean one image, so a node that already has it uses its ca
 | `credentials_file` | Credentials file mounted from a Kubernetes Secret |
 | `setup_token` | Setup token for initial authentication |
 
-## Guard Rails
+## Guard rails
 
 ```yaml
 guardrails:
@@ -318,7 +318,7 @@ notifications:
         token_secret: osmia  # finds SLACK_BOT_TOKEN automatically
 ```
 
-Or use dedicated per-service secrets with a `token` key — both patterns work without any `token_key` configuration.
+Or use dedicated per-service secrets with a `token` key. Both patterns work without any `token_key` configuration.
 
 | Backend | Well-known keys tried |
 |---|---|
@@ -330,7 +330,7 @@ Or use dedicated per-service secrets with a `token` key — both patterns work w
 | Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_TOKEN` |
 | CodeRabbit | `CODERABBIT_API_KEY` |
 
-## Secret Resolver
+## Secret resolver
 
 The secret resolver provides task-scoped secret resolution with policy enforcement:
 
@@ -428,7 +428,7 @@ stronger one: it does not depend on knowing what any Secret contains.
 Set it for any credential a task must never be able to name, whether or not
 the collision check would catch it.
 
-## Quality Gate
+## Quality gate
 
 ```yaml
 quality_gate:
@@ -444,7 +444,7 @@ quality_gate:
   on_failure: "retry_with_feedback"  # or "block_mr", "notify_human"
 ```
 
-## Progress Watchdog
+## Progress watchdog
 
 ```yaml
 progress_watchdog:
@@ -522,7 +522,7 @@ streaming:
   live_notifications: true
 ```
 
-## TaskRun Store
+## TaskRun store
 
 ```yaml
 taskrun_store:
@@ -550,7 +550,7 @@ tenancy:
         backend: k8s
 ```
 
-## Plugin Health
+## Plugin health
 
 ```yaml
 plugin_health:
@@ -571,8 +571,8 @@ scm:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `backend` | string | — | SCM backend: `github` or `gitlab` |
-| `config` | map | — | Backend-specific settings (e.g. `token_secret`, `base_url`, `group`) |
+| `backend` | string | none | SCM backend: `github` or `gitlab` |
+| `config` | map | none | Backend-specific settings (e.g. `token_secret`, `base_url`, `group`) |
 | `branch_prefix` | string | `"osmia/"` | Prepended to the ticket ID to form branch names and MR title references. Set to `"sc-"` for Shortcut VCS integration so branches like `sc-28671` auto-link to stories |
 | `backends` | list | `[]` | Multi-backend routing entries (advanced) |
 
@@ -599,7 +599,7 @@ review:
     api_key_secret: "coderabbit-api-key"
 ```
 
-## Review Response
+## Review response
 
 When enabled, Osmia monitors merge requests it has opened for new review comments. Actionable comments (e.g. inline suggestions from CodeRabbit or human reviewers) trigger a follow-up job that addresses the feedback and pushes to the existing MR branch.
 
@@ -620,7 +620,7 @@ review_response:
 |---|---|---|---|
 | `enabled` | bool | `false` | Enables the review response subsystem |
 | `poll_interval_minutes` | int | `5` | Minutes between comment polling cycles |
-| `settling_minutes` | int | `0` | Minimum minutes to wait after a PR is registered before polling. Set this to give review bots time to finish posting — e.g. `10` for CodeRabbit which typically takes 8-10 minutes |
+| `settling_minutes` | int | `0` | Minimum minutes to wait after a PR is registered before polling. Set this to give review bots time to finish posting, for example `10` for CodeRabbit, which typically takes 8-10 minutes |
 | `min_severity` | string | `"warning"` | Minimum comment severity that triggers a follow-up. One of `info`, `warning`, `error` |
 | `max_follow_up_jobs` | int | `3` | Maximum number of batched follow-up jobs per PR over its lifetime |
 | `reply_to_comments` | bool | `true` | Post an acknowledgement reply to each actionable comment |
@@ -630,7 +630,7 @@ review_response:
 
 ### Settling period
 
-Review bots like CodeRabbit take several minutes to analyse a diff and post all their comments. Without a settling period, Osmia may poll the MR before the bot has finished, act on the first few comments, and miss later ones. Setting `settling_minutes: 10` ensures Osmia waits at least 10 minutes after the MR is opened before checking for comments.
+Review bots like CodeRabbit take several minutes to analyse a diff and post all their comments. Without a settling period, Osmia may poll the MR before the bot has finished, act on the first few comments, and miss later ones. Setting `settling_minutes: 10` makes Osmia wait at least 10 minutes after the MR is opened before checking for comments.
 
 ### Comment batching
 
@@ -638,7 +638,7 @@ All actionable comments discovered in a single poll cycle are batched into one f
 
 ### Bot summary filtering
 
-Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The `ignore_summary_authors` patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.
+Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The `ignore_summary_authors` patterns only filter non-inline comments. Inline review suggestions from matched authors are still treated as actionable, so Osmia acts on real code review feedback and ignores automated summaries.
 
 For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Add `"^group_\\d+_bot_"` to catch all of them.
 
@@ -656,7 +656,7 @@ You do not need to list Osmia's own account in `ignore_summary_authors`. If the 
 
 ## Process Reward Model (PRM)
 
-Real-time agent coaching that scores tool calls and intervenes when agents become unproductive. See [Real-Time Agent Coaching](../concepts/prm.md) for a full explanation.
+Real-time agent coaching that scores tool calls and steps in when an agent becomes unproductive. See [Real-Time Agent Coaching](../concepts/prm.md) for a full explanation.
 
 ```yaml
 prm:
@@ -679,7 +679,7 @@ prm:
 | `hint_file_path` | string | `/workspace/.osmia-hint.md` | Path for hint files in the agent pod |
 | `max_trajectory_length` | int | `50` | Maximum trajectory points retained |
 
-## Episodic Memory
+## Episodic memory
 
 Cross-task knowledge graph that accumulates lessons from every completed task and injects relevant prior knowledge into future prompts. See [Episodic Memory](../concepts/memory.md) for a full explanation.
 
@@ -705,7 +705,7 @@ memory:
 !!! tip "Persistent storage"
     In Kubernetes, mount a PVC at the `store_path` directory so memory survives pod restarts.
 
-## Environment Variable Overrides
+## Environment variable overrides
 
 Configuration values can be overridden via environment variables following the pattern `OSMIA_<SECTION>_<FIELD>`:
 

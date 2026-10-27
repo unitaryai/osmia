@@ -1,9 +1,9 @@
-# Webhook API Reference
+# Webhook API reference
 
 Osmia optionally runs an HTTP webhook server that accepts events from GitHub,
-GitLab, Shortcut, and Slack. When an event is received, it is validated,
-parsed into one or more `Ticket` records, and forwarded to the controller's
-reconciliation loop for processing.
+GitLab, Shortcut and Slack. When an event arrives, Osmia validates it,
+parses it into one or more `Ticket` records and forwards them to the
+controller's reconciliation loop.
 
 The webhook server is implemented in `internal/webhook/`. It is separate from
 the plugin gRPC API; see [Plugin gRPC API](plugins.md) for the plugin system.
@@ -15,7 +15,7 @@ the plugin gRPC API; see [Plugin gRPC API](plugins.md) for the plugin system.
 | Configuration key | Default | Description |
 |---|---|---|
 | `webhook.port` | `8080` | TCP port the webhook server listens on. |
-| `webhook.secrets.<source>` | — | Per-source signing secret. Required for all sources except Shortcut (optional) and Generic (depends on `auth_mode`). |
+| `webhook.secrets.<source>` | None | Per-source signing secret. Required for all sources except Shortcut (optional) and Generic (depends on `auth_mode`). |
 | `webhook.path_prefix` | `/webhooks` | Base path prepended to all route registrations. Not configurable at present; all routes are hard-coded under `/webhooks/`. |
 
 A health-check endpoint is available at `GET /healthz` and returns `200 OK`
@@ -36,7 +36,7 @@ POST /webhooks/github
 GitHub signs every delivery using HMAC-SHA256. The signature is sent in the
 `X-Hub-Signature-256` header in the format `sha256=<hex-digest>`. Osmia
 rejects requests that do not carry a valid signature for the configured secret.
-The signature is validated **before** the JSON body is parsed (fail-fast).
+The signature is validated before the JSON body is parsed (fail-fast).
 
 ### Supported events
 
@@ -44,7 +44,7 @@ The signature is validated **before** the JSON body is parsed (fail-fast).
 |---|---|---|
 | `issues` | `opened` | Ingests the issue as a ticket. |
 | `issues` | `labeled` | Ingests the issue as a ticket. |
-| All other event types | — | Acknowledged (`200 OK`) but not forwarded. |
+| All other event types | n/a | Acknowledged (`200 OK`) but not forwarded. |
 
 ### Example payload
 
@@ -85,7 +85,7 @@ POST /webhooks/gitlab
 
 GitLab sends a shared secret in the `X-Gitlab-Token` header. Osmia performs
 a constant-time string comparison of this header value against the configured
-secret. The token is validated **before** the request body is read (fail-fast).
+secret. The token is validated before the request body is read (fail-fast).
 
 ### Supported events
 
@@ -134,13 +134,13 @@ POST /webhooks/shortcut
 
 ### Authentication
 
-Shortcut signature validation is **optional**. If a secret is configured under
+Shortcut signature validation is optional. If a secret is configured under
 `webhook.secrets.shortcut`, the `X-Shortcut-Signature` header is validated
 using HMAC-SHA256. The header value may be sent with or without a `sha256=`
-prefix — both formats are accepted.
+prefix. Both formats are accepted.
 
-If no secret is configured, all well-formed requests are accepted. It is
-strongly recommended to configure a secret in production.
+If no secret is configured, all well-formed requests are accepted. Configure a
+secret in production.
 
 ### Supported events
 
@@ -200,21 +200,21 @@ Slack uses a versioned HMAC-SHA256 scheme. The signature is computed over the
 string `v0:<X-Slack-Request-Timestamp>:<raw-body>` using the signing secret,
 and sent in `X-Slack-Signature` as `v0=<hex-digest>`.
 
-Osmia additionally validates that the `X-Slack-Request-Timestamp` is within
-**5 minutes** of the current server time. Requests with older timestamps are
+Osmia also checks that `X-Slack-Request-Timestamp` is within
+5 minutes of the current server time. Requests with older timestamps are
 rejected to prevent replay attacks.
 
 ### Supported events
 
-The Slack handler processes **interactive component** payloads. Payloads may
+The Slack handler processes interactive component payloads. Payloads may
 arrive as:
 
 - JSON body (`Content-Type: application/json`)
 - URL-encoded form data with a `payload` field (`Content-Type: application/x-www-form-urlencoded`)
 
 Actions with an `action_id` prefixed `osmia_approval_` are recognised as
-approval callbacks and routed directly to the approval handler. They are **not**
-forwarded as tickets — doing so would create spurious task runs. Only
+approval callbacks and routed directly to the approval handler. They are not
+forwarded as tickets, because that would create spurious task runs. Only
 non-approval Slack interactions (slash commands, other button actions) are
 forwarded as tickets with `ticket_type: "slack_interaction"`.
 
@@ -259,7 +259,7 @@ The generic endpoint supports three authentication modes, configured via
 |---|---|
 | `hmac` | HMAC-SHA256 of the request body, sent in the header specified by `webhook.generic.signature_header` (default: `X-Webhook-Signature`). The value may include a `sha256=` prefix. |
 | `bearer` | `Authorization: Bearer <secret>` header, validated by constant-time comparison against the configured secret. |
-| `svix` | Verified by the official Svix Go library — five-minute replay window, `svix-*` and enterprise `webhook-*` header prefixes, `whsec_`-prefixed secrets. Use this for sources that sign with Svix conventions (e.g. Stripe, OpenAI, Linear). |
+| `svix` | Verified by the official Svix Go library: five-minute replay window, `svix-*` and enterprise `webhook-*` header prefixes, `whsec_`-prefixed secrets. Use this for sources that sign with Svix conventions (e.g. Stripe, OpenAI, Linear). |
 
 ### Field mapping
 
@@ -269,7 +269,7 @@ using `webhook.generic.field_mapping`. Keys are dot-notation JSON paths (e.g.
 
 | Target field | Description |
 |---|---|
-| `id` | Ticket identifier. **Required** — requests producing no `id` are rejected. |
+| `id` | Ticket identifier. Required. Requests producing no `id` are rejected. |
 | `title` | Ticket title. |
 | `description` | Ticket description (markdown accepted). |
 | `ticket_type` | Ticket type classifier (e.g. `"bug_fix"`, `"feature"`). |
@@ -307,7 +307,7 @@ Given the mapping above, a minimal triggering payload would be:
 ```
 
 Alternatively, without field mapping configured, a flat payload with top-level
-`title`, `description`, and `repo_url` fields will work when the mapping keys
+`title`, `description` and `repo_url` fields will work when the mapping keys
 match those names directly.
 
 ---
@@ -335,7 +335,7 @@ incident.io emits). Configure via `webhook.incident_io`:
 
 | `auth_mode` | Mechanism |
 |---|---|
-| `svix` | Verified by the official Svix Go library — five-minute replay window, `svix-*` and enterprise `webhook-*` header prefixes, `whsec_`-prefixed secrets. |
+| `svix` | Verified by the official Svix Go library: five-minute replay window, `svix-*` and enterprise `webhook-*` header prefixes, `whsec_`-prefixed secrets. |
 
 ### Supported events
 
@@ -344,17 +344,17 @@ incident.io emits). Configure via `webhook.incident_io`:
 | `public_incident.incident_created_v2` | Fires when a new incident is opened. The wrapped body is a flat `IncidentV2` object. |
 | `public_incident.incident_status_updated_v2` | Fires on incident status transitions. The wrapped body is `{ incident, message, new_status, previous_status }`. |
 
-Other event types are rejected with 400 — add a constant and a case in
-`internal/webhook/incident.go` to extend.
+Other event types are rejected with 400. To extend this, add a constant and a case in
+`internal/webhook/incident.go`.
 
 ### Fields surfaced to the agent
 
 On dispatch, `ProcessIncidentEvent` builds the agent's `engine.Task` from
-the parsed `IncidentV2`. Beyond the incident's name (→ `Task.Title`),
-summary (→ `Task.Description`) and permalink (→ `Task.TicketURL`), the
+the parsed `IncidentV2`. Beyond the incident's name (`Task.Title`),
+summary (`Task.Description`) and permalink (`Task.TicketURL`), the
 following fields are surfaced to the agent:
 
-**Labels** (`Task.Labels` — short, enum-like categoricals):
+Labels (`Task.Labels`, short enum-like categoricals):
 
 | Label | Source | When emitted |
 |---|---|---|
@@ -364,7 +364,7 @@ following fields are surfaced to the agent:
 | `osmia:mode:<mode>` | `mode` (`standard` / `test`) | when non-empty |
 | `osmia:incident-reference:<reference>` | `reference` (e.g. `INC-1368`) | when non-empty |
 
-**Description block** appended after the incident summary, when the
+Description block, appended after the incident summary, when the
 incident was alert-driven (`creator.alert` populated):
 
 ```
@@ -373,10 +373,10 @@ incident was alert-driven (`creator.alert` populated):
 <alert.title> (alert id: <alert.id>)
 ```
 
-Other fields parsed but **not surfaced** through labels or the
-description today — `severity.name`, `incident_type.name`,
+Other fields are parsed but not surfaced through labels or the
+description today: `severity.name`, `incident_type.name`,
 `custom_field_entries`, `slack_channel_id`, `slack_channel_name`,
-`most_recent_update_message`, etc. — are either operator-defined
+`most_recent_update_message` and so on. They are either operator-defined
 (names, custom field structure varies per deployment) or sentinel-
 guarded (`slack_channel_id: "not_created_yet"` on the `created` event).
 The full parsed `IncidentV2` is available to downstream consumers via
@@ -393,7 +393,7 @@ are dispatched to an engine:
 |---|---|
 | `engine` | Engine name to dispatch to (matched against `engine.Name()`). Defaults to `claude-code` when unset. |
 | `append_system_prompt` | Injected into the per-call `engine.EngineConfig.AppendSystemPrompt`. Useful for directing the agent to invoke a classification skill or to avoid repository-shaped reasoning. |
-| `slack_channel_id` | Slack channel for the incident-triage agent Job's MCP-based notifications. The ticketing flow's channel is configured under `notifications.channels`; this field is the equivalent for incident triage. Both flows are first-class — a single Osmia deployment can run them side-by-side with separate channels and bot tokens. When empty, the incident flow falls back to the first configured channel under `notifications.channels` — useful only if the operator wants both flows in the same channel. |
+| `slack_channel_id` | Slack channel for the incident-triage agent Job's MCP-based notifications. The ticketing flow's channel is configured under `notifications.channels`; this field is the equivalent for incident triage. A single Osmia deployment can run both flows side by side with separate channels and bot tokens. When empty, the incident flow falls back to the first configured channel under `notifications.channels`, which is useful only if you want both flows in the same channel. |
 | `slack_token_secret` | Kubernetes Secret backing `SLACK_BOT_TOKEN` for the incident-triage agent Job. Pair with `slack_channel_id` when the channel belongs to a different Slack app/bot than the one used by ticketing runs. The Secret is probed for the well-known keys `SLACK_BOT_TOKEN` and `SLACK_TOKEN`, falling back to the literal `token` key. When empty, the bot token from the first configured Slack channel under `notifications.channels` is used. |
 
 ### Example configuration
@@ -452,7 +452,7 @@ incident_triage:
 
 ### Authoring the classifier skill
 
-Osmia does not ship an incident classifier skill — operators provide
+Osmia does not ship an incident classifier skill. Operators provide
 one to suit their own incident taxonomy and chosen response surface
 (Slack, an internal portal, an ITSM tool, etc.). The skill is an
 ordinary Markdown file delivered to the agent via the engine's
@@ -460,7 +460,7 @@ ordinary Markdown file delivered to the agent via the engine's
 `incident_triage.append_system_prompt` then directs the agent to
 invoke it.
 
-The pieces fit together as follows. The `incident_triage` block points
+The `incident_triage` block points
 the agent at a slash-command name, and a matching entry under
 `engines.<engine>.skills` makes that command resolvable inside the
 agent container:
@@ -482,7 +482,7 @@ engines:
         key: incident-classifier.md
 ```
 
-Create the ConfigMap separately — by hand for a one-off, or via your
+Create the ConfigMap separately, by hand for a one-off or with your
 configuration tool of choice:
 
 ```bash
@@ -502,25 +502,25 @@ The classifier skill is the agent's procedure for handling one
 incident.io event. There is no fixed format, but in practice a skill
 that produces consistent classifications covers:
 
-1. **Input contract.** What the agent can rely on being in its prompt.
+1. Input contract. What the agent can rely on being in its prompt.
    The user prompt carries the incident's title, description (the
-   incident summary), permalink, and labels containing
+   incident summary), permalink and labels containing
    `osmia:source:incident-io` and `osmia:event:<event_type>`. See the
    [incident.io API documentation](https://api-docs.incident.io/) for
    the full shape of `IncidentV2` and the status-updated event if you
    need to derive additional fields from the description.
-2. **Classifications or output values.** An enumerated set the agent
+2. Classifications or output values. An enumerated set the agent
    must choose from, with the signals that distinguish them. The
    taxonomy is deployment-specific and intentionally not opinionated
    by Osmia.
-3. **Output contract.** A precise structure for what the agent emits —
+3. Output contract. A precise structure for what the agent emits,
    typically a short human-readable summary plus a JSON object that
    downstream tooling can validate against a schema.
-4. **Bail-out conditions.** If incident.io is configured to deliver
-   all events (no severity, type, or label filter), the skill must
-   reject events outside its remit early — for example by returning a
+4. Bail-out conditions. If incident.io is configured to deliver
+   all events (no severity, type or label filter), the skill must
+   reject events outside its remit early, for example by returning a
    sentinel classification that downstream consumers route to a no-op.
-5. **Operational constraints.** Whether the agent may take action
+5. Operational constraints. Whether the agent may take action
    (close incidents, restart workloads, page humans) or only observe.
    New deployments typically start observation-only to validate
    classification accuracy before any action paths are enabled.
@@ -528,8 +528,8 @@ that produces consistent classifications covers:
 #### Iterating on the skill
 
 Because the skill is mounted from a ConfigMap, content updates do not
-require redeploying the controller. Re-apply the ConfigMap — for
-example, with an idempotent dry-run + apply:
+require redeploying the controller. Re-apply the ConfigMap, for
+example with an idempotent dry-run and apply:
 
 ```bash
 kubectl create configmap incident-classifier-skill \
@@ -543,7 +543,7 @@ Jobs continue with the version they started with.
 
 If you prefer the skill to live in-tree with your deployment
 manifests, the same content can be inlined under
-`engines.<engine>.skills[].inline` instead — the trade-offs are
+`engines.<engine>.skills[].inline` instead. The trade-offs are
 covered in the [Skills section](../plugins/engines.md#skills).
 
 Without the YAML blocks, `POST /webhooks/incident-io` responds with 500
@@ -560,7 +560,7 @@ Without the YAML blocks, `POST /webhooks/incident-io` responds with 500
 
 - Signatures are validated using `crypto/hmac` constant-time comparison to
   prevent timing attacks.
-- The GitHub handler validates the signature **before** JSON parsing so that
+- The GitHub handler validates the signature before JSON parsing so that
   malformed payloads cannot cause a denial-of-service via parsing overhead.
 - The Slack handler validates both the HMAC signature and the request timestamp
   to prevent replay attacks.

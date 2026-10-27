@@ -1,13 +1,13 @@
-# Execution Engines
+# Execution engines
 
 !!! tip "New to engines?"
-    For a plain-language comparison and decision tree, see [Engines Explained](../concepts/engines.md). This page covers the detailed technical reference.
+    For a plain-language comparison and decision tree, see [Engines explained](../concepts/engines.md). This page covers the detailed technical reference.
 
 ## Overview
 
-Execution engines wrap AI coding tools (Claude Code, OpenAI Codex, Aider) and produce engine-agnostic `ExecutionSpec` structs that the JobBuilder translates into Kubernetes Jobs. This decoupling enables testing without a cluster, supports multiple AI tools from a single controller, and opens the door to non-K8s runtimes in future.
+Execution engines wrap AI coding tools (Claude Code, OpenAI Codex, Aider and others) and produce engine-agnostic `ExecutionSpec` structs that the JobBuilder translates into Kubernetes Jobs. Because the spec is separate from the Job, you can test engines without a cluster, run several AI tools from one controller, and add non-Kubernetes runtimes later.
 
-## Interface Summary
+## Interface summary
 
 | Property | Value |
 |---|---|
@@ -16,7 +16,7 @@ Execution engines wrap AI coding tools (Claude Code, OpenAI Codex, Aider) and pr
 | Interface version | `1` |
 | Role in lifecycle | Called after guard rail validation to produce the K8s Job spec |
 
-## Go Interface
+## Go interface
 
 ```go
 type ExecutionEngine interface {
@@ -79,7 +79,7 @@ type EngineConfig struct {
 
 ### ExecutionSpec
 
-The output — everything needed to create a K8s Job:
+The output: everything needed to create a K8s Job:
 
 ```go
 type ExecutionSpec struct {
@@ -121,11 +121,11 @@ type TaskResult struct {
 }
 ```
 
-## Built-in Engines
+## Built-in engines
 
 ### Claude Code
 
-The primary and recommended engine. Runs the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) in headless mode with full hook-based guard rail support.
+The primary and recommended engine. Runs the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) in headless mode, with hook-based guard rails.
 
 | Property | Value |
 |---|---|
@@ -164,7 +164,7 @@ config:
       resource_limits:
         cpu: "2"
         memory: "2Gi"
-      skills:                            # custom skills — see Skills section below
+      skills:                            # custom skills (see Skills section below)
         - name: create-changelog
           inline: |
             # Create Changelog
@@ -173,7 +173,7 @@ config:
           path: /opt/osmia/skills/review-checklist.md
         - name: deploy-guide
           configmap: deploy-skills       # load from a Kubernetes ConfigMap
-          key: deploy-guide.md           # optional — defaults to <name>.md
+          key: deploy-guide.md           # optional, defaults to <name>.md
       sub_agents:                        # see Sub-Agents section below
         - name: reviewer
           description: "Reviews code changes for correctness"
@@ -192,15 +192,15 @@ config:
 |---|---|---|---|
 | `image` | string | `ghcr.io/unitaryai/engine-claude-code:latest` | Container image override |
 | `timeout_seconds` | int | `7200` | Active deadline for the K8s Job |
-| `fallback_model` | string | — | Model to use when the primary is overloaded (e.g. `haiku`) |
-| `append_system_prompt` | string | — | Extra text appended to Claude Code's system prompt |
-| `session_persistence` | SessionPersistenceConfig | disabled | Opt-in session-state persistence between retries — see [Session Persistence](#session-persistence) |
-| `tool_whitelist` | []string | — | Only allow these Claude Code tools (via `--allowedTools`) |
-| `tool_blacklist` | []string | — | Block these Claude Code tools (via `--disallowedTools`) |
+| `fallback_model` | string | (none) | Model to use when the primary is overloaded (e.g. `haiku`) |
+| `append_system_prompt` | string | (none) | Extra text appended to Claude Code's system prompt |
+| `session_persistence` | SessionPersistenceConfig | disabled | Opt-in session-state persistence between retries (see [Session persistence](#session-persistence)) |
+| `tool_whitelist` | []string | (none) | Only allow these Claude Code tools (via `--allowedTools`) |
+| `tool_blacklist` | []string | (none) | Block these Claude Code tools (via `--disallowedTools`) |
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
-| `skills` | []SkillConfig | — | Custom skill files loaded into the agent — see [Skills](#skills) |
-| `sub_agents` | []SubAgentConfig | — | Sub-agent definitions — see [Sub-Agents](#sub-agents) |
-| `agent_teams` | AgentTeamsConfig | disabled | Experimental multi-instance collaboration — see [Agent Teams](#agent-teams) |
+| `skills` | []SkillConfig | (none) | Custom skill files loaded into the agent (see [Skills](#skills)) |
+| `sub_agents` | []SubAgentConfig | (none) | Sub-agent definitions (see [Sub-agents](#sub-agents)) |
+| `agent_teams` | AgentTeamsConfig | disabled | Experimental multi-instance collaboration (see [Agent teams](#agent-teams)) |
 
 #### Command
 
@@ -216,9 +216,9 @@ setup-claude.sh \
   --mcp-config /workspace/.mcp.json
 ```
 
-The `setup-claude.sh` wrapper runs before `claude` to initialise the writable home directory — writing `~/.claude/settings.json`, `/workspace/.mcp.json`, and any [skill files](#skills). It then `exec`s the real `claude` binary with the arguments above.
+The `setup-claude.sh` wrapper runs before `claude` to initialise the writable home directory, writing `~/.claude/settings.json`, `/workspace/.mcp.json` and any [skill files](#skills). It then `exec`s the real `claude` binary with the arguments above.
 
-#### Guard Rails (Hooks)
+#### Guard rails (hooks)
 
 Claude Code supports a [hooks system](https://docs.anthropic.com/en/docs/claude-code/hooks) that intercepts tool calls before execution. Osmia generates a `hooks.json` configuration file and mounts it into the agent container at `/config/hooks.json`:
 
@@ -246,15 +246,15 @@ Claude Code supports a [hooks system](https://docs.anthropic.com/en/docs/claude-
 
 The guard rail check scripts validate each tool call against:
 
-- **Destructive command detection** — blocks `rm -rf`, `DROP TABLE`, `git push --force`, `sudo`, and similar dangerous commands.
-- **Blocked file patterns** — prevents reading or writing files matching patterns in `blocked_file_patterns` (e.g., `*.env`, `*.key`, `*.pem`).
-- **Network restriction** — optionally blocks `curl`, `wget`, and other network tools from contacting external hosts.
+- Destructive command detection: blocks `rm -rf`, `DROP TABLE`, `git push --force`, `sudo`, and similar dangerous commands.
+- Blocked file patterns: prevents reading or writing files matching patterns in `blocked_file_patterns` (e.g., `*.env`, `*.key`, `*.pem`).
+- Network restriction: optionally blocks `curl`, `wget`, and other network tools from contacting external hosts.
 
 If a hook script exits with a non-zero code, Claude Code blocks the tool call and reports the violation to the agent, which can then adjust its approach.
 
-The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json` after every tool invocation, enabling the progress watchdog to monitor agent activity.
+The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json` after every tool invocation, so the progress watchdog can monitor agent activity.
 
-#### Environment Variables
+#### Environment variables
 
 | Variable | Source | Description |
 |---|---|---|
@@ -269,7 +269,7 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when agent teams are enabled |
 | `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (agent teams) |
 
-#### Volume Mounts
+#### Volume mounts
 
 | Mount | Path | Writable | Purpose |
 |---|---|---|---|
@@ -280,23 +280,23 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 
 #### Skills
 
-Skills are custom Markdown instruction files that the agent can invoke via `/skill-name` in its prompts. They are written to the agent's Claude configuration directory before it starts; the exact path is covered below.
+Skills are custom Markdown instruction files that the agent can invoke with `/skill-name` in its prompts. They are written to the agent's Claude configuration directory before it starts (the exact path is covered below).
 
-Each skill has a `name` (lowercase letters, digits, and hyphens only) and exactly one of:
+Each skill has a `name` (lowercase letters, digits and hyphens only) and exactly one of:
 
-- **`inline`** — the Markdown content directly in the config. The controller base64-encodes it and passes it as the `CLAUDE_SKILL_INLINE_<NAME>` environment variable.
-- **`path`** — a path to a Markdown file on the container image (e.g. `/opt/osmia/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
-- **`configmap`** — the name of a Kubernetes ConfigMap containing the skill. The controller mounts the ConfigMap as a volume at `/skills/<name>.md` and sets `CLAUDE_SKILL_PATH_<NAME>` to the mount path. Optionally specify `key` to select a specific key within the ConfigMap (defaults to `<name>.md`).
+- `inline`: the Markdown content directly in the config. The controller base64-encodes it and passes it as the `CLAUDE_SKILL_INLINE_<NAME>` environment variable.
+- `path`: a path to a Markdown file on the container image (e.g. `/opt/osmia/skills/review-checklist.md`). The controller passes it as `CLAUDE_SKILL_PATH_<NAME>`.
+- `configmap`: the name of a Kubernetes ConfigMap containing the skill. The controller mounts the ConfigMap as a volume at `/skills/<name>.md` and sets `CLAUDE_SKILL_PATH_<NAME>` to the mount path. Set `key` to pick a specific key within the ConfigMap (defaults to `<name>.md`).
 
-A `configmap` skill may additionally set **`multi_file: true`** when the ConfigMap holds a whole skill directory rather than one file. See [Multi-file skills](#multi-file-skills) below.
+A `configmap` skill may also set `multi_file: true` when the ConfigMap holds a whole skill directory rather than one file. See [Multi-file skills](#multi-file-skills) below.
 
-At container startup, `setup-claude.sh` reads these environment variables, decodes or copies the files, and writes each skill to `<config-dir>/skills/<name>/SKILL.md`. The `<NAME>` suffix is converted to lowercase with hyphens (e.g. `CLAUDE_SKILL_INLINE_CREATE_CHANGELOG` → `skills/create-changelog/SKILL.md`).
+At container startup, `setup-claude.sh` reads these environment variables, decodes or copies the files, and writes each skill to `<config-dir>/skills/<name>/SKILL.md`. The `<NAME>` suffix is converted to lowercase with hyphens (for example `CLAUDE_SKILL_INLINE_CREATE_CHANGELOG` becomes `skills/create-changelog/SKILL.md`).
 
 `<config-dir>` is `$CLAUDE_CONFIG_DIR` when session persistence is enabled, and `~/.claude` otherwise. Claude Code reads user-scoped skills from whichever of those is in force and does not fall back between them, so the skill must be written to the one it will read.
 
 The skill and sub-agent directories are cleared on every pod start and rebuilt from the environment variables. That happens whether or not any skills are configured, so removing the last one still clears what was there. A skill removed from the configuration disappears on the next run rather than lingering on a persisted volume. Do not edit skill files inside a running pod: the next start deletes them.
 
-**Example — inline skill:**
+Example: inline skill
 
 ```yaml
 engines:
@@ -313,7 +313,7 @@ engines:
           4. List all changes since the last release
 ```
 
-**Example — image-bundled skill:**
+Example: image-bundled skill
 
 ```yaml
 engines:
@@ -323,7 +323,7 @@ engines:
         path: /opt/osmia/skills/security-review.md
 ```
 
-**Example — ConfigMap-backed skill:**
+Example: ConfigMap-backed skill
 
 ```yaml
 engines:
@@ -331,7 +331,7 @@ engines:
     skills:
       - name: deploy-guide
         configmap: deploy-skills    # K8s ConfigMap name
-        key: deploy-guide.md        # optional — defaults to <name>.md
+        key: deploy-guide.md        # optional, defaults to <name>.md
 ```
 
 Create the ConfigMap separately:
@@ -341,11 +341,11 @@ kubectl create configmap deploy-skills \
   --from-file=deploy-guide.md=./skills/deploy-guide.md
 ```
 
-ConfigMap skills are ideal for large skill files or when different teams manage their own skills independently of the controller configuration.
+ConfigMap skills suit large skill files, or teams that manage their own skills separately from the controller configuration.
 
 #### Multi-file skills
 
-A skill can be a directory rather than a single file: a short `SKILL.md` plus reference files it points at. The agent reads `SKILL.md` up front and pulls in a reference file only when it needs that detail, which keeps a large skill from consuming context on every run.
+A skill can be a directory rather than a single file: a short `SKILL.md` plus reference files it points at. The agent reads `SKILL.md` up front and pulls in a reference file only when it needs that detail, so a large skill does not use up context on every run.
 
 Set `multi_file: true` and give the ConfigMap one key per file. The whole ConfigMap is mounted as a directory and every Markdown file in it is copied into the skill directory. `key` is ignored.
 
@@ -365,7 +365,7 @@ kubectl create configmap incident-classifier-skill \
   --from-file=./skills/incident-classifier/
 ```
 
-The directory must contain a `SKILL.md`; the agent has no entry point without one, and `setup-claude.sh` logs a warning if it is missing. Only `.md` files are copied, so a `README` or a script sitting in the same directory is ignored.
+The directory must contain a `SKILL.md`. The agent has no entry point without one, and `setup-claude.sh` logs a warning if it is missing. Only `.md` files are copied, so a `README` or a script sitting in the same directory is ignored.
 
 ConfigMaps hold at most 1 MiB in total. A skill larger than that needs an image-bundled `path` skill instead.
 
@@ -376,19 +376,19 @@ FROM ghcr.io/unitaryai/engine-claude-code:latest
 COPY skills/ /opt/osmia/skills/
 ```
 
-#### Sub-Agents
+#### Sub-agents
 
-Sub-agents allow the main Claude Code agent to delegate specialised subtasks to other agents during execution. Each sub-agent has its own system prompt, model, tool restrictions, and permission mode. Sub-agents use Claude Code's official `--agents` flag and `~/.claude/agents/` directory.
+Sub-agents let the main Claude Code agent hand specialised subtasks to other agents during execution. Each sub-agent has its own system prompt, model, tool restrictions and permission mode. Sub-agents use Claude Code's official `--agents` flag and `~/.claude/agents/` directory.
 
-Sub-agents can be defined **inline** (prompt in the config) or loaded from a **Kubernetes ConfigMap** (for large prompts or independent management).
+Sub-agents can be defined inline (prompt in the config) or loaded from a Kubernetes ConfigMap (for large prompts or independent management).
 
-**Configuration:**
+Configuration:
 
 ```yaml
 engines:
   claude_code:
     sub_agents:
-      # Inline sub-agent — prompt is in the config.
+      # Inline sub-agent: prompt is in the config.
       - name: reviewer
         description: "Reviews code changes for correctness and style"
         prompt: |
@@ -403,11 +403,11 @@ engines:
           - Glob
         max_turns: 10
 
-      # ConfigMap-backed sub-agent — prompt loaded from a volume.
+      # ConfigMap-backed sub-agent: prompt loaded from a volume.
       - name: architect
         description: "Reviews system architecture decisions"
         configmap: architect-agent    # K8s ConfigMap name
-        key: architect.md             # optional — defaults to <name>.md
+        key: architect.md             # optional, defaults to <name>.md
         model: opus
 
       # Background sub-agent.
@@ -419,25 +419,25 @@ engines:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | Sub-agent identifier (required) |
-| `description` | string | — | Short summary of the sub-agent's purpose (required) |
-| `prompt` | string | — | Inline system prompt (mutually exclusive with `configmap`) |
+| `name` | string | (none) | Sub-agent identifier (required) |
+| `description` | string | (none) | Short summary of the sub-agent's purpose (required) |
+| `prompt` | string | (none) | Inline system prompt (mutually exclusive with `configmap`) |
 | `model` | string | inherit | Model to use: `sonnet`, `opus`, `haiku`, or `inherit` |
-| `tools` | []string | — | Tool allowlist |
-| `disallowed_tools` | []string | — | Tool denylist |
+| `tools` | []string | (none) | Tool allowlist |
+| `disallowed_tools` | []string | (none) | Tool denylist |
 | `permission_mode` | string | `default` | One of `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan` |
-| `max_turns` | int | — | Maximum agentic turns |
-| `skills` | []string | — | Skill names to preload |
+| `max_turns` | int | (none) | Maximum agentic turns |
+| `skills` | []string | (none) | Skill names to preload |
 | `background` | bool | `false` | Run as a background process |
-| `configmap` | string | — | Load prompt from this Kubernetes ConfigMap |
+| `configmap` | string | (none) | Load prompt from this Kubernetes ConfigMap |
 | `key` | string | `<name>.md` | Key within the ConfigMap |
 
-**How it works:**
+How it works:
 
-- **Inline sub-agents** are serialised as JSON and passed via `--agents '{"name": {"description":"...", "prompt":"...", ...}}'`.
-- **ConfigMap sub-agents** are volume-mounted at `/subagents/<name>.md` and copied to `~/.claude/agents/<name>.md` by `setup-claude.sh` at container startup. Claude Code automatically discovers agent files in this directory.
+- Inline sub-agents are serialised as JSON and passed via `--agents '{"name": {"description":"...", "prompt":"...", ...}}'`.
+- ConfigMap sub-agents are volume-mounted at `/subagents/<name>.md` and copied to `~/.claude/agents/<name>.md` by `setup-claude.sh` at container startup. Claude Code discovers agent files in this directory on its own.
 
-**Creating a ConfigMap for a sub-agent:**
+Creating a ConfigMap for a sub-agent:
 
 ```bash
 kubectl create configmap architect-agent \
@@ -446,16 +446,16 @@ kubectl create configmap architect-agent \
 
 The Markdown file can include YAML frontmatter for metadata (model, tools, etc.) following the [Claude Code sub-agents specification](https://code.claude.com/docs/en/sub-agents).
 
-#### Agent Teams
+#### Agent teams
 
 !!! info "Experimental"
     Agent teams are an experimental Claude Code feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`). The API may change in future Claude Code releases.
 
-Agent teams spawn **multiple independent Claude Code instances** that collaborate via shared task lists and inter-agent messaging, coordinated by a team lead. The team lead dynamically creates teammates based on the task — you do not pre-define agents.
+Agent teams start several independent Claude Code instances that collaborate through shared task lists and messages between agents, coordinated by a team lead. The team lead creates teammates as the task needs them, so you do not define agents in advance.
 
-This is fundamentally different from [Sub-Agents](#sub-agents), which are lightweight helpers within a **single** Claude Code session. Both features can be used simultaneously.
+This differs from [sub-agents](#sub-agents), which are lightweight helpers inside a single Claude Code session. You can use both at the same time.
 
-**Configuration:**
+Configuration:
 
 ```yaml
 engines:
@@ -477,17 +477,17 @@ When enabled, the engine:
 1. Sets `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and `CLAUDE_CODE_MAX_TEAMMATES=<n>` in the container environment.
 2. Appends `--teammate-mode <mode>` to the Claude CLI command.
 
-The team lead then autonomously decides how many teammates to create, what roles they should have, and how to distribute work across them.
+The team lead then decides how many teammates to create, what roles they have and how to split the work.
 
-#### Session Persistence
+#### Session persistence
 
-By default, each agent pod starts with a clean `~/.claude/` directory (emptyDir volume). When a task hits `--max-turns` and retries, the new pod has no conversation history — it must re-read git diffs to understand prior work.
+By default, each agent pod starts with a clean `~/.claude/` directory (emptyDir volume). When a task hits `--max-turns` and retries, the new pod has no conversation history and must re-read git diffs to understand prior work.
 
-**Session persistence** stores the `~/.claude/` directory (and optionally the workspace) in durable storage so that retry pods can resume the exact conversation context via `--resume <session-id>`, with no wasted turns re-establishing context.
+Session persistence stores the `~/.claude/` directory (and optionally the workspace) in durable storage. Retry pods can then resume the exact conversation with `--resume <session-id>` and do not waste turns re-establishing context.
 
-> **Note:** Session persistence is opt-in. Git-based continuation (`PriorBranchName`) remains the default fallback.
+> Note: session persistence is opt-in. Git-based continuation (`PriorBranchName`) remains the default fallback.
 
-**Configuration:**
+Configuration:
 
 ```yaml
 engines:
@@ -501,32 +501,32 @@ engines:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | bool | `false` | Activate session persistence |
-| `backend` | string | — | Storage backend: `shared-pvc`, `per-taskrun-pvc`, or `s3` |
-| `pvc_name` | string | — | Name of the shared PVC (`shared-pvc` backend) |
+| `backend` | string | (none) | Storage backend: `shared-pvc`, `per-taskrun-pvc`, or `s3` |
+| `pvc_name` | string | (none) | Name of the shared PVC (`shared-pvc` backend) |
 | `storage_class` | string | cluster default | Storage class for dynamic PVCs (`per-taskrun-pvc` backend) |
 | `storage_size` | string | `1Gi` | PVC size (`per-taskrun-pvc` backend) |
-| `s3_bucket` | string | — | S3 bucket name (`s3` backend, not yet implemented) |
+| `s3_bucket` | string | (none) | S3 bucket name (`s3` backend, not yet implemented) |
 | `s3_prefix` | string | `osmia-sessions/` | S3 key prefix (`s3` backend) |
 | `ttl_minutes` | int | `1440` | Session data retention after TaskRun completion (24 h) |
 
-**Backends:**
+Backends:
 
-- **`shared-pvc`** — mounts a single ReadWriteMany PVC. Each TaskRun gets an isolated subdirectory via `SubPath`. Simple and low-cost; requires a storage class that supports RWX (e.g. NFS, EFS, Ceph).
-- **`per-taskrun-pvc`** — creates a dedicated ReadWriteOnce PVC per TaskRun. Stronger isolation; the controller deletes the PVC on cleanup.
-- **`s3`** — not yet implemented. Will use an init container to download session data and a lifecycle hook to upload on exit.
+- `shared-pvc`: mounts a single ReadWriteMany PVC. Each TaskRun gets an isolated subdirectory via `SubPath`. Simple and low-cost, but requires a storage class that supports RWX (e.g. NFS, EFS, Ceph).
+- `per-taskrun-pvc`: creates a dedicated ReadWriteOnce PVC per TaskRun. Stronger isolation, and the controller deletes the PVC on cleanup.
+- `s3`: not yet implemented. Will use an init container to download session data and a lifecycle hook to upload on exit.
 
-**How it works:**
+How it works:
 
 1. On first job launch, the controller generates a deterministic session ID from the TaskRun ID and passes it to the agent via `--session-id <id>`.
 2. Claude Code stores all session JSONL files in `$CLAUDE_CONFIG_DIR` (the PVC-backed path) rather than the ephemeral emptyDir home volume.
 3. When the agent hits `--max-turns`, the retry pod receives `task.SessionID` and the agent is invoked with `--resume <session-id>` instead of a fresh session.
 4. The workspace directory is also persisted on the PVC (`OSMIA_WORKSPACE_DIR`), so `entrypoint.sh` skips the git-clone step on retry pods.
 
-#### Storage Cleanup
+#### Storage cleanup
 
-Session data is ephemeral — it only needs to exist while retries are possible. Once a TaskRun reaches a terminal state (Succeeded, Failed with retries exhausted, or TimedOut), its session data can be removed. Osmia handles this automatically via a **background cleaner goroutine** (`internal/sessionstore/cleaner.go`) that runs inside the controller pod when session persistence is enabled.
+Session data is ephemeral: it only needs to exist while retries are possible. Once a TaskRun reaches a terminal state (Succeeded, Failed with retries exhausted, or TimedOut), its session data can be removed. A background cleaner goroutine (`internal/sessionstore/cleaner.go`) does this automatically. It runs inside the controller pod when session persistence is enabled.
 
-**How cleanup works:**
+How cleanup works:
 
 The cleaner runs a sweep every hour (configurable) and removes session data older than `ttl_minutes` (default 1440 = 24 hours):
 
@@ -536,53 +536,53 @@ The cleaner runs a sweep every hour (configurable) and removes session data olde
 | `per-taskrun-pvc` | Dedicated PVCs | The cleaner lists PVCs with the `osmia.io/task-run-id` label and deletes any whose creation timestamp is older than the TTL. |
 | `s3` | S3 objects by prefix | Not yet implemented. |
 
-**Important details:**
+Details:
 
-- **PVC phase is intentionally not checked.** When an agent pod finishes and is deleted, its PVC remains in `Bound` phase — Kubernetes does not automatically transition it to `Released`. If the cleaner filtered by phase, PVCs would accumulate indefinitely. Age-based deletion is safe because the TTL guarantees the TaskRun is terminal and no pod is referencing the PVC.
-- **The `Cleanup()` method on each store is idempotent.** Calling it multiple times (e.g. after a controller restart) is safe — deleting an already-removed PVC is treated as success.
-- **The controller pod must mount the shared PVC** for the `shared-pvc` cleaner to work. The Helm chart handles this automatically: when `sessionPersistence.backend` is `shared-pvc`, the deployment template adds a `session-pvc` volume and mounts it at `/data/sessions`. If you deploy without the Helm chart, ensure the controller pod has the shared PVC mounted and pass the mount path as `PVCRootDir` in the `CleanerConfig`.
-- **`per-taskrun-pvc` cleanup requires RBAC.** The controller's service account needs `list` and `delete` permissions on `persistentvolumeclaims` in the target namespace. The Helm chart's default RBAC rules include these permissions.
+- PVC phase is intentionally not checked. When an agent pod finishes and is deleted, its PVC stays in the `Bound` phase, because Kubernetes does not move it to `Released` on its own. If the cleaner filtered by phase, PVCs would accumulate indefinitely. Age-based deletion is safe because the TTL guarantees the TaskRun is terminal and no pod is referencing the PVC.
+- The `Cleanup()` method on each store is idempotent. Calling it multiple times (e.g. after a controller restart) is safe: deleting an already-removed PVC is treated as success.
+- The controller pod must mount the shared PVC for the `shared-pvc` cleaner to work. The Helm chart handles this automatically: when `sessionPersistence.backend` is `shared-pvc`, the deployment template adds a `session-pvc` volume and mounts it at `/data/sessions`. If you deploy without the Helm chart, ensure the controller pod has the shared PVC mounted and pass the mount path as `PVCRootDir` in the `CleanerConfig`.
+- `per-taskrun-pvc` cleanup requires RBAC. The controller's service account needs `list` and `delete` permissions on `persistentvolumeclaims` in the target namespace. The Helm chart's default RBAC rules include these permissions.
 
-**Tuning the TTL:**
+Tuning the TTL:
 
-Set `sessionPersistence.ttlMinutes` in `values.yaml`. A shorter TTL reduces storage usage but risks deleting session data before a long-running retry completes. A longer TTL is safer but accumulates more data. The default of 24 hours is conservative — most tasks complete retries within minutes.
+Set `sessionPersistence.ttlMinutes` in `values.yaml`. A shorter TTL reduces storage usage but risks deleting session data before a long-running retry completes. A longer TTL is safer but accumulates more data. The default of 24 hours is conservative: most tasks finish their retries within minutes.
 
 ```yaml
 sessionPersistence:
   enabled: true
   backend: per-taskrun-pvc
-  ttlMinutes: 720   # 12 hours — more aggressive cleanup
+  ttlMinutes: 720   # 12 hours, more aggressive cleanup
 ```
 
-**What happens if cleanup fails?**
+What happens if cleanup fails?
 
-The cleaner logs warnings and continues to the next item. Failed deletions are retried on the next sweep (1 hour later). No session data is critical — worst case, stale PVCs occupy storage until manually removed. You can monitor cleanup via the controller's structured logs:
+The cleaner logs warnings and continues to the next item. Failed deletions are retried on the next sweep (1 hour later). No session data is critical. In the worst case, stale PVCs occupy storage until manually removed. You can monitor cleanup via the controller's structured logs:
 
 ```text
 level=INFO msg="per-taskrun-pvc cleaner: deleted stale session PVC" pvc=osmia-session-tr-abc123
 level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-session-tr-xyz error="..."
 ```
 
-**Helm chart:** Set `sessionPersistence.enabled: true` and configure the chosen backend in `values.yaml`. The chart will create the shared PVC when `backend: shared-pvc` is selected.
+Helm chart: set `sessionPersistence.enabled: true` and configure the chosen backend in `values.yaml`. The chart will create the shared PVC when `backend: shared-pvc` is selected.
 
-#### Continuation Prompts
+#### Continuation prompts
 
-When an agent exhausts `--max-turns`, the default behaviour is to auto-retry using git-based continuation (the retry agent clones the prior branch and reads `git log`). **User-prompted continuation** replaces that with an interactive pause: the controller sends a Slack message asking the operator whether to continue or stop, and only resumes if the operator approves.
+When an agent exhausts `--max-turns`, the default behaviour is to auto-retry using git-based continuation (the retry agent clones the prior branch and reads `git log`). User-prompted continuation replaces that with an interactive pause: the controller sends a Slack message asking the operator whether to continue or stop, and only resumes if the operator approves.
 
-**Prerequisites:**
+Prerequisites:
 
 - Session persistence must be enabled (so the retry pod can resume via `--resume <session-id>` rather than re-reading git history).
 - An approval backend must be configured (currently Slack).
 
-**How it works:**
+How it works:
 
 1. The agent pod exits cleanly after hitting `--max-turns`. The controller detects that `ToolCallsTotal >= ConfiguredMaxTurns` and the task did not succeed.
 2. The TaskRun transitions to `NeedsHuman` with gate type `continuation`.
-3. The controller sends an approval request containing the turn count, cost so far, any progress summary, and two buttons: **Continue** and **Stop**.
-4. If the operator clicks **Continue**, the controller increments `ContinuationCount`, creates a new pod with `--resume <session-id>`, and transitions back to `Running`.
-5. If the operator clicks **Stop** (or the message times out), the TaskRun transitions to `Failed` with a reason that includes the operator's name and any progress summary.
+3. The controller sends an approval request containing the turn count, cost so far, any progress summary, and two buttons: Continue and Stop.
+4. If the operator clicks Continue, the controller increments `ContinuationCount`, creates a new pod with `--resume <session-id>`, and transitions back to `Running`.
+5. If the operator clicks Stop (or the message times out), the TaskRun transitions to `Failed` with a reason that includes the operator's name and any progress summary.
 
-**Configuration:**
+Configuration:
 
 ```yaml
 config:
@@ -595,11 +595,11 @@ config:
         backend: per-taskrun-pvc
 ```
 
-**Interaction with retries:**
+Interaction with retries:
 
-`ContinuationCount` and `RetryCount` are independent. A continuation resumes the existing session from where it paused — it does not count as a retry and does not consume a retry slot. If a resumed session then fails for a different reason (e.g. a tool error), the normal retry mechanism applies separately.
+`ContinuationCount` and `RetryCount` are independent. A continuation resumes the existing session from where it paused. It does not count as a retry and does not use a retry slot. If a resumed session then fails for a different reason (e.g. a tool error), the normal retry mechanism applies separately.
 
-**Operator experience:**
+Operator experience:
 
 The Slack message sent to the approval channel looks like:
 
@@ -612,9 +612,9 @@ Continuation 1 of 3. Approve to resume the session where it left off.
 [Continue]  [Stop]
 ```
 
-Clicking **Continue** resumes immediately. Clicking **Stop** marks the TaskRun as failed and records the operator's username in the failure reason.
+Clicking Continue resumes immediately. Clicking Stop marks the TaskRun as failed and records the operator's username in the failure reason.
 
-> **Note:** User-prompted continuation requires the Claude Code engine and session persistence. The git-based continuation strategy is used for all other engines.
+> Note: user-prompted continuation requires the Claude Code engine and session persistence. The git-based continuation strategy is used for all other engines.
 
 ---
 
@@ -658,7 +658,7 @@ codex \
   "<prompt>"
 ```
 
-#### Guard Rails (Prompt-Embedded)
+#### Guard rails (prompt-embedded)
 
 Codex does not support a hooks system. Guard rails are appended directly to the task prompt:
 
@@ -676,11 +676,11 @@ You MUST follow these rules strictly:
 !!! warning "Prompt-based guard rails are advisory"
     The AI model may not always respect prompt-embedded rules. For stricter enforcement, use the Claude Code engine with hook-based guards, or rely on the quality gate for post-completion validation.
 
-#### Repository Context
+#### Repository context
 
-Codex reads repository conventions from `AGENTS.md` (rather than `CLAUDE.md`). If an `AGENTS.md` file is present in the repository root, Codex will use it for coding conventions and project structure guidance.
+Codex reads repository conventions from `AGENTS.md` (rather than `CLAUDE.md`). If an `AGENTS.md` file is in the repository root, Codex uses it for coding conventions and project structure.
 
-#### Environment Variables
+#### Environment variables
 
 | Variable | Source | Description |
 |---|---|---|
@@ -693,7 +693,7 @@ Codex reads repository conventions from `AGENTS.md` (rather than `CLAUDE.md`). I
 
 ### Aider
 
-Runs the [Aider CLI](https://aider.chat/) for AI-assisted coding. Aider supports multiple LLM providers — Osmia can configure it to use either Anthropic or OpenAI models.
+Runs the [Aider CLI](https://aider.chat/) for AI-assisted coding. Aider supports several LLM providers. Osmia can configure it to use either Anthropic or OpenAI models.
 
 | Property | Value |
 |---|---|
@@ -733,7 +733,7 @@ aider \
 
 The `--no-git` flag is used because Osmia manages git operations via the SCM backend, not via Aider's built-in git support.
 
-#### Model Provider
+#### Model provider
 
 Aider supports both Anthropic and OpenAI models. Configure the provider in the engine configuration:
 
@@ -742,11 +742,11 @@ Aider supports both Anthropic and OpenAI models. Configure the provider in the e
 | `anthropic` (default) | `ANTHROPIC_API_KEY` | `anthropic-api-key` |
 | `openai` | `OPENAI_API_KEY` | `openai-api-key` |
 
-#### Repository Context
+#### Repository context
 
-Aider reads coding conventions from `.aider/conventions.md` (rather than `CLAUDE.md` or `AGENTS.md`). If an `.aider.conf.yml` file is present in the repository root, Aider will use it for additional configuration (model selection, editor settings, etc.).
+Aider reads coding conventions from `.aider/conventions.md` (rather than `CLAUDE.md` or `AGENTS.md`). If an `.aider.conf.yml` file is in the repository root, Aider uses it for additional configuration (model selection, editor settings, etc.).
 
-#### Guard Rails (Prompt-Embedded)
+#### Guard rails (prompt-embedded)
 
 Like Codex, Aider does not support a hooks system. Guard rails are appended directly to the task prompt, identical in content to the Codex guard rails above.
 
@@ -754,7 +754,7 @@ Like Codex, Aider does not support a hooks system. Guard rails are appended dire
 
 OpenCode is a terminal-based AI coding agent. Osmia runs it in headless mode inside Kubernetes Jobs.
 
-**Package:** `pkg/engine/opencode/`
+Package: `pkg/engine/opencode/`
 
 | Property | Value |
 |---|---|
@@ -784,22 +784,22 @@ engines:
 | `openai` | `OPENAI_API_KEY` | `openai-api-key` |
 | `google` | `GOOGLE_API_KEY` | `google-api-key` |
 
-#### Repository Context
+#### Repository context
 
 OpenCode reads coding conventions from `AGENTS.md` in the repository root.
 
-#### Guard Rails (Prompt-Embedded)
+#### Guard rails (prompt-embedded)
 
 OpenCode does not support a hooks system. Guard rails are appended directly to the task prompt.
 
 ### Cline
 
-!!! warning "Community template — no pre-built image"
-    Cline is a VS Code extension with no published headless CLI. The Go engine implementation (`pkg/engine/cline/`) and the Dockerfile (`docker/engine-cline/`) are provided as a community contribution template. **No pre-built container image is published for Cline.** Configuring `cline` as your engine will result in an image pull failure until a working headless integration is contributed. See [Contributing](../contributing.md) if you want to help.
+!!! warning "Community template: no pre-built image"
+    Cline is a VS Code extension with no published headless CLI. The Go engine implementation (`pkg/engine/cline/`) and the Dockerfile (`docker/engine-cline/`) are provided as a community contribution template. No pre-built container image is published for Cline. Configuring `cline` as your engine will result in an image pull failure until a working headless integration is contributed. See [Contributing](../contributing.md) if you want to help.
 
 Cline is an AI coding agent with optional MCP (Model Context Protocol) and AWS Bedrock support. When a headless CLI becomes available, Osmia can run it inside Kubernetes Jobs using the implementation in `pkg/engine/cline/`.
 
-**Package:** `pkg/engine/cline/`
+Package: `pkg/engine/cline/`
 
 | Property | Value |
 |---|---|
@@ -831,27 +831,27 @@ engines:
 | `google` | `GOOGLE_API_KEY` | `google-api-key` |
 | `bedrock` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `aws-access-key-id`, `aws-secret-access-key` |
 
-#### Repository Context
+#### Repository context
 
 Cline reads project-specific instructions from `.clinerules` in the repository root.
 
-#### MCP Support
+#### MCP support
 
-When `mcp_enabled: true` is set in the engine configuration, the `--mcp` flag is appended to the Cline command, enabling Model Context Protocol integration for tool use.
+When `mcp_enabled: true` is set in the engine configuration, the `--mcp` flag is appended to the Cline command, which turns on Model Context Protocol integration for tool use.
 
-#### Guard Rails (Prompt-Embedded)
+#### Guard rails (prompt-embedded)
 
 Cline does not support a hooks system. Guard rails are appended directly to the task prompt.
 
-## Engine Selection
+## Engine selection
 
 The controller selects engines in this order:
 
-1. **Per-ticket override** — if the ticket metadata or labels specify an engine (e.g., a `engine:codex` label), that engine is used.
-2. **Default engine** — the `engines.default` configuration value.
-3. **Fallback** — `claude-code` if no default is configured.
+1. Per-ticket override: if the ticket metadata or labels specify an engine (e.g., a `engine:codex` label), that engine is used.
+2. Default engine: the `engines.default` configuration value.
+3. Fallback: `claude-code` if no default is configured.
 
-## Comparison Matrix
+## Comparison matrix
 
 | Criterion | Claude Code | Codex | Aider | OpenCode | Cline |
 |---|---|---|---|---|---|
@@ -864,9 +864,9 @@ The controller selects engines in this order:
 | MCP server support | Yes | No | No | No | Yes (via `--mcp` flag) |
 | Pre-built image | ✅ | ✅ | ✅ | ✅ | ❌ Community template |
 
-**Recommendation:** Use Claude Code as the default engine for its superior guard rail enforcement via hooks and built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline is a community template without a published image.
+Recommendation: use Claude Code as the default engine, because it enforces guard rails through hooks and has built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline is a community template without a published image.
 
-## Writing a Custom Engine
+## Writing a custom engine
 
 To add a new engine, create a new package under `pkg/engine/` and implement the `ExecutionEngine` interface:
 
@@ -1003,7 +1003,7 @@ func TestMyEngine_BuildExecutionSpec(t *testing.T) {
 }
 ```
 
-## Protobuf Definition
+## Protobuf definition
 
 The complete protobuf service is defined in `proto/engine.proto`. Note that engines are currently built-in only (Go), but the protobuf definition exists for future support of third-party engines via gRPC.
 

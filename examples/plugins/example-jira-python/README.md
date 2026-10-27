@@ -4,7 +4,7 @@ This is an example third-party ticketing plugin for Osmia, written in Python usi
 
 ## Overview
 
-This plugin implements the `TicketingBackend` gRPC interface to integrate Osmia with Jira Cloud. It demonstrates how to build a plugin in Python that communicates with the Osmia controller over gRPC.
+This plugin implements the `TicketingBackend` gRPC interface to connect Osmia to Jira Cloud. It shows how a Python plugin talks to the Osmia controller over gRPC.
 
 ## Prerequisites
 

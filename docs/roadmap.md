@@ -308,8 +308,8 @@ The pilot is deliberately limited to builds with no data residency
 requirement. Builds whose data must stay in a given region need a regional
 deployment of the whole of Osmia, not only regional model routing, because
 both the agent pod and the controller (via the agent stream and transcripts)
-handle data pulled from the systems being built against. That is tracked as a
-separate, later piece of work.
+handle data pulled from the systems being built against. That is tracked as
+item 31.
 
 **Pilot is done when:** one build stage runs from trigger to a draft MR with a
 passing pipeline, using a per-task plugin bundle, with its transcript and
@@ -408,6 +408,63 @@ when the pod ends or the controller moves.
   documented in the Helm chart
 - [ ] Use workload identity (item 29) for the controller and pod, not static
   keys
+
+---
+
+### 31. Regional Deployments and Data Residency Routing
+
+**Priority:** High (after the pilot)
+**Scope:** Large
+**Dependencies:** Items 29 and 30
+
+Some work must keep its data, and the processing of it, inside a given
+region. Routing only the model calls to a regional endpoint is not enough:
+the agent pod reads data from the systems it works on, and the controller
+receives that data through the agent stream, transcripts and episodic memory.
+The whole of Osmia has to run in the region, so the plan is one independent
+deployment per region, with no central coordinator. Instances share only the
+ticketing and SCM systems.
+
+Routing a ticket to the right instance and keeping it out of the wrong one are
+separate concerns, and need separate mechanisms. A per-ticket tag or owner is
+convenient for routing but is set by a person and can be forgotten; on its own
+it is not a safe boundary.
+
+**Routing (which instance picks a ticket up):**
+- [ ] Document one ticketing identity per instance (for example a Shortcut
+  user per region) using the existing owner filter, so assignment chooses
+  the instance
+- [ ] Route webhooks the same way, so every instance can receive all events
+  and ignore those that are not its own
+
+**Boundary (which instance may work on a repository):**
+- [ ] Fail closed: an instance refuses any ticket whose repository it cannot
+  show to be in its region, and comments on the ticket saying so, before any
+  job, clone or model call
+- [ ] Add `blocked_repos` alongside `allowed_repos`, so a default-region
+  instance can exclude regional repositories without listing every other one
+- [ ] Optionally resolve a repository's region from a file in the repository
+  itself (read through the SCM API, without cloning), so the record and the
+  configuration cannot drift apart
+- [ ] Apply the same check to every path that launches work: new tickets,
+  repository URLs supplied later, review follow-ups and retries
+
+**Inside the region:**
+- [ ] Model calls through the region's provider endpoint: wire the existing
+  but unused `auth.method: bedrock` and `bedrock_region` settings
+- [ ] Transcripts, artifacts, session data and the TaskRun store in regional
+  storage
+- [ ] Keep task content out of anything that leaves the region: central logs,
+  metrics labels and notifications carry identifiers and status only
+- [ ] Per-instance NetworkPolicy for agent egress, limited to the region's
+  systems and endpoints
+
+**Open questions:**
+- Ticket text itself lives in the ticketing system's own region. Tickets for
+  residency-bound work must not contain the data that needs protecting; this
+  is a process rule Osmia cannot enforce.
+- Should a cross-region dashboard exist, showing status only, or is one
+  dashboard per region enough?
 
 ---
 
@@ -715,6 +772,7 @@ live controller and `main.go`:
 | 28 | Build-Tools Engine Image | High | Not started |
 | 29 | Workload Identity for Agent Pods | High | Not started |
 | 30 | Remote Transcript and Artifact Storage | High | Not started |
+| 31 | Regional Deployments and Data Residency Routing | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | 🚧 In progress |

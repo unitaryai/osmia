@@ -1,8 +1,8 @@
-# Plugin gRPC API Reference
+# Plugin gRPC API reference
 
 All Osmia plugin interfaces are defined as protobuf services in `proto/`.
-The proto files are the **source of truth** — generated Go stubs, Python stubs,
-and TypeScript stubs are all derived from them. Do not edit generated files
+The proto files are the source of truth. The generated Go, Python and
+TypeScript stubs are all derived from them. Do not edit generated files
 directly; regenerate them with `make sdk-gen` instead.
 
 Plugins communicate with the controller over gRPC using the
@@ -47,16 +47,16 @@ rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
 | `HandshakeResponse` | `plugin_name` | `string` | Human-readable plugin identifier (e.g. `"jira"`). |
 | `HandshakeResponse` | `plugin_version` | `string` | Semver version of the plugin binary (e.g. `"1.2.0"`). |
 
-**Current version enforcement** uses a two-level check — not a live `Handshake` RPC call:
+Version enforcement currently uses a two-level check, not a live `Handshake` RPC call:
 
-1. **Pre-spawn config check** — before starting the subprocess, the controller compares the `interface_version` declared in `osmia-config.yaml` against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.
-2. **Transport handshake** — hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid Osmia plugin binary.
+1. Pre-spawn config check: before starting the subprocess, the controller compares the `interface_version` declared in `osmia-config.yaml` against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.
+2. Transport handshake: hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid Osmia plugin binary.
 
 The protobuf `Handshake` RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure `interface_version` in config matches the binary they deploy.
 
-If the declared `interface_version` does not match what the controller expects, `LoadPlugin` returns an error and no plugin instance is created or stored. The plugin is simply never registered — there is no health state to mark. Restarting cannot resolve a version mismatch.
+If the declared `interface_version` does not match what the controller expects, `LoadPlugin` returns an error and no plugin instance is created or stored. The plugin is never registered, so there is no health state to mark. Restarting cannot resolve a version mismatch.
 
-The current `interface_version` for most services is **1**. SCM is version **2** (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread`, and `GetDiff` were added).
+The current `interface_version` for most services is 1. SCM is version 2 (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread` and `GetDiff` were added).
 
 ---
 
@@ -250,9 +250,9 @@ server's Slack endpoint.
 
 ## `SecretsBackend` (`proto/secrets.proto`)
 
-Secrets backends abstract over different secret storage systems (Kubernetes
+Secrets backends wrap different secret storage systems (Kubernetes
 Secrets, HashiCorp Vault, AWS Secrets Manager, 1Password, External Secrets
-Operator) to provide a uniform way of injecting credentials into agent
+Operator) and give a uniform way to inject credentials into agent
 execution containers.
 
 ### RPCs
@@ -262,7 +262,7 @@ execution containers.
 | `Handshake` | `HandshakeRequest` | `HandshakeResponse` | Version negotiation at startup. |
 | `GetSecret` | `GetSecretRequest` | `GetSecretResponse` | Retrieves a single secret value by key. |
 | `GetSecrets` | `GetSecretsRequest` | `GetSecretsResponse` | Retrieves multiple secrets in one call. More efficient than repeated `GetSecret` calls. |
-| `BuildEnvVars` | `BuildEnvVarsRequest` | `BuildEnvVarsResponse` | Translates secret references into Kubernetes-native `EnvVar` specifications, enabling backends to use native `secretKeyRef` where possible. |
+| `BuildEnvVars` | `BuildEnvVarsRequest` | `BuildEnvVarsResponse` | Translates secret references into Kubernetes-native `EnvVar` specifications, so backends can use native `secretKeyRef` where possible. |
 
 ### Key message types
 
@@ -299,10 +299,10 @@ execution containers.
 
 ## `SCMBackend` (`proto/scm.proto`)
 
-SCM backends handle git hosting operations — creating branches, opening
-pull/merge requests, and querying their status. This abstracts over different
-hosting platforms (GitHub, GitLab, Bitbucket) so the controller can manage code
-changes without coupling to a specific provider.
+SCM backends handle git hosting operations: creating branches, opening
+pull/merge requests and querying their status. They hide the differences
+between hosting platforms (GitHub, GitLab, Bitbucket), so the controller does
+not depend on a specific provider.
 
 ### RPCs
 
@@ -345,8 +345,8 @@ changes without coupling to a specific provider.
 
 ## `ReviewBackend` (`proto/review.proto`)
 
-Review backends integrate with code review systems (CodeRabbit, native
-LLM-based review, custom pipelines) to provide quality gates that evaluate
+Review backends connect to code review systems (CodeRabbit, native
+LLM-based review, custom pipelines) as quality gates that evaluate
 agent-produced diffs before they are merged. The quality gate is deliberately
 read-only: it reviews output but cannot modify the repository.
 
@@ -397,15 +397,15 @@ read-only: it reviews output but cannot modify the repository.
 Execution engines wrap AI coding tools (Claude Code, OpenAI Codex, Aider) and
 translate tasks into engine-agnostic `ExecutionSpec` records. The core
 `JobBuilder` (`internal/jobbuilder/`) then translates the spec into a
-Kubernetes Job. This decoupling enables testing without a cluster and opens the
-door to non-Kubernetes runtimes (Docker, Podman) in future.
+Kubernetes Job. This split allows testing without a cluster and leaves room for
+non-Kubernetes runtimes (Docker, Podman) in future.
 
 ### RPCs
 
 | Method | Request | Response | Description |
 |---|---|---|---|
 | `Handshake` | `HandshakeRequest` | `HandshakeResponse` | Version negotiation at startup. |
-| `BuildExecutionSpec` | `BuildExecutionSpecRequest` | `BuildExecutionSpecResponse` | Returns a runtime-agnostic execution specification — container image, command, environment variables, resource requirements, and volumes. |
+| `BuildExecutionSpec` | `BuildExecutionSpecRequest` | `BuildExecutionSpecResponse` | Returns a runtime-agnostic execution specification: container image, command, environment variables, resource requirements and volumes. |
 | `BuildPrompt` | `BuildPromptRequest` | `BuildPromptResponse` | Constructs the task prompt for this engine. Different engines require different prompt formats (Claude Code uses markdown with `CLAUDE.md` context; Codex uses `AGENTS.md`). |
 
 ### Key message types
@@ -450,14 +450,14 @@ door to non-Kubernetes runtimes (Docker, Podman) in future.
 ## SDK generation
 
 Stubs for all three supported languages can be regenerated from the proto
-sources at any time:
+sources:
 
 ```bash
 make sdk-gen
 ```
 
-This runs `buf generate` with the appropriate templates for Go, Python, and
-TypeScript. Generated files are written to `sdk/go/`, `sdk/python/`, and
+This runs `buf generate` with the appropriate templates for Go, Python and
+TypeScript. Generated files are written to `sdk/go/`, `sdk/python/` and
 `sdk/typescript/` respectively.
 
 See [SDKs](../plugins/sdks.md) for how to use each SDK in a plugin

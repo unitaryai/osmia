@@ -1,13 +1,13 @@
-# Secrets Backend Interface
+# Secrets backend interface
 
 !!! warning "Security-sensitive interface"
-    The secrets backend handles API keys, tokens, and credentials. Never log secret values — only log key names. Prefer `SecretKeyRef` references over direct values.
+    The secrets backend handles API keys, tokens, and credentials. Never log secret values; only log key names. Prefer `SecretKeyRef` references over direct values.
 
 ## Overview
 
-The secrets backend retrieves sensitive values (API keys, tokens, credentials) from external secret stores and builds Kubernetes environment variable references for injection into agent job pods. It abstracts the underlying secrets store so that the controller and engines can request secrets without knowing whether they come from Kubernetes Secrets, HashiCorp Vault, AWS Secrets Manager, or another provider.
+The secrets backend retrieves sensitive values (API keys, tokens, credentials) from external secret stores and builds Kubernetes environment variable references to inject into agent job pods. It hides the underlying store, so the controller and engines can request secrets without knowing whether they come from Kubernetes Secrets, HashiCorp Vault, AWS Secrets Manager, or another provider.
 
-## Interface Summary
+## Interface summary
 
 | Property | Value |
 |---|---|
@@ -15,9 +15,9 @@ The secrets backend retrieves sensitive values (API keys, tokens, credentials) f
 | Go interface | `pkg/plugin/secrets/secrets.go` |
 | Interface version | `1` |
 | Role in lifecycle | Called during job creation to inject secrets into agent pod environment |
-| Criticality | Critical — if the secrets backend is unavailable, jobs cannot be created |
+| Criticality | Critical: if the secrets backend is unavailable, jobs cannot be created |
 
-## Go Interface
+## Go interface
 
 ```go
 type Backend interface {
@@ -39,7 +39,7 @@ type Backend interface {
 }
 ```
 
-## RPC Methods
+## RPC methods
 
 ### Handshake
 
@@ -68,13 +68,13 @@ message GetSecretResponse {
 **Implementation guidance:**
 
 - Return a gRPC `NOT_FOUND` error if the key does not exist.
-- **Never log the secret value** — only log the key name.
+- Never log the secret value; only log the key name.
 - Values are typically short-lived (API keys, tokens). Consider caching with a short TTL (30–60 seconds) if the backing store is slow.
-- Respect the `context.Context` deadline — secret retrieval should complete within 5 seconds.
+- Respect the `context.Context` deadline. Secret retrieval should complete within 5 seconds.
 
 ### GetSecrets
 
-Retrieves multiple secrets in a single call. More efficient than calling `GetSecret` repeatedly.
+Retrieves multiple secrets in a single call. This is cheaper than calling `GetSecret` repeatedly.
 
 ```protobuf
 rpc GetSecrets(GetSecretsRequest) returns (GetSecretsResponse);
@@ -128,9 +128,9 @@ message SecretKeyRef {
 
 **Implementation guidance:**
 
-- **Prefer `SecretKeyRef` over direct values.** When returning `SecretKeyRef` references, secrets are injected by the kubelet without passing through the controller process. This is more secure and avoids having plaintext secrets in memory.
+- Prefer `SecretKeyRef` over direct values. With a `SecretKeyRef`, the kubelet injects the secret without it passing through the controller process, so no plaintext secret sits in the controller's memory.
 - For external backends (Vault, AWS SM), consider creating ephemeral Kubernetes Secrets and returning references to them, rather than passing plaintext values through the controller.
-- The `value` and `value_from` fields are mutually exclusive — set one or the other, not both.
+- The `value` and `value_from` fields are mutually exclusive. Set one or the other, not both.
 
 ## Built-in: Kubernetes Secrets
 
@@ -150,7 +150,7 @@ config:
 
 No additional configuration is required. The backend uses the controller's service account credentials to read Secrets.
 
-### Key Format
+### Key format
 
 Secret keys use the format `secretName/key`:
 
@@ -202,7 +202,7 @@ config:
           secrets_path: "secret"       # KV v2 mount path.
 ```
 
-### Key Format
+### Key format
 
 Secret keys use the `path#field` format:
 
@@ -217,16 +217,16 @@ A built-in AWS Secrets Manager backend (`pkg/plugin/secrets/awssm/`) reads secre
 
 ### Authentication
 
-The backend uses the **AWS SDK default credential chain**, which automatically supports:
+The backend uses the AWS SDK default credential chain, which supports:
 
-- **IRSA (IAM Roles for Service Accounts)** on EKS — the recommended approach for production.
+- IRSA (IAM Roles for Service Accounts) on EKS (the recommended approach for production).
 - Environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`).
 - Shared credentials file (`~/.aws/credentials`).
 - EC2 instance metadata / ECS task roles.
 
-No custom authentication code is needed, but IRSA requires prior EKS/IAM setup:
+No custom authentication code is needed, but IRSA needs EKS and IAM set up first:
 
-1. Create an IAM role with `secretsmanager:GetSecretValue` permission (see Required IAM Permissions below).
+1. Create an IAM role with `secretsmanager:GetSecretValue` permission (see Required IAM permissions below).
 2. Annotate the Osmia controller's ServiceAccount with the role ARN:
    ```yaml
    metadata:
@@ -255,15 +255,15 @@ config:
 | `assume_role_arn` | string | (none) | IAM role ARN to assume via STS before reading secrets |
 | `cache_ttl` | duration string | `5m` | How long to cache secret values in memory |
 
-### Key Format
+### Key format
 
 Secret keys use the `secret-name#json-field` format:
 
-- `myapp/api-keys#stripe_key` — reads the `stripe_key` field from the JSON-valued secret named `myapp/api-keys`.
-- `myapp/database-url` — reads the raw secret string (no JSON parsing).
-- `arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host` — uses a full ARN.
+- `myapp/api-keys#stripe_key` reads the `stripe_key` field from the JSON-valued secret named `myapp/api-keys`.
+- `myapp/database-url` reads the raw secret string (no JSON parsing).
+- `arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host` uses a full ARN.
 
-### URI Format
+### URI format
 
 ```text
 aws-sm://myapp/api-keys#stripe_key
@@ -278,7 +278,7 @@ aws-sm://arn:aws:secretsmanager:eu-west-1:123456789:secret:myapp/config#db_host
 | `GetSecrets` | Calls `GetSecret` per unique secret name (cache deduplicates) |
 | `BuildEnvVars` | Returns direct value `EnvVar` entries (secrets are fetched at resolution time) |
 
-### Required IAM Permissions
+### Required IAM permissions
 
 ```json
 {
@@ -297,7 +297,7 @@ For cross-account access, the target account's role must have this policy and a 
 
 ## Using AWS Secrets Manager via External Secrets Operator
 
-The fastest path to AWS Secrets Manager integration is the [External Secrets Operator](https://external-secrets.io/) (ESO). ESO syncs secrets from AWS Secrets Manager into Kubernetes Secrets, which the built-in K8s backend already reads. No Osmia code changes needed.
+The quickest way to use AWS Secrets Manager is the [External Secrets Operator](https://external-secrets.io/) (ESO). ESO syncs secrets from AWS Secrets Manager into Kubernetes Secrets, which the built-in K8s backend already reads. No Osmia code changes are needed.
 
 ### Setup
 
@@ -364,9 +364,9 @@ config:
 
 This approach works today with no changes to Osmia.
 
-## Other Backends
+## Other backends
 
-The secrets plugin interface supports additional backends via gRPC plugins. The following are planned or can be implemented using the `SecretsBackend` protobuf service:
+The secrets plugin interface supports more backends through gRPC plugins. The following are planned or can be implemented using the `SecretsBackend` protobuf service:
 
 | Backend | Description | Authentication | Status |
 |---|---|---|---|
@@ -377,11 +377,11 @@ The secrets plugin interface supports additional backends via gRPC plugins. The 
 
 See [Writing a Plugin](writing-a-plugin.md) for a TypeScript example implementing the `SecretsBackend` interface.
 
-## Security Considerations
+## Security considerations
 
-Secrets handling is the most security-sensitive area of Osmia. Follow these principles:
+Secrets handling is the most security-sensitive area of Osmia. Follow these principles.
 
-### Never Log Secret Values
+### Never log secret values
 
 The controller and all plugins must never log secret values. Only log key names and metadata:
 
@@ -393,15 +393,15 @@ logger.Info("retrieved secret", "key", key)
 logger.Info("retrieved secret", "key", key, "value", value)
 ```
 
-### Prefer Kubernetes-Native References
+### Prefer Kubernetes-native references
 
-When possible, use `SecretKeyRef` in `BuildEnvVars` rather than direct values. This ensures:
+When possible, use `SecretKeyRef` in `BuildEnvVars` rather than direct values. This means:
 
 - Secrets are injected by the kubelet, never transiting the controller process.
 - Secrets are visible in the pod spec only as references, not plaintext.
 - Kubernetes RBAC controls who can read the underlying Secret objects.
 
-### Scope Secrets Narrowly
+### Scope secrets narrowly
 
 Each agent job should only have access to the secrets it needs:
 
@@ -411,26 +411,26 @@ Each agent job should only have access to the secrets it needs:
 
 Do not mount the controller's full secret set into agent pods.
 
-### Rotate Credentials Regularly
+### Rotate credentials regularly
 
 Use short-lived tokens where possible:
 
-| Credential Type | Rotation Strategy |
+| Credential type | Rotation strategy |
 |---|---|
 | GitHub App installation tokens | Automatic 1-hour expiry |
 | Vault dynamic secrets | TTL-based automatic rotation |
 | AWS STS temporary credentials | Via IRSA with automatic refresh |
 | Static API keys (Anthropic, OpenAI) | Manual rotation on a schedule |
 
-### Audit Secret Access
+### Audit secret access
 
-Log every secret access (key name only) for audit trails. This allows security teams to:
+Log every secret access (key name only) for audit trails. That lets security teams:
 
-- Track which secrets are accessed and by which components.
-- Detect unusual access patterns (e.g., a secret being read far more often than expected).
-- Investigate incidents by correlating secret access with job creation events.
+- See which secrets are accessed and by which components.
+- Spot unusual access patterns, such as a secret being read far more often than expected.
+- Investigate incidents by matching secret access to job creation events.
 
-## Protobuf Definition
+## Protobuf definition
 
 The complete protobuf service is defined in `proto/secrets.proto`:
 

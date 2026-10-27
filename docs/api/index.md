@@ -1,15 +1,15 @@
-# API Reference
+# API reference
 
-Osmia exposes two distinct API surfaces:
+Osmia has two API surfaces:
 
 | API | Description | Reference |
 |---|---|---|
-| **Webhook HTTP API** | An HTTP server that receives events from GitHub, GitLab, Shortcut, and Slack and feeds them into the controller as tickets. | [Webhook API](webhooks.md) |
-| **Plugin gRPC API** | A set of protobuf services that plugins implement to integrate with external ticketing systems, notification channels, secrets vaults, SCM providers, review tools, and execution engines. | [Plugin gRPC API](plugins.md) |
+| Webhook HTTP API | An HTTP server that receives events from GitHub, GitLab, Shortcut and Slack and passes them to the controller as tickets. | [Webhook API](webhooks.md) |
+| Plugin gRPC API | Protobuf services that plugins implement to connect ticketing systems, notification channels, secrets vaults, SCM providers, review tools and execution engines. | [Plugin gRPC API](plugins.md) |
 
 ## Webhook HTTP API
 
-The webhook server is an optional component. When enabled, it listens for
+The webhook server is optional. When enabled, it listens for
 inbound events and converts them into `Ticket` records that the controller
 reconciles. Each source has its own endpoint under `/webhooks/`:
 
@@ -27,10 +27,10 @@ full reference.
 
 ## Plugin gRPC API
 
-All plugin interfaces are defined as protobuf services in `proto/` — this is
+All plugin interfaces are defined as protobuf services in `proto/`, which is
 the source of truth. The generated Go stubs and client/server wrappers live in
-`pkg/plugin/`. SDKs for Go, Python, and TypeScript are in `sdk/` and can be
-regenerated at any time with:
+`pkg/plugin/`. SDKs for Go, Python and TypeScript are in `sdk/` and can be
+regenerated with:
 
 ```bash
 make sdk-gen

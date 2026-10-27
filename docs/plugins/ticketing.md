@@ -1,4 +1,4 @@
-# Ticketing Backend Interface
+# Ticketing backend interface
 
 !!! info "Interface version: 1"
     All ticketing backends must implement the `Handshake` RPC with `interface_version: 1`.
@@ -7,17 +7,17 @@
 
 The ticketing backend is the primary input source for Osmia. It polls an issue tracker for tickets ready to be processed, manages their lifecycle state transitions (in-progress, complete, failed), and posts progress comments. The controller calls `PollReadyTickets` on every reconciliation cycle to discover new work.
 
-## Interface Summary
+## Interface summary
 
 | Property | Value |
 |---|---|
 | Proto definition | `proto/ticketing.proto` |
 | Go interface | `pkg/plugin/ticketing/ticketing.go` |
 | Interface version | `1` |
-| Role in lifecycle | Entry point — the controller calls `PollReadyTickets` every poll interval |
-| Criticality | Critical — the controller cannot operate without a ticketing backend |
+| Role in lifecycle | Entry point: the controller calls `PollReadyTickets` every poll interval |
+| Criticality | Critical: the controller cannot operate without a ticketing backend |
 
-## Go Interface
+## Go interface
 
 ```go
 type Backend interface {
@@ -31,9 +31,9 @@ type Backend interface {
 }
 ```
 
-## Ticket Struct
+## Ticket struct
 
-The `Ticket` struct represents a unit of work from an external issue tracker:
+The `Ticket` struct is a unit of work from an external issue tracker:
 
 ```go
 type Ticket struct {
@@ -48,9 +48,9 @@ type Ticket struct {
 }
 ```
 
-The `Raw` field allows backends to pass through arbitrary metadata from the source system. Engines and other plugins can inspect `Raw` for backend-specific fields (e.g. Jira priority, custom fields).
+Backends can pass arbitrary metadata from the source system through the `Raw` field. Engines and other plugins can inspect `Raw` for backend-specific fields (e.g. Jira priority, custom fields).
 
-## RPC Methods
+## RPC methods
 
 ### Handshake
 
@@ -80,8 +80,8 @@ message PollReadyTicketsResponse {
 **Implementation guidance:**
 
 - Return only tickets in a "ready" state (e.g., open issues with the `osmia` label that have not already been picked up).
-- Respect `max_results` to avoid overwhelming the controller when there is a large backlog.
-- The controller handles deduplication via idempotency keys, but filtering already-in-progress tickets at the source is more efficient and reduces unnecessary API calls.
+- Respect `max_results` so a large backlog does not overwhelm the controller.
+- The controller handles deduplication via idempotency keys, but filtering out in-progress tickets at the source is cheaper and saves API calls.
 - Consider caching the last poll result to avoid redundant API requests when the source system has not changed.
 
 ### MarkInProgress
@@ -99,7 +99,7 @@ message MarkInProgressRequest {
 **Implementation guidance:**
 
 - Typically this adds a label (e.g., `in-progress`) or moves the ticket to a "doing" column/status.
-- This operation must be **idempotent** — calling it twice for the same ticket must not fail or produce side effects.
+- This operation must be idempotent: calling it twice for the same ticket must not fail or have side effects.
 - Remove the trigger label (e.g., `osmia`) if appropriate, so the ticket is not picked up again on the next poll.
 
 ### MarkComplete
@@ -129,7 +129,7 @@ The `TaskResult` message includes:
 
 **Implementation guidance:**
 
-- Post a summary comment with a link to the PR before closing the ticket, so humans can easily find the result.
+- Post a summary comment with a link to the PR before closing the ticket, so people can find the result.
 - The `merge_request_url` may be empty if the engine did not create a PR (e.g., the task was a linting fix committed directly, or the quality gate blocked PR creation).
 - Include cost and token usage in the comment if your organisation tracks AI spend.
 
@@ -148,13 +148,13 @@ message MarkFailedRequest {
 
 **Implementation guidance:**
 
-- Post the failure reason as a comment on the ticket so humans can investigate.
+- Post the failure reason as a comment on the ticket so people can investigate.
 - Consider adding a label (e.g., `osmia-failed`) rather than closing the ticket, so it can be retried manually by re-adding the trigger label.
-- Include enough context in the reason for a human to understand what went wrong without consulting controller logs.
+- Include enough context in the reason for a person to understand what went wrong without reading controller logs.
 
 ### AddComment
 
-Posts a progress comment on the ticket. Called during long-running tasks to provide visibility.
+Posts a progress comment on the ticket. Called during long-running tasks so people can see progress.
 
 ```protobuf
 rpc AddComment(AddCommentRequest) returns (AddCommentResponse);
@@ -167,9 +167,9 @@ message AddCommentRequest {
 
 **Implementation guidance:**
 
-- Keep comments concise and informative. Avoid flooding the ticket with low-value updates.
+- Keep comments short and useful. Do not flood the ticket with low-value updates.
 - Consider formatting comments with markdown (most issue trackers support it).
-- This method is fire-and-forget — errors are logged but do not block the controller.
+- This method is fire-and-forget. Errors are logged but do not block the controller.
 
 ## Built-in: GitHub Issues
 
@@ -191,7 +191,7 @@ config:
 
 ### Behaviour
 
-| Method | GitHub Action |
+| Method | GitHub action |
 |---|---|
 | `PollReadyTickets` | `GET /repos/{owner}/{repo}/issues?labels=osmia&state=open` |
 | `MarkInProgress` | Adds the `osmia-in-progress` label, removes the `osmia` label |
@@ -199,9 +199,9 @@ config:
 | `MarkFailed` | Posts a comment with the failure reason, adds the `osmia-failed` label |
 | `AddComment` | `POST /repos/{owner}/{repo}/issues/{number}/comments` |
 
-### Required Permissions
+### Required permissions
 
-The GitHub personal access token (or GitHub App installation token) needs the following scopes:
+The GitHub personal access token (or GitHub App installation token) needs these scopes:
 
 | Scope | Reason |
 |---|---|
@@ -209,7 +209,7 @@ The GitHub personal access token (or GitHub App installation token) needs the fo
 | `issues` | Read/write access to issues (for polling and lifecycle management) |
 | `pull_requests` | Create pull requests (used by the SCM backend, not the ticketing backend directly) |
 
-For production deployments, prefer **GitHub App installation tokens** (1-hour expiry, scoped to specific repositories) over long-lived personal access tokens.
+For production deployments, prefer GitHub App installation tokens (1-hour expiry, scoped to specific repositories) over long-lived personal access tokens.
 
 ## Built-in: Shortcut
 
@@ -231,11 +231,11 @@ config:
         - "osmia-failed"
 ```
 
-For workspaces with multiple workflows, use the `workflows` array instead of the flat state name keys (see the [Configuration Reference](../getting-started/configuration.md#shortcut)).
+For workspaces with multiple workflows, use the `workflows` array instead of the flat state name keys (see the [Configuration reference](../getting-started/configuration.md#shortcut)).
 
 ### Behaviour
 
-| Method | Shortcut Action |
+| Method | Shortcut action |
 |---|---|
 | `PollReadyTickets` | Lists stories in the configured trigger state, optionally filtered by assignee |
 | `MarkInProgress` | Moves the story to `in_progress_state_name` |
@@ -243,9 +243,9 @@ For workspaces with multiple workflows, use the `workflows` array instead of the
 | `MarkFailed` | Posts a comment with the failure reason; adds the `osmia-failed` label |
 | `AddComment` | `POST /api/v3/stories/{id}/comments` |
 
-### Required Permissions
+### Required permissions
 
-The Shortcut API token needs member-level access. No special scopes are required beyond what the default member role provides — the token can read and update stories and post comments.
+The Shortcut API token needs member-level access. No special scopes are required beyond what the default member role provides. The token can read and update stories and post comments.
 
 ---
 
@@ -272,7 +272,7 @@ config:
 
 ### Behaviour
 
-| Method | Linear Action |
+| Method | Linear action |
 |---|---|
 | `PollReadyTickets` | GraphQL `issues` query filtered by team, state name, and labels |
 | `MarkInProgress` | Adds the `in-progress` label to the issue |
@@ -280,15 +280,15 @@ config:
 | `MarkFailed` | Adds the `osmia-failed` label; posts a comment with the failure reason |
 | `AddComment` | `commentCreate` GraphQL mutation |
 
-### Required Permissions
+### Required permissions
 
-The Linear API key needs **read and write access** to issues and comments in the target team. Create a key under **Settings → API → Personal API keys**. For service accounts, use a team-scoped API key under **Settings → API → OAuth applications**.
+The Linear API key needs read and write access to issues and comments in the target team. Create a key under **Settings → API → Personal API keys**. For service accounts, use a team-scoped API key under **Settings → API → OAuth applications**.
 
 ---
 
 ## Built-in: Local
 
-The local backend (`pkg/plugin/ticketing/local/`) stores tickets in a local SQLite database and is intended for local development, demos, and evaluation runs where you want durable ticket lifecycle state without depending on GitHub, Linear, or Shortcut.
+The local backend (`pkg/plugin/ticketing/local/`) stores tickets in a local SQLite database and is meant for local development, demos and evaluation runs where you want durable ticket lifecycle state without depending on GitHub, Linear or Shortcut.
 
 ### Configuration
 
@@ -303,7 +303,7 @@ config:
 
 ### Behaviour
 
-| Method | Local Action |
+| Method | Local action |
 |---|---|
 | `PollReadyTickets` | Reads `To do` tickets whose last run is idle, ordered by creation time |
 | `MarkInProgress` | Moves the ticket to `In progress`, marks the current run as active, and records an audit event |
@@ -311,9 +311,9 @@ config:
 | `MarkFailed` | Persists the failure reason, adds a system comment, and records the last run as failed without changing the tracker-facing board column |
 | `AddComment` | Persists a durable comment on the ticket |
 
-### Local Admin Surface
+### Local admin surface
 
-When the local backend is enabled, Osmia serves an embedded frontend on a dedicated local UI listener. By default it binds to `http://127.0.0.1:8082/`; override this with the `-local-ui-addr` flag if needed. The UI can:
+When the local backend is enabled, Osmia serves an embedded frontend on its own local UI listener. By default it binds to `http://127.0.0.1:8082/`; override this with the `-local-ui-addr` flag if needed. The UI can:
 
 - list local tickets and inspect their state
 - present a generic local board with `To do`, `In progress`, and `Done` columns
@@ -328,9 +328,9 @@ The legacy `ticketing.config.task_file` key is no longer supported. Use `ticketi
 
 ---
 
-## Writing a Custom Ticketing Backend
+## Writing a custom ticketing backend
 
-See the [Writing a Plugin](writing-a-plugin.md) guide for complete examples in Go, Python, and TypeScript. Key design considerations:
+See the [Writing a Plugin](writing-a-plugin.md) guide for complete examples in Go, Python and TypeScript. Key design points:
 
 ### Idempotency
 
@@ -342,15 +342,15 @@ All state transition methods (`MarkInProgress`, `MarkComplete`, `MarkFailed`) mu
 
 ### Filtering
 
-Return only actionable tickets from `PollReadyTickets`. The more precise your filtering, the less work the controller does. For example:
+Return only actionable tickets from `PollReadyTickets`. The more precisely you filter, the less work the controller does. For example:
 
 - Exclude tickets that already have an `in-progress` or `osmia-failed` label.
 - Only return tickets from repositories in the allowed list (if your backend supports server-side filtering).
 - Limit results to recent tickets to avoid processing stale backlog.
 
-### Error Handling
+### Error handling
 
-Return appropriate gRPC error codes:
+Return the matching gRPC error code:
 
 | Code | When to use |
 |---|---|
@@ -363,7 +363,7 @@ Return appropriate gRPC error codes:
 
 Respect the `context.Context` deadline. All RPCs should complete within a reasonable timeout (10–30 seconds). If your ticket source has slow API responses, implement client-side timeouts and retries within the plugin.
 
-### Rate Limiting
+### Rate limiting
 
 If your ticket source has API rate limits (e.g., GitHub's 5,000 requests/hour), implement backoff in the plugin rather than relying on the controller. Consider:
 
@@ -371,7 +371,7 @@ If your ticket source has API rate limits (e.g., GitHub's 5,000 requests/hour), 
 - Exponential backoff on rate-limit responses (HTTP 429).
 - Tracking remaining rate limit quota via response headers.
 
-## Protobuf Definition
+## Protobuf definition
 
 The complete protobuf service is defined in `proto/ticketing.proto`:
 

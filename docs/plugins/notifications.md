@@ -1,13 +1,13 @@
-# Notification Channel Interface
+# Notification channel interface
 
 !!! info "Non-critical plugin"
     Notification failures are logged but do not block the controller. The reconciliation loop continues even if all notification channels are down.
 
 ## Overview
 
-Notification channels send fire-and-forget messages to external systems (Slack, Microsoft Teams, Discord, email, etc.). They are used to inform humans about agent activity — when tasks start, complete, or fail. Notifications are one-way; for interactive human-in-the-loop flows (approvals, questions), see the `HumanApprovalBackend` interface.
+Notification channels send fire-and-forget messages to external systems (Slack, Microsoft Teams, Discord, email, etc.). They tell people about agent activity: when tasks start, complete or fail. Notifications are one-way. For interactive flows (approvals, questions), see the `HumanApprovalBackend` interface.
 
-## Interface Summary
+## Interface summary
 
 | Property | Value |
 |---|---|
@@ -15,9 +15,9 @@ Notification channels send fire-and-forget messages to external systems (Slack, 
 | Go interface | `pkg/plugin/notifications/notifications.go` |
 | Interface version | `1` |
 | Role in lifecycle | Called at task start, completion, and for ad-hoc progress messages |
-| Criticality | Non-critical — notification failures are logged but do not block the controller |
+| Criticality | Non-critical: notification failures are logged but do not block the controller |
 
-## Go Interface
+## Go interface
 
 ```go
 type Channel interface {
@@ -40,7 +40,7 @@ type Channel interface {
 }
 ```
 
-## RPC Methods
+## RPC methods
 
 ### Handshake
 
@@ -52,7 +52,7 @@ rpc Handshake(HandshakeRequest) returns (HandshakeResponse);
 
 ### Notify
 
-Sends a free-form notification message associated with a ticket. Used for progress updates, warnings, and ad-hoc messages during task execution.
+Sends a free-form notification message associated with a ticket. Used for progress updates, warnings and ad-hoc messages during task execution.
 
 ```protobuf
 rpc Notify(NotifyRequest) returns (NotifyResponse);
@@ -85,7 +85,7 @@ message NotifyStartRequest {
 
 **Implementation guidance:**
 
-- Include the engine name so humans know which AI tool is working.
+- Include the engine name so people know which AI tool is working.
 - Link to the original ticket for easy navigation.
 
 ### NotifyComplete
@@ -104,14 +104,14 @@ message NotifyCompleteRequest {
 
 **Implementation guidance:**
 
-- Differentiate success from failure visually (e.g., green vs red colour, different icons).
+- Make success and failure look different (for example green and red, or different icons).
 - Include the PR/MR link when the task succeeded.
 - Include the failure reason when the task failed.
 - Optionally include cost and token usage for visibility.
 
-## Error Handling
+## Error handling
 
-Notification channels are **non-critical**. The controller's reconciliation loop does not fail or pause if a notification cannot be delivered:
+Notification channels are non-critical. The controller's reconciliation loop does not fail or pause if a notification cannot be delivered:
 
 ```go
 for _, n := range r.notifiers {
@@ -126,9 +126,9 @@ for _, n := range r.notifiers {
 
 Errors are logged and tracked via the `osmia_plugin_errors_total` Prometheus metric with the plugin name as a label. If a notification channel is persistently failing, the plugin health checker will mark it as unhealthy, but the controller continues operating.
 
-## Multiple Channels
+## Multiple channels
 
-Osmia supports multiple notification channels simultaneously. All configured channels receive all events:
+Osmia supports several notification channels at once. Every configured channel receives every event:
 
 ```yaml
 config:
@@ -145,7 +145,7 @@ config:
 
 ## Built-in: Slack
 
-The Slack notification channel sends formatted messages using the Slack Web API with Block Kit formatting.
+The Slack notification channel sends messages through the Slack Web API, formatted with Block Kit.
 
 ### Configuration
 
@@ -159,16 +159,16 @@ config:
           token_secret: "osmia-slack-token"
 ```
 
-### Message Format
+### Message format
 
 | Event | Slack Message |
 |---|---|
 | `NotifyStart` | Agent started working on: **{title}** using `{engine}` |
-| `NotifyComplete` (success) | Completed **{title}** — [View PR](`{url}`). Cost: ${cost}. Summary: {summary} |
+| `NotifyComplete` (success) | Completed **{title}**: [View PR](`{url}`). Cost: ${cost}. Summary: {summary} |
 | `NotifyComplete` (failure) | Failed on **{title}**: {summary} |
 | `Notify` | Free-form text with ticket context |
 
-### Required Setup
+### Required setup
 
 1. Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps).
 2. Add the `chat:write` bot scope.
@@ -176,11 +176,11 @@ config:
 4. Copy the bot token (`xoxb-...`) into a Kubernetes Secret.
 5. Invite the bot to the target channel.
 
-> **Security note:** Store the bot token in a Kubernetes Secret and reference it via the `token_secret` field rather than placing it directly in `values.yaml`.
+> Security note: store the bot token in a Kubernetes Secret and reference it via the `token_secret` field rather than placing it directly in `values.yaml`.
 
-## Writing a Custom Notification Channel
+## Writing a custom notification channel
 
-When implementing a custom notification channel, follow these guidelines:
+When you implement a custom notification channel, follow these guidelines.
 
 ### Speed
 
@@ -190,7 +190,7 @@ Notification methods should be fast (< 5 seconds). The controller calls notifica
 - Using webhooks (HTTP POST) rather than polling-based APIs.
 - Setting aggressive HTTP client timeouts.
 
-### No Retries from the Controller
+### No retries from the controller
 
 The controller does not retry failed notifications. If delivery reliability is critical, implement retry logic within your plugin:
 
@@ -209,18 +209,18 @@ func (n *MyNotifier) Notify(ctx context.Context, message string, ticket ticketin
 }
 ```
 
-### Rich Formatting
+### Rich formatting
 
-Use the ticket and result data to build informative messages. Good notifications include:
+Use the ticket and result data to build useful messages. A good notification includes:
 
-- **Ticket title** and link to the original issue.
-- **Engine name** (so humans know which AI tool is working).
-- **PR/MR link** on success.
-- **Failure reason** on failure.
-- **Cost estimate** and **duration** for spend tracking.
-- **Token usage** for capacity planning.
+- The ticket title and a link to the original issue.
+- The engine name, so people know which AI tool is working.
+- The PR/MR link on success.
+- The failure reason on failure.
+- Cost estimate and duration, for spend tracking.
+- Token usage, for capacity planning.
 
-### Rate Limiting
+### Rate limiting
 
 If your notification target has rate limits (e.g., Slack: 1 message per second per channel), implement throttling in the plugin. Consider using a rate limiter:
 
@@ -229,11 +229,11 @@ limiter := rate.NewLimiter(rate.Every(time.Second), 1)
 limiter.Wait(ctx) // blocks until a slot is available
 ```
 
-### Context Propagation
+### Context propagation
 
 Respect the `context.Context` for cancellation. If the controller is shutting down, notification calls should return promptly rather than blocking on slow network requests.
 
-## Protobuf Definition
+## Protobuf definition
 
 The complete protobuf service is defined in `proto/notifications.proto`:
 

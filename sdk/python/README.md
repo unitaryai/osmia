@@ -1,7 +1,7 @@
 # Osmia Python Plugin SDK
 
 Use this SDK to build external Osmia plugins in Python. Plugins run as
-out-of-process gRPC servers; the Osmia controller loads them at start-up
+out-of-process gRPC servers, and the Osmia controller loads them at start-up
 via the hashicorp/go-plugin subprocess transport.
 
 ## Prerequisites
@@ -13,7 +13,7 @@ via the hashicorp/go-plugin subprocess transport.
 
 ## Installation
 
-> **Note:** The package is not yet published to PyPI — this is a scaffold.
+> **Note:** The package is not yet published to PyPI. This is a scaffold.
 > Install from source for now:
 
 ```bash
@@ -28,7 +28,7 @@ pip install osmia-plugin-sdk
 
 ## Generating protobuf stubs
 
-Run the following from the repository root. This regenerates all Python
+Run this from the repository root. It regenerates all Python
 (and TypeScript) stubs from the canonical `proto/` definitions:
 
 ```bash
@@ -36,15 +36,15 @@ make sdk-gen
 ```
 
 Generated files are written to `sdk/python/src/osmia/proto/`. Do not
-edit them by hand — they are overwritten on every `make sdk-gen` run.
+edit them by hand; every `make sdk-gen` run overwrites them.
 
-## Quick-start — ticketing plugin
+## Quick start: ticketing plugin
 
 ```python
 import grpc
 from concurrent import futures
 
-# Generated stubs — run `make sdk-gen` first.
+# Generated stubs. Run `make sdk-gen` first.
 from osmia.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
 
 INTERFACE_VERSION = 1

@@ -51,6 +51,36 @@ type TrackedPR struct {
 	ProcessedIDs map[string]bool
 	// RegisteredAt is when this PR was first registered for monitoring.
 	RegisteredAt time.Time
+	// IgnoreBefore, when set, marks every comment created before it as
+	// already handled. It is set only for a PR restored after a controller
+	// restart, because ProcessedIDs lives in memory and is lost with it;
+	// without this every comment on the PR would be classified afresh and
+	// ones already addressed would spawn duplicate follow-up jobs.
+	IgnoreBefore time.Time
+}
+
+// RestoredPR describes a pull/merge request to resume monitoring after a
+// controller restart, reconstructed from persisted TaskRuns rather than from
+// a live task completion.
+type RestoredPR struct {
+	// PRURL is the HTML URL of the pull/merge request.
+	PRURL string
+	// TicketID is the originating ticket identifier.
+	TicketID string
+	// OriginalTitle is the ticket title, if it was recorded.
+	OriginalTitle string
+	// OriginalDescription is the ticket description, if it was recorded.
+	OriginalDescription string
+	// RepoURL is the repository URL for the PR.
+	RepoURL string
+	// FollowUpCount is how many follow-up jobs have already run for this PR,
+	// so a restart does not refill the MaxFollowUpJobs budget.
+	FollowUpCount int
+	// HandledUntil is the time up to which comments on the PR are known to
+	// have been seen: the later of the originating task's completion and the
+	// creation of its most recent follow-up job. Comments created before it
+	// are not acted on again.
+	HandledUntil time.Time
 }
 
 // FollowUpRequest is emitted when an actionable comment is found on a

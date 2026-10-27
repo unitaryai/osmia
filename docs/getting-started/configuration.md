@@ -623,6 +623,12 @@ Bots like CodeRabbit post both summary comments (general MR notes) and inline di
 
 For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Add `"^group_\\d+_bot_"` to catch all of them.
 
+### Restarts
+
+The list of PRs/MRs Osmia is watching is rebuilt from the TaskRun store when the controller starts, so a restart, or the cluster autoscaler moving the controller to another node, does not stop it following up on PRs it opened. Comments posted before the restart that were already handled are not acted on again, and each PR's follow-up budget carries over. PRs opened more than 30 days ago are not restored.
+
+This needs a persistent `taskrun_store` (for example `backend: sqlite`). With the default in-memory store there is nothing to rebuild from, and a restart forgets every watched PR.
+
 ### Osmia's own comments
 
 Osmia never acts on a comment its own SCM account posted, inline or not. At startup it asks GitHub or GitLab which account its token belongs to (`GET /user`) and ignores that account's comments. This matters because a follow-up job ends by posting a summary such as "Addressed. Fixed the 2 pyright errors", which is full of words the classifier treats as actionable; without the check, each follow-up would trigger the next until `max_follow_up_jobs` ran out.

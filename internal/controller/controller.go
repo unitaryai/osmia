@@ -491,6 +491,10 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 		go r.wd.Start(ctx, r.runWatchdogChecks)
 	}
 
+	// Resume watching the PRs/MRs that were being monitored before this
+	// process started; that list is otherwise held only in memory.
+	r.restoreReviewTracking(ctx)
+
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
@@ -1088,20 +1092,7 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 	}
 
 	// Register the opened PR/MR for review comment monitoring.
-	if r.reviewPoller != nil && result.MergeRequestURL != "" {
-		r.mu.RLock()
-		cachedT, hasCachedT := r.ticketCache[tr.TicketID]
-		r.mu.RUnlock()
-		if hasCachedT {
-			r.reviewPoller.Register(
-				result.MergeRequestURL,
-				tr.TicketID,
-				cachedT.Title,
-				cachedT.Description,
-				cachedT.RepoURL,
-			)
-		}
-	}
+	r.registerForReview(tr, result.MergeRequestURL)
 
 	// Record outcome for calibration, routing, and cost estimation.
 	r.recordTaskOutcome(ctx, tr, true)
@@ -1955,20 +1946,7 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 		go r.extractMemory(ctx, tr)
 	}
 
-	if r.reviewPoller != nil && result.MergeRequestURL != "" {
-		r.mu.RLock()
-		cachedT, hasCachedT := r.ticketCache[tr.TicketID]
-		r.mu.RUnlock()
-		if hasCachedT {
-			r.reviewPoller.Register(
-				result.MergeRequestURL,
-				tr.TicketID,
-				cachedT.Title,
-				cachedT.Description,
-				cachedT.RepoURL,
-			)
-		}
-	}
+	r.registerForReview(tr, result.MergeRequestURL)
 
 	r.recordTaskOutcome(ctx, tr, true)
 	r.cleanupHeartbeat(tr.ID)

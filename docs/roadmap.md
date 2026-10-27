@@ -173,9 +173,18 @@ per tenant) is not implemented.
 
 **Priority:** High
 **Scope:** Large (new service)
-**Dependencies:** Real-time streaming (done), TaskRun store (done)
+**Dependencies:** Real-time streaming (done), TaskRun store (done); item 30
+for viewing transcripts after a run ends
+**Needed for:** Application Build Pilot (long builds need a way to see where
+a run is and why it failed without reading controller logs)
 
 A web dashboard for real-time agent observability and control.
+
+Today the controller serves only `/metrics`, `/healthz` and `/readyz`. Seeing
+a run's state, why it failed, or whether a PR is still being watched means
+reading controller logs and querying the TaskRun store by hand. The local
+development UI (`internal/localui`) has a ticket requeue action that may be a
+useful starting point for the control endpoints.
 
 **Approach options:**
 - **Grafana-based** — Prometheus metrics + Loki logs + custom panels. Lowest effort,
@@ -191,6 +200,38 @@ A web dashboard for real-time agent observability and control.
 - [ ] Cost tracking dashboard (per-task, per-engine, daily/weekly aggregates)
 - [ ] Manual controls: approve, cancel, retry
 - [ ] Engine health overview
+
+**Investigating failures:**
+- [ ] Per-run detail page: failure reason, engine attempts, Kubernetes Job and
+  pod events, exit code, cost and duration
+- [ ] Transcript viewer for live and finished runs (finished runs need item 30)
+- [ ] Link from a run to its ticket, its PR/MR, and any follow-up runs it spawned
+
+**Review follow-ups:**
+- [ ] List the PRs/MRs the review poller is watching, with follow-up count and
+  when each was last checked
+- [ ] "Check now" action: poll one PR/MR for new comments immediately instead
+  of waiting for the next poll interval
+- [ ] Re-watch action: start watching a PR/MR again after it dropped out (for
+  example past the restore window), from its originating TaskRun
+
+**Stuck and orphaned runs:**
+- [ ] Flag TaskRuns in `Running` whose Job no longer exists, and offer to mark
+  them failed and release the ticket. A manual bridge until Orphaned TaskRun
+  Recovery is automatic
+
+**Long-running builds:**
+- [ ] Show the current stage of a multi-stage run and whether it is waiting
+  on a person
+
+**Access control:**
+- [ ] The dashboard can start jobs and shows ticket and transcript content, so
+  it needs authentication (OIDC) and at least a read-only and an operator
+  role. It must not be exposed unauthenticated, even on an internal network
+- [ ] Every control action is audit-logged with who did it
+
+Interactive actions (check now, re-watch, cancel, retry) rule out a
+Grafana-only dashboard; they need at least the hybrid approach.
 
 **If custom UI:**
 - [ ] `cmd/osmia-dashboard/` — separate binary or embedded in controller
@@ -256,7 +297,7 @@ status.
 
 ### Application Build Pilot
 
-Items 27 to 30 below, plus item 26 and Orphaned TaskRun Recovery, are what
+Items 27 to 30 below, plus items 10 and 26 and Orphaned TaskRun Recovery, are what
 Osmia needs to run a multi-stage application build: a skill set that takes a
 written process description, builds the workflow code in stages, tests it
 against a development environment, and opens a draft MR for a person to review.
@@ -272,7 +313,11 @@ separate, later piece of work.
 
 **Pilot is done when:** one build stage runs from trigger to a draft MR with a
 passing pipeline, using a per-task plugin bundle, with its transcript and
-outputs kept in object storage, and survives a controller restart mid-run.
+outputs kept in object storage, survives a controller restart mid-run, and
+can be followed and investigated from the dashboard (item 10) without reading
+controller logs. The pilot needs the run list, the per-run detail page, the
+review follow-up actions and access control from item 10; the cost views and
+engine health can follow later.
 
 ---
 

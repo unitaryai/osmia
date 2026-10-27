@@ -32,7 +32,7 @@ func TestPoller_Restore(t *testing.T) {
 			commentAt("before", handled.Add(-time.Minute)),
 			commentAt("after", handled.Add(9*time.Minute)),
 		}}
-		p, pr := restoredPoller(t, backend, RestoredPR{PRURL: restoredURL, TicketID: "48446", HandledUntil: handled})
+		p, pr := restoredPoller(t, backend, RestoredPR{PRURL: restoredURL, TicketID: "T-1", HandledUntil: handled})
 
 		p.pollPR(context.Background(), restoredURL, pr)
 
@@ -75,7 +75,7 @@ func TestPoller_Restore(t *testing.T) {
 
 	t.Run("does not overwrite a PR registered live during startup", func(t *testing.T) {
 		p := New(baseCfg(), requiresActionClassifier(), testLogger())
-		p.Register(restoredURL, "48446", "live title", "", "")
+		p.Register(restoredURL, "T-1", "live title", "", "")
 
 		p.Restore(RestoredPR{PRURL: restoredURL, OriginalTitle: "restored title", FollowUpCount: 2, HandledUntil: handled})
 
@@ -88,7 +88,7 @@ func TestPoller_Restore(t *testing.T) {
 	t.Run("a live-registered PR never filters by time", func(t *testing.T) {
 		backend := &fakeSCMBackend{comments: []scm.ReviewComment{commentAt("old", handled.Add(-24*time.Hour))}}
 		p := New(baseCfg(), requiresActionClassifier(), testLogger()).WithSCMBackend(backend)
-		p.Register(restoredURL, "48446", "", "", "")
+		p.Register(restoredURL, "T-1", "", "", "")
 
 		p.pollPR(context.Background(), restoredURL, p.tracked[restoredURL])
 

@@ -259,6 +259,10 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 		// one comment is cheaper than replaying a whole thread into duplicate
 		// follow-up jobs.
 		if !pr.IgnoreBefore.IsZero() && comment.Created.Before(pr.IgnoreBefore) {
+			if comment.Created.IsZero() {
+				p.logger.Warn("skipping untimed comment on a PR restored after restart",
+					"pr_url", prURL, "comment_id", comment.ID)
+			}
 			p.mu.Lock()
 			pr.ProcessedIDs[comment.ID] = true
 			p.mu.Unlock()

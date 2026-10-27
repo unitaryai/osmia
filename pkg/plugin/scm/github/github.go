@@ -273,7 +273,14 @@ func (b *GitHubSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 	}
 
 	for _, rc := range reviewComments {
-		created, _ := time.Parse(time.RFC3339, rc.CreatedAt)
+		created, err := time.Parse(time.RFC3339, rc.CreatedAt)
+		if err != nil && rc.CreatedAt != "" {
+			// Not fatal: failing the whole listing would hide every comment on
+			// the PR. Logged because a PR restored after a restart treats an
+			// untimed comment as already handled and skips it.
+			b.logger.Warn("could not parse review comment timestamp",
+				"comment_id", rc.ID, "created_at", rc.CreatedAt, "error", err)
+		}
 		threadID := strconv.Itoa(rc.ID)
 		if rc.InReplyToID != nil {
 			threadID = strconv.Itoa(*rc.InReplyToID)
@@ -303,7 +310,14 @@ func (b *GitHubSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 	}
 
 	for _, ic := range issueComments {
-		created, _ := time.Parse(time.RFC3339, ic.CreatedAt)
+		created, err := time.Parse(time.RFC3339, ic.CreatedAt)
+		if err != nil && ic.CreatedAt != "" {
+			// Not fatal: failing the whole listing would hide every comment on
+			// the PR. Logged because a PR restored after a restart treats an
+			// untimed comment as already handled and skips it.
+			b.logger.Warn("could not parse review comment timestamp",
+				"comment_id", ic.ID, "created_at", ic.CreatedAt, "error", err)
+		}
 		id := strconv.Itoa(ic.ID)
 		all = append(all, scm.ReviewComment{
 			ID:       id,

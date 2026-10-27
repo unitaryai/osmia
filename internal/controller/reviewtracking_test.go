@@ -15,15 +15,15 @@ import (
 )
 
 const (
-	mr256 = "https://gitlab.com/unitaryai/customers/gotyoucovered/gotyoucovered-wo/-/merge_requests/256"
-	repo  = "https://gitlab.com/unitaryai/customers/gotyoucovered/gotyoucovered-wo"
+	mr256 = "https://gitlab.com/acme/widgets/-/merge_requests/256"
+	repo  = "https://gitlab.com/acme/widgets"
 )
 
 var restoreNow = time.Date(2026, 10, 27, 11, 16, 0, 0, time.UTC)
 
 // succeeded builds a persisted, succeeded originating TaskRun that opened prURL.
 func succeeded(id, prURL string, finished time.Time) *taskrun.TaskRun {
-	tr := taskrun.New(id, id, "48446", "claude-code")
+	tr := taskrun.New(id, id, "T-1", "claude-code")
 	tr.State = taskrun.StateSucceeded
 	tr.CreatedAt = finished.Add(-10 * time.Minute)
 	tr.UpdatedAt = finished
@@ -33,7 +33,7 @@ func succeeded(id, prURL string, finished time.Time) *taskrun.TaskRun {
 
 // followUp builds a review follow-up TaskRun for prURL created at created.
 func followUp(id, prURL string, created time.Time) *taskrun.TaskRun {
-	tr := taskrun.New(id, id, "48446", "claude-code")
+	tr := taskrun.New(id, id, "T-1", "claude-code")
 	tr.State = taskrun.StateSucceeded
 	tr.CreatedAt = created
 	tr.UpdatedAt = created.Add(5 * time.Minute)
@@ -55,7 +55,7 @@ func TestReviewTrackingFromTaskRuns(t *testing.T) {
 		require.Len(t, got, 1)
 		assert.Equal(t, reviewpoller.RestoredPR{
 			PRURL:               mr256,
-			TicketID:            "48446",
+			TicketID:            "T-1",
 			OriginalTitle:       "UC2: fail a policy",
 			OriginalDescription: "## Problem",
 			RepoURL:             repo,
@@ -135,13 +135,13 @@ func TestRepoURLFromPRURL(t *testing.T) {
 	}
 }
 
-// TestRestoreReviewTracking_SurvivesRestart is the scenario from
-// gotyoucovered-wo!256: a task opens an MR and finishes, the controller is
-// replaced, and the new process must still be watching the MR.
+// TestRestoreReviewTracking_SurvivesRestart covers the motivating case: a
+// task opens an MR and finishes, the controller is replaced (for example by
+// an autoscaler), and the new process must still be watching the MR.
 func TestRestoreReviewTracking_SurvivesRestart(t *testing.T) {
 	store := taskrun.NewMemoryStore()
 	ctx := context.Background()
-	require.NoError(t, store.Save(ctx, succeeded("tr-48446", mr256, time.Now().Add(-20*time.Minute))))
+	require.NoError(t, store.Save(ctx, succeeded("tr-t1", mr256, time.Now().Add(-20*time.Minute))))
 
 	poller := reviewpoller.New(config.ReviewResponseConfig{Enabled: true}, nil, testLogger())
 	r := NewReconciler(&config.Config{}, testLogger(),
@@ -163,7 +163,7 @@ func TestRegisterForReview_FallsBackToTaskRun(t *testing.T) {
 	poller := reviewpoller.New(config.ReviewResponseConfig{Enabled: true}, nil, testLogger())
 	r := NewReconciler(&config.Config{}, testLogger(), WithReviewPoller(poller))
 
-	tr := succeeded("tr-48446", mr256, time.Now())
+	tr := succeeded("tr-t1", mr256, time.Now())
 	tr.TicketTitle = "UC2: fail a policy"
 	tr.RepoURL = repo
 

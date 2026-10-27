@@ -513,7 +513,7 @@ taskrun_store:
 ```
 
 !!! note "Current limitation"
-    Only the `memory` backend is currently implemented. The `sqlite` and `postgres` backends are planned but not yet available.
+    `memory` and `sqlite` are implemented. `postgres` is planned but not yet available, and the controller refuses to start if it is configured. Use `sqlite` wherever state should survive a restart, including the review-monitoring restore described under [Restarts](#restarts).
 
 ## Tenancy
 

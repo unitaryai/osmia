@@ -2,9 +2,9 @@
 review poller held its list of watched PRs/MRs only in memory, so any
 restart, including the cluster autoscaler moving the controller to a cheaper
 node, made Osmia forget every PR it had opened; review comments posted
-afterwards were never acted on. On dev-1 this happened to
-gotyoucovered-wo!256 twenty minutes after it was opened, with five review
-comments waiting. The list is now rebuilt from the TaskRun store at startup.
+afterwards were never acted on. In one case the controller was moved twenty
+minutes after opening an MR, with five review comments waiting on it. The
+list is now rebuilt from the TaskRun store at startup.
 Comments that were already handled before the restart are not replayed, and
 each PR's follow-up budget carries over. TaskRuns now also record the
 ticket's title, description and repository, which fixes a related gap: a job

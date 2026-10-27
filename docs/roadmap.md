@@ -91,6 +91,8 @@ rejection but does not translate profile constraints into agent pod configuratio
 **Priority:** High
 **Scope:** Medium
 **Dependencies:** None
+**Needed for:** Application Build Pilot (long runs are the most exposed to
+controller restarts)
 
 When a controller restarts mid-job (e.g. due to a pod eviction or ArgoCD
 rollout), in-memory task run state is lost. If the job's worker pod also
@@ -249,6 +251,118 @@ status.
   failure as not fixable before spending a job on it?
 - Tracked MRs live in memory and are lost on controller restart; this inherits
   that limitation, and makes it more costly.
+
+---
+
+### Application Build Pilot
+
+Items 27 to 30 below, plus item 26 and Orphaned TaskRun Recovery, are what
+Osmia needs to run a multi-stage application build: a skill set that takes a
+written process description, builds the workflow code in stages, tests it
+against a development environment, and opens a draft MR for a person to review.
+That work is longer-running, needs more tools, and produces more output than a
+ticket fix, which is where the gaps below come from.
+
+The pilot is deliberately limited to builds with no data residency
+requirement. Builds whose data must stay in a given region need a regional
+deployment of the whole of Osmia, not only regional model routing, because
+both the agent pod and the controller (via the agent stream and transcripts)
+handle data pulled from the systems being built against. That is tracked as a
+separate, later piece of work.
+
+**Pilot is done when:** one build stage runs from trigger to a draft MR with a
+passing pipeline, using a per-task plugin bundle, with its transcript and
+outputs kept in object storage, and survives a controller restart mid-run.
+
+---
+
+### 27. Per-Task Plugin Bundles
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** None
+
+Skills and sub-agents (item 23) are configured once on the engine, so every
+task gets the same set. Only incident triage overrides them per flow.
+`TaskProfileConfig.MCPServers` is parsed but nothing merges it into the
+workspace MCP config. A build needs a different set of skills, sub-agents, MCP
+servers and hooks per task, and per stage within a task.
+
+- [ ] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
+  packaged together, in the layout Claude Code's `--plugin-dir` expects
+- [ ] Select bundles per task, from the ticket (label or field) or the task
+  profile, merged on top of the engine defaults
+- [ ] Deliver bundles to the pod from a ConfigMap or object storage, not as
+  environment variables, so size is not bounded by the env var limit
+- [ ] Wire `TaskProfileConfig.MCPServers` through the same path
+- [ ] Validate bundle contents at load time and fail the launch on an unknown
+  bundle name, rather than starting the agent without it
+
+---
+
+### 28. Build-Tools Engine Image
+
+**Priority:** High
+**Scope:** Small
+**Dependencies:** None
+
+The Claude Code engine image has git, `glab`, `gh` and Claude Code. Build work
+also needs Python tooling (`uv`), a headless browser (Playwright and Chromium),
+`ffmpeg`, `copier`, `kubectl` and a workflow-engine CLI. Adding all of these to
+the default image would grow it and its attack surface for every task.
+
+- [ ] Publish a separate `engine-claude-code-build` image variant built on the
+  default one, with its own weekly rebuild and Renovate coverage
+- [ ] Select the image per task profile, so only build tasks pull it
+- [ ] Confirm Chromium runs under the existing securityContext
+  (non-root, read-only root filesystem, all capabilities dropped), with a
+  writable `emptyDir` for its profile and cache
+- [ ] Document that Docker inside the agent pod is not supported; builds
+  test against a development cluster instead
+
+---
+
+### 29. Workload Identity for Agent Pods
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** Task-Scoped Secret References (complete)
+
+Build tasks call cloud and deployment APIs. Today the only way to give an
+agent that access is a long-lived static credential in a secret. Short-lived,
+narrowly scoped identities are safer and match the workload identity
+preference in `CLAUDE.md`.
+
+- [ ] Per-task-profile Kubernetes ServiceAccount, so IRSA (AWS) or Workload
+  Identity Federation (GCP) can grant each kind of task its own role
+- [ ] Projected service account tokens for OIDC exchange with other internal
+  services
+- [ ] Default agent ServiceAccount keeps no cloud permissions; a task gets
+  access only through a profile that names an identity
+- [ ] Record which identity each TaskRun ran as, for audit
+
+---
+
+### 30. Remote Transcript and Artifact Storage
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** Item 21 (Transcript Storage, complete)
+
+Item 21 added the `TranscriptSink` interface, but the only sink writes to the
+controller's local filesystem, and the S3 session store is a stub. A build's
+transcript and outputs (generated files, test reports, screenshots) are lost
+when the pod ends or the controller moves.
+
+- [ ] S3 `TranscriptSink`, with bucket and region set in config
+- [ ] Artifact upload from the agent pod: anything written to an outputs
+  directory is uploaded at the end of the run and listed in `result.json`
+- [ ] Implement the S3 session store, so a resumed task can start on a
+  different node
+- [ ] Object keys scoped by tenant and TaskRun ID; lifecycle rules for expiry
+  documented in the Helm chart
+- [ ] Use workload identity (item 29) for the controller and pod, not static
+  keys
 
 ---
 
@@ -552,6 +666,10 @@ live controller and `main.go`:
 |---|---------|----------|--------|
 | 10 | Agent Dashboard | High | Not started |
 | 26 | React to Failed CI Pipelines | High | Not started |
+| 27 | Per-Task Plugin Bundles | High | Not started |
+| 28 | Build-Tools Engine Image | High | Not started |
+| 29 | Workload Identity for Agent Pods | High | Not started |
+| 30 | Remote Transcript and Artifact Storage | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | 🚧 In progress |

@@ -1,22 +1,22 @@
-# Real-Time Agent Coaching (PRM)
+# Real-time agent coaching (PRM)
 
-The **Process Reward Model** (PRM) is Osmia's real-time quality assurance system. While an AI agent works on a task, the PRM continuously evaluates its behaviour by analysing the NDJSON event stream — scoring each step, detecting trajectory patterns, and intervening before small problems become expensive failures.
+The Process Reward Model (PRM) scores an agent's work while it runs. It reads the NDJSON event stream, scores each step, detects trajectory patterns, and intervenes before small problems become expensive failures.
 
-## Why PRM Matters
+## Why PRM matters
 
-Without real-time coaching, an AI agent can spend 30 minutes and $15 going in circles before anyone notices. The PRM catches unproductive patterns within seconds and intervenes with targeted guidance — turning a failed $15 run into a successful $5 run.
+Without real-time coaching, an agent can spend 30 minutes and $15 going in circles before anyone notices. The PRM catches unproductive patterns within seconds and writes targeted guidance, which can turn a failed $15 run into a successful $5 run.
 
-**Key benefits:**
+What it gives you:
 
-- **Early detection** — identifies repetitive loops, stalls, and declining productivity before they escalate
-- **Targeted guidance** — produces specific hints rather than generic "try again" instructions
-- **Cost savings** — stops wasteful agent behaviour early, reducing token spend by up to 60% on failing tasks
-- **No agent modification** — operates purely on observable telemetry; works with any engine that produces streaming events
-- **Configurable thresholds** — tune sensitivity per-environment so the PRM nudges when you want it to
+- Early detection of repetitive loops, stalls and declining productivity.
+- Specific hints rather than a generic "try again".
+- Lower token spend on failing tasks, by up to 60%.
+- No change to the agent: it works only on observable telemetry, with any engine that produces streaming events.
+- Configurable thresholds, so you can tune sensitivity per environment.
 
-## How It Works
+## How it works
 
-The PRM operates as a pipeline that runs alongside the agent's event stream:
+The PRM is a pipeline that runs alongside the agent's event stream:
 
 ```mermaid
 graph LR
@@ -30,42 +30,42 @@ graph LR
     F -->|"Score 1-3"| I["Escalate\n(watchdog)"]
 ```
 
-### 1. Event Collection
+### 1. Event collection
 
-When streaming is enabled, Claude Code emits an NDJSON event stream containing tool calls, content deltas, cost updates, and results. The PRM's event processor is wired into the `agentstream.Forwarder` via `WithEventProcessor`, so it receives every event in real-time without buffering the entire stream.
+When streaming is enabled, Claude Code emits an NDJSON event stream containing tool calls, content deltas, cost updates, and results. The PRM's event processor is wired into the `agentstream.Forwarder` via `WithEventProcessor`, so it receives every event in real time without buffering the whole stream.
 
 ### 2. Scoring
 
 The scorer evaluates a rolling window of recent tool calls. It considers:
 
-| Signal | Effect on Score |
+| Signal | Effect on score |
 |---|---|
-| **Diverse tool usage** (Read → Edit → Bash) | Increases score (productive pattern) |
-| **Repetitive tool calls** (Bash → Bash → Bash) | Decreases score (likely looping) |
-| **File progress** (new files read/edited) | Increases score |
-| **No progress** (same files repeatedly) | Decreases score |
-| **Tool call frequency** | Very high frequency with no file changes penalised |
+| Diverse tool usage (Read → Edit → Bash) | Increases score (productive pattern) |
+| Repetitive tool calls (Bash → Bash → Bash) | Decreases score (likely looping) |
+| File progress (new files read/edited) | Increases score |
+| No progress (same files repeatedly) | Decreases score |
+| Tool call frequency | Very high frequency with no file changes penalised |
 
 Scores range from 1 (completely unproductive) to 10 (highly productive). The scorer runs every `evaluation_interval` events (default: 5).
 
-### 3. Trajectory Pattern Detection
+### 3. Trajectory pattern detection
 
 Individual scores are tracked over time in a trajectory. The PRM detects four patterns:
 
-| Pattern | Description | Typical Cause |
+| Pattern | Description | Typical cause |
 |---|---|---|
-| **Sustained Decline** | 3+ consecutive score drops | Agent going off-track |
-| **Plateau** | 5+ identical low scores | Agent stuck in a loop |
-| **Oscillation** | Alternating up/down scores | Agent undoing and redoing work |
-| **Recovery** | 3+ consecutive score increases | Agent self-correcting (good) |
+| Sustained decline | 3+ consecutive score drops | Agent going off-track |
+| Plateau | 5+ identical low scores | Agent stuck in a loop |
+| Oscillation | Alternating up/down scores | Agent undoing and redoing work |
+| Recovery | 3+ consecutive score increases | Agent self-correcting (good) |
 
 ### 4. Intervention
 
-Based on the current score and trajectory pattern, the decider chooses an action:
+Based on the current score and trajectory pattern, the decider chooses one of three actions:
 
-- **Continue** — the agent is productive, no action needed
-- **Nudge** — log a structured hint with specific guidance (e.g. "Consider a different approach — you've been editing the same file 8 times without running tests")
-- **Escalate** — signal the watchdog to consider terminating the job with diagnostic feedback
+- Continue: the agent is productive, so no action is needed.
+- Nudge: log a structured hint with specific guidance (for example, "Consider a different approach. You've been editing the same file 8 times without running tests").
+- Escalate: signal the watchdog to consider terminating the job with diagnostic feedback.
 
 ## Configuration
 
@@ -82,7 +82,7 @@ prm:
   max_trajectory_length: 50     # Maximum trajectory points stored
 ```
 
-### Configuration Fields
+### Configuration fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -94,15 +94,15 @@ prm:
 | `hint_file_path` | string | `/workspace/.osmia-hint.md` | Path where hints are written in the agent pod |
 | `max_trajectory_length` | int | `50` | Maximum number of trajectory points retained |
 
-### Tuning Tips
+### Tuning tips
 
-- **Start conservative**: set `score_threshold_nudge: 5` and `score_threshold_escalate: 2` to avoid false positives, then tighten thresholds as you observe real agent behaviour
-- **Increase `window_size`** for long-running tasks (60+ minutes) to smooth out natural variations
-- **Decrease `evaluation_interval`** for expensive engines where early detection saves more money
+- Start conservative: set `score_threshold_nudge: 5` and `score_threshold_escalate: 2` to avoid false positives, then tighten thresholds as you observe real agent behaviour
+- Increase `window_size` for long-running tasks (60+ minutes) to smooth out natural variations
+- Decrease `evaluation_interval` for expensive engines where early detection saves more money
 
-## Prometheus Metrics
+## Prometheus metrics
 
-The PRM exposes the following metrics:
+The PRM exposes these metrics:
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
@@ -112,7 +112,7 @@ The PRM exposes the following metrics:
 
 ## Architecture
 
-The PRM is implemented in `internal/prm/` with the following components:
+The PRM lives in `internal/prm/`:
 
 ```
 internal/prm/
@@ -125,12 +125,12 @@ internal/prm/
 
 The controller creates one `prm.Evaluator` per active TaskRun when PRM is enabled. The evaluator is stored in a thread-safe map and cleaned up when the job completes or fails.
 
-## Backwards Compatibility
+## Backwards compatibility
 
-PRM is **disabled by default** and has **zero overhead** when disabled. The controller behaves identically to a PRM-less deployment — no additional goroutines, no scoring, no memory allocation for evaluators. Enabling PRM is a pure additive change.
+PRM is disabled by default and has no overhead when disabled. The controller behaves as it would without a PRM: no extra goroutines, no scoring, no evaluator allocation. Enabling PRM changes nothing else.
 
-## Future Work
+## Future work
 
-- **LLM-based scoring (v2)**: replace the rule-based scorer with an LLM call using the `internal/llm/` package for richer, more contextual evaluation
-- **Pod-level hint delivery**: write hints directly to the agent pod via a projected ConfigMap volume
-- **Escalation-to-watchdog integration**: direct signalling from PRM escalation to watchdog termination
+- LLM-based scoring (v2): replace the rule-based scorer with an LLM call using the `internal/llm/` package for richer, more contextual evaluation
+- Pod-level hint delivery: write hints directly to the agent pod via a projected ConfigMap volume
+- Escalation-to-watchdog integration: direct signalling from PRM escalation to watchdog termination

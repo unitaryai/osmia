@@ -1,8 +1,8 @@
-# Engines Explained
+# Engines explained
 
-An **engine** is an AI coding tool that Osmia runs inside a container to complete tasks. The controller doesn't write code itself — it delegates to engines. Think of the controller as a dispatcher and the engine as the worker.
+An engine is an AI coding tool that Osmia runs inside a container to complete tasks. The controller does not write code itself. It dispatches tasks to engines, and the engines do the work.
 
-## Which Engine Should I Use?
+## Which engine should I use?
 
 ```mermaid
 graph TD
@@ -20,33 +20,33 @@ graph TD
     J -->|No| H
 ```
 
-**Short answer:** Use **Claude Code** unless you have a specific reason not to. It has the best guard rail support (hook-based, not just prompt-based) and built-in heartbeat telemetry for the watchdog.
+Use Claude Code unless you have a specific reason not to. It has the strongest guard rail support (hook-based, not only prompt-based) and built-in heartbeat telemetry for the watchdog.
 
 ## Comparison
 
 | Feature | Claude Code | Codex | Aider | OpenCode | Cline |
 |---|---|---|---|---|---|
-| **Guard rails** | Hook-based (deterministic) | Prompt-based | Prompt-based | Prompt-based | Prompt-based |
-| **AI provider** | Anthropic | OpenAI | Anthropic or OpenAI | Anthropic, OpenAI, or Google | Anthropic, OpenAI, Google, or Bedrock |
-| **Heartbeat telemetry** | Built-in via hooks | Not built-in | Not built-in | Not built-in | Not built-in |
-| **Agent teams** | [Yes (experimental)](../plugins/engines.md#agent-teams-experimental) | No | No | No | No |
-| **MCP support** | Yes | No | No | No | Yes |
-| **Repo context file** | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
-| **Best for** | General-purpose, large refactors | OpenAI shops | Lightweight edits, cost-sensitive | BYOM flexibility | Bedrock, MCP integration |
-| **Pre-built image** | ✅ | ✅ | ✅ | ✅ | ❌ Community template |
+| Guard rails | Hook-based (deterministic) | Prompt-based | Prompt-based | Prompt-based | Prompt-based |
+| AI provider | Anthropic | OpenAI | Anthropic or OpenAI | Anthropic, OpenAI, or Google | Anthropic, OpenAI, Google, or Bedrock |
+| Heartbeat telemetry | Built-in via hooks | Not built-in | Not built-in | Not built-in | Not built-in |
+| Agent teams | [Yes (experimental)](../plugins/engines.md#agent-teams) | No | No | No | No |
+| MCP support | Yes | No | No | No | Yes |
+| Repo context file | `CLAUDE.md` | `AGENTS.md` | `.aider/conventions.md` | `AGENTS.md` | `.clinerules` |
+| Best for | General-purpose, large refactors | OpenAI shops | Lightweight edits, cost-sensitive | BYOM flexibility | Bedrock, MCP integration |
+| Pre-built image | ✅ | ✅ | ✅ | ✅ | ❌ Community template |
 
-## What "Hook-Based" vs "Prompt-Based" Guard Rails Means
+## What "hook-based" and "prompt-based" guard rails mean
 
 This is the most important difference between engines.
 
-**Hook-based (Claude Code):** Osmia generates scripts that run before and after every tool call. If the agent tries to run `rm -rf /` or write to a `.env` file, the hook script blocks it *before it happens*. The agent sees the rejection and adjusts its approach. This is deterministic — the rule always fires.
+Hook-based (Claude Code): Osmia generates scripts that run before and after every tool call. If the agent tries to run `rm -rf /` or write to a `.env` file, the hook script blocks it *before it happens*. The agent sees the rejection and adjusts its approach. The rule always fires.
 
-**Prompt-based (all others):** Guard rails are appended to the task prompt as text instructions ("Do NOT execute destructive commands..."). The AI model *usually* follows them, but there's no hard enforcement. A sufficiently confused or jailbroken model could ignore them.
+Prompt-based (all other engines): Guard rails are appended to the task prompt as text instructions ("Do NOT execute destructive commands..."). The model usually follows them, but nothing enforces them. A confused or jailbroken model could ignore them.
 
 !!! warning "Prompt-based guard rails are advisory"
     If your security requirements demand strict enforcement of file access or command restrictions, use Claude Code. For lower-risk tasks (documentation, test fixes), prompt-based engines are usually fine.
 
-## Engine Fallback Chains
+## Engine fallback chains
 
 You can configure a fallback chain so that if one engine fails, the next is tried:
 
@@ -56,25 +56,25 @@ engines:
   fallback_engines: [codex, aider]
 ```
 
-The controller tries `claude-code` first. If it fails, it tries `codex`. If that also fails, it tries `aider`. This is useful for resilience against API outages or rate limits.
+The controller tries `claude-code` first. If it fails, it tries `codex`. If that also fails, it tries `aider`. This helps when an API is down or rate limited.
 
 !!! note
-    Do not use `cline` in a fallback chain. No pre-built Cline image is published — see [Engine Reference](../plugins/engines.md#cline) for details.
+    Do not use `cline` in a fallback chain. No pre-built Cline image is published. See [Engine Reference](../plugins/engines.md#cline) for details.
 
-## Per-Task Engine Override
+## Per-task engine override
 
 You can override the engine for a specific task by adding a label to the issue:
 
-- `engine:codex` — use Codex for this task
-- `engine:aider` — use Aider for this task
+- `engine:codex`: use Codex for this task
+- `engine:aider`: use Aider for this task
 
 This takes priority over the configured default.
 
-## Cost Considerations
+## Cost considerations
 
-Different engines have different cost profiles depending on the underlying model:
+Cost depends on the underlying model:
 
-| Engine | Typical Cost Range | Notes |
+| Engine | Typical cost range | Notes |
 |---|---|---|
 | Claude Code | $1–$50 per task | Depends on model (Opus vs Sonnet vs Haiku) and task complexity |
 | Codex | $1–$30 per task | OpenAI pricing |
@@ -84,28 +84,28 @@ Different engines have different cost profiles depending on the underlying model
 
 Use `max_cost_per_job` in your guard rails to cap spending per task regardless of engine.
 
-## Intelligent Routing
+## Intelligent routing
 
-Osmia is building an intelligent task routing system (`internal/routing/`) that replaces static fallback chains with data-driven engine selection. Instead of always trying `claude-code → cline → aider` in order, the router will learn which engine is best for each combination of task type, repo language, repo size, and complexity.
+Osmia is building a task routing system (`internal/routing/`) that replaces static fallback chains with data-driven engine selection. Instead of always trying `claude-code → cline → aider` in order, the router will learn which engine suits each combination of task type, repo language, repo size and complexity.
 
-**How it works:**
+How it works:
 
 1. After each task completes, the outcome (success/failure, cost, duration) is recorded against the engine that ran it.
-2. Per-engine "fingerprints" build up over time — statistical profiles of where each engine excels.
+2. Per-engine "fingerprints" build up over time: statistical profiles of where each engine does well.
 3. When a new task arrives, the router scores each available engine and picks the most likely to succeed.
-4. An epsilon-greedy exploration factor (default 10%) ensures the system occasionally tries non-optimal engines to discover new strengths.
+4. An epsilon-greedy exploration factor (default 10%) makes the router occasionally try a non-optimal engine, so it can find new strengths.
 
-This will be transparent — Prometheus metrics will show which engine is being selected and why. Cold-start behaviour falls back to the static fallback chain until enough data accumulates (minimum 5 outcomes per engine).
+Prometheus metrics will show which engine is selected and why. Cold-start behaviour falls back to the static fallback chain until enough data accumulates (minimum 5 outcomes per engine).
 
-## Competitive Execution / Tournaments
+## Competitive execution / tournaments
 
-For high-value tasks, Osmia can launch multiple engines in parallel — a **tournament** — have a judge LLM compare the results, and select the best solution. Each candidate runs in an isolated git worktree so they cannot interfere with each other.
+For high-value tasks, Osmia can launch several engines in parallel (a tournament), have a judge LLM compare the results, and pick the best solution. Each candidate runs in an isolated git worktree so they cannot interfere with each other.
 
-### When to Use Tournaments
+### When to use tournaments
 
-Tournaments are best suited for:
+Tournaments suit:
 
-- High-stakes changes (large refactors, API redesigns, security fixes) where you want the best result, not just a passing one
+- High-stakes changes (large refactors, API redesigns, security fixes) where you want the best result, not only a passing one
 - Tasks where different engines have meaningfully different strengths (e.g. Claude Code vs Aider on a Python-heavy repo)
 - Situations where code quality or correctness matters more than cost
 
@@ -125,11 +125,11 @@ competitive_execution:
   max_concurrent_tournaments: 3  # cap on parallel tournaments cluster-wide
 ```
 
-The `default_candidates` value determines how many engines are launched. Osmia selects engines from the configured fallback chain in order — so with `default: claude-code` and `fallback_engines: [codex, aider]`, a 2-candidate tournament runs Claude Code and Codex.
+The `default_candidates` value sets how many engines are launched. Osmia selects engines from the configured fallback chain in order, so with `default: claude-code` and `fallback_engines: [codex, aider]`, a 2-candidate tournament runs Claude Code and Codex.
 
-To specify engines explicitly for a tournament, use `candidate_engines` per task label (see [Per-Task Engine Override](#per-task-engine-override)).
+To specify engines explicitly for a tournament, use `candidate_engines` per task label (see [Per-task engine override](#per-task-engine-override)).
 
-### Tournament Lifecycle
+### Tournament lifecycle
 
 ```mermaid
 graph LR
@@ -141,30 +141,30 @@ graph LR
     D -->|"remaining candidates finish"| C
 ```
 
-1. **Competing** — all candidate engines run simultaneously in isolated worktrees. The controller watches each candidate's PRM scores as they stream in.
-2. **Early termination** — if any candidate's PRM score exceeds `early_termination_threshold` (default 0.6), remaining candidates are cancelled immediately and that candidate wins. This avoids paying for redundant runs when one engine is clearly superior.
-3. **Judging** — once all candidates have finished (or been eliminated), the judge engine receives a structured prompt with each candidate's diff, summary, cost, duration, and PRM scores. It responds with a `winner_index` and reasoning.
-4. **Winner selected** — the winning candidate's changes are used to open the pull request. Losing candidates' worktrees are discarded.
+1. Competing: all candidate engines run simultaneously in isolated worktrees. The controller watches each candidate's PRM scores as they stream in.
+2. Early termination: if any candidate's PRM score exceeds `early_termination_threshold` (default 0.6), remaining candidates are cancelled immediately and that candidate wins. This avoids paying for redundant runs when one engine is clearly ahead.
+3. Judging: once all candidates have finished (or been eliminated), the judge engine receives a structured prompt with each candidate's diff, summary, cost, duration, and PRM scores. It responds with a `winner_index` and reasoning.
+4. Winner selected: the winning candidate's changes are used to open the pull request. Losing candidates' worktrees are discarded.
 
-### Judging Rubric
+### Judging rubric
 
 The judge evaluates candidates on five dimensions, in priority order:
 
 | Criterion | Weight |
 |---|---|
-| Correctness — does the solution address the task? | Highest |
-| Code quality — clean, structured, maintainable | High |
-| Completeness — edge cases, tests included | Medium |
-| Efficiency — cost, tokens, duration | Lower |
-| Safety — no vulnerabilities, follows best practices | Always checked |
+| Correctness: does the solution address the task? | Highest |
+| Code quality: clean, structured, maintainable | High |
+| Completeness: edge cases, tests included | Medium |
+| Efficiency: cost, tokens, duration | Lower |
+| Safety: no vulnerabilities, follows best practices | Always checked |
 
-Correctness outweighs cost efficiency: the judge will prefer a correct solution that costs more over a cheaper incomplete one.
+Correctness outweighs cost: the judge prefers a correct solution that costs more over a cheaper incomplete one.
 
-### Per-Task Tournament Trigger
+### Per-task tournament trigger
 
 You can trigger a tournament for a specific issue by adding the `tournament` label. The configured `default_candidates` and `candidate_engines` are used.
 
-### Prometheus Metrics
+### Prometheus metrics
 
 | Metric | Description |
 |---|---|
@@ -174,10 +174,10 @@ You can trigger a tournament for a specific issue by adding the `tournament` lab
 | `osmia_tournament_cost_total` | Histogram of total tournament cost (all candidates + judge) in USD |
 | `osmia_tournament_duration_seconds` | Histogram of tournament duration from start to winner selection |
 
-The winner engine metric is particularly useful for understanding which engine tends to produce the best results on your codebase over time.
+The winner engine metric shows which engine tends to produce the best results on your codebase.
 
-## Next Steps
+## Further reading
 
-- [Engine Reference](../plugins/engines.md) — full configuration details for each engine
-- [Guard Rails Overview](guardrails-overview.md) — the six safety layers
-- [Configuration Reference](../getting-started/configuration.md) — how to configure engines in your values
+- [Engine Reference](../plugins/engines.md): configuration details for each engine
+- [Guard Rails Overview](guardrails-overview.md): the six safety layers
+- [Configuration Reference](../getting-started/configuration.md): how to configure engines in your values

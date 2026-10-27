@@ -472,7 +472,26 @@ execution:
       enabled: true
       size: 2
     env_stripping: true
+  pod_annotations:            # added to every agent pod (job and sandbox backends)
+    karpenter.sh/do-not-disrupt: "true"
 ```
+
+### Keeping the autoscaler away from running work
+
+A cluster autoscaler that consolidates nodes, such as Karpenter with `WhenEmptyOrUnderutilized`, will evict pods to pack them onto fewer machines. For an agent job that means losing the work in progress and the money already spent on it; the job is not resumed.
+
+`execution.pod_annotations` adds annotations to every agent pod, which is how you tell the autoscaler to leave them alone until they finish. Annotations Osmia sets itself take precedence, and invalid keys are rejected at startup.
+
+This only blocks *voluntary* disruption, such as consolidation and drift. It does not stop a spot interruption, a node failure, or a node pool's forced expiry (for example Karpenter's `terminationGracePeriod`) from ending the pod, and an agent ended that way is still not resumed. For work that must finish, run agents on on-demand capacity as well.
+
+The controller pod is annotated separately, through the Helm chart's `podAnnotations` value:
+
+```yaml
+podAnnotations:
+  karpenter.sh/do-not-disrupt: "true"
+```
+
+The controller tracks running agent jobs in memory, so moving it while a job is running orphans that job.
 
 ## Webhook
 

@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -47,6 +49,12 @@ func validateStorePath(name, path string) error {
 // Validate checks all configuration fields for correctness.
 // It is called automatically by Load after unmarshalling.
 func (c *Config) Validate() error {
+	// Reject malformed agent pod annotations at startup. Otherwise the first
+	// sign would be every agent Job failing to create.
+	if errs := apivalidation.ValidateAnnotations(c.Execution.PodAnnotations, field.NewPath("execution", "pod_annotations")); len(errs) > 0 {
+		return errs.ToAggregate()
+	}
+
 	if err := validateNonNegativeFloat("guardrails.max_job_duration_minutes", float64(c.GuardRails.MaxJobDurationMinutes)); err != nil {
 		return err
 	}

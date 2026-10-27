@@ -48,17 +48,33 @@ const (
 // SandboxBuilder constructs Kubernetes Jobs from engine ExecutionSpecs with
 // gVisor runtime isolation and optional warm pool scheduling.
 type SandboxBuilder struct {
-	namespace string
-	cfg       config.SandboxConfig
+	namespace      string
+	cfg            config.SandboxConfig
+	podAnnotations map[string]string
+}
+
+// Option configures a SandboxBuilder.
+type Option func(*SandboxBuilder)
+
+// WithPodAnnotations adds annotations to every sandboxed agent pod. The
+// builder's own sandbox annotations take precedence on a clash.
+func WithPodAnnotations(annotations map[string]string) Option {
+	return func(b *SandboxBuilder) {
+		b.podAnnotations = annotations
+	}
 }
 
 // New creates a SandboxBuilder that produces Jobs in the given namespace
 // using the provided sandbox configuration.
-func New(namespace string, cfg config.SandboxConfig) *SandboxBuilder {
+func New(namespace string, cfg config.SandboxConfig, opts ...Option) *SandboxBuilder {
 	if cfg.RuntimeClass == "" {
 		cfg.RuntimeClass = "gvisor"
 	}
-	return &SandboxBuilder{namespace: namespace, cfg: cfg}
+	b := &SandboxBuilder{namespace: namespace, cfg: cfg}
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
 }
 
 // Build translates an ExecutionSpec into a Kubernetes batch/v1.Job configured
@@ -132,7 +148,7 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels:      podLabels,
-					Annotations: podAnnotations,
+					Annotations: jobbuilder.MergePodAnnotations(b.podAnnotations, podAnnotations),
 				},
 				Spec: corev1.PodSpec{
 					RuntimeClassName: &runtimeClass,

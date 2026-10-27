@@ -37,12 +37,28 @@ const (
 
 // JobBuilder constructs Kubernetes Jobs from engine ExecutionSpecs.
 type JobBuilder struct {
-	namespace string
+	namespace      string
+	podAnnotations map[string]string
+}
+
+// Option configures a JobBuilder.
+type Option func(*JobBuilder)
+
+// WithPodAnnotations adds annotations to every agent pod the builder
+// creates. See MergePodAnnotations for precedence.
+func WithPodAnnotations(annotations map[string]string) Option {
+	return func(b *JobBuilder) {
+		b.podAnnotations = annotations
+	}
 }
 
 // NewJobBuilder creates a new JobBuilder that creates Jobs in the given namespace.
-func NewJobBuilder(namespace string) *JobBuilder {
-	return &JobBuilder{namespace: namespace}
+func NewJobBuilder(namespace string, opts ...Option) *JobBuilder {
+	b := &JobBuilder{namespace: namespace}
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
 }
 
 // Build translates an ExecutionSpec into a Kubernetes batch/v1.Job with
@@ -105,6 +121,7 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 						labelManagedBy: managedByOsmia,
 						LabelTaskRunID: taskRunID,
 					},
+					Annotations: MergePodAnnotations(b.podAnnotations, nil),
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,

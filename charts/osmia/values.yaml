@@ -177,6 +177,15 @@ networkPolicy:
     # extraEgressRules: []
 
 # PodDisruptionBudget for the controller deployment.
+# Annotations for the controller pod. Typical use is keeping a cluster
+# autoscaler from evicting it to consolidate nodes, e.g.
+#   karpenter.sh/do-not-disrupt: "true"
+# The controller tracks running agent jobs in memory, so moving it mid-run
+# orphans them. This blocks voluntary disruption only, not spot
+# interruption or node failure. Agent pods are annotated separately via
+# config.execution.pod_annotations.
+podAnnotations: {}
+
 pdb:
   enabled: false
   # minAvailable: 1

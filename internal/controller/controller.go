@@ -806,8 +806,13 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 func (r *Reconciler) validateGuardRails(ticket ticketing.Ticket) error {
 	gr := r.config.GuardRails
 
-	// Check allowed repositories.
-	if len(gr.AllowedRepos) > 0 && ticket.RepoURL != "" {
+	// Check allowed repositories. With an allow-list configured, a ticket
+	// with no repository is rejected rather than waved through: the list is
+	// a boundary, and an unknown repository cannot be shown to be inside it.
+	if len(gr.AllowedRepos) > 0 && ticket.RepoURL == "" {
+		return fmt.Errorf("no repository URL to check against the allowed list")
+	}
+	if len(gr.AllowedRepos) > 0 {
 		matched := false
 		for _, pattern := range gr.AllowedRepos {
 			if matchGlob(pattern, ticket.RepoURL) {

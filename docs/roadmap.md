@@ -91,6 +91,8 @@ rejection but does not translate profile constraints into agent pod configuratio
 **Priority:** High
 **Scope:** Medium
 **Dependencies:** None
+**Needed for:** Application Build Pilot (long runs are the most exposed to
+controller restarts)
 
 When a controller restarts mid-job (e.g. due to a pod eviction or ArgoCD
 rollout), in-memory task run state is lost. If the job's worker pod also
@@ -171,9 +173,19 @@ per tenant) is not implemented.
 
 **Priority:** High
 **Scope:** Large (new service)
-**Dependencies:** Real-time streaming (done), TaskRun store (done)
+**Dependencies:** Real-time streaming (done), TaskRun store (done); item 30
+for viewing transcripts after a run ends
+**Needed for:** Application Build Pilot (long builds need a way to see where
+a run is and why it failed without reading controller logs)
 
 A web dashboard for real-time agent observability and control.
+
+Apart from webhook receivers and the optional local development UI, the
+controller serves only `/metrics`, `/healthz` and `/readyz`. Seeing
+a run's state, why it failed, or whether a PR is still being watched means
+reading controller logs and querying the TaskRun store by hand. The local
+development UI (`internal/localui`) has a ticket requeue action that may be a
+useful starting point for the control endpoints.
 
 **Approach options:**
 - **Grafana-based** — Prometheus metrics + Loki logs + custom panels. Lowest effort,
@@ -189,6 +201,38 @@ A web dashboard for real-time agent observability and control.
 - [ ] Cost tracking dashboard (per-task, per-engine, daily/weekly aggregates)
 - [ ] Manual controls: approve, cancel, retry
 - [ ] Engine health overview
+
+**Investigating failures:**
+- [ ] Per-run detail page: failure reason, engine attempts, Kubernetes Job and
+  pod events, exit code, cost and duration
+- [ ] Transcript viewer for live and finished runs (finished runs need item 30)
+- [ ] Link from a run to its ticket, its PR/MR, and any follow-up runs it spawned
+
+**Review follow-ups:**
+- [ ] List the PRs/MRs the review poller is watching, with follow-up count and
+  when each was last checked
+- [ ] "Check now" action: poll one PR/MR for new comments immediately instead
+  of waiting for the next poll interval
+- [ ] Re-watch action: start watching a PR/MR again after it dropped out (for
+  example past the restore window), from its originating TaskRun
+
+**Stuck and orphaned runs:**
+- [ ] Flag TaskRuns in `Running` whose Job no longer exists, and offer to mark
+  them failed and release the ticket. A manual bridge until Orphaned TaskRun
+  Recovery is automatic
+
+**Long-running builds:**
+- [ ] Show the current stage of a multi-stage run and whether it is waiting
+  on a person
+
+**Access control:**
+- [ ] The dashboard can start jobs and shows ticket and transcript content, so
+  it needs authentication (OIDC) and at least a read-only and an operator
+  role. It must not be exposed unauthenticated, even on an internal network
+- [ ] Every control action is audit-logged with who did it
+
+Interactive actions (check now, re-watch, cancel, retry) rule out a
+Grafana-only dashboard; they need at least the hybrid approach.
 
 **If custom UI:**
 - [ ] `cmd/osmia-dashboard/` — separate binary or embedded in controller
@@ -249,6 +293,202 @@ status.
   failure as not fixable before spending a job on it?
 - Tracked MRs live in memory and are lost on controller restart; this inherits
   that limitation, and makes it more costly.
+
+---
+
+### Application Build Pilot
+
+Items 27 to 30 below, plus items 10 and 26 and Orphaned TaskRun Recovery, are what
+Osmia needs to run a multi-stage application build: a skill set that takes a
+written process description, builds the workflow code in stages, tests it
+against a development environment, and opens a draft MR for a person to review.
+That work is longer-running, needs more tools, and produces more output than a
+ticket fix, which is where the gaps below come from.
+
+The pilot is deliberately limited to builds with no data residency
+requirement. Builds whose data must stay in a given region need a regional
+deployment of the whole of Osmia, not only regional model routing, because
+both the agent pod and the controller (via the agent stream and transcripts)
+handle data pulled from the systems being built against. That is tracked as
+item 31.
+
+The pilot is deliberately a single build stage. Passing work from one stage to
+the next is a later piece of work, so it is not part of these criteria.
+
+**Pilot is done when:**
+- One build stage runs from trigger to a draft MR with a passing pipeline,
+  using a per-task plugin bundle, with its transcript and outputs kept in
+  object storage
+- The run survives a controller restart while its Job is still running, and
+  finishes normally
+- A run whose Job disappears during a controller restart is moved to `Failed`
+  and its ticket released, rather than left `Running` (Orphaned TaskRun
+  Recovery)
+- A failed pipeline on the MR starts a follow-up that fixes it, without a
+  person writing a comment (item 26)
+- The run can be followed and investigated from the dashboard (item 10)
+  without reading controller logs
+
+From item 10 the pilot needs: the run list with live status, the per-run
+detail page and transcript viewer, the review follow-up actions, cancel and
+retry, and access control. Approve is needed only if the pilot uses an
+approval gate. Live per-agent streaming of tool calls and token usage, the
+cost views and engine health are deferred.
+
+---
+
+### 27. Per-Task Plugin Bundles
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** None
+
+Skills and sub-agents (item 23) are configured once on the engine, so every
+task gets the same set. Only incident triage overrides them per flow.
+`TaskProfileConfig.MCPServers` is parsed but nothing merges it into the
+workspace MCP config. A build needs a different set of skills, sub-agents, MCP
+servers and hooks per task, and per stage within a task.
+
+- [ ] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
+  packaged together, in the layout Claude Code's `--plugin-dir` expects
+- [ ] Select bundles per task, from the ticket (label or field) or the task
+  profile, merged on top of the engine defaults
+- [ ] Deliver bundles to the pod from a ConfigMap or object storage, not as
+  environment variables, so size is not bounded by the env var limit
+- [ ] Wire `TaskProfileConfig.MCPServers` through the same path
+- [ ] Validate bundle contents at load time and fail the launch on an unknown
+  bundle name, rather than starting the agent without it
+
+---
+
+### 28. Build-Tools Engine Image
+
+**Priority:** High
+**Scope:** Small
+**Dependencies:** None
+
+The Claude Code engine image has git, `glab`, `gh` and Claude Code. Build work
+also needs Python tooling (`uv`), a headless browser (Playwright and Chromium),
+`ffmpeg`, `copier`, `kubectl` and a workflow-engine CLI. Adding all of these to
+the default image would grow it and its attack surface for every task.
+
+- [ ] Publish a separate `engine-claude-code-build` image variant built on the
+  default one, with its own weekly rebuild and Renovate coverage
+- [ ] Select the image per task profile, so only build tasks pull it
+- [ ] Confirm Chromium runs under the existing securityContext
+  (non-root, read-only root filesystem, all capabilities dropped), with a
+  writable `emptyDir` for its profile and cache
+- [ ] Document that Docker inside the agent pod is not supported; builds
+  test against a development cluster instead
+
+---
+
+### 29. Workload Identity for Agent Pods
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** Task-Scoped Secret References (complete)
+
+Build tasks call cloud and deployment APIs. Today the only way to give an
+agent that access is a long-lived static credential in a secret. Short-lived,
+narrowly scoped identities are safer and match the workload identity
+preference in `CLAUDE.md`.
+
+- [ ] Per-task-profile Kubernetes ServiceAccount, so IRSA (AWS) or Workload
+  Identity Federation (GCP) can grant each kind of task its own role
+- [ ] Projected service account tokens for OIDC exchange with other internal
+  services
+- [ ] Default agent ServiceAccount keeps no cloud permissions; a task gets
+  access only through a profile that names an identity
+- [ ] Record which identity each TaskRun ran as, for audit
+
+---
+
+### 30. Remote Transcript and Artifact Storage
+
+**Priority:** High
+**Scope:** Medium
+**Dependencies:** Item 21 (Transcript Storage, complete)
+
+Item 21 added the `TranscriptSink` interface, but the only sink writes to the
+controller's local filesystem, and the S3 session store is a stub. A build's
+transcript and outputs (generated files, test reports, screenshots) are lost
+when the pod ends or the controller moves.
+
+- [ ] S3 `TranscriptSink`, with bucket and region set in config
+- [ ] Artifact upload from the agent pod: anything written to an outputs
+  directory is uploaded at the end of the run and listed in `result.json`
+- [ ] Implement the S3 session store, so a resumed task can start on a
+  different node
+- [ ] Define the tenant that storage is partitioned by. `TaskRun.TenantID`
+  today is the use case, used to scope episodic memory, not a customer; storage
+  needs a customer-level identity (see item 32)
+- [ ] Object keys scoped by that tenant and TaskRun ID, with access enforced
+  by IAM policy at the storage boundary, not only by key prefix; lifecycle
+  rules for expiry documented in the Helm chart
+- [ ] Read path for finished runs: the controller looks up a TaskRun's
+  objects by ID and serves them to the dashboard (item 10) through the same
+  authentication and roles as the rest of the dashboard; the agent pod has no
+  read access to other runs' objects
+- [ ] Use workload identity (item 29) for the controller and pod, not static
+  keys
+
+---
+
+### 31. Regional Deployments and Data Residency Routing
+
+**Priority:** High (after the pilot)
+**Scope:** Large
+**Dependencies:** Items 29 and 30
+
+Some work must keep its data, and the processing of it, inside a given
+region. Routing only the model calls to a regional endpoint is not enough:
+the agent pod reads data from the systems it works on, and the controller
+receives that data through the agent stream, transcripts and episodic memory.
+The whole of Osmia has to run in the region, so the plan is one independent
+deployment per region, with no central coordinator. Instances share only the
+ticketing and SCM systems.
+
+Routing a ticket to the right instance and keeping it out of the wrong one are
+separate concerns, and need separate mechanisms. A per-ticket tag or owner is
+convenient for routing but is set by a person and can be forgotten; on its own
+it is not a safe boundary.
+
+**Routing (which instance picks a ticket up):**
+- [ ] Document one ticketing identity per instance (for example a Shortcut
+  user per region) using the existing owner filter, so assignment chooses
+  the instance
+- [ ] Route webhooks the same way, so every instance can receive all events
+  and ignore those that are not its own
+
+**Boundary (which instance may work on a repository):**
+- [ ] Fail closed: an instance refuses any ticket whose repository it cannot
+  show to be in its region, and comments on the ticket saying so, before any
+  job, clone or model call
+- [ ] Add `blocked_repos` alongside `allowed_repos`, so a default-region
+  instance can exclude regional repositories without listing every other one
+- [ ] Optionally resolve a repository's region from a file in the repository
+  itself (read through the SCM API, without cloning), so the record and the
+  configuration cannot drift apart
+- [ ] Apply the same check to every path that launches work: new tickets,
+  repository URLs supplied later, review follow-ups and retries
+
+**Inside the region:**
+- [ ] Model calls through the region's provider endpoint: wire the existing
+  but unused `auth.method: bedrock` and `bedrock_region` settings
+- [ ] Transcripts, artifacts, session data and the TaskRun store in regional
+  storage
+- [ ] Keep task content out of anything that leaves the region: central logs,
+  metrics labels and notifications carry identifiers and status only
+- [ ] Per-instance NetworkPolicy for agent egress, limited to the region's
+  systems and endpoints
+
+**Open questions:**
+- Ticket text itself lives in the ticketing system's own region. Tickets for
+  residency-bound work must not contain the data that needs protecting; this
+  is a process rule Osmia cannot enforce.
+- Should a cross-region dashboard exist, showing status only, or is one
+  dashboard per region enough?
 
 ---
 
@@ -315,6 +555,94 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 3. Can it trigger `NeedsHuman`, or only write hints?
 4. Anti-thrashing: how to avoid over-correcting an on-track agent?
 5. What constitutes "severely off-track" vs what PRM escalation already handles?
+
+---
+
+### 32. Customer Context and Repository Lookup
+
+**Priority:** High
+**Scope:** Medium (Osmia side); the context store itself is outside Osmia
+**Dependencies:** Item 27 (plugin bundles), item 31 (regional deployments)
+
+Builds happen in slices: one slice is built, the customer signs it off, then
+the next slice starts. Fixes come later, after the build is live. Each of
+these runs needs to know what earlier runs decided, and today each starts with
+only the ticket text and the repository.
+
+Two kinds of context are involved:
+
+- **In the repository:** the `CLAUDE.md`, decision records and known issues
+  that each run updates in its own MR. These are reviewed and signed off with
+  the code, so the next run gets them for free. Osmia only needs to make
+  updating them part of the task.
+- **Outside the repository:** sign-off notes, what the customer rejected and
+  why, the current process description, call notes and open questions. These
+  belong in a per-customer record kept by another system, not in Osmia.
+  Osmia instances are per region, their storage is not a system of record,
+  and the code is public.
+
+The same record answers two other questions. Given a ticket that names a
+customer rather than a repository, which repository should the agent work on?
+And which region does that customer's work belong to (item 31)?
+
+**Direction:**
+- [ ] Osmia reads context; it does not store it. Add a context provider plugin
+  interface, in line with the rule that all external integrations go through
+  defined interfaces, which takes a ticket and returns the customer's
+  repositories, region, residency level, the shared libraries it depends on,
+  and links to context documents
+- [ ] Repository lookup: when a ticket names a customer (by field, label or
+  epic) and has no repository, ask the provider. If the customer has more
+  than one candidate repository and the ticket does not say which, ask a
+  person rather than guess
+- [ ] Context loading: put the provider's documents in the agent's prompt or
+  workspace at start, inside the region
+- Episodic memory stays as it is: knowledge about how Osmia does tasks, not a
+  customer record
+
+**Questions for the design:**
+1. Which system holds the customer record, and who keeps it current? Can the
+   tool that creates a customer repository register it there at the same time?
+2. How does a ticket name its customer reliably enough to route on?
+3. What does a run write back to the record when it finishes (for example a
+   slice's sign-off state), and through what interface?
+4. How much context is loaded up front, and how much is left for the agent to
+   fetch through a tool when it needs it?
+
+---
+
+### 33. Changes Spanning a Shared Library and a Customer Repository
+
+**Priority:** Medium
+**Scope:** Medium
+**Dependencies:** Item 32 (to know which libraries a customer depends on)
+
+Every task today works on exactly one repository. A fix reported against one
+customer's workflow sometimes belongs in a shared library that many customers
+use. Doing that well takes two linked changes: an MR to the library and a
+release, then an MR bumping the customer repository to the new version.
+
+A library change carries more risk than a customer change. It affects every
+consumer, needs different reviewers, and must not carry anything specific to
+the customer whose ticket started it. For residency-bound customers this
+matters more, since a shared library is not tied to a region.
+
+**Direction:**
+- [ ] Let a task declare extra repositories, cloned read-only by default, so
+  the agent can read the library code it is debugging
+- [ ] When the agent concludes the fix belongs in a library, it opens a linked
+  library ticket describing the change in general terms, rather than editing
+  the library itself
+- [ ] Library tickets go through an approval gate before any job starts
+- [ ] After the library change is released, a follow-up task bumps the
+  dependency in the customer repository, linked to the original ticket
+
+**Questions for the design:**
+1. Who approves a library change raised by an agent, and where?
+2. Should the agent ever write to a library directly, or always via a new
+   ticket?
+3. How does the customer task wait for the library release: block, or end
+   and be resumed by the release?
 
 ---
 
@@ -552,8 +880,15 @@ live controller and `main.go`:
 |---|---------|----------|--------|
 | 10 | Agent Dashboard | High | Not started |
 | 26 | React to Failed CI Pipelines | High | Not started |
+| 27 | Per-Task Plugin Bundles | High | Not started |
+| 28 | Build-Tools Engine Image | High | Not started |
+| 29 | Workload Identity for Agent Pods | High | Not started |
+| 30 | Remote Transcript and Artifact Storage | High | Not started |
+| 31 | Regional Deployments and Data Residency Routing | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
+| 32 | Customer Context and Repository Lookup | High | Design doc required |
+| 33 | Changes Spanning a Shared Library and a Customer Repository | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | 🚧 In progress |
 | 11 | Documentation Site | High | Partially complete |
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |

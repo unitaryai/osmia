@@ -180,9 +180,9 @@ networkPolicy:
 # Annotations for the controller pod. Typical use is keeping a cluster
 # autoscaler from evicting it to consolidate nodes, e.g.
 #   karpenter.sh/do-not-disrupt: "true"
-# A restart no longer loses the list of watched PRs, but running agent jobs
-# are still tracked in memory and are orphaned if the controller is moved
-# mid-run. Agent pods are annotated separately via
+# The controller tracks running agent jobs in memory, so moving it mid-run
+# orphans them. This blocks voluntary disruption only, not spot
+# interruption or node failure. Agent pods are annotated separately via
 # config.execution.pod_annotations.
 podAnnotations: {}
 

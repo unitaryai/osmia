@@ -1,24 +1,24 @@
-# Quick Start: Kubernetes
+# Quick start: Kubernetes
 
-This guide walks you through installing Osmia on a Kubernetes cluster, configuring it with GitHub Issues and Claude Code, and creating your first automated task. By the end you will have a working deployment that picks up labelled GitHub issues, spins up an AI coding agent, and opens a pull request with the result.
+This guide installs Osmia on a Kubernetes cluster, configures it with GitHub Issues and Claude Code, and runs your first task. At the end you will have a deployment that picks up labelled GitHub issues, starts an AI coding agent and opens a pull request with the result.
 
 ## Prerequisites
 
-| Requirement | Minimum Version | Notes |
+| Requirement | Minimum version | Notes |
 |---|---|---|
 | Kubernetes cluster | 1.28+ | A local `kind` or `minikube` cluster works for evaluation |
 | Helm | 3.x | Used to deploy the Osmia controller |
-| kubectl | Matching your cluster version | For inspecting pods, logs, and secrets |
-| GitHub repository | — | The repo the agent will work on |
-| GitHub personal access token | — | With `repo` and `issues` scopes |
-| Anthropic API key | — | Required for Claude Code engine (or an OpenAI key for Codex) |
+| kubectl | Matching your cluster version | For inspecting pods, logs and secrets |
+| GitHub repository | n/a | The repo the agent will work on |
+| GitHub personal access token | n/a | With `repo` and `issues` scopes |
+| Anthropic API key | n/a | Required for Claude Code engine (or an OpenAI key for Codex) |
 
-Optional but recommended:
+Optional:
 
-- **Slack workspace** — for real-time notifications when tasks start, complete, or fail
-- **Prometheus + Grafana** — for monitoring agent activity and cost tracking
+- Slack workspace, for notifications when tasks start, complete or fail
+- Prometheus and Grafana, for monitoring agent activity and cost
 
-## 1. Create Kubernetes Secrets
+## 1. Create Kubernetes secrets
 
 Osmia reads credentials from Kubernetes Secrets. Create them in the namespace where you will install the chart:
 
@@ -44,7 +44,7 @@ kubectl create secret generic osmia-slack-token \
 
 ## 2. Write a values.yaml
 
-Create a `values.yaml` file that configures ticketing, the engine, and (optionally) notifications. Replace the placeholder values with your own organisation and repository details.
+Create a `values.yaml` file that configures ticketing, the engine and (optionally) notifications. Replace the placeholder values with your own organisation and repository details.
 
 ```yaml
 replicaCount: 1
@@ -114,7 +114,7 @@ helm install osmia osmia/osmia \
   --values values.yaml
 ```
 
-## 4. Verify the Installation
+## 4. Verify the installation
 
 ```bash
 # Check the controller pod is running
@@ -135,9 +135,9 @@ kubectl logs -n osmia deployment/osmia --tail=50
 
 You should see structured JSON log lines confirming that the ticketing poller has started and the engine is ready.
 
-## 5. Label a GitHub Issue
+## 5. Label a GitHub issue
 
-Create an issue in your target repository describing a small code change, then add the **osmia** label. The controller polls for issues matching the configured labels and will pick it up within a few seconds.
+Create an issue in your target repository describing a small code change, then add the `osmia` label. The controller polls for issues matching the configured labels and picks it up within a few seconds.
 
 Example issue:
 
@@ -145,7 +145,7 @@ Example issue:
 >
 > **Body:** The POST handler for `/api/users` does not validate the `email` field. Add validation that rejects requests with a missing or malformed email address. Return a 400 status with a descriptive error message. Add unit tests for the new behaviour.
 
-## 6. Watch It Work
+## 6. Watch it work
 
 ```bash
 # Follow the controller logs
@@ -155,13 +155,13 @@ kubectl logs -n osmia deployment/osmia -f
 kubectl get jobs -n osmia
 ```
 
-The agent will clone the repository, carry out the work described in the issue, run any tests it finds, and open a pull request. Progress updates are posted as comments on the original issue (and to Slack if configured).
+The agent clones the repository, does the work described in the issue, runs any tests it finds and opens a pull request. Progress updates are posted as comments on the original issue (and to Slack if configured).
 
-## Customising Guard Rails
+## Customising guard rails
 
-Guard rails are safety boundaries that constrain what the agent is permitted to do. They operate at two levels:
+Guard rails limit what the agent is allowed to do. They work at two levels:
 
-### Controller-Level Guard Rails
+### Controller-level guard rails
 
 Set in your `values.yaml` under `config.guardrails`:
 
@@ -181,9 +181,9 @@ config:
     require_human_approval_before_mr: true
 ```
 
-### Repository-Level Guard Rails
+### Repository-level guard rails
 
-Place a `guardrails.md` (or `CLAUDE.md`) file in the root of any repository the agent works on. Claude Code reads `CLAUDE.md` automatically at startup — other engines do not. These files are advisory: the controller does not enforce compliance, but they are the simplest way to give Claude Code per-repo constraints.
+Place a `guardrails.md` (or `CLAUDE.md`) file in the root of any repository the agent works on. Claude Code reads `CLAUDE.md` automatically at startup; other engines do not. These files are advisory, because the controller does not enforce them, but they are the simplest way to give Claude Code per-repo constraints.
 
 !!! note
     Prompt-builder injection of `guardrails.md` for all engines is on the roadmap.
@@ -204,17 +204,17 @@ Place a `guardrails.md` (or `CLAUDE.md`) file in the root of any repository the 
 
 See [Guard Rails documentation](../guardrails.md) for the full specification.
 
-## Choosing an Engine
+## Choosing an engine
 
 Osmia supports multiple AI coding agents. See [Engines Explained](../concepts/engines.md) for a comparison, or the full [Engine Reference](../plugins/engines.md) for detailed configuration.
 
-| Engine | Best For | Guard Rails |
+| Engine | Best for | Guard rails |
 |---|---|---|
 | **Claude Code** | General-purpose coding, large refactors | Hook-based (deterministic) |
 | **Codex** | OpenAI-ecosystem shops | Prompt-based (advisory) |
 | **Aider** | Lightweight edits, cost-sensitive workloads | Prompt-based (advisory) |
 | **OpenCode** | BYOM (Anthropic/OpenAI/Google) | Prompt-based (advisory) |
-| **Cline** | AWS Bedrock, MCP support *(community template — no pre-built image)* | Prompt-based (advisory) |
+| **Cline** | AWS Bedrock, MCP support *(community template, no pre-built image)* | Prompt-based (advisory) |
 
 To switch the default engine:
 
@@ -224,9 +224,9 @@ config:
     default: codex    # or "aider", "opencode"
 ```
 
-## Webhook Setup (Optional)
+## Webhook setup (optional)
 
-Instead of polling, Osmia can receive webhook events for near-instant ticket ingestion.
+Instead of polling, Osmia can receive webhook events, so tickets are picked up almost immediately.
 
 ### Enable webhooks
 
@@ -248,13 +248,13 @@ config:
 - **Slack:** Configure a Slack app with an interactive endpoint at `https://<your-osmia-host>:8081/webhooks/slack`.
 
 !!! info "Network policies"
-    If `networkPolicy.enabled` is set, the controller network policy automatically allows ingress on the webhook port. You can restrict the source CIDR via `networkPolicy.controller.webhookSourceCIDR`.
+    If `networkPolicy.enabled` is set, the controller network policy allows ingress on the webhook port. You can restrict the source CIDR via `networkPolicy.controller.webhookSourceCIDR`.
 
-## Next Steps
+## Next steps
 
-- [Configuration Reference](configuration.md) — full config options and defaults
-- [Troubleshooting](troubleshooting.md) — common issues and solutions
-- [Architecture overview](../architecture.md) — how the controller, plugins, and engines fit together
-- [Security model](../security.md) — threat model, defence in depth, and hardening guidance
-- [Scaling guide](../scaling.md) — horizontal scaling, Karpenter, KEDA
-- [Writing a plugin](../plugins/writing-a-plugin.md) — extend Osmia with custom backends
+- [Configuration Reference](configuration.md): full config options and defaults
+- [Troubleshooting](troubleshooting.md): common issues and solutions
+- [Architecture overview](../architecture.md): how the controller, plugins and engines fit together
+- [Security model](../security.md): threat model, defence in depth and hardening guidance
+- [Scaling guide](../scaling.md): horizontal scaling, Karpenter, KEDA
+- [Writing a plugin](../plugins/writing-a-plugin.md): extend Osmia with custom backends

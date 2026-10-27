@@ -1,16 +1,16 @@
 # Guide: Linear + Slack
 
-This guide walks you through connecting Osmia to a Linear workspace and a Slack workspace so that:
+This guide connects Osmia to a Linear workspace and a Slack workspace, so that:
 
-- Issues labelled **osmia** and in the configured state are automatically picked up by the agent
-- The issue receives an `in-progress` label when work begins
-- You receive a Slack message when work starts, completes, or fails
+- Issues labelled `osmia` and in the configured state are picked up by the agent
+- The issue gets an `in-progress` label when work begins
+- You get a Slack message when work starts, completes or fails
 
 ## Prerequisites
 
 | Requirement | Notes |
 |---|---|
-| Kubernetes cluster | [Set one up first](kubernetes.md) if you don't have one |
+| Kubernetes cluster | [Set one up first](kubernetes.md) if you do not have one |
 | `kubectl` configured | Pointing at the target cluster and namespace |
 | `helm` 3+ | For deploying Osmia |
 | Linear workspace | With admin access to create API keys and labels |
@@ -18,7 +18,7 @@ This guide walks you through connecting Osmia to a Linear workspace and a Slack 
 
 ---
 
-## Step 1 — Create a Linear API key
+## Step 1: Create a Linear API key
 
 1. In Linear, go to **Settings → API → Personal API keys**.
 2. Click **Create key**, name it `osmia`, and copy the value.
@@ -28,7 +28,7 @@ This guide walks you through connecting Osmia to a Linear workspace and a Slack 
 
 ---
 
-## Step 2 — Find your team ID
+## Step 2: Find your team ID
 
 Osmia needs the Linear team UUID (not the team name) to scope its queries.
 
@@ -47,23 +47,23 @@ Output looks like:
 ]
 ```
 
-Copy the `id` value — you will need it for the config.
+Copy the `id` value. You will need it for the config.
 
 ---
 
-## Step 3 — Create the required labels
+## Step 3: Create the required labels
 
 Osmia uses two labels to track issue state:
 
 1. In Linear, go to **Settings → Labels**.
-2. Create a label named `osmia` — this is the trigger label you add to issues you want the agent to pick up.
-3. Create a label named `osmia-failed` — Osmia adds this when a task fails so the issue is not retried automatically.
+2. Create a label named `osmia`. This is the trigger label you add to issues you want the agent to pick up.
+3. Create a label named `osmia-failed`. Osmia adds this when a task fails, so the issue is not retried automatically.
 
 The `in-progress` label is typically already present in Linear. If not, create it too.
 
 ---
 
-## Step 4 — Create a Slack bot
+## Step 4: Create a Slack bot
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App → From scratch**.
 2. Name it `Osmia` and select your workspace.
@@ -74,7 +74,7 @@ The `in-progress` label is typically already present in Linear. If not, create i
 
 ---
 
-## Step 5 — Store credentials as Kubernetes secrets
+## Step 5: Store credentials as Kubernetes secrets
 
 ```bash
 # Linear API key
@@ -95,7 +95,7 @@ kubectl create secret generic osmia-slack-token \
 
 ---
 
-## Step 6 — Write `osmia-config.yaml`
+## Step 6: Write `osmia-config.yaml`
 
 ```yaml
 ticketing:
@@ -137,7 +137,7 @@ guardrails:
 
 ---
 
-## Step 7 — Deploy with Helm
+## Step 7: Deploy with Helm
 
 ```bash
 helm repo add osmia https://unitaryai.github.io/osmia
@@ -166,7 +166,7 @@ You should see:
 
 ---
 
-## Step 8 — Create your first issue
+## Step 8: Create your first issue
 
 1. In Linear, create an issue in your team with a specific, well-scoped task:
 
@@ -174,10 +174,10 @@ You should see:
     >
     > **Description:** The handler does not validate the `email` field. Reject requests with a missing or malformed email with a 400 and a descriptive error message. Include unit tests.
 
-2. Add the **osmia** label to the issue.
-3. Ensure the issue is in the `state_filter` state you configured (e.g. `"Todo"`).
+2. Add the `osmia` label to the issue.
+3. Make sure the issue is in the `state_filter` state you configured (e.g. `"Todo"`).
 
-Within 30 seconds (the default poll interval) the controller will pick it up:
+Within 30 seconds (the default poll interval) the controller picks it up:
 
 - The `in-progress` label is added to the issue
 - A Slack message confirms the agent has started work
@@ -191,7 +191,7 @@ Within 30 seconds (the default poll interval) the controller will pick it up:
 
 - Confirm the label name exactly matches what you configured in `labels`.
 - Confirm the issue is in the workflow state named in `state_filter`.
-- Check `exclude_labels` — if the issue has `in-progress` or `osmia-failed` it will be skipped.
+- Check `exclude_labels`. If the issue has `in-progress` or `osmia-failed` it is skipped.
 - Run `kubectl logs -n osmia -l app=osmia --tail=50` and look for polling errors.
 
 **Authentication errors.**
@@ -209,15 +209,15 @@ Within 30 seconds (the default poll interval) the controller will pick it up:
 **No Slack message received.**
 
 - Confirm the bot is invited to the channel (`/invite @Osmia`).
-- Verify the channel ID is correct — it looks like `C0XXXXXXXXX`, not the channel name.
+- Verify the channel ID is correct. It looks like `C0XXXXXXXXX`, not the channel name.
 - Check logs for `"failed to send slack notification"`.
 
 ---
 
-## Next Steps
+## Next steps
 
-- [Configuration Reference](configuration.md) — all available config options
-- [Kubernetes Quick Start](kubernetes.md) — full Helm deployment walkthrough
-- [Guard Rails Overview](../concepts/guardrails-overview.md) — safety limits explained
-- [Shortcut + Slack guide](shortcut-slack.md) — if you use Shortcut instead of Linear
-- [GitHub Issues + Slack guide](github-issues-slack.md) — if you use GitHub Issues instead of Linear
+- [Configuration Reference](configuration.md): all available config options
+- [Kubernetes Quick Start](kubernetes.md): full Helm deployment walkthrough
+- [Guard Rails Overview](../concepts/guardrails-overview.md): safety limits explained
+- [Shortcut + Slack guide](shortcut-slack.md): if you use Shortcut instead of Linear
+- [GitHub Issues + Slack guide](github-issues-slack.md): if you use GitHub Issues instead of Linear

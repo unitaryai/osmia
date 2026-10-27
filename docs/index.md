@@ -5,15 +5,15 @@ hide:
 
 # Osmia
 
-**Kubernetes-native AI coding agent harness.** Orchestrate Claude Code, OpenAI Codex, Aider, and OpenCode to perform maintenance and development tasks on your codebases — autonomously, at scale, with enterprise-grade guard rails.
+Osmia runs AI coding agents (Claude Code, OpenAI Codex, Aider, OpenCode and Cline) against your tickets. Each task gets its own Kubernetes Job. The agent makes the change and opens a pull request, and guard rails check the work at several points along the way.
 
 <div class="grid cards" markdown>
 
--   :material-rocket-launch:{ .lg .middle } **5-Minute Quick Start**
+-   :material-rocket-launch:{ .lg .middle } **Quick start**
 
     ---
 
-    Get Osmia running locally with Docker Compose — no Kubernetes required.
+    Run Osmia locally with Docker Compose. No Kubernetes cluster is needed.
 
     [:octicons-arrow-right-24: Docker Compose quick start](getting-started/docker-compose.md)
 
@@ -21,29 +21,29 @@ hide:
 
     ---
 
-    Install with Helm, configure GitHub Issues + Claude Code, and run your first task.
+    Install with Helm, connect GitHub Issues and Claude Code, and run your first task.
 
     [:octicons-arrow-right-24: Kubernetes quick start](getting-started/kubernetes.md)
 
--   :material-shield-check:{ .lg .middle } **Six Layers of Guard Rails**
+-   :material-shield-check:{ .lg .middle } **Guard rails**
 
     ---
 
-    Controller validation, engine hooks, repo-level rules, task profiles, quality gates, and a progress watchdog.
+    Controller validation, engine hooks, repo-level rules, task profiles, quality gates and a progress watchdog.
 
     [:octicons-arrow-right-24: Guard rails overview](concepts/guardrails-overview.md)
 
--   :material-puzzle:{ .lg .middle } **Extensible Plugin System**
+-   :material-puzzle:{ .lg .middle } **Plugins**
 
     ---
 
-    Ticketing, notifications, secrets, SCM, approvals, and reviews — all pluggable via gRPC.
+    Ticketing, notifications, secrets, SCM, approvals and reviews are all plugins that talk to the controller over gRPC.
 
     [:octicons-arrow-right-24: Writing a plugin](plugins/writing-a-plugin.md)
 
 </div>
 
-## How It Works
+## How it works
 
 ```mermaid
 graph LR
@@ -55,36 +55,36 @@ graph LR
     F --> G["✅ Review & Merge"]
 ```
 
-Osmia watches your issue tracker for labelled tickets, validates them against configurable guard rails, spins up a sandboxed AI coding agent in a Kubernetes Job, and opens a pull request with the result. The entire flow is automated, observable, and safe.
+Osmia watches your issue tracker for labelled tickets and checks each one against the configured guard rails. It then starts a coding agent in a Kubernetes Job. When the agent finishes, a pull request is opened with the result.
 
-## Key Features
+## Key features
 
 | Feature | Description |
 |---|---|
-| **Multi-engine** | Claude Code, Codex, Aider, OpenCode — with automatic fallback chains |
-| **Defence in depth** | Six independent guard rail layers prevent unsafe agent behaviour |
-| **Plugin architecture** | Extend ticketing, notifications, secrets, SCM, approvals, and reviews via gRPC |
-| **Kubernetes-native** | Operator pattern with Karpenter integration and KEDA scaling; leader election is on the roadmap |
-| **Observable** | Prometheus metrics, structured JSON logging, Grafana dashboards |
-| **Multi-tenant** | Multi-tenancy config schema is parsed but not enforced at runtime; namespace-per-tenant isolation is planned |
-| **Security-capable** | Distroless images, read-only filesystems, drop-all capabilities; NetworkPolicies and gVisor sandboxing are available but disabled by default |
+| Multi-engine | Claude Code, Codex, Aider, OpenCode and Cline, with fallback chains |
+| Defence in depth | Six independent guard rail layers limit what an agent can do |
+| Plugin architecture | Ticketing, notifications, secrets, SCM, approvals and reviews are extended through gRPC plugins |
+| Kubernetes-native | Operator pattern with Karpenter integration and KEDA scaling; leader election is on the roadmap |
+| Observability | Prometheus metrics, structured JSON logging, Grafana dashboards |
+| Multi-tenancy | Multi-tenancy config schema is parsed but not enforced at runtime; namespace-per-tenant isolation is planned |
+| Security | Distroless images, read-only filesystems, drop-all capabilities; NetworkPolicies and gVisor sandboxing are available but disabled by default |
 
-## Intelligent Agent Management
+## Intelligent agent management
 
-Osmia goes beyond basic orchestration with integrated intelligence systems that improve agent performance over time:
+Osmia also watches agents while they run and keeps what it learns for later tasks. The subsystems are:
 
-| Subsystem | Status | What It Does |
+| Subsystem | Status | What it does |
 |---|---|---|
-| **[Real-Time Agent Coaching (PRM)](concepts/prm.md)** | **Active** | Scores agent productivity at each tool call and intervenes with guidance before problems escalate |
-| **[Episodic Memory](concepts/memory.md)** | **Active** | Accumulates knowledge across all tasks — prior failures, repo quirks, and engine strengths feed into future prompts |
-| **[LLM Abstraction](concepts/llm.md)** | **Active** | DSPy-inspired typed signatures, composable modules, and budget-aware LLM calls for all subsystems |
-| **[Causal Diagnosis](concepts/diagnosis.md)** | **Active** | Classifies why a task failed and generates targeted corrective instructions for retry |
-| **[Adaptive Watchdog](concepts/guardrails-overview.md#layer-8-adaptive-watchdog-calibration)** | **Active** | Learns what "normal" looks like per repo/engine/task type and adjusts anomaly thresholds |
-| **[Intelligent Routing](concepts/engines.md#intelligent-routing)** | **Active** | Routes tasks to the engine most likely to succeed based on historical data |
-| **[Cost Estimation](concepts/estimator.md)** | **Active** | Predicts cost and duration before launch — "Predicted: $12-18, 45-90 min" |
-| **[Competitive Execution](concepts/engines.md#competitive-execution-tournaments)** | **Active** | Runs multiple engines in parallel, judges results, selects the best solution |
+| [Real-time agent coaching (PRM)](concepts/prm.md) | Active | Scores each tool call and sends the agent guidance when its recent steps look unproductive |
+| [Episodic memory](concepts/memory.md) | Active | Keeps facts from earlier tasks (past failures, repo quirks, engine strengths) and adds them to future prompts |
+| [LLM abstraction](concepts/llm.md) | Active | DSPy-inspired typed signatures, composable modules and budget-aware LLM calls, used by the other subsystems |
+| [Causal diagnosis](concepts/diagnosis.md) | Active | Classifies why a task failed and writes corrective instructions for the retry |
+| [Adaptive watchdog](concepts/guardrails-overview.md#layer-8-adaptive-watchdog-calibration) | Active | Learns what normal looks like for each repo, engine and task type, and adjusts anomaly thresholds to match |
+| [Intelligent routing](concepts/engines.md#intelligent-routing) | Active | Picks the engine most likely to succeed, based on past results |
+| [Cost estimation](concepts/estimator.md) | Active | Predicts cost and duration before launch, for example "Predicted: $12-18, 45-90 min" |
+| [Competitive execution](concepts/engines.md#competitive-execution-tournaments) | Active | Runs several engines in parallel, judges the results and picks the best one |
 
-## Project Layout
+## Project layout
 
 The repository is organised as follows:
 

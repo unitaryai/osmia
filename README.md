@@ -2,51 +2,51 @@
 
 ![Osmia](docs/images/osmia_banner.png)
 
-**Kubernetes-native AI coding agent harness with a real-time intelligence layer.**
+Osmia runs AI coding agents (Claude Code, OpenAI Codex, Aider, OpenCode and Cline) against your tickets. Each task gets its own Kubernetes Job. The agent clones the repository, makes the change and opens a pull request.
 
-Osmia orchestrates autonomous developer agents (Claude Code, OpenAI Codex, Aider, OpenCode) inside isolated Kubernetes Jobs. It goes beyond job dispatching — a built-in intelligence layer streams live output from every running agent, scores productivity in real-time, diagnoses failures causally, routes tasks to the best engine, and accumulates cross-task knowledge that improves future runs.
+While an agent runs, Osmia reads its output as a live stream. It uses that to spot an agent going in circles, to give it hints, to work out why a task failed before retrying it, and to learn which engine suits which kind of task.
 
 ![Osmia Architecture](docs/images/osmia_architecture.png)
 
-**[Documentation →](https://unitaryai.github.io/osmia/)** &nbsp;|&nbsp; [Quick Start](#quick-start) &nbsp;|&nbsp; [Plugin System](#plugin-system)
+**[Documentation](https://unitaryai.github.io/osmia/)** &nbsp;|&nbsp; [Quick start](#quick-start) &nbsp;|&nbsp; [Plugin system](#plugin-system)
 
-> **Why Osmia?** *Osmia* is the genus of mason bees — solitary, non-colonial insects that are among the most efficient pollinators on the planet. Each one works independently, without a hive or queen, yet collectively they get an extraordinary amount done. That's the model here: autonomous agents working in parallel, each on its own task, guided by a lightweight intelligence layer rather than a centralised controller.
+> *Osmia* is the genus of mason bees. They are solitary: each bee works on its own nest, with no hive and no queen. Osmia agents work the same way, each on its own task.
 
 ---
 
-## What Makes Osmia Different
+## What it does beyond running jobs
 
-Most agent orchestrators are job launchers — they dispatch a task and wait for success or failure. Osmia adds an **intelligence layer** that actively monitors, coaches, and learns from every running agent:
+A plain job runner starts a task and waits to see if it passed. Osmia also watches the agent while it works and keeps what it learns for later tasks.
 
-| Capability | What it does |
+| Feature | What it does |
 |---|---|
-| **Real-time streaming** | Agent output flows over a live NDJSON stream — tool calls, cost updates, and content deltas are visible line-by-line as they happen, not after the job finishes |
-| **Process Reward Model (PRM)** | Every tool call is scored for productivity. If a trajectory is deteriorating, targeted guidance is injected before the situation escalates — like having a senior engineer watching over the agent's shoulder |
-| **Episodic memory** | A SQLite-backed knowledge graph accumulates facts, patterns, and engine profiles across tasks. Each new task receives relevant prior knowledge injected into its prompt. Confidence decays over time; stale knowledge is pruned automatically |
-| **Causal failure diagnosis** | Failed tasks are not just retried. The failure mode is classified — permission error, test failure, ambiguous spec, environment issue — and a targeted recovery strategy is generated before the next attempt |
-| **Intelligent engine routing** | Historical success rates, cost, and task-type affinity guide which engine handles each task. Poor-performing engines are penalised; good ones accumulate positive signal. The selection updates continuously |
-| **Predictive cost estimation** | Before a task launches, a k-NN model estimates cost and duration from similar historical outcomes. Tasks projected to exceed `max_predicted_cost_per_job` are automatically rejected before the job starts |
-| **Competitive execution** | Multiple engines run the same task simultaneously. A judge engine evaluates all outputs and selects the best result — useful for critical tasks where quality matters more than cost |
-| **Review-response loop** | Osmia monitors PRs it opens, classifies incoming review comments, and automatically spawns follow-up jobs to address actionable feedback — turning a single-pass agent into a review-responsive loop |
+| Live streaming | The agent's output arrives as an NDJSON stream, so tool calls and cost are visible as they happen, not only when the job ends. |
+| Process Reward Model (PRM) | Scores each tool call. When an agent's recent steps look unproductive, Osmia writes it a hint before things get worse. |
+| Episodic memory | A SQLite-backed knowledge graph of facts and patterns from earlier tasks. Relevant entries go into each new task's prompt. Old entries lose confidence over time and are pruned. |
+| Failure diagnosis | Classifies why a task failed (permissions, a failing test, an unclear ticket, the environment) and changes the approach on the retry instead of repeating it. |
+| Engine routing | Picks an engine for each task from past success rates, cost and task type. |
+| Cost estimation | Estimates cost and duration from similar past tasks before launch. Tasks predicted to cost more than `max_predicted_cost_per_job` are rejected before a job starts. |
+| Competitive execution | Optionally runs several engines on the same task and has a judge pick the best result. Worth the extra cost only when quality matters most. |
+| Review follow-ups | Watches the pull requests it opens. When a reviewer leaves actionable comments, it starts a follow-up job to address them. |
 
-An adaptive **watchdog** detects repetitive tool-call loops, cost-velocity spikes, thrashing between files, and idle stalls — intervening with targeted actions (nudge, escalate, or terminate) rather than waiting for a blunt timeout.
-
----
-
-## Core Features
-
-- **4 execution engines** — Claude Code, OpenAI Codex, Aider, and OpenCode; extensible via gRPC plugin interface
-- **Event-driven ingestion** — Webhooks for GitHub, GitLab, Slack, Shortcut, and generic sources with HMAC signature validation
-- **Plugin architecture** — Ticketing, notifications, secrets, SCM, and review backends are all swappable; write plugins in any language with gRPC support
-- **Human-in-the-loop** — Approval gates at `pre_start` and `pre_merge` hold execution until a human approves via Slack
-- **Secret resolution** — SCM and notification credentials resolved from Kubernetes Secrets or HashiCorp Vault and injected into agent pods; the `secretresolver` package provides the infrastructure for per-task references
-- **Defence in depth** — Six layered safety boundaries: controller guard rails, engine hooks, quality gate, adaptive watchdog, NetworkPolicies, and secret resolution policy
-- **Kubernetes-native** — Isolated agent pods with non-root, read-only-FS, dropped-all-capabilities security contexts; optional gVisor/Kata Containers sandboxing
-- **Enterprise-ready** — Cost budgets per task, Prometheus metrics, and Grafana dashboards; multi-tenancy config schema is parsed but not enforced at runtime (namespace isolation planned)
+A watchdog also looks for repeated tool calls, sudden cost spikes, an agent editing the same files back and forth, and long silences. Depending on what it finds, it nudges the agent, escalates to a person, or stops the job, rather than waiting for a timeout.
 
 ---
 
-## Quick Start
+## Features
+
+- Five built-in engines: Claude Code, OpenAI Codex, Aider, OpenCode and Cline. You can add more through the gRPC plugin interface.
+- Webhooks for GitHub, GitLab, Slack, Shortcut and generic sources, with HMAC signature checks.
+- Plugins for ticketing, notifications, secrets, SCM and code review. Plugins can be written in any language with gRPC support.
+- Approval gates before a job starts (`pre_start`) and before merge (`pre_merge`), answered in Slack.
+- Credentials come from Kubernetes Secrets or HashiCorp Vault. Tasks can also reference their own secrets, checked against a policy before the job starts.
+- Several separate safety layers: controller guard rails, engine hooks, a quality gate, the watchdog, NetworkPolicies and the secret policy.
+- Agent pods run as non-root with a read-only root filesystem and all capabilities dropped. gVisor or Kata Containers sandboxing is optional.
+- Per-task cost limits, Prometheus metrics and Grafana dashboards. A multi-tenancy config schema exists but is not enforced yet; namespace isolation is planned.
+
+---
+
+## Quick start
 
 ```bash
 kubectl create namespace osmia
@@ -87,13 +87,13 @@ guardrails:
 
 Label a GitHub issue `osmia` and the controller picks it up, launches a Claude Code agent, and opens a pull request with the changes.
 
-For step-by-step setup guides, the full configuration reference, and instructions for enabling the intelligence layer features, see the **[documentation](https://unitaryai.github.io/osmia/)**.
+The [documentation](https://unitaryai.github.io/osmia/) has step-by-step setup guides, the full configuration reference, and how to turn on the PRM, memory and the other features above.
 
 ---
 
-## Plugin System
+## Plugin system
 
-All external integrations are pluggable. Built-in plugins are compiled into the controller; third-party plugins run as gRPC subprocesses via [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin).
+Every external integration is a plugin. Built-in plugins are compiled into the controller. Third-party plugins run as gRPC subprocesses using [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin).
 
 | Interface | Built-in | Third-party examples |
 |---|---|---|
@@ -103,9 +103,9 @@ All external integrations are pluggable. Built-in plugins are compiled into the 
 | Secrets | K8s Secrets, HashiCorp Vault | AWS SM, 1Password |
 | SCM | GitHub, GitLab | Bitbucket |
 | Review | CodeRabbit | Custom |
-| Engine | Claude Code, Codex, Aider, OpenCode | Custom |
+| Engine | Claude Code, Codex, Aider, OpenCode, Cline | Custom |
 
-SDK helper libraries for Python, Go, and TypeScript are in `sdk/`. Generated proto stubs are not checked in — run `make sdk-gen` to generate them from the proto definitions. See the [plugin docs](https://unitaryai.github.io/osmia/plugins/writing-a-plugin/) for details.
+SDK helper libraries for Python, Go and TypeScript are in `sdk/`. The generated proto stubs are not checked in; run `make sdk-gen` to generate them. See the [plugin docs](https://unitaryai.github.io/osmia/plugins/writing-a-plugin/) for details.
 
 ---
 
@@ -125,7 +125,7 @@ Prerequisites: Go 1.23+, `gofumpt`, `golangci-lint`, `buf`.
 
 ## Contributing
 
-We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) has the details, but in short:
 
 - [Conventional commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`
 - British English in all comments, docs, and user-facing strings

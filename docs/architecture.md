@@ -8,7 +8,7 @@ For the full technical plan and product requirements, see `oss-plan.md`.
 
 Osmia follows the Kubernetes operator pattern. A single controller binary runs inside the cluster and drives a reconciliation loop. It polls a ticketing backend for work, turns each ticket into a Kubernetes Job that runs an AI coding agent, watches the job until it finishes, and reports the result to the source control and ticketing systems.
 
-The controller does not generate code. It only orchestrates. The coding happens inside short-lived Kubernetes Jobs, each running one of the supported AI engines (Claude Code, OpenAI Codex or Aider). Because of this split, the controller can manage many concurrent agents across several repositories and organisations without depending on one AI provider.
+The controller does not generate code. It only orchestrates. The coding happens inside short-lived Kubernetes Jobs, each running one of the supported AI engines (Claude Code, OpenAI Codex, Aider, OpenCode or Cline). Because of this split, the controller can manage many concurrent agents across several repositories and organisations without depending on one AI provider.
 
 All external integrations (ticketing, notifications, approvals, secrets, SCM and code review) sit behind plugin interfaces. Built-in plugins compile directly into the controller binary; third-party plugins run as separate gRPC subprocesses managed by `hashicorp/go-plugin`.
 
@@ -31,7 +31,7 @@ graph TD
     Ctrl --> WD["Watchdog Loop"]
     Ctrl --> Approval["Approval Backend"]
     Ctrl --> Notif["Notification Channel<br/>(Slack / Teams)"]
-    JB --> Job["K8s Job<br/>(AI Agent Pod)<br/>Claude Code / Codex / Aider"]
+    JB --> Job["K8s Job<br/>(AI Agent Pod)<br/>Claude Code / Codex / Aider /<br/>OpenCode / Cline"]
 
     Job -->|result + branch| SCM["SCM Backend<br/>(GitHub / GitLab)<br/>create PR/MR"]
     Job -->|result + branch| Review["Review Backend<br/>(CodeRabbit)<br/>auto-review"]
@@ -155,6 +155,8 @@ The `JobBuilder` (`internal/jobbuilder/`) then translates this spec into a Kuber
 | Claude Code | Anthropic's CLI agent. Supports hooks for guard rail enforcement and the experimental agent-teams mode for parallel sub-agents. |
 | Codex | OpenAI's coding agent. Configured via API key or credentials file. |
 | Aider | Open-source AI pair programming tool. Supports multiple LLM backends. |
+| OpenCode | Open-source terminal coding agent. Supports Anthropic, OpenAI and Google providers. |
+| Cline | Open-source coding agent, run headless. Supports Anthropic, OpenAI, Google and Bedrock providers. |
 
 The default engine is `claude-code`, configurable via `osmia-config.yaml`.
 
@@ -219,7 +221,7 @@ Osmia enforces safety through six layers. For full details, see the [guard rails
 
 4. Task profiles: configuration-driven profiles that define cost and duration limits per task type. The config schema is defined and values are stored, but per-task-type file pattern restrictions (`allowed_file_patterns`, `blocked_file_patterns`) are not yet enforced at runtime.
 
-5. Quality gate: an optional post-completion review step. A separate AI engine (or the same one) reviews the agent's output for security issues, OWASP patterns, leaked secrets, and dependency CVEs. Configurable responses include `retry_with_feedback`, `block_mr`, or `notify_human`.
+5. Quality gate (not built yet; the settings are read but have no effect): an optional post-completion review step. A separate AI engine (or the same one) reviews the agent's output for security issues, OWASP patterns, leaked secrets, and dependency CVEs. Configurable responses include `retry_with_feedback`, `block_mr`, or `notify_human`.
 
 6. Progress watchdog: a continuous monitoring loop that detects stalled, looping, or unproductive agents during execution. See below for details.
 
@@ -267,7 +269,7 @@ The steps in detail:
 3. Build spec: the selected engine produces an `ExecutionSpec` containing the container image, command, environment variables, secret references, resource limits, and deadline.
 4. Create job: the `JobBuilder` translates the spec into a `batch/v1.Job` with:
    - Labels: `app=osmia-agent`, `osmia.io/task-run-id`, `osmia.io/engine`
-   - Security context: `runAsNonRoot`, `runAsUser: 1000`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, all capabilities dropped, `RuntimeDefault` seccomp profile
+   - Security context: `runAsNonRoot`, `runAsUser: 10000`, `readOnlyRootFilesystem`, `allowPrivilegeEscalation: false`, all capabilities dropped, `RuntimeDefault` seccomp profile
    - Tolerations for the `osmia.io/agent` taint (to schedule on dedicated node pools)
    - `BackoffLimit: 0` (retries are handled by the controller, not Kubernetes)
    - `RestartPolicy: Never`
@@ -452,7 +454,7 @@ Every agent Job is created with a restrictive security context:
 ```yaml
 securityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 10000
   readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:

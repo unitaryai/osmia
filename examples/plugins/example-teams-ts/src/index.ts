@@ -4,7 +4,7 @@
  * Implements the NotificationChannel gRPC interface to send notifications
  * to Microsoft Teams channels via incoming webhooks.
  *
- * Note: This is an example/template. The @osmia/plugin-sdk package is
+ * Note: This is an example/template. The @unitaryai/osmia-plugin-sdk package is
  * not yet published; this code shows the intended plugin development
  * experience.
  */
@@ -129,7 +129,7 @@ class TeamsNotificationChannel {
 /**
  * Entry point for the Teams plugin.
  *
- * In production, this would use the @osmia/plugin-sdk to register
+ * In production, this would use the @unitaryai/osmia-plugin-sdk to register
  * the channel as a gRPC service and start serving.
  */
 async function main(): Promise<void> {
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
   console.log(`teams channel initialised: ${channel.name} v${channel.interfaceVersion}`);
 
   // When the SDK is available:
-  // import { serve } from '@osmia/plugin-sdk';
+  // import { serve } from '@unitaryai/osmia-plugin-sdk';
   // serve(channel, { interface: 'notifications' });
 }
 

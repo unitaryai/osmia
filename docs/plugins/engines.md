@@ -143,11 +143,9 @@ The primary and recommended engine. Runs the [Claude Code CLI](https://docs.anth
 config:
   engines:
     default: claude-code
-    claude_code:
+    claude-code:
       image: "ghcr.io/unitaryai/engine-claude-code:v2.1.0"
       max_turns: 50
-      model: "claude-sonnet-4-6"
-      timeout_seconds: 3600
       fallback_model: haiku              # used when primary model is overloaded
       append_system_prompt: "Always run tests before committing."
       tool_whitelist:                    # only these tools are available
@@ -158,12 +156,6 @@ config:
       tool_blacklist:                    # these tools are blocked
         - WebSearch
       json_schema: '{"type":"object","properties":{"success":{"type":"boolean"},"summary":{"type":"string"}},"required":["success","summary"]}'
-      resource_requests:
-        cpu: "500m"
-        memory: "512Mi"
-      resource_limits:
-        cpu: "2"
-        memory: "2Gi"
       skills:                            # custom skills (see Skills section below)
         - name: create-changelog
           inline: |
@@ -191,7 +183,6 @@ config:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `image` | string | `ghcr.io/unitaryai/engine-claude-code:latest` | Container image override |
-| `timeout_seconds` | int | `7200` | Active deadline for the K8s Job |
 | `fallback_model` | string | (none) | Model to use when the primary is overloaded (e.g. `haiku`) |
 | `append_system_prompt` | string | (none) | Extra text appended to Claude Code's system prompt |
 | `session_persistence` | SessionPersistenceConfig | disabled | Opt-in session-state persistence between retries (see [Session persistence](#session-persistence)) |
@@ -201,6 +192,10 @@ config:
 | `skills` | []SkillConfig | (none) | Custom skill files loaded into the agent (see [Skills](#skills)) |
 | `sub_agents` | []SubAgentConfig | (none) | Sub-agent definitions (see [Sub-agents](#sub-agents)) |
 | `agent_teams` | AgentTeamsConfig | disabled | Experimental multi-instance collaboration (see [Agent teams](#agent-teams)) |
+
+The Job's time limit is not set per engine. It comes from
+`guardrails.max_job_duration_minutes` and applies to every engine. CPU and
+memory requests and limits for agent pods cannot be configured yet.
 
 #### Command
 
@@ -300,7 +295,7 @@ Example: inline skill
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     skills:
       - name: create-changelog
         inline: |
@@ -317,7 +312,7 @@ Example: image-bundled skill
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     skills:
       - name: security-review
         path: /opt/osmia/skills/security-review.md
@@ -327,7 +322,7 @@ Example: ConfigMap-backed skill
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     skills:
       - name: deploy-guide
         configmap: deploy-skills    # K8s ConfigMap name
@@ -351,7 +346,7 @@ Set `multi_file: true` and give the ConfigMap one key per file. The whole Config
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     skills:
       - name: incident-classifier
         configmap: incident-classifier-skill
@@ -386,7 +381,7 @@ Configuration:
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     sub_agents:
       # Inline sub-agent: prompt is in the config.
       - name: reviewer
@@ -459,7 +454,7 @@ Configuration:
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     agent_teams:
       enabled: true
       mode: in-process        # required for headless K8s containers (no tmux)
@@ -491,7 +486,7 @@ Configuration:
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     session_persistence:
       enabled: true
       backend: shared-pvc          # shared-pvc | per-taskrun-pvc | s3
@@ -639,13 +634,6 @@ config:
     default: codex
     codex:
       image: "ghcr.io/unitaryai/engine-codex:v1.0.0"
-      timeout_seconds: 3600
-      resource_requests:
-        cpu: "500m"
-        memory: "512Mi"
-      resource_limits:
-        cpu: "2"
-        memory: "2Gi"
 ```
 
 #### Command
@@ -713,13 +701,6 @@ config:
     aider:
       image: "ghcr.io/unitaryai/engine-aider:v1.0.0"
       provider: "anthropic"   # or "openai"
-      timeout_seconds: 3600
-      resource_requests:
-        cpu: "500m"
-        memory: "512Mi"
-      resource_limits:
-        cpu: "2"
-        memory: "2Gi"
 ```
 
 #### Command

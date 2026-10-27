@@ -11,7 +11,7 @@ What it gives you:
 - Early detection of repetitive loops, stalls and declining productivity.
 - Specific hints rather than a generic "try again".
 - Lower token spend on failing tasks, by up to 60%.
-- No change to the agent: it works only on observable telemetry, with any engine that produces streaming events.
+- No change to the agent: it works only on observable telemetry, with any engine that produces an event stream. Today that is Claude Code only.
 - Configurable thresholds, so you can tune sensitivity per environment.
 
 ## How it works
@@ -76,8 +76,8 @@ prm:
   enabled: true
   evaluation_interval: 5        # Evaluate every N tool calls
   window_size: 10               # Rolling window of recent events
-  score_threshold_nudge: 7      # Score below this triggers a nudge
-  score_threshold_escalate: 3   # Score below this triggers escalation
+  score_threshold_nudge: 7      # Below this, a declining or stuck agent gets a hint
+  score_threshold_escalate: 3   # At or below this, a sustained decline is escalated
   hint_file_path: "/workspace/.osmia-hint.md"
   max_trajectory_length: 50     # Maximum trajectory points stored
 ```
@@ -89,8 +89,8 @@ prm:
 | `enabled` | bool | `false` | Enables PRM scoring of agent tool calls |
 | `evaluation_interval` | int | `5` | Number of tool calls between evaluations |
 | `window_size` | int | `10` | Number of recent events in the scoring window |
-| `score_threshold_nudge` | float | `7.0` | Scores below this produce a nudge intervention |
-| `score_threshold_escalate` | float | `3.0` | Scores below this produce an escalation |
+| `score_threshold_nudge` | int | `7` | Below this score, a declining trend, oscillation or plateau produces a nudge |
+| `score_threshold_escalate` | int | `3` | At or below this score, a sustained decline produces an escalation |
 | `hint_file_path` | string | `/workspace/.osmia-hint.md` | Path where hints are written in the agent pod |
 | `max_trajectory_length` | int | `50` | Maximum number of trajectory points retained |
 

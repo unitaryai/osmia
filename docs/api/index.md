@@ -19,10 +19,12 @@ POST /webhooks/gitlab
 POST /webhooks/slack
 POST /webhooks/shortcut
 POST /webhooks/generic
+POST /webhooks/incident-io
 ```
 
-All endpoints require a configured signing secret and validate signatures
-before processing the request body. See [Webhook API](webhooks.md) for the
+Every endpoint validates a signature or token before processing the request
+body, with two exceptions: Shortcut checks its signature only when a secret is
+configured, and the generic endpoint depends on its `auth_mode`. See [Webhook API](webhooks.md) for the
 full reference.
 
 ## Plugin gRPC API

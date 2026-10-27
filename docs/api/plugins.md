@@ -108,8 +108,8 @@ by the engine.
 
 Ticketing backends poll external issue trackers for ready tickets and manage
 ticket lifecycle transitions throughout the TaskRun state machine. Built-in
-backends (GitHub Issues) are compiled into the controller binary. External
-backends (Jira, Linear, Shortcut) run as gRPC subprocesses.
+backends (GitHub Issues, Shortcut, Linear) are compiled into the controller binary. Other
+backends, such as Jira, run as gRPC subprocesses.
 
 ### RPCs
 

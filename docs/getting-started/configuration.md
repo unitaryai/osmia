@@ -13,7 +13,7 @@ Osmia is configured via a YAML file (`osmia-config.yaml`) which is mounted into 
 | `scm` | Source code management backend for cloning and opening PRs |
 | `guardrails` | Safety boundaries: cost limits, concurrency limits, blocked file patterns |
 | `tenancy` | Multi-tenancy config schema (namespace-per-tenant runtime isolation is planned) |
-| `quality_gate` | Optional AI-powered review of agent output before merging |
+| `quality_gate` | Review of agent output before merging. Not built yet: the settings are read but have no effect |
 | `review` | Review backend configuration |
 | `review_response` | Automated follow-up on PR/MR review comments |
 | `progress_watchdog` | Detects stalled or looping agent jobs and intervenes |
@@ -156,7 +156,7 @@ engines:
   fallback_engines:        # Tried in order if the default fails
     - codex
     - aider
-  claude_code:
+  claude-code:
     auth:
       method: api_key
       api_key_secret: "osmia-anthropic-key"
@@ -208,7 +208,7 @@ The trade-off is that a job on a tagged image cannot start while the registry is
 
 ```yaml
 engines:
-  claude_code:
+  claude-code:
     image: ghcr.io/unitaryai/osmia/engine-claude-code@sha256:<digest>
 ```
 
@@ -429,6 +429,9 @@ Set it for any credential a task must never be able to name, whether or not
 the collision check would catch it.
 
 ## Quality gate
+
+!!! warning "Not built yet"
+    The `quality_gate` settings are read from the config file, but the controller does not run a review yet. Setting `enabled: true` has no effect.
 
 ```yaml
 quality_gate:

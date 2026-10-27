@@ -9,7 +9,7 @@ This plugin implements the `TicketingBackend` gRPC interface to connect Osmia to
 ## Prerequisites
 
 - Python 3.11+
-- `osmia-plugin-sdk` (pip install osmia-plugin-sdk)
+- `osmia-plugin-sdk`, installed from source with `pip install -e sdk/python/` from the repository root (it is not on PyPI yet)
 - Jira Cloud API token
 
 ## Getting Started

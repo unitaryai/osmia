@@ -197,7 +197,7 @@ You should see:
 
 1. In Shortcut, go to **Settings → Integrations → Webhooks**.
 2. Click **Add Webhook**.
-3. Set the **URL** to `https://YOUR_OSMIA_HOST:8081/webhook/shortcut`.
+3. Set the **URL** to `https://YOUR_OSMIA_HOST:8081/webhooks/shortcut`.
 4. Set the **Secret** to the same value you used for `webhook.shortcut.secret` in Step 6.
 5. Click **Save**.
 

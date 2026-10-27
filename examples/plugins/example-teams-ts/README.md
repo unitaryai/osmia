@@ -9,7 +9,7 @@ This plugin implements the `NotificationChannel` gRPC interface to send notifica
 ## Prerequisites
 
 - Node.js 20+
-- `@osmia/plugin-sdk` (npm install @osmia/plugin-sdk)
+- `@unitaryai/osmia-plugin-sdk`, built from `sdk/typescript` (it is not on npm yet; see the [SDK README](../../../sdk/typescript/README.md))
 - Microsoft Teams incoming webhook URL
 
 ## Getting Started

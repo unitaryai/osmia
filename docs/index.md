@@ -29,7 +29,7 @@ Osmia runs AI coding agents (Claude Code, OpenAI Codex, Aider, OpenCode and Clin
 
     ---
 
-    Controller validation, engine hooks, repo-level rules, task profiles, quality gates and a progress watchdog.
+    Controller validation, engine hooks, repo-level rules, task profiles and a progress watchdog.
 
     [:octicons-arrow-right-24: Guard rails overview](concepts/guardrails-overview.md)
 
@@ -47,7 +47,7 @@ Osmia runs AI coding agents (Claude Code, OpenAI Codex, Aider, OpenCode and Clin
 
 ```mermaid
 graph LR
-    A["🎫 Issue Tracker<br/>(GitHub / GitLab / Jira)"] --> B["🎛️ Osmia Controller"]
+    A["🎫 Issue Tracker<br/>(GitHub / Shortcut / Linear)"] --> B["🎛️ Osmia Controller"]
     B --> C["🛡️ Guard Rails"]
     C --> D["⚙️ Engine Selector"]
     D --> E["📦 K8s Job<br/>(AI Agent Pod)"]
@@ -62,7 +62,7 @@ Osmia watches your issue tracker for labelled tickets and checks each one agains
 | Feature | Description |
 |---|---|
 | Multi-engine | Claude Code, Codex, Aider, OpenCode and Cline, with fallback chains |
-| Defence in depth | Six independent guard rail layers limit what an agent can do |
+| Defence in depth | Several independent guard rail layers limit what an agent can do |
 | Plugin architecture | Ticketing, notifications, secrets, SCM, approvals and reviews are extended through gRPC plugins |
 | Kubernetes-native | Operator pattern with Karpenter integration and KEDA scaling; leader election is on the roadmap |
 | Observability | Prometheus metrics, structured JSON logging, Grafana dashboards |

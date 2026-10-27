@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -31,10 +31,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -947,6 +947,17 @@
     <span class="md-ellipsis">
       
         Bot summary filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restarts
       
     </span>
   </a>
@@ -2606,6 +2617,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#restarts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restarts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osmias-own-comments" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3332,7 +3354,7 @@ the collision check would catch it.</p>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Current limitation</p>
-<p>Only the <code>memory</code> backend is currently implemented. The <code>sqlite</code> and <code>postgres</code> backends are planned but not yet available.</p>
+<p><code>memory</code> and <code>sqlite</code> are implemented. <code>postgres</code> is planned but not yet available, and the controller refuses to start if it is configured. Use <code>sqlite</code> wherever state should survive a restart, including the review-monitoring restore described under <a href="#restarts">Restarts</a>.</p>
 </div>
 <h2 id="tenancy">Tenancy<a class="headerlink" href="#tenancy" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">tenancy</span><span class="p">:</span>
@@ -3497,6 +3519,9 @@ the collision check would catch it.</p>
 <h3 id="bot-summary-filtering">Bot summary filtering<a class="headerlink" href="#bot-summary-filtering" title="Permanent link">&para;</a></h3>
 <p>Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The <code>ignore_summary_authors</code> patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.</p>
 <p>For GitLab, group bot tokens use usernames like <code>group_123456_bot_abcdef...</code>. Add <code>"^group_\\d+_bot_"</code> to catch all of them.</p>
+<h3 id="restarts">Restarts<a class="headerlink" href="#restarts" title="Permanent link">&para;</a></h3>
+<p>The list of PRs/MRs Osmia is watching is rebuilt from the TaskRun store when the controller starts, so a restart, or the cluster autoscaler moving the controller to another node, does not stop it following up on PRs it opened. Comments posted before the restart that were already handled are not acted on again, and each PR's follow-up budget carries over. PRs opened more than 30 days ago are not restored.</p>
+<p>This needs a persistent <code>taskrun_store</code> (for example <code>backend: sqlite</code>). With the default in-memory store there is nothing to rebuild from, and a restart forgets every watched PR.</p>
 <h3 id="osmias-own-comments">Osmia's own comments<a class="headerlink" href="#osmias-own-comments" title="Permanent link">&para;</a></h3>
 <p>Osmia never acts on a comment its own SCM account posted, inline or not. At startup it asks GitHub or GitLab which account its token belongs to (<code>GET /user</code>) and ignores that account's comments. This matters because a follow-up job ends by posting a summary such as "Addressed. Fixed the 2 pyright errors", which is full of words the classifier treats as actionable; without the check, each follow-up would trigger the next until <code>max_follow_up_jobs</code> ran out.</p>
 <p>You do not need to list Osmia's own account in <code>ignore_summary_authors</code>. If the lookup fails, for example because a GitHub App installation token cannot call <code>GET /user</code>, Osmia logs a warning and falls back to recognising itself by name: only an account whose username contains <code>osmia</code> is caught by the built-in list. In that case add your account to <code>ignore_summary_authors</code>, anchored, such as <code>"^my_bot_account$"</code>.</p>
@@ -3730,10 +3755,10 @@ the collision check would catch it.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
     
   </body>

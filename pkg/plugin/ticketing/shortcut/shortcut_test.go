@@ -447,7 +447,7 @@ func TestShortcutBackend_PollReadyTickets_RepoURLFromExternalLinks(t *testing.T)
 			ID:            10,
 			Name:          "With repo",
 			AppURL:        "https://app.shortcut.com/org/story/10",
-			ExternalLinks: []string{"https://www.notion.so/org/Spec-1", "https://gitlab.com/org/repo"},
+			ExternalLinks: []string{"https://www.notion.so/org/Spec-1", "https://gitlab.com/groups/org/-/epics/3", "https://gitlab.com/org/repo"},
 		},
 		{
 			ID:     11,
@@ -504,6 +504,23 @@ func TestRepoURLFromLinks(t *testing.T) {
 		{name: "host alone is not a repository", links: []string{"https://github.com/owner"}, want: ""},
 		{name: "gitlab group without project is not a repository", links: []string{"https://gitlab.com/org"}, want: ""},
 		{name: "non-http scheme ignored", links: []string{"ssh://gitlab.com/org/repo"}, want: ""},
+		{
+			name:  "github settings page before repository",
+			links: []string{"https://github.com/settings/apps/new", "https://github.com/owner/repo"},
+			want:  "https://github.com/owner/repo",
+		},
+		{
+			name:  "repository before github settings page",
+			links: []string{"https://github.com/owner/repo", "https://github.com/settings/apps/new"},
+			want:  "https://github.com/owner/repo",
+		},
+		{
+			name:  "gitlab group page before project",
+			links: []string{"https://gitlab.com/groups/team/-/achievements", "https://gitlab.com/org/repo"},
+			want:  "https://gitlab.com/org/repo",
+		},
+		{name: "gitlab user page alone", links: []string{"https://gitlab.com/-/user_settings/profile"}, want: ""},
+		{name: "github marketplace alone", links: []string{"https://github.com/marketplace/actions/checkout"}, want: ""},
 		{name: "surrounding whitespace tolerated", links: []string{"  https://gitlab.com/org/repo  "}, want: "https://gitlab.com/org/repo"},
 	}
 

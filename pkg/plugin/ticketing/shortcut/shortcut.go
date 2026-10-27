@@ -866,8 +866,33 @@ func repoURLFromLinks(links []string) string {
 	return ""
 }
 
+// githubReservedOwners are first path segments on github.com that are site
+// pages rather than an owner, so a link under them is never a repository.
+var githubReservedOwners = map[string]struct{}{
+	"about": {}, "account": {}, "apps": {}, "codespaces": {}, "collections": {},
+	"dashboard": {}, "enterprise": {}, "explore": {}, "features": {}, "issues": {},
+	"login": {}, "logout": {}, "marketplace": {}, "new": {}, "notifications": {},
+	"organizations": {}, "orgs": {}, "pricing": {}, "pulls": {}, "search": {},
+	"security": {}, "settings": {}, "site": {}, "sponsors": {}, "topics": {},
+	"users": {},
+}
+
+// gitlabReservedRoots are first path segments on gitlab.com that are site,
+// group or user pages rather than a namespace, so a link under them is never
+// a project.
+var gitlabReservedRoots = map[string]struct{}{
+	"-": {}, "admin": {}, "api": {}, "dashboard": {}, "explore": {}, "groups": {},
+	"help": {}, "projects": {}, "search": {}, "snippets": {}, "users": {},
+}
+
 // repoURLFromLink reduces a single GitHub or GitLab link to its repository
 // URL, or returns "" if the link is not into a repository on either host.
+//
+// Site pages (settings, group pages, the marketplace and similar) are
+// rejected by their first path segment. A GitLab link to a subgroup, such as
+// gitlab.com/org/team, cannot be told apart from a project without calling
+// the API, so it is accepted; cloning it then fails rather than working on
+// the wrong repository.
 func repoURLFromLink(link string) string {
 	u, err := url.Parse(link)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
@@ -882,9 +907,16 @@ func repoURLFromLink(link string) string {
 		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 			return ""
 		}
+		if _, reserved := githubReservedOwners[strings.ToLower(parts[0])]; reserved {
+			return ""
+		}
 		path = parts[0] + "/" + parts[1]
 	case "gitlab.com":
 		// gitlab.com/{group}[/{subgroup}...]/{project}[/-/merge_requests/1, ...]
+		root, _, _ := strings.Cut(path, "/")
+		if _, reserved := gitlabReservedRoots[strings.ToLower(root)]; reserved {
+			return ""
+		}
 		if i := strings.Index(path, "/-/"); i >= 0 {
 			path = path[:i]
 		}

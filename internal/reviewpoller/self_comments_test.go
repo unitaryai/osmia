@@ -43,7 +43,7 @@ func (b *identityBackend) identityCalls() int {
 }
 
 // osmiaSummary is the comment a follow-up job posts once it has finished,
-// taken from attune-workflows!502 where it fed a self-reply loop. It contains
+// taken from a real MR where it fed a self-reply loop. It contains
 // "fixed" and "errors", both of which the keyword classifier reads as
 // actionable at error severity.
 func osmiaSummary(id, author string) scm.ReviewComment {
@@ -60,20 +60,20 @@ const prURL = "https://gitlab.com/acme/widgets/-/merge_requests/502"
 func newTrackedPoller(t *testing.T, backend scm.Backend, classifier Classifier) (*Poller, *TrackedPR) {
 	t.Helper()
 	p := New(baseCfg(), classifier, testLogger()).WithSCMBackend(backend)
-	p.Register(prURL, "48290", "Title", "Description", "https://gitlab.com/acme/widgets")
+	p.Register(prURL, "T-1", "Title", "Description", "https://gitlab.com/acme/widgets")
 	return p, p.tracked[prURL]
 }
 
-// TestPoller_IgnoresOwnComments reproduces the loop seen on
-// attune-workflows!502 with the real keyword classifier: Osmia's account was
-// named unitary_robodev, which the name-based bot filter does not recognise,
+// TestPoller_IgnoresOwnComments reproduces a loop seen in production with
+// the real keyword classifier: Osmia's account was named legacy_bot, which
+// the name-based bot filter does not recognise,
 // so its own summary comment was classified as actionable and spawned
 // another follow-up job.
 func TestPoller_IgnoresOwnComments(t *testing.T) {
 	t.Run("own summary comment does not trigger a follow-up", func(t *testing.T) {
 		backend := &identityBackend{
-			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "unitary_robodev")}},
-			user:           "unitary_robodev",
+			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "legacy_bot")}},
+			user:           "legacy_bot",
 		}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
 
@@ -86,8 +86,8 @@ func TestPoller_IgnoresOwnComments(t *testing.T) {
 
 	t.Run("match is case-insensitive", func(t *testing.T) {
 		backend := &identityBackend{
-			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "Unitary_RoboDev")}},
-			user:           "unitary_robodev",
+			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "Legacy_Bot")}},
+			user:           "legacy_bot",
 		}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
 
@@ -99,8 +99,8 @@ func TestPoller_IgnoresOwnComments(t *testing.T) {
 	t.Run("a human comment beside an own comment is still acted on, alone", func(t *testing.T) {
 		human := scm.ReviewComment{ID: "n2", Author: "mattcamp", Body: "Please fix the lint CI stage errors.", Created: time.Now()}
 		backend := &identityBackend{
-			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "unitary_robodev"), human}},
-			user:           "unitary_robodev",
+			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "legacy_bot"), human}},
+			user:           "legacy_bot",
 		}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
 
@@ -114,8 +114,8 @@ func TestPoller_IgnoresOwnComments(t *testing.T) {
 
 	t.Run("identity is looked up once and cached across polls", func(t *testing.T) {
 		backend := &identityBackend{
-			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "unitary_robodev")}},
-			user:           "unitary_robodev",
+			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "legacy_bot")}},
+			user:           "legacy_bot",
 		}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
 
@@ -133,7 +133,7 @@ func TestPoller_IgnoresOwnComments(t *testing.T) {
 func TestPoller_SelfIdentityFallback(t *testing.T) {
 	t.Run("lookup error falls back to classification and is retried next poll", func(t *testing.T) {
 		backend := &identityBackend{
-			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "unitary_robodev")}},
+			fakeSCMBackend: &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "legacy_bot")}},
 			err:            fmt.Errorf("403 forbidden"),
 		}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
@@ -146,7 +146,7 @@ func TestPoller_SelfIdentityFallback(t *testing.T) {
 	})
 
 	t.Run("backend without the capability behaves exactly as before", func(t *testing.T) {
-		backend := &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "unitary_robodev")}}
+		backend := &fakeSCMBackend{comments: []scm.ReviewComment{osmiaSummary("n1", "legacy_bot")}}
 		p, pr := newTrackedPoller(t, backend, NewRuleBasedClassifier(nil))
 
 		p.pollPR(context.Background(), prURL, pr)

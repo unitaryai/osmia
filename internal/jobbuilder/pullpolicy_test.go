@@ -16,7 +16,7 @@ func TestPullPolicyFor(t *testing.T) {
 		image string
 		want  corev1.PullPolicy
 	}{
-		// The case that broke dev-1: `main` is rewritten on every push and
+		// The case that broke a real deployment: `main` is rewritten on every push and
 		// by the weekly rebuild, so a cached copy can be any earlier build.
 		{name: "moving branch tag", image: "ghcr.io/unitaryai/osmia/engine-claude-code:main", want: corev1.PullAlways},
 		{name: "commit tag is still a tag", image: "ghcr.io/unitaryai/osmia/engine-claude-code:sha-e037eae", want: corev1.PullAlways},

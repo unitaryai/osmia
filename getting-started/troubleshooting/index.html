@@ -602,7 +602,7 @@
   <a href="#controller-pod-is-not-starting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Controller Pod Is Not Starting
+        Controller pod is not starting
       
     </span>
   </a>
@@ -613,7 +613,7 @@
   <a href="#issues-are-not-being-picked-up" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Issues Are Not Being Picked Up
+        Issues are not being picked up
       
     </span>
   </a>
@@ -624,7 +624,7 @@
   <a href="#agent-jobs-are-failing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Agent Jobs Are Failing
+        Agent jobs are failing
       
     </span>
   </a>
@@ -635,7 +635,7 @@
   <a href="#metrics-endpoint-is-not-working" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metrics Endpoint Is Not Working
+        Metrics endpoint is not working
       
     </span>
   </a>
@@ -646,7 +646,7 @@
   <a href="#webhooks-are-not-working" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Webhooks Are Not Working
+        Webhooks are not working
       
     </span>
   </a>
@@ -657,7 +657,7 @@
   <a href="#notifications-are-not-being-sent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notifications Are Not Being Sent
+        Notifications are not being sent
       
     </span>
   </a>
@@ -668,12 +668,12 @@
   <a href="#docker-compose-issues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Docker Compose Issues
+        Docker Compose issues
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Docker Compose Issues">
+    <nav class="md-nav" aria-label="Docker Compose issues">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -707,7 +707,7 @@
   <a href="#watchdog-is-terminating-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Watchdog Is Terminating Jobs
+        Watchdog is terminating jobs
       
     </span>
   </a>
@@ -718,7 +718,7 @@
   <a href="#getting-help" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Getting Help
+        Getting help
       
     </span>
   </a>
@@ -1921,7 +1921,7 @@
   <a href="#controller-pod-is-not-starting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Controller Pod Is Not Starting
+        Controller pod is not starting
       
     </span>
   </a>
@@ -1932,7 +1932,7 @@
   <a href="#issues-are-not-being-picked-up" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Issues Are Not Being Picked Up
+        Issues are not being picked up
       
     </span>
   </a>
@@ -1943,7 +1943,7 @@
   <a href="#agent-jobs-are-failing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Agent Jobs Are Failing
+        Agent jobs are failing
       
     </span>
   </a>
@@ -1954,7 +1954,7 @@
   <a href="#metrics-endpoint-is-not-working" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metrics Endpoint Is Not Working
+        Metrics endpoint is not working
       
     </span>
   </a>
@@ -1965,7 +1965,7 @@
   <a href="#webhooks-are-not-working" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Webhooks Are Not Working
+        Webhooks are not working
       
     </span>
   </a>
@@ -1976,7 +1976,7 @@
   <a href="#notifications-are-not-being-sent" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notifications Are Not Being Sent
+        Notifications are not being sent
       
     </span>
   </a>
@@ -1987,12 +1987,12 @@
   <a href="#docker-compose-issues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Docker Compose Issues
+        Docker Compose issues
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Docker Compose Issues">
+    <nav class="md-nav" aria-label="Docker Compose issues">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2026,7 +2026,7 @@
   <a href="#watchdog-is-terminating-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Watchdog Is Terminating Jobs
+        Watchdog is terminating jobs
       
     </span>
   </a>
@@ -2037,7 +2037,7 @@
   <a href="#getting-help" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Getting Help
+        Getting help
       
     </span>
   </a>
@@ -2070,8 +2070,8 @@
 
 
 <h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
-<p>Common issues and their solutions when running Osmia.</p>
-<h2 id="controller-pod-is-not-starting">Controller Pod Is Not Starting<a class="headerlink" href="#controller-pod-is-not-starting" title="Permanent link">&para;</a></h2>
+<p>Common problems when running Osmia, and how to fix them.</p>
+<h2 id="controller-pod-is-not-starting">Controller pod is not starting<a class="headerlink" href="#controller-pod-is-not-starting" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>describe<span class="w"> </span>pod<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>-l<span class="w"> </span>app.kubernetes.io/name<span class="o">=</span>osmia
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>deployment/osmia<span class="w"> </span>--previous
 </code></pre></div>
@@ -2097,11 +2097,11 @@
 <tr>
 <td><strong>Pending</strong></td>
 <td>Insufficient cluster resources</td>
-<td>Check <code>kubectl describe pod</code> for scheduling events. Ensure your cluster has enough CPU and memory.</td>
+<td>Check <code>kubectl describe pod</code> for scheduling events. Make sure your cluster has enough CPU and memory.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="issues-are-not-being-picked-up">Issues Are Not Being Picked Up<a class="headerlink" href="#issues-are-not-being-picked-up" title="Permanent link">&para;</a></h2>
+<h2 id="issues-are-not-being-picked-up">Issues are not being picked up<a class="headerlink" href="#issues-are-not-being-picked-up" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Confirm the issue has the correct label (must match <code>config.ticketing.config.labels</code> exactly).</li>
 <li>Check that <code>config.ticketing.config.owner</code> and <code>config.ticketing.config.repo</code> match the repository.</li>
@@ -2116,9 +2116,9 @@
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>The controller polls on a configurable interval (default: 30 seconds). If you need faster pickup, consider enabling <a href="../kubernetes/#webhook-setup-optional">webhooks</a> for near-instant ingestion.</p>
+<p>The controller polls on a configurable interval (default: 30 seconds). For faster pickup, enable <a href="../kubernetes/#webhook-setup-optional">webhooks</a>.</p>
 </div>
-<h2 id="agent-jobs-are-failing">Agent Jobs Are Failing<a class="headerlink" href="#agent-jobs-are-failing" title="Permanent link">&para;</a></h2>
+<h2 id="agent-jobs-are-failing">Agent jobs are failing<a class="headerlink" href="#agent-jobs-are-failing" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># List recent jobs and their status</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kubectl<span class="w"> </span>get<span class="w"> </span><span class="nb">jobs</span><span class="w"> </span>-n<span class="w"> </span>osmia
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
@@ -2156,14 +2156,14 @@
 </tr>
 </tbody>
 </table>
-<h2 id="metrics-endpoint-is-not-working">Metrics Endpoint Is Not Working<a class="headerlink" href="#metrics-endpoint-is-not-working" title="Permanent link">&para;</a></h2>
-<p>Ensure <code>metrics.enabled</code> is set to <code>true</code> in your values (this is the default). The metrics are served on the port specified by <code>metrics.port</code> (default <code>8080</code>).</p>
+<h2 id="metrics-endpoint-is-not-working">Metrics endpoint is not working<a class="headerlink" href="#metrics-endpoint-is-not-working" title="Permanent link">&para;</a></h2>
+<p>Check that <code>metrics.enabled</code> is set to <code>true</code> in your values (this is the default). The metrics are served on the port specified by <code>metrics.port</code> (default <code>8080</code>).</p>
 <p>If you are using a <code>ServiceMonitor</code>, confirm that <code>metrics.serviceMonitor.enabled</code> is <code>true</code> and the labels match your Prometheus operator configuration.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Test metrics endpoint directly</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kubectl<span class="w"> </span>port-forward<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>deployment/osmia<span class="w"> </span><span class="m">8080</span>:8080<span class="w"> </span><span class="p">&amp;</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8080/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
 </code></pre></div>
-<h2 id="webhooks-are-not-working">Webhooks Are Not Working<a class="headerlink" href="#webhooks-are-not-working" title="Permanent link">&para;</a></h2>
+<h2 id="webhooks-are-not-working">Webhooks are not working<a class="headerlink" href="#webhooks-are-not-working" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Verify the webhook pod port matches <code>webhook.port</code> in your values (default: 8081).</li>
 <li>Check that your ticketing provider is sending events to the correct URL.</li>
@@ -2173,29 +2173,29 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Check webhook server logs</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>deployment/osmia<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"webhook"</span>
 </code></pre></div>
-<h2 id="notifications-are-not-being-sent">Notifications Are Not Being Sent<a class="headerlink" href="#notifications-are-not-being-sent" title="Permanent link">&para;</a></h2>
+<h2 id="notifications-are-not-being-sent">Notifications are not being sent<a class="headerlink" href="#notifications-are-not-being-sent" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Verify the notification channel is correctly configured in your values.</li>
 <li>Check that the Slack bot token or Teams webhook URL is valid.</li>
-<li>Ensure the Slack bot has been invited to the target channel.</li>
+<li>Make sure the Slack bot has been invited to the target channel.</li>
 <li>Look for notification errors in the logs:</li>
 </ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>deployment/osmia<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"notification"</span>
 </code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
-<p>Notification failures are non-critical — they are logged but do not block the controller. Check the <code>osmia_plugin_errors_total</code> Prometheus metric for persistent failures.</p>
+<p>Notification failures are logged but do not block the controller. Check the <code>osmia_plugin_errors_total</code> Prometheus metric for persistent failures.</p>
 </div>
-<h2 id="docker-compose-issues">Docker Compose Issues<a class="headerlink" href="#docker-compose-issues" title="Permanent link">&para;</a></h2>
+<h2 id="docker-compose-issues">Docker Compose issues<a class="headerlink" href="#docker-compose-issues" title="Permanent link">&para;</a></h2>
 <h3 id="controller-exits-immediately">Controller exits immediately<a class="headerlink" href="#controller-exits-immediately" title="Permanent link">&para;</a></h3>
 <p>Check the logs for configuration errors:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>osmia
 </code></pre></div>
-<p>Ensure your <code>.env</code> file contains valid <code>GITHUB_TOKEN</code> and <code>ANTHROPIC_API_KEY</code> values.</p>
+<p>Make sure your <code>.env</code> file contains valid <code>GITHUB_TOKEN</code> and <code>ANTHROPIC_API_KEY</code> values.</p>
 <h3 id="agent-container-cannot-reach-github">Agent container cannot reach GitHub<a class="headerlink" href="#agent-container-cannot-reach-github" title="Permanent link">&para;</a></h3>
-<p>Ensure Docker has network access and can resolve <code>api.github.com</code>. If you are behind a corporate proxy, configure Docker's proxy settings.</p>
-<h2 id="watchdog-is-terminating-jobs">Watchdog Is Terminating Jobs<a class="headerlink" href="#watchdog-is-terminating-jobs" title="Permanent link">&para;</a></h2>
-<p>The progress watchdog may terminate jobs that appear stalled, looping, or unproductive. Check the termination reason in the logs:</p>
+<p>Docker needs network access and must be able to resolve <code>api.github.com</code>. If you are behind a corporate proxy, configure Docker's proxy settings.</p>
+<h2 id="watchdog-is-terminating-jobs">Watchdog is terminating jobs<a class="headerlink" href="#watchdog-is-terminating-jobs" title="Permanent link">&para;</a></h2>
+<p>The progress watchdog may terminate jobs that look stalled, looping or unproductive. Check the termination reason in the logs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>deployment/osmia<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">"watchdog"</span>
 </code></pre></div>
 <table>
@@ -2230,7 +2230,7 @@
 </tbody>
 </table>
 <p>See <a href="../../concepts/guardrails-overview/">Guard Rails Overview</a> for details on each detection rule and how to tune thresholds.</p>
-<h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
+<h2 id="getting-help">Getting help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
 <p>If you cannot resolve an issue:</p>
 <ol>
 <li>Search the <a href="https://github.com/unitaryai/osmia/issues">GitHub Issues</a> for similar problems.</li>

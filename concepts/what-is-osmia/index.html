@@ -691,7 +691,7 @@
   <a href="#the-happy-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The Happy Path
+        The happy path
       
     </span>
   </a>
@@ -702,7 +702,7 @@
   <a href="#what-problems-does-it-solve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Problems Does It Solve?
+        What problems does it solve?
       
     </span>
   </a>
@@ -713,7 +713,7 @@
   <a href="#how-it-works-no-kubernetes-jargon" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works (No Kubernetes Jargon)
+        How it works (no Kubernetes jargon)
       
     </span>
   </a>
@@ -724,7 +724,7 @@
   <a href="#what-are-guard-rails" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Guard Rails?
+        What are guard rails?
       
     </span>
   </a>
@@ -735,7 +735,7 @@
   <a href="#what-are-engines" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Engines?
+        What are engines?
       
     </span>
   </a>
@@ -746,7 +746,7 @@
   <a href="#what-are-plugins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Plugins?
+        What are plugins?
       
     </span>
   </a>
@@ -757,7 +757,7 @@
   <a href="#do-i-need-kubernetes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Do I Need Kubernetes?
+        Do I need Kubernetes?
       
     </span>
   </a>
@@ -768,7 +768,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -1882,7 +1882,7 @@
   <a href="#the-happy-path" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The Happy Path
+        The happy path
       
     </span>
   </a>
@@ -1893,7 +1893,7 @@
   <a href="#what-problems-does-it-solve" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Problems Does It Solve?
+        What problems does it solve?
       
     </span>
   </a>
@@ -1904,7 +1904,7 @@
   <a href="#how-it-works-no-kubernetes-jargon" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works (No Kubernetes Jargon)
+        How it works (no Kubernetes jargon)
       
     </span>
   </a>
@@ -1915,7 +1915,7 @@
   <a href="#what-are-guard-rails" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Guard Rails?
+        What are guard rails?
       
     </span>
   </a>
@@ -1926,7 +1926,7 @@
   <a href="#what-are-engines" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Engines?
+        What are engines?
       
     </span>
   </a>
@@ -1937,7 +1937,7 @@
   <a href="#what-are-plugins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What Are Plugins?
+        What are plugins?
       
     </span>
   </a>
@@ -1948,7 +1948,7 @@
   <a href="#do-i-need-kubernetes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Do I Need Kubernetes?
+        Do I need Kubernetes?
       
     </span>
   </a>
@@ -1959,7 +1959,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -1992,27 +1992,27 @@
 
 
 <h1 id="what-is-osmia">What is Osmia?<a class="headerlink" href="#what-is-osmia" title="Permanent link">&para;</a></h1>
-<p>Osmia is an open-source tool that connects your issue tracker to AI coding agents. When you label an issue, Osmia picks it up, runs an AI agent (like Claude Code or Codex) against your codebase, and opens a pull request with the result. It handles the orchestration so you don't have to — scheduling work, enforcing safety rules, retrying on failure, and notifying your team.</p>
-<h2 id="the-happy-path">The Happy Path<a class="headerlink" href="#the-happy-path" title="Permanent link">&para;</a></h2>
+<p>Osmia is an open-source tool that connects your issue tracker to AI coding agents. When you label an issue, Osmia picks it up, runs an AI agent (like Claude Code or Codex) against your codebase, and opens a pull request with the result. It schedules the work, enforces safety rules, retries on failure and notifies your team.</p>
+<h2 id="the-happy-path">The happy path<a class="headerlink" href="#the-happy-path" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>graph LR
     A["You label an issue&lt;br/&gt;&lt;b&gt;osmia&lt;/b&gt;"] --&gt; B["Osmia picks it up"]
     B --&gt; C["AI agent writes code"]
     C --&gt; D["Pull request opened"]
     D --&gt; E["You review &amp; merge"]</code></pre>
-<p>That's the core workflow. Everything else — guard rails, multiple engines, plugins, scaling — exists to make this loop safe, reliable, and configurable for teams of any size.</p>
-<h2 id="what-problems-does-it-solve">What Problems Does It Solve?<a class="headerlink" href="#what-problems-does-it-solve" title="Permanent link">&para;</a></h2>
-<p><strong>Repetitive maintenance tasks pile up.</strong> Dependency upgrades, test fixes, documentation updates, small bug fixes — these tasks are well-defined but tedious. They sit in backlogs for weeks because humans have higher-priority work.</p>
-<p><strong>Running AI agents manually doesn't scale.</strong> You can open Claude Code or Codex locally and give it a task, but that ties up your machine and your attention. You can't run ten tasks in parallel, and you can't enforce consistent safety rules.</p>
-<p><strong>Enterprise teams need guardrails.</strong> Letting an AI agent modify production codebases requires cost limits, file access controls, audit logging, and human approval workflows. Osmia provides these out of the box.</p>
-<h2 id="how-it-works-no-kubernetes-jargon">How It Works (No Kubernetes Jargon)<a class="headerlink" href="#how-it-works-no-kubernetes-jargon" title="Permanent link">&para;</a></h2>
+<p>That is the core workflow. Guard rails, multiple engines, plugins and scaling all build on this loop.</p>
+<h2 id="what-problems-does-it-solve">What problems does it solve?<a class="headerlink" href="#what-problems-does-it-solve" title="Permanent link">&para;</a></h2>
+<p><strong>Repetitive maintenance tasks pile up.</strong> Dependency upgrades, test fixes, documentation updates, small bug fixes. These tasks are well defined but tedious. They sit in backlogs for weeks because humans have higher-priority work.</p>
+<p><strong>Running AI agents by hand does not scale.</strong> You can open Claude Code or Codex locally and give it a task, but that ties up your machine and your attention. You can't run ten tasks in parallel, and you can't enforce consistent safety rules.</p>
+<p><strong>Teams need guard rails.</strong> Letting an AI agent change a production codebase calls for cost limits, file access controls, audit logging and human approval. Osmia provides these.</p>
+<h2 id="how-it-works-no-kubernetes-jargon">How it works (no Kubernetes jargon)<a class="headerlink" href="#how-it-works-no-kubernetes-jargon" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>You create an issue</strong> in GitHub, GitLab, or Jira describing a task.</li>
+<li><strong>You create an issue</strong> in GitHub, GitLab or Jira describing a task.</li>
 <li><strong>You add a label</strong> (e.g. <code>osmia</code>) to signal that Osmia should handle it.</li>
 <li><strong>Osmia's controller</strong> notices the label, checks safety rules, and decides which AI agent to use.</li>
 <li><strong>A container starts</strong> running the AI agent with your codebase checked out.</li>
-<li><strong>The agent works</strong> — reading code, making changes, running tests.</li>
+<li><strong>The agent works.</strong> It reads code, makes changes and runs tests.</li>
 <li><strong>A pull request is opened</strong> with the agent's changes, and the original issue is updated with a link.</li>
-<li><strong>You review the PR</strong> like any other — approve, request changes, or close.</li>
+<li><strong>You review the PR</strong> like any other: approve, request changes or close.</li>
 </ol>
 <pre class="mermaid"><code>sequenceDiagram
     participant You
@@ -2031,19 +2031,19 @@
     SCM--&gt;&gt;Ctrl: PR URL
     Ctrl-&gt;&gt;Tracker: Comment with PR link, close issue
     Ctrl-&gt;&gt;You: Slack notification (optional)</code></pre>
-<h2 id="what-are-guard-rails">What Are Guard Rails?<a class="headerlink" href="#what-are-guard-rails" title="Permanent link">&para;</a></h2>
-<p>Guard rails are safety boundaries that prevent the AI agent from doing things it shouldn't. Osmia has six independent layers:</p>
+<h2 id="what-are-guard-rails">What are guard rails?<a class="headerlink" href="#what-are-guard-rails" title="Permanent link">&para;</a></h2>
+<p>Guard rails are safety boundaries that stop the AI agent doing things it should not. Osmia has six independent layers:</p>
 <ol>
-<li><strong>Controller validation</strong> — checks the issue against rules before starting (allowed repos, task types, concurrent job limits).</li>
-<li><strong>Engine hooks</strong> — intercepts dangerous commands (like <code>rm -rf</code> or <code>sudo</code>) before they execute.</li>
-<li><strong>Repository rules</strong> — a <code>guardrails.md</code> file in your repo tells the agent what it must never do.</li>
-<li><strong>Task profiles</strong> — different task types have different permissions (e.g. documentation tasks can only edit <code>.md</code> files).</li>
-<li><strong>Quality gate</strong> — an optional review step that checks the agent's output for security issues before the PR is created.</li>
-<li><strong>Progress watchdog</strong> — monitors the agent while it runs and terminates it if it gets stuck in a loop or burns through tokens without progress.</li>
+<li><strong>Controller validation</strong> checks the issue against rules before starting (allowed repos, task types, concurrent job limits).</li>
+<li><strong>Engine hooks</strong> intercept dangerous commands (like <code>rm -rf</code> or <code>sudo</code>) before they run.</li>
+<li><strong>Repository rules</strong> are a <code>guardrails.md</code> file in your repo that tells the agent what it must never do.</li>
+<li><strong>Task profiles</strong> give different task types different permissions (e.g. documentation tasks can only edit <code>.md</code> files).</li>
+<li><strong>Quality gate</strong> is an optional review step that checks the agent's output for security issues before the PR is created.</li>
+<li><strong>Progress watchdog</strong> monitors the agent while it runs and stops it if it gets stuck in a loop or uses tokens without making progress.</li>
 </ol>
-<p>These layers work independently — a failure in one doesn't compromise the others. See <a href="../guardrails-overview/">Guard Rails Overview</a> for details.</p>
-<h2 id="what-are-engines">What Are Engines?<a class="headerlink" href="#what-are-engines" title="Permanent link">&para;</a></h2>
-<p>An engine is an AI coding tool that Osmia can run. The controller doesn't write code itself — it delegates to engines:</p>
+<p>The layers work independently, so a failure in one does not compromise the others. See <a href="../guardrails-overview/">Guard Rails Overview</a> for details.</p>
+<h2 id="what-are-engines">What are engines?<a class="headerlink" href="#what-are-engines" title="Permanent link">&para;</a></h2>
+<p>An engine is an AI coding tool that Osmia can run. The controller does not write code itself. It delegates to engines:</p>
 <table>
 <thead>
 <tr>
@@ -2070,18 +2070,18 @@
 </tr>
 <tr>
 <td><strong>Cline</strong></td>
-<td>MCP and AWS Bedrock support <em>(community template — no pre-built image)</em></td>
+<td>MCP and AWS Bedrock support <em>(community template, no pre-built image)</em></td>
 </tr>
 </tbody>
 </table>
 <p>You configure a default engine and optional fallbacks. If one engine fails, the next is tried automatically. See <a href="../engines/">Engines Explained</a> for a comparison.</p>
-<h2 id="what-are-plugins">What Are Plugins?<a class="headerlink" href="#what-are-plugins" title="Permanent link">&para;</a></h2>
+<h2 id="what-are-plugins">What are plugins?<a class="headerlink" href="#what-are-plugins" title="Permanent link">&para;</a></h2>
 <p>Plugins let Osmia connect to different services. There are six types:</p>
 <table>
 <thead>
 <tr>
-<th>Plugin Type</th>
-<th>What It Connects To</th>
+<th>Plugin type</th>
+<th>What it connects to</th>
 </tr>
 </thead>
 <tbody>
@@ -2111,15 +2111,15 @@
 </tr>
 </tbody>
 </table>
-<p>Built-in plugins (like GitHub Issues and Slack) ship with Osmia. You can write custom plugins in any language that supports gRPC. See <a href="../../plugins/writing-a-plugin/">Writing a Plugin</a>.</p>
-<h2 id="do-i-need-kubernetes">Do I Need Kubernetes?<a class="headerlink" href="#do-i-need-kubernetes" title="Permanent link">&para;</a></h2>
-<p>For production use, yes — Osmia runs as a Kubernetes operator. But for evaluation and local development, you can use <a href="../../getting-started/docker-compose/">Docker Compose</a> to try it without a cluster.</p>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>Built-in plugins, such as GitHub Issues and Slack, ship with Osmia. You can write custom plugins in any language that supports gRPC. See <a href="../../plugins/writing-a-plugin/">Writing a Plugin</a>.</p>
+<h2 id="do-i-need-kubernetes">Do I need Kubernetes?<a class="headerlink" href="#do-i-need-kubernetes" title="Permanent link">&para;</a></h2>
+<p>For production use, yes: Osmia runs as a Kubernetes operator. For evaluation and local development, you can use <a href="../../getting-started/docker-compose/">Docker Compose</a> without a cluster.</p>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../../getting-started/docker-compose/">Quick Start: Docker Compose</a> — try it locally in 5 minutes</li>
-<li><a href="../../getting-started/kubernetes/">Quick Start: Kubernetes</a> — deploy on a real cluster</li>
-<li><a href="../taskrun-lifecycle/">How a TaskRun Works</a> — understand the execution lifecycle</li>
-<li><a href="../engines/">Engines Explained</a> — choose the right AI agent for your workload</li>
+<li><a href="../../getting-started/docker-compose/">Quick Start: Docker Compose</a> : try it locally in 5 minutes</li>
+<li><a href="../../getting-started/kubernetes/">Quick Start: Kubernetes</a> : deploy on a real cluster</li>
+<li><a href="../taskrun-lifecycle/">How a TaskRun Works</a> : understand the execution lifecycle</li>
+<li><a href="../engines/">Engines Explained</a> : choose the right AI agent for your workload</li>
 </ul>
 
 

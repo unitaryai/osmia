@@ -445,7 +445,7 @@
   <a href="#1-clone-the-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Clone the Repository
+        1. Clone the repository
       
     </span>
   </a>
@@ -489,7 +489,7 @@
   <a href="#5-create-a-test-issue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Create a Test Issue
+        5. Create a test issue
       
     </span>
   </a>
@@ -500,7 +500,7 @@
   <a href="#6-watch-it-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Watch It Work
+        6. Watch it work
       
     </span>
   </a>
@@ -522,7 +522,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -1904,7 +1904,7 @@
   <a href="#1-clone-the-repository" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Clone the Repository
+        1. Clone the repository
       
     </span>
   </a>
@@ -1948,7 +1948,7 @@
   <a href="#5-create-a-test-issue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Create a Test Issue
+        5. Create a test issue
       
     </span>
   </a>
@@ -1959,7 +1959,7 @@
   <a href="#6-watch-it-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Watch It Work
+        6. Watch it work
       
     </span>
   </a>
@@ -1981,7 +1981,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -2013,18 +2013,18 @@
   
 
 
-<h1 id="quick-start-docker-compose">Quick Start: Docker Compose<a class="headerlink" href="#quick-start-docker-compose" title="Permanent link">&para;</a></h1>
-<p>This guide gets Osmia running locally in 5 minutes using Docker Compose — no Kubernetes cluster required. It is ideal for first-time users who want to understand how Osmia works before deploying to a cluster.</p>
+<h1 id="quick-start-docker-compose">Quick start: Docker Compose<a class="headerlink" href="#quick-start-docker-compose" title="Permanent link">&para;</a></h1>
+<p>This guide gets Osmia running locally in about 5 minutes using Docker Compose. No Kubernetes cluster is needed, so it suits first-time users who want to see how Osmia works before deploying to a cluster.</p>
 <div class="admonition note">
 <p class="admonition-title">What Docker Compose mode does</p>
-<p>Docker Compose runs the Osmia controller and a single AI agent engine as local containers. It polls your GitHub repository for labelled issues, runs an AI coding agent, and opens pull requests — the same workflow as the full Kubernetes deployment, but without the cluster overhead.</p>
+<p>Docker Compose runs the Osmia controller and a single AI agent engine as local containers. It polls your GitHub repository for labelled issues, runs an AI coding agent and opens pull requests. This is the same workflow as the Kubernetes deployment, without the cluster.</p>
 </div>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Requirement</th>
-<th>Minimum Version</th>
+<th>Minimum version</th>
 <th>Notes</th>
 </tr>
 </thead>
@@ -2036,22 +2036,22 @@
 </tr>
 <tr>
 <td>GitHub repository</td>
-<td>—</td>
+<td>n/a</td>
 <td>The repo the agent will work on</td>
 </tr>
 <tr>
 <td>GitHub personal access token</td>
-<td>—</td>
+<td>n/a</td>
 <td>With <code>repo</code> and <code>issues</code> scopes</td>
 </tr>
 <tr>
 <td>Anthropic API key</td>
-<td>—</td>
-<td>Required for Claude Code engine</td>
+<td>n/a</td>
+<td>Required for the Claude Code engine</td>
 </tr>
 </tbody>
 </table>
-<h2 id="1-clone-the-repository">1. Clone the Repository<a class="headerlink" href="#1-clone-the-repository" title="Permanent link">&para;</a></h2>
+<h2 id="1-clone-the-repository">1. Clone the repository<a class="headerlink" href="#1-clone-the-repository" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/unitaryai/osmia.git
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>osmia
 </code></pre></div>
@@ -2064,7 +2064,7 @@
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Keep your <code>.env</code> file safe</p>
-<p>The <code>.env</code> file contains sensitive credentials. It is already listed in <code>.gitignore</code> — never commit it to version control.</p>
+<p>The <code>.env</code> file contains sensitive credentials. It is already listed in <code>.gitignore</code>. Never commit it to version control.</p>
 </div>
 <h2 id="3-configure-osmia">3. Configure Osmia<a class="headerlink" href="#3-configure-osmia" title="Permanent link">&para;</a></h2>
 <p>Edit the <code>docker-compose.yaml</code> environment section to point at your repository:</p>
@@ -2083,7 +2083,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>osmia
 </code></pre></div>
 <p>You should see structured JSON log lines confirming that the ticketing poller has started.</p>
-<h2 id="5-create-a-test-issue">5. Create a Test Issue<a class="headerlink" href="#5-create-a-test-issue" title="Permanent link">&para;</a></h2>
+<h2 id="5-create-a-test-issue">5. Create a test issue<a class="headerlink" href="#5-create-a-test-issue" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
 <p>Open an issue in your target GitHub repository with a small, well-defined task:</p>
@@ -2093,16 +2093,16 @@
 </blockquote>
 </li>
 <li>
-<p>Add the <strong>osmia</strong> label to the issue.</p>
+<p>Add the <code>osmia</code> label to the issue.</p>
 </li>
 <li>
-<p>Watch the controller logs — within a few seconds you should see the task being picked up:</p>
+<p>Watch the controller logs. Within a few seconds you should see the task being picked up:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>osmia
 </code></pre></div>
 </li>
 </ol>
-<h2 id="6-watch-it-work">6. Watch It Work<a class="headerlink" href="#6-watch-it-work" title="Permanent link">&para;</a></h2>
-<p>The agent will clone your repository, carry out the work, run any tests it finds, and open a pull request. Progress updates appear as comments on the original issue.</p>
+<h2 id="6-watch-it-work">6. Watch it work<a class="headerlink" href="#6-watch-it-work" title="Permanent link">&para;</a></h2>
+<p>The agent clones your repository, does the work, runs any tests it finds and opens a pull request. Progress updates appear as comments on the original issue.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Check running containers</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>ps
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
@@ -2113,12 +2113,12 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>make<span class="w"> </span>compose-down
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># or: docker compose down</span>
 </code></pre></div>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../kubernetes/">Deploy on Kubernetes</a> — for production use with Helm</li>
-<li><a href="../configuration/">Configuration Reference</a> — full config options</li>
-<li><a href="../../concepts/what-is-osmia/">What is Osmia?</a> — understand the architecture</li>
-<li><a href="../../concepts/guardrails-overview/">Guard Rails Overview</a> — learn about the safety layers</li>
+<li><a href="../kubernetes/">Deploy on Kubernetes</a>: for production use with Helm</li>
+<li><a href="../configuration/">Configuration Reference</a>: full config options</li>
+<li><a href="../../concepts/what-is-osmia/">What is Osmia?</a>: the architecture</li>
+<li><a href="../../concepts/guardrails-overview/">Guard Rails Overview</a>: the safety layers</li>
 </ul>
 
 

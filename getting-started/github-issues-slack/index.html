@@ -501,7 +501,7 @@
   <a href="#step-1-create-a-github-personal-access-token" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1 — Create a GitHub personal access token
+        Step 1: Create a GitHub personal access token
       
     </span>
   </a>
@@ -512,7 +512,7 @@
   <a href="#step-2-create-a-slack-bot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2 — Create a Slack bot
+        Step 2: Create a Slack bot
       
     </span>
   </a>
@@ -523,7 +523,7 @@
   <a href="#step-3-store-credentials-as-kubernetes-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3 — Store credentials as Kubernetes secrets
+        Step 3: Store credentials as Kubernetes secrets
       
     </span>
   </a>
@@ -534,7 +534,7 @@
   <a href="#step-4-write-osmia-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4 — Write osmia-config.yaml
+        Step 4: Write osmia-config.yaml
       
     </span>
   </a>
@@ -545,7 +545,7 @@
   <a href="#step-5-deploy-with-helm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5 — Deploy with Helm
+        Step 5: Deploy with Helm
       
     </span>
   </a>
@@ -556,7 +556,7 @@
   <a href="#step-6-label-your-first-issue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 6 — Label your first issue
+        Step 6: Label your first issue
       
     </span>
   </a>
@@ -578,7 +578,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -1904,7 +1904,7 @@
   <a href="#step-1-create-a-github-personal-access-token" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1 — Create a GitHub personal access token
+        Step 1: Create a GitHub personal access token
       
     </span>
   </a>
@@ -1915,7 +1915,7 @@
   <a href="#step-2-create-a-slack-bot" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2 — Create a Slack bot
+        Step 2: Create a Slack bot
       
     </span>
   </a>
@@ -1926,7 +1926,7 @@
   <a href="#step-3-store-credentials-as-kubernetes-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3 — Store credentials as Kubernetes secrets
+        Step 3: Store credentials as Kubernetes secrets
       
     </span>
   </a>
@@ -1937,7 +1937,7 @@
   <a href="#step-4-write-osmia-configyaml" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4 — Write osmia-config.yaml
+        Step 4: Write osmia-config.yaml
       
     </span>
   </a>
@@ -1948,7 +1948,7 @@
   <a href="#step-5-deploy-with-helm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5 — Deploy with Helm
+        Step 5: Deploy with Helm
       
     </span>
   </a>
@@ -1959,7 +1959,7 @@
   <a href="#step-6-label-your-first-issue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 6 — Label your first issue
+        Step 6: Label your first issue
       
     </span>
   </a>
@@ -1981,7 +1981,7 @@
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Next steps
       
     </span>
   </a>
@@ -2014,10 +2014,10 @@
 
 
 <h1 id="guide-github-issues-slack">Guide: GitHub Issues + Slack<a class="headerlink" href="#guide-github-issues-slack" title="Permanent link">&para;</a></h1>
-<p>This guide walks you through connecting Osmia to a GitHub repository and a Slack workspace so that:</p>
+<p>This guide connects Osmia to a GitHub repository and a Slack workspace, so that:</p>
 <ul>
-<li>Any issue labelled <strong>osmia</strong> is automatically picked up by the agent</li>
-<li>You receive a Slack message when work starts, completes, or fails</li>
+<li>Any issue labelled <code>osmia</code> is picked up by the agent</li>
+<li>You get a Slack message when work starts, completes or fails</li>
 </ul>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
 <table>
@@ -2030,7 +2030,7 @@
 <tbody>
 <tr>
 <td>Kubernetes cluster</td>
-<td><a href="../kubernetes/">Set one up first</a> if you don't have one</td>
+<td><a href="../kubernetes/">Set one up first</a> if you do not have one</td>
 </tr>
 <tr>
 <td><code>kubectl</code> configured</td>
@@ -2051,20 +2051,20 @@
 </tbody>
 </table>
 <hr />
-<h2 id="step-1-create-a-github-personal-access-token">Step 1 — Create a GitHub personal access token<a class="headerlink" href="#step-1-create-a-github-personal-access-token" title="Permanent link">&para;</a></h2>
+<h2 id="step-1-create-a-github-personal-access-token">Step 1: Create a GitHub personal access token<a class="headerlink" href="#step-1-create-a-github-personal-access-token" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Go to <strong>GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)</strong>.</li>
 <li>Click <strong>Generate new token (classic)</strong>.</li>
 <li>Give it a descriptive name: <code>osmia</code>.</li>
 <li>Select these scopes:<ul>
-<li><code>repo</code> (full repository access — needed to clone, push, and open PRs)</li>
+<li><code>repo</code> (full repository access, needed to clone, push and open PRs)</li>
 <li><code>issues</code> (read and comment on issues)</li>
 </ul>
 </li>
-<li>Click <strong>Generate token</strong> and copy the value — you will not see it again.</li>
+<li>Click <strong>Generate token</strong> and copy the value. You will not see it again.</li>
 </ol>
 <hr />
-<h2 id="step-2-create-a-slack-bot">Step 2 — Create a Slack bot<a class="headerlink" href="#step-2-create-a-slack-bot" title="Permanent link">&para;</a></h2>
+<h2 id="step-2-create-a-slack-bot">Step 2: Create a Slack bot<a class="headerlink" href="#step-2-create-a-slack-bot" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Go to <a href="https://api.slack.com/apps">api.slack.com/apps</a> and click <strong>Create New App → From scratch</strong>.</li>
 <li>Name it <code>Osmia</code> and select your workspace.</li>
@@ -2074,7 +2074,7 @@
 <li>Invite the bot to the channel: <code>/invite @Osmia</code>.</li>
 </ol>
 <hr />
-<h2 id="step-3-store-credentials-as-kubernetes-secrets">Step 3 — Store credentials as Kubernetes secrets<a class="headerlink" href="#step-3-store-credentials-as-kubernetes-secrets" title="Permanent link">&para;</a></h2>
+<h2 id="step-3-store-credentials-as-kubernetes-secrets">Step 3: Store credentials as Kubernetes secrets<a class="headerlink" href="#step-3-store-credentials-as-kubernetes-secrets" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># GitHub token</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>osmia-github-token<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--namespace<span class="w"> </span>osmia<span class="w"> </span><span class="se">\</span>
@@ -2091,7 +2091,7 @@
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span>--from-literal<span class="o">=</span><span class="nv">token</span><span class="o">=</span>xoxb-YOUR_SLACK_TOKEN_HERE
 </code></pre></div>
 <hr />
-<h2 id="step-4-write-osmia-configyaml">Step 4 — Write <code>osmia-config.yaml</code><a class="headerlink" href="#step-4-write-osmia-configyaml" title="Permanent link">&para;</a></h2>
+<h2 id="step-4-write-osmia-configyaml">Step 4: Write <code>osmia-config.yaml</code><a class="headerlink" href="#step-4-write-osmia-configyaml" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">ticketing</span><span class="p">:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">github</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">config</span><span class="p">:</span>
@@ -2132,7 +2132,7 @@
 <p>The <code>max_cost_per_job</code> and <code>max_job_duration_minutes</code> limits are safety nets. Start conservative and raise them once you are comfortable with how the agent behaves on your codebase.</p>
 </div>
 <hr />
-<h2 id="step-5-deploy-with-helm">Step 5 — Deploy with Helm<a class="headerlink" href="#step-5-deploy-with-helm" title="Permanent link">&para;</a></h2>
+<h2 id="step-5-deploy-with-helm">Step 5: Deploy with Helm<a class="headerlink" href="#step-5-deploy-with-helm" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Add the Osmia chart repository</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>osmia<span class="w"> </span>https://unitaryai.github.io/osmia
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
@@ -2140,7 +2140,7 @@
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Create the namespace</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>kubectl<span class="w"> </span>create<span class="w"> </span>namespace<span class="w"> </span>osmia
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Deploy — pass your config file as a values override</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Deploy: pass your config file as a values override</span>
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>helm<span class="w"> </span>install<span class="w"> </span>osmia<span class="w"> </span>osmia/osmia<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span>--namespace<span class="w"> </span>osmia<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>--set-file<span class="w"> </span><span class="nv">config</span><span class="o">=</span>osmia-config.yaml
@@ -2154,50 +2154,50 @@
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">{</span><span class="nt">"level"</span><span class="p">:</span><span class="s2">"INFO"</span><span class="p">,</span><span class="nt">"msg"</span><span class="p">:</span><span class="s2">"controller initialised and ready"</span><span class="p">}</span>
 </code></pre></div>
 <hr />
-<h2 id="step-6-label-your-first-issue">Step 6 — Label your first issue<a class="headerlink" href="#step-6-label-your-first-issue" title="Permanent link">&para;</a></h2>
+<h2 id="step-6-label-your-first-issue">Step 6: Label your first issue<a class="headerlink" href="#step-6-label-your-first-issue" title="Permanent link">&para;</a></h2>
 <ol>
 <li>
-<p>Open (or create) an issue in your repository with a specific, self-contained task — the more context you give, the better the result:</p>
+<p>Open (or create) an issue in your repository with a specific, self-contained task. The more context you give, the better the result:</p>
 <blockquote>
 <p><strong>Title:</strong> Add email validation to the POST /api/users endpoint</p>
 <p><strong>Body:</strong> The handler does not validate the <code>email</code> field. Reject requests with a missing or malformed email address with a 400 status and a descriptive error message. Add unit tests.</p>
 </blockquote>
 </li>
 <li>
-<p>Add the <strong>osmia</strong> label to the issue.</p>
+<p>Add the <code>osmia</code> label to the issue.</p>
 </li>
 <li>
-<p>Within 30 seconds (the default poll interval) the controller will pick it up. Watch the logs:</p>
+<p>Within 30 seconds (the default poll interval) the controller picks it up. Watch the logs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>logs<span class="w"> </span>-n<span class="w"> </span>osmia<span class="w"> </span>-l<span class="w"> </span><span class="nv">app</span><span class="o">=</span>osmia<span class="w"> </span>-f
 </code></pre></div>
 </li>
 <li>
-<p>Check Slack — you will receive a message confirming the agent has started work, and another when it completes.</p>
+<p>Check Slack. You get a message when the agent starts work and another when it completes.</p>
 </li>
 <li>
-<p>Check the repository — a pull request will be opened with the agent's changes.</p>
+<p>Check the repository. A pull request is opened with the agent's changes.</p>
 </li>
 </ol>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <p><strong>The issue is not being picked up.</strong>
 - Confirm the label name exactly matches <code>labels</code> in your config.
-- Check <code>exclude_labels</code> — if the issue already has <code>osmia-in-progress</code> it will be skipped.
+- Check <code>exclude_labels</code>. If the issue already has <code>osmia-in-progress</code> it is skipped.
 - Run <code>kubectl logs -n osmia -l app=osmia --tail=50</code> and look for polling errors.</p>
 <p><strong>No Slack message received.</strong>
 - Confirm the bot is invited to the channel (<code>/invite @Osmia</code>).
-- Verify the channel ID is correct — it looks like <code>C0XXXXXXXXX</code>, not the channel name.
+- Verify the channel ID is correct. It looks like <code>C0XXXXXXXXX</code>, not the channel name.
 - Check logs for <code>"failed to send slack notification"</code>.</p>
 <p><strong>Authentication errors.</strong>
 - Confirm the secret names in your config match the secret names you created in Step 3.
 - Check the token has the required GitHub scopes: run <code>curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/user</code> and confirm it returns your user.</p>
 <hr />
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../configuration/">Configuration Reference</a> — all available config options</li>
-<li><a href="../kubernetes/">Kubernetes Quick Start</a> — full Helm deployment walkthrough</li>
-<li><a href="../../concepts/guardrails-overview/">Guard Rails Overview</a> — safety limits explained</li>
-<li><a href="../shortcut-slack/">Shortcut + Slack guide</a> — if you use Shortcut instead of GitHub Issues</li>
+<li><a href="../configuration/">Configuration Reference</a>: all available config options</li>
+<li><a href="../kubernetes/">Kubernetes Quick Start</a>: full Helm deployment walkthrough</li>
+<li><a href="../../concepts/guardrails-overview/">Guard Rails Overview</a>: safety limits explained</li>
+<li><a href="../shortcut-slack/">Shortcut + Slack guide</a>: if you use Shortcut instead of GitHub Issues</li>
 </ul>
 
 

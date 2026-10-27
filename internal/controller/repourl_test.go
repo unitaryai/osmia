@@ -183,6 +183,8 @@ func TestPollRepoURL_AppliesGuardRails(t *testing.T) {
 			assert.Len(t, jobs.Items, tt.wantJobs)
 
 			if tt.wantState == taskrun.StateFailed {
+				assert.True(t, tr.IsTerminal(), "a rejected repository must not be retried")
+				assert.Zero(t, r.activeJobCount(), "a rejected repository must not hold a concurrency slot")
 				assert.Contains(t, tb.markedFailed, "TICKET-SLACK")
 				saved, err := store.Get(ctx, tr.ID)
 				require.NoError(t, err)

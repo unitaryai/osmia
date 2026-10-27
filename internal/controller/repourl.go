@@ -157,6 +157,12 @@ func (r *Reconciler) pollRepoURL(ctx context.Context, taskRunID string, ticket t
 // failRepoURLTaskRun marks the ticket and the TaskRun held at the
 // missing_repo_url gate as failed, and persists the TaskRun so the failure
 // survives a restart.
+//
+// The failure is final: no job ran, and retrying cannot produce a repository
+// URL or make a rejected one allowed. Exhausting the retry budget makes the
+// TaskRun terminal. Otherwise IsTerminal reports it as retryable, so
+// activeJobCount counts it against MaxConcurrentJobs although no job exists,
+// and enough of them stop the controller polling for new tickets.
 func (r *Reconciler) failRepoURLTaskRun(ctx context.Context, taskRunID, ticketID, reason string) {
 	if r.ticketing != nil {
 		if markErr := r.ticketing.MarkFailed(ctx, ticketID, reason); markErr != nil {
@@ -172,6 +178,7 @@ func (r *Reconciler) failRepoURLTaskRun(ctx context.Context, taskRunID, ticketID
 	for _, tr := range r.taskRuns {
 		if tr.ID == taskRunID {
 			_ = tr.Transition(taskrun.StateFailed)
+			tr.RetryCount = tr.MaxRetries
 			failed = tr
 			break
 		}

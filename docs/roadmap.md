@@ -180,7 +180,8 @@ a run is and why it failed without reading controller logs)
 
 A web dashboard for real-time agent observability and control.
 
-Today the controller serves only `/metrics`, `/healthz` and `/readyz`. Seeing
+Apart from webhook receivers and the optional local development UI, the
+controller serves only `/metrics`, `/healthz` and `/readyz`. Seeing
 a run's state, why it failed, or whether a PR is still being watched means
 reading controller logs and querying the TaskRun store by hand. The local
 development UI (`internal/localui`) has a ticket requeue action that may be a
@@ -311,13 +312,28 @@ both the agent pod and the controller (via the agent stream and transcripts)
 handle data pulled from the systems being built against. That is tracked as
 item 31.
 
-**Pilot is done when:** one build stage runs from trigger to a draft MR with a
-passing pipeline, using a per-task plugin bundle, with its transcript and
-outputs kept in object storage, survives a controller restart mid-run, and
-can be followed and investigated from the dashboard (item 10) without reading
-controller logs. The pilot needs the run list, the per-run detail page, the
-review follow-up actions and access control from item 10; the cost views and
-engine health can follow later.
+The pilot is deliberately a single build stage. Passing work from one stage to
+the next is a later piece of work, so it is not part of these criteria.
+
+**Pilot is done when:**
+- One build stage runs from trigger to a draft MR with a passing pipeline,
+  using a per-task plugin bundle, with its transcript and outputs kept in
+  object storage
+- The run survives a controller restart while its Job is still running, and
+  finishes normally
+- A run whose Job disappears during a controller restart is moved to `Failed`
+  and its ticket released, rather than left `Running` (Orphaned TaskRun
+  Recovery)
+- A failed pipeline on the MR starts a follow-up that fixes it, without a
+  person writing a comment (item 26)
+- The run can be followed and investigated from the dashboard (item 10)
+  without reading controller logs
+
+From item 10 the pilot needs: the run list with live status, the per-run
+detail page and transcript viewer, the review follow-up actions, cancel and
+retry, and access control. Approve is needed only if the pilot uses an
+approval gate. Live per-agent streaming of tool calls and token usage, the
+cost views and engine health are deferred.
 
 ---
 
@@ -404,8 +420,16 @@ when the pod ends or the controller moves.
   directory is uploaded at the end of the run and listed in `result.json`
 - [ ] Implement the S3 session store, so a resumed task can start on a
   different node
-- [ ] Object keys scoped by tenant and TaskRun ID; lifecycle rules for expiry
-  documented in the Helm chart
+- [ ] Define the tenant that storage is partitioned by. `TaskRun.TenantID`
+  today is the use case, used to scope episodic memory, not a customer; storage
+  needs a customer-level identity (see item 32)
+- [ ] Object keys scoped by that tenant and TaskRun ID, with access enforced
+  by IAM policy at the storage boundary, not only by key prefix; lifecycle
+  rules for expiry documented in the Helm chart
+- [ ] Read path for finished runs: the controller looks up a TaskRun's
+  objects by ID and serves them to the dashboard (item 10) through the same
+  authentication and roles as the rest of the dashboard; the agent pod has no
+  read access to other runs' objects
 - [ ] Use workload identity (item 29) for the controller and pod, not static
   keys
 

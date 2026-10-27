@@ -103,6 +103,11 @@ type PRMConfig struct {
 type ExecutionConfig struct {
 	Backend string        `yaml:"backend"` // "job", "sandbox", or "local"
 	Sandbox SandboxConfig `yaml:"sandbox,omitempty"`
+	// PodAnnotations are added to every agent job's pod. The usual reason is
+	// to tell a cluster autoscaler not to evict a running agent, for example
+	// `karpenter.sh/do-not-disrupt: "true"`; an evicted agent loses its work
+	// and its cost. Annotations Osmia sets itself take precedence over these.
+	PodAnnotations map[string]string `yaml:"pod_annotations,omitempty"`
 }
 
 // SandboxConfig holds settings for gVisor-based sandboxed execution.

@@ -344,12 +344,14 @@ func main() {
 		jb = jobbuilder.NewDockerBuilder(*namespace)
 		logger.Info("using local docker job builder")
 	case "sandbox":
-		jb = sandboxbuilder.New(*namespace, cfg.Execution.Sandbox)
+		jb = sandboxbuilder.New(*namespace, cfg.Execution.Sandbox,
+			sandboxbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations))
 		logger.Info("using sandbox job builder",
 			"runtime_class", cfg.Execution.Sandbox.RuntimeClass,
 		)
 	default:
-		jb = jobbuilder.NewJobBuilder(*namespace)
+		jb = jobbuilder.NewJobBuilder(*namespace,
+			jobbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations))
 		logger.Info("using standard kubernetes job builder")
 	}
 	opts = append(opts, controller.WithJobBuilder(jb))

@@ -342,3 +342,20 @@ func TestBuild_SetsPullPolicy(t *testing.T) {
 		})
 	}
 }
+
+// TestBuild_PodAnnotations pins that operator annotations reach sandboxed
+// agent pods alongside the builder's own, and cannot override them.
+func TestBuild_PodAnnotations(t *testing.T) {
+	extra := map[string]string{
+		"karpenter.sh/do-not-disrupt": "true",
+		annotationSandboxClaim:        "false",
+	}
+
+	job, err := New("default", defaultSandboxConfig(), WithPodAnnotations(extra)).
+		Build("tr-ann", "claude-code", validSpec())
+	require.NoError(t, err)
+
+	ann := job.Spec.Template.Annotations
+	assert.Equal(t, "true", ann["karpenter.sh/do-not-disrupt"])
+	assert.Equal(t, "true", ann[annotationSandboxClaim], "the sandbox claim marker must not be switchable by config")
+}

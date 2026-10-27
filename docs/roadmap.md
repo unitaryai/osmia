@@ -534,6 +534,94 @@ optional LLM scoring backend (PRM V2) rather than a parallel `internal/superviso
 
 ---
 
+### 32. Customer Context and Repository Lookup
+
+**Priority:** High
+**Scope:** Medium (Osmia side); the context store itself is outside Osmia
+**Dependencies:** Item 27 (plugin bundles), item 31 (regional deployments)
+
+Builds happen in slices: one slice is built, the customer signs it off, then
+the next slice starts. Fixes come later, after the build is live. Each of
+these runs needs to know what earlier runs decided, and today each starts with
+only the ticket text and the repository.
+
+Two kinds of context are involved:
+
+- **In the repository:** the `CLAUDE.md`, decision records and known issues
+  that each run updates in its own MR. These are reviewed and signed off with
+  the code, so the next run gets them for free. Osmia only needs to make
+  updating them part of the task.
+- **Outside the repository:** sign-off notes, what the customer rejected and
+  why, the current process description, call notes and open questions. These
+  belong in a per-customer record kept by another system, not in Osmia.
+  Osmia instances are per region, their storage is not a system of record,
+  and the code is public.
+
+The same record answers two other questions. Given a ticket that names a
+customer rather than a repository, which repository should the agent work on?
+And which region does that customer's work belong to (item 31)?
+
+**Direction:**
+- [ ] Osmia reads context; it does not store it. Add a context provider plugin
+  interface, in line with the rule that all external integrations go through
+  defined interfaces, which takes a ticket and returns the customer's
+  repositories, region, residency level, the shared libraries it depends on,
+  and links to context documents
+- [ ] Repository lookup: when a ticket names a customer (by field, label or
+  epic) and has no repository, ask the provider. If the customer has more
+  than one candidate repository and the ticket does not say which, ask a
+  person rather than guess
+- [ ] Context loading: put the provider's documents in the agent's prompt or
+  workspace at start, inside the region
+- Episodic memory stays as it is: knowledge about how Osmia does tasks, not a
+  customer record
+
+**Questions for the design:**
+1. Which system holds the customer record, and who keeps it current? Can the
+   tool that creates a customer repository register it there at the same time?
+2. How does a ticket name its customer reliably enough to route on?
+3. What does a run write back to the record when it finishes (for example a
+   slice's sign-off state), and through what interface?
+4. How much context is loaded up front, and how much is left for the agent to
+   fetch through a tool when it needs it?
+
+---
+
+### 33. Changes Spanning a Shared Library and a Customer Repository
+
+**Priority:** Medium
+**Scope:** Medium
+**Dependencies:** Item 32 (to know which libraries a customer depends on)
+
+Every task today works on exactly one repository. A fix reported against one
+customer's workflow sometimes belongs in a shared library that many customers
+use. Doing that well takes two linked changes: an MR to the library and a
+release, then an MR bumping the customer repository to the new version.
+
+A library change carries more risk than a customer change. It affects every
+consumer, needs different reviewers, and must not carry anything specific to
+the customer whose ticket started it. For residency-bound customers this
+matters more, since a shared library is not tied to a region.
+
+**Direction:**
+- [ ] Let a task declare extra repositories, cloned read-only by default, so
+  the agent can read the library code it is debugging
+- [ ] When the agent concludes the fix belongs in a library, it opens a linked
+  library ticket describing the change in general terms, rather than editing
+  the library itself
+- [ ] Library tickets go through an approval gate before any job starts
+- [ ] After the library change is released, a follow-up task bumps the
+  dependency in the customer repository, linked to the original ticket
+
+**Questions for the design:**
+1. Who approves a library change raised by an agent, and where?
+2. Should the agent ever write to a library directly, or always via a new
+   ticket?
+3. How does the customer task wait for the library release: block, or end
+   and be resumed by the release?
+
+---
+
 ## 4. Infrastructure
 
 ---
@@ -775,6 +863,8 @@ live controller and `main.go`:
 | 31 | Regional Deployments and Data Residency Routing | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
+| 32 | Customer Context and Repository Lookup | High | Design doc required |
+| 33 | Changes Spanning a Shared Library and a Customer Repository | Medium | Design doc required |
 | 9 | Plugin SDKs | Medium | 🚧 In progress |
 | 11 | Documentation Site | High | Partially complete |
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |

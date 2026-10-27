@@ -264,7 +264,14 @@ func (b *GitLabSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 		if n.System {
 			continue
 		}
-		created, _ := time.Parse(time.RFC3339, n.CreatedAt)
+		created, err := time.Parse(time.RFC3339, n.CreatedAt)
+		if err != nil && n.CreatedAt != "" {
+			// Not fatal: failing the whole listing would hide every comment on
+			// the MR. Logged because a PR restored after a restart treats an
+			// untimed comment as already handled and skips it.
+			b.logger.Warn("could not parse review comment timestamp",
+				"comment_id", n.ID, "created_at", n.CreatedAt, "error", err)
+		}
 		rc := scm.ReviewComment{
 			ID:       strconv.Itoa(n.ID),
 			ThreadID: n.DiscussionID,

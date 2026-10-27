@@ -513,7 +513,7 @@ taskrun_store:
 ```
 
 !!! note "Current limitation"
-    Only the `memory` backend is currently implemented. The `sqlite` and `postgres` backends are planned but not yet available.
+    `memory` and `sqlite` are implemented. `postgres` is planned but not yet available, and the controller refuses to start if it is configured. Use `sqlite` wherever state should survive a restart, including the review-monitoring restore described under [Restarts](#restarts).
 
 ## Tenancy
 
@@ -622,6 +622,12 @@ All actionable comments discovered in a single poll cycle are batched into one f
 Bots like CodeRabbit post both summary comments (general MR notes) and inline diff comments (positioned on specific file and line). The `ignore_summary_authors` patterns only filter non-inline comments — inline review suggestions from matched authors are still treated as actionable. This ensures Osmia addresses actual code review feedback without reacting to automated summaries.
 
 For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Add `"^group_\\d+_bot_"` to catch all of them.
+
+### Restarts
+
+The list of PRs/MRs Osmia is watching is rebuilt from the TaskRun store when the controller starts, so a restart, or the cluster autoscaler moving the controller to another node, does not stop it following up on PRs it opened. Comments posted before the restart that were already handled are not acted on again, and each PR's follow-up budget carries over. PRs opened more than 30 days ago are not restored.
+
+This needs a persistent `taskrun_store` (for example `backend: sqlite`). With the default in-memory store there is nothing to rebuild from, and a restart forgets every watched PR.
 
 ### Osmia's own comments
 

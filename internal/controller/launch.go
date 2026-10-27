@@ -141,6 +141,9 @@ func (r *Reconciler) saveTaskRunOrLog(ctx context.Context, tr *taskrun.TaskRun) 
 // launchSpec; spec.Task and spec.EngineConfig arrive fully formed.
 func (r *Reconciler) launchTaskRun(ctx context.Context, spec launchSpec) (*taskrun.TaskRun, error) {
 	tr := spec.TaskRun
+	tr.TicketTitle = spec.Task.Title
+	tr.TicketDescription = spec.Task.Description
+	tr.RepoURL = spec.Task.RepoURL
 
 	if err := r.prepareSession(ctx, tr.ID); err != nil {
 		return nil, fmt.Errorf("preparing session storage: %w", err)

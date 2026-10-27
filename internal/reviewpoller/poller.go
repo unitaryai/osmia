@@ -84,6 +84,50 @@ func (p *Poller) Register(prURL, ticketID, originalTitle, originalDescription, r
 	)
 }
 
+// Restore resumes monitoring a PR after a controller restart. Unlike
+// Register it carries the PR's follow-up count and the point up to which its
+// comments were already handled, both of which would otherwise be lost with
+// the poller's in-memory state. It is a no-op if the PR is already tracked,
+// so a PR registered by a task completing during startup is not overwritten.
+func (p *Poller) Restore(r RestoredPR) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if _, ok := p.tracked[r.PRURL]; ok {
+		return
+	}
+
+	p.tracked[r.PRURL] = &TrackedPR{
+		PRURL:               r.PRURL,
+		TicketID:            r.TicketID,
+		OriginalTitle:       r.OriginalTitle,
+		OriginalDescription: r.OriginalDescription,
+		RepoURL:             r.RepoURL,
+		FollowUpCount:       r.FollowUpCount,
+		ProcessedIDs:        make(map[string]bool),
+		// Settling exists to let review bots finish posting after a PR is
+		// opened. That happened before the restart, so measure it from then
+		// rather than delaying a restored PR by a fresh settling period.
+		RegisteredAt: r.HandledUntil,
+		IgnoreBefore: r.HandledUntil,
+	}
+
+	p.logger.Info("restored PR for review monitoring after restart",
+		"pr_url", r.PRURL,
+		"ticket_id", r.TicketID,
+		"follow_up_count", r.FollowUpCount,
+		"ignore_comments_before", r.HandledUntil,
+	)
+}
+
+// IsTracked reports whether prURL is currently being monitored.
+func (p *Poller) IsTracked(prURL string) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, ok := p.tracked[prURL]
+	return ok
+}
+
 // DrainFollowUps returns and clears the accumulated list of follow-up
 // requests. The caller is responsible for submitting jobs for each request.
 func (p *Poller) DrainFollowUps() []FollowUpRequest {
@@ -206,6 +250,22 @@ func (p *Poller) pollPR(ctx context.Context, prURL string, pr *TrackedPR) {
 		p.mu.Unlock()
 
 		if alreadyProcessed {
+			continue
+		}
+
+		// For a PR restored after a restart, comments from before the point
+		// it was last handled were already dealt with. A comment without a
+		// timestamp cannot be placed, so it is treated the same way: missing
+		// one comment is cheaper than replaying a whole thread into duplicate
+		// follow-up jobs.
+		if !pr.IgnoreBefore.IsZero() && comment.Created.Before(pr.IgnoreBefore) {
+			if comment.Created.IsZero() {
+				p.logger.Warn("skipping untimed comment on a PR restored after restart",
+					"pr_url", prURL, "comment_id", comment.ID)
+			}
+			p.mu.Lock()
+			pr.ProcessedIDs[comment.ID] = true
+			p.mu.Unlock()
 			continue
 		}
 

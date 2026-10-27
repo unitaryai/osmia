@@ -122,6 +122,15 @@ type TaskRun struct {
 	// ReviewPRURL is the PR/MR URL used for SCM reply and thread resolution.
 	ReviewPRURL string `json:"review_pr_url,omitempty"`
 
+	// TicketTitle, TicketDescription and RepoURL record the ticket this run
+	// was launched for. The review poller needs them to follow up on the
+	// PR/MR the run opens, and the only other copy is the controller's
+	// in-memory ticket cache, which a restart empties. Persisting them here
+	// lets review monitoring resume after a restart.
+	TicketTitle       string `json:"ticket_title,omitempty"`
+	TicketDescription string `json:"ticket_description,omitempty"`
+	RepoURL           string `json:"repo_url,omitempty"`
+
 	// UseCase records which registered internal/usecase Definition this
 	// TaskRun belongs to (for example "ticketing" or "incident-triage"),
 	// set at creation time. TaskRuns persisted before this field existed

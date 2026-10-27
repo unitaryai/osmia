@@ -410,8 +410,8 @@ func TestGitLabSCMBackend_AuthenticatedUser(t *testing.T) {
 		{
 			name:     "returns the token's username",
 			status:   http.StatusOK,
-			body:     `{"id": 42, "username": "unitary_robodev", "name": "Robodev"}`,
-			wantUser: "unitary_robodev",
+			body:     `{"id": 42, "username": "legacy_bot", "name": "Legacy Bot"}`,
+			wantUser: "legacy_bot",
 		},
 		{
 			name:    "non-200 is an error",

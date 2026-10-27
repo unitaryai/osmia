@@ -15,7 +15,7 @@ import (
 // tag other than `latest` to PullIfNotPresent, so a node that pulled an
 // earlier `main` keeps running it indefinitely, and which version a job gets
 // depends on which node it lands on. That is how a fixed setup-claude.sh
-// reached the registry while jobs on one dev-1 node kept failing with the
+// reached the registry while jobs on one cluster node kept failing with the
 // bug it fixed.
 //
 // PullAlways makes the kubelet check the registry for the tag's current

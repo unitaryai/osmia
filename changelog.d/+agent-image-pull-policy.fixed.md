@@ -4,8 +4,8 @@ applied its default, which for any tag other than `latest` is to download
 the image only if the node does not already have it. Engine images are
 usually referenced by a tag that moves, such as
 `main`, which is rewritten on every build and by the weekly rebuild. A node
-that had downloaded an earlier `main` kept running it indefinitely. On dev-1
-this meant the per-taskrun-pvc fix shipped in v0.5.1 reached the registry
+that had downloaded an earlier `main` kept running it indefinitely. In one
+deployment this meant the per-taskrun-pvc fix shipped in v0.5.1 reached the registry
 while jobs on one node kept failing with the bug it fixed, and jobs on other
 nodes worked. Agent containers now re-check the registry on every start
 unless the image is pinned by digest, in which case the cached copy is used.

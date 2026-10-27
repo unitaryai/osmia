@@ -216,7 +216,7 @@ the failing output into a comment containing a trigger word such as "fix". The
 agent that opened the MR is the one best placed to fix its own red pipeline,
 and today it is never told.
 
-Found on attune-workflows!502 (2026-10-19): the MR was raised cleanly, CI
+Found in October 2026: an MR Osmia opened was raised cleanly, CI
 then failed on the lint stage, and the only way to get Osmia to fix it was a
 hand-written comment.
 

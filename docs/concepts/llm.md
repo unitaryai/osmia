@@ -1,24 +1,24 @@
-# LLM Abstraction Layer
+# LLM abstraction layer
 
-Osmia includes a DSPy-inspired LLM abstraction package (`internal/llm/`) that provides typed, composable LLM interactions for all intelligent subsystems. Rather than making ad-hoc API calls, subsystems define **signatures** that declare their inputs and outputs, and the framework handles prompt formatting, response parsing, and cost tracking automatically.
+`internal/llm/` is a DSPy-inspired package for typed, composable LLM calls. The PRM, memory, diagnosis and tournament judge all use it. Each subsystem defines a signature that declares its inputs and outputs, and the package handles prompt formatting, response parsing and cost tracking.
 
-## Why a Dedicated LLM Layer?
+## Why a dedicated LLM layer?
 
-Osmia's subsystems (PRM scoring, memory extraction, causal diagnosis, tournament judging) all need to call LLMs, but with very different schemas and cost constraints. Without a shared abstraction, each subsystem would re-implement prompt formatting, JSON parsing, error handling, and budget enforcement. The `internal/llm/` package provides this shared foundation.
+PRM scoring, memory extraction, causal diagnosis and tournament judging all call LLMs, with different schemas and cost constraints. Without a shared package, each would re-implement prompt formatting, JSON parsing, error handling and budget enforcement. `internal/llm/` provides those once.
 
-**Key benefits:**
+What it gives you:
 
-- **Type safety** — signatures define expected input/output fields with types, catching mismatches at build time rather than runtime
-- **Composability** — modules can be chained (e.g. chain-of-thought wraps predict)
-- **Budget enforcement** — per-subsystem spend limits prevent runaway costs
-- **No external dependencies** — uses only `net/http` and `encoding/json` from the standard library
-- **Testability** — the `Client` interface makes it trivial to mock LLM calls in tests
+- Typed fields: signatures define expected input and output fields with types.
+- Composable modules: chain-of-thought wraps predict, for example.
+- Per-subsystem spend limits.
+- No external dependencies: it uses only `net/http` and `encoding/json` from the standard library.
+- A `Client` interface that is easy to mock in tests.
 
-## Core Concepts
+## Core concepts
 
 ### Signatures
 
-A **Signature** defines a typed contract for an LLM interaction, inspired by [DSPy](https://github.com/stanfordnlp/dspy):
+A signature defines a typed contract for an LLM interaction, inspired by [DSPy](https://github.com/stanfordnlp/dspy):
 
 ```go
 sig := llm.Signature{
@@ -35,11 +35,11 @@ sig := llm.Signature{
 }
 ```
 
-The signature is validated before use — it must have a name and at least one output field. Input fields marked as `Required` are checked at prompt-formatting time.
+The signature is validated before use: it must have a name and at least one output field. Input fields marked as `Required` are checked at prompt-formatting time.
 
-### Field Types
+### Field types
 
-| Type | Go Representation | Description |
+| Type | Go representation | Description |
 |---|---|---|
 | `string` | `string` | Free-form text |
 | `int` | `int` | Integer values |
@@ -47,11 +47,11 @@ The signature is validated before use — it must have a name and at least one o
 | `bool` | `bool` | Boolean values |
 | `json` | `map[string]any` | Arbitrary JSON objects |
 
-The adapter automatically coerces LLM responses to the declared type (e.g. JSON `7.0` → Go `int(7)` for `FieldTypeInt`).
+The adapter coerces LLM responses to the declared type (e.g. JSON `7.0` → Go `int(7)` for `FieldTypeInt`).
 
 ### Modules
 
-A **Module** is a composable LLM operation that takes named inputs and returns named outputs:
+A module is a composable LLM operation that takes named inputs and returns named outputs:
 
 ```go
 type Module interface {
@@ -60,11 +60,11 @@ type Module interface {
 }
 ```
 
-Two built-in modules are provided:
+Osmia provides two modules:
 
 #### Predict
 
-The simplest module — a single LLM call with signature-based prompt formatting:
+The simplest module: a single LLM call with signature-based prompt formatting:
 
 ```go
 predict := llm.NewPredict(sig, client, budget)
@@ -78,7 +78,7 @@ result, err := predict.Forward(ctx, map[string]any{
 
 #### ChainOfThought
 
-Wraps Predict with an additional "reasoning" step that encourages step-by-step thinking:
+Wraps Predict with an extra "reasoning" step that encourages step-by-step thinking:
 
 ```go
 cot := llm.NewChainOfThought(sig, client, budget)
@@ -88,7 +88,7 @@ result, err := cot.Forward(ctx, inputs)
 // result["verdict"] = "productive"
 ```
 
-ChainOfThought automatically adds a `reasoning` output field and modifies the system prompt to encourage structured thinking before answering.
+ChainOfThought adds a `reasoning` output field and changes the system prompt to ask for structured thinking before the answer.
 
 ### Client
 
@@ -100,7 +100,7 @@ type Client interface {
 }
 ```
 
-An `AnthropicClient` implementation is included, using `net/http` directly with no SDK dependency:
+`AnthropicClient` is included. It uses `net/http` directly, with no SDK dependency:
 
 ```go
 client := llm.NewAnthropicClient("sk-ant-...",
@@ -119,7 +119,7 @@ The client supports:
 
 ### Budget
 
-The `Budget` type tracks cumulative spend for a subsystem and refuses calls when the budget is exhausted:
+The `Budget` type tracks cumulative spend for a subsystem and refuses calls once the budget is exhausted:
 
 ```go
 budget := llm.NewBudget(0.50) // $0.50 maximum
@@ -135,13 +135,13 @@ remaining := budget.Remaining() // $0.35
 spent := budget.Spent()         // $0.15
 ```
 
-Budgets are thread-safe and can be shared across multiple modules within a subsystem.
+Budgets are thread-safe and can be shared by several modules in one subsystem.
 
-## Prompt Formatting
+## Prompt formatting
 
-The adapter converts a Signature + inputs into a structured LLM request:
+The adapter converts a signature and its inputs into a structured LLM request:
 
-**System prompt** (auto-generated):
+System prompt (generated):
 ```
 You are executing the "ScoreToolCall" operation.
 Evaluate an agent's recent tool call for productivity
@@ -156,7 +156,7 @@ Respond with a JSON object containing the following fields:
 Respond ONLY with the JSON object. No markdown fences, no explanation.
 ```
 
-**User message** (auto-generated from inputs):
+User message (generated from the inputs):
 ```
 ## tool_calls
 
@@ -171,7 +171,7 @@ Read main.go, Edit main.go, Bash go test
 fixing a nil pointer dereference
 ```
 
-The response is expected to be a JSON object matching the output fields. The parser handles common LLM response quirks:
+The response is expected to be a JSON object matching the output fields. The parser handles common quirks in LLM responses:
 
 - Strips markdown code fences if present
 - Coerces numeric types (JSON `float64` → Go `int`)
@@ -189,28 +189,28 @@ internal/llm/
 └── *_test.go      — Table-driven tests for all components
 ```
 
-The entire package uses only standard library imports (`net/http`, `encoding/json`, `fmt`, `sync`, `context`). No external SDK dependencies.
+The package uses only standard library imports (`net/http`, `encoding/json`, `fmt`, `sync`, `context`).
 
-## Usage by Subsystems
+## Usage by subsystems
 
-| Subsystem | How It Uses `internal/llm/` |
+| Subsystem | How it uses `internal/llm/` |
 |---|---|
-| **PRM (v2)** | `ChainOfThought` module with a scoring signature to evaluate agent tool calls |
-| **Memory (v2)** | `Predict` module with an extraction signature to identify facts from TaskRun data |
-| **Diagnosis (v2)** | `ChainOfThought` module with a classification signature to diagnose failure modes |
-| **Tournament Judge** | `ChainOfThought` module with a judging signature to compare candidate diffs |
+| PRM (v2) | `ChainOfThought` module with a scoring signature to evaluate agent tool calls |
+| Memory (v2) | `Predict` module with an extraction signature to identify facts from TaskRun data |
+| Diagnosis (v2) | `ChainOfThought` module with a classification signature to diagnose failure modes |
+| Tournament judge | `ChainOfThought` module with a judging signature to compare candidate diffs |
 
-Each subsystem creates its own `Budget` to enforce per-subsystem cost limits independently.
+Each subsystem creates its own `Budget`, so cost limits apply independently.
 
 ## Testing
 
-All components have table-driven unit tests:
+Every component has table-driven unit tests:
 
-- **types_test.go** — signature validation, field name helpers
-- **adapter_test.go** — prompt formatting, response parsing, type coercion, edge cases (markdown fences, missing fields)
-- **client_test.go** — HTTP request/response validation using `httptest.NewServer`, error handling, context cancellation
-- **module_test.go** — Predict and ChainOfThought with mock clients, budget integration
-- **budget_test.go** — spend tracking, limit enforcement, unlimited budgets, reset
+- `types_test.go`: signature validation, field name helpers
+- `adapter_test.go`: prompt formatting, response parsing, type coercion, edge cases (markdown fences, missing fields)
+- `client_test.go`: HTTP request/response validation using `httptest.NewServer`, error handling, context cancellation
+- `module_test.go`: Predict and ChainOfThought with mock clients, budget integration
+- `budget_test.go`: spend tracking, limit enforcement, unlimited budgets, reset
 
 To run the tests:
 

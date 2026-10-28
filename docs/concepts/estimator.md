@@ -1,25 +1,25 @@
-# Predictive Cost Estimation
+# Predictive cost estimation
 
-Before Osmia launches a task, the cost estimator predicts how much it will cost and how long it will take. This gives operators visibility into expensive tasks before they run — and optionally blocks tasks that exceed a configured threshold until a human approves them.
+Before Osmia launches a task, the cost estimator predicts how much it will cost and how long it will take. This shows operators which tasks will be expensive before they run, and can block tasks that exceed a configured threshold.
 
-## How It Works
+## How it works
 
 Estimation runs in two stages:
 
-### 1. Complexity Scoring
+### 1. Complexity scoring
 
 The task is scored across four dimensions, each normalised to [0, 1]:
 
 | Dimension | What it measures |
 |---|---|
 | `description_complexity` | Length and vocabulary of the ticket description |
-| `task_type_complexity` | Task category — bug fix, refactor, feature, migration, etc. |
+| `task_type_complexity` | Task category: bug fix, refactor, feature, migration, etc. |
 | `repo_size` | Number of files in the repository |
 | `label_complexity` | Labels attached to the ticket |
 
 A weighted average produces an `overall` complexity score. The weights are configurable.
 
-### 2. k-NN Prediction
+### 2. k-NN prediction
 
 The overall score and the selected engine are used to query a SQLite store of historical task outcomes. The k=5 nearest neighbours (by complexity score and engine) are retrieved, and P25/P75 percentile ranges are computed for cost and duration:
 
@@ -31,11 +31,11 @@ Confidence:         0.8              (based on sample count)
 
 Confidence increases with the number of matching historical outcomes, up to 1.0 at k=5 neighbours. With fewer than 2 neighbours, the predictor falls back to engine-specific cold-start defaults from configuration, with a confidence of 0.1.
 
-Every task outcome — actual cost, actual duration, complexity score, engine used — is fed back into the store after completion, so predictions improve continuously as the system accumulates history.
+After each task, its outcome (actual cost, actual duration, complexity score and engine) is written back to the store, so predictions improve as history accumulates.
 
-## Auto-Rejection Threshold
+## Auto-rejection threshold
 
-When `max_predicted_cost_per_job` is configured, tasks whose predicted cost exceeds the threshold are automatically rejected before a job is created. The controller calls `MarkFailed` on the ticket, logs a warning, and emits a Prometheus metric. The ticket is not held for human approval — it is failed immediately.
+When `max_predicted_cost_per_job` is configured, tasks whose predicted cost exceeds the threshold are automatically rejected before a job is created. The controller calls `MarkFailed` on the ticket, logs a warning, and emits a Prometheus metric. The ticket is not held for human approval. It is failed immediately.
 
 ```yaml
 estimator:
@@ -45,7 +45,7 @@ estimator:
 
 This is distinct from `max_cost_per_job` in the guard rails, which is a hard runtime ceiling enforced by the watchdog. The estimator threshold fires *before* the job starts; the guard rail fires *during* execution.
 
-## Cold-Start Defaults
+## Cold-start defaults
 
 For engines with no historical data, the predictor uses configurable per-engine defaults scaled by complexity:
 
@@ -64,7 +64,7 @@ estimator:
       high_minutes: 45
 ```
 
-## Prometheus Metrics
+## Prometheus metrics
 
 | Metric | Description |
 |---|---|
@@ -72,7 +72,7 @@ estimator:
 | `osmia_estimator_predicted_cost` | Histogram of midpoint predicted costs |
 | `osmia_estimator_auto_rejections_total` | Tasks auto-rejected for exceeding the cost threshold |
 
-## Further Reading
+## Further reading
 
-- [Configuration Reference](../getting-started/configuration.md) — full estimator config options
-- [Guard Rails Overview](guardrails-overview.md) — how the cost ceiling relates to the estimator gate
+- [Configuration Reference](../getting-started/configuration.md): full estimator config options
+- [Guard Rails Overview](guardrails-overview.md): how the cost ceiling relates to the estimator gate

@@ -2,41 +2,41 @@
 
 ## Overview
 
-Osmia orchestrates autonomous AI coding agents — software that can read, write,
-and execute code against production repositories with minimal human supervision.
-This makes security not merely a feature but a foundational design constraint.
+Osmia runs autonomous AI coding agents: software that can read, write and
+execute code against production repositories with little human supervision.
+Security is therefore a design constraint, not an add-on.
 
-The project follows a **security-first** philosophy: every architectural decision
-is evaluated through the lens of the threat model. Agents are treated as
-**untrusted workloads**. They run in ephemeral, sandboxed containers with the
-absolute minimum privileges required. Multiple independent guard rail layers
-ensure that a failure in any single layer does not result in a breach.
+The project is security-first. Every architectural decision is checked against
+the threat model. Agents are treated as untrusted workloads. They run in
+ephemeral, sandboxed containers with the minimum privileges they need. Several
+independent guard rail layers mean that a failure in one layer does not by
+itself cause a breach.
 
-This document describes the controls in place and the rationale behind them.
+This document describes the controls in place and the reasons for them.
 
 ---
 
-## Threat Model
+## Threat model
 
-The following threats are considered primary risks when running autonomous AI
-agents against live codebases.
+These are the main risks when running autonomous AI agents against live
+codebases.
 
 | Threat | Description | Mitigations |
 |---|---|---|
-| **Prompt injection** | Malicious content in ticket descriptions or repository files tricks the agent into unintended behaviour. | Input sanitisation, command blocking hooks, guardrails.md/CLAUDE.md (advisory only, not yet injected by the controller, see roadmap). |
-| **Agent escape** | The agent breaks out of its intended scope — accessing files, networks, or APIs it should not. | Container isolation, NetworkPolicy, `readOnlyRootFilesystem`, hook-based command blocking. |
-| **Secret exfiltration** | The agent leaks API keys or credentials via logs, network calls, or committed code. | No secrets in prompts, no secrets in logs, restricted egress, sensitive-file write blocking. |
-| **Supply chain attacks** | Compromised dependencies or container images inject malicious code. | Distroless base images, image signing, SBOM generation, vulnerability scanning. |
-| **Denial of service** | Runaway agents exhaust compute, tokens, or API quota. | ResourceQuotas, `ActiveDeadlineSeconds`, cost velocity watchdog, concurrent job limits. |
-| **Cross-tenant data leakage** | In multi-tenant deployments, one tenant's data is exposed to another. | Namespace isolation, separate RBAC, separate secrets, optional dedicated node pools. |
+| Prompt injection | Malicious content in ticket descriptions or repository files tricks the agent into unintended behaviour. | Input sanitisation, command blocking hooks, guardrails.md/CLAUDE.md (advisory only, not yet injected by the controller, see roadmap). |
+| Agent escape | The agent breaks out of its intended scope and reaches files, networks or APIs it should not. | Container isolation, NetworkPolicy, `readOnlyRootFilesystem`, hook-based command blocking. |
+| Secret exfiltration | The agent leaks API keys or credentials via logs, network calls, or committed code. | No secrets in prompts, no secrets in logs, restricted egress, sensitive-file write blocking. |
+| Supply chain attacks | Compromised dependencies or container images inject malicious code. | Distroless base images, image signing, SBOM generation, vulnerability scanning. |
+| Denial of service | Runaway agents exhaust compute, tokens, or API quota. | ResourceQuotas, `ActiveDeadlineSeconds`, cost velocity watchdog, concurrent job limits. |
+| Cross-tenant data leakage | In multi-tenant deployments, one tenant's data is exposed to another. | Namespace isolation, separate RBAC, separate secrets, optional dedicated node pools. |
 
 ---
 
-## Defence in Depth — The Six Guard Rail Layers
+## Defence in depth: the six guard rail layers
 
 Osmia enforces safety through six independent layers. Layers 1, 2, 5, and 6
 are enforced by the controller at runtime. Layers 3 and 4 are advisory or
-partially implemented — see the notes under each layer and the [roadmap](roadmap.md).
+partially implemented; see the notes under each layer and the [roadmap](roadmap.md).
 
 ```mermaid
 graph LR
@@ -49,79 +49,79 @@ graph LR
     L6 --> Z["Safe<br/>Output"]
 ```
 
-### Layer 1: Controller Validation
+### Layer 1: Controller validation
 
 The reconciler (`internal/controller/controller.go`) validates every ticket
 before creating a TaskRun:
 
-- **Allowed repositories** — the ticket's `RepoURL` is matched against a
+- Allowed repositories: the ticket's `RepoURL` is matched against a
   configurable glob list (`guard_rails.allowed_repos`). Unrecognised repositories
   are rejected.
-- **Allowed task types** — the ticket's `TicketType` must appear in
+- Allowed task types: the ticket's `TicketType` must appear in
   `guard_rails.allowed_task_types`.
-- **Concurrent job limit** — `guard_rails.max_concurrent_jobs` (default: 5)
+- Concurrent job limit: `guard_rails.max_concurrent_jobs` (default: 5)
   prevents resource exhaustion.
 
-### Layer 2: Engine Hooks
+### Layer 2: Engine hooks
 
 The Claude Code engine (`pkg/engine/claudecode/hooks.go`) generates a
 `settings.json` with `PreToolUse`, `PostToolUse`, and `Stop` hooks:
 
-- **PreToolUse (Bash)** — runs `block-dangerous-commands.sh` before every shell
+- PreToolUse (Bash): runs `block-dangerous-commands.sh` before every shell
   command, blocking patterns such as `rm -rf /`, `curl|bash`, `sudo`, `eval`,
   `chmod 777`, and force-pushes to main/master.
-- **PreToolUse (Write|Edit)** — runs `block-sensitive-files.sh`, blocking writes
+- PreToolUse (Write|Edit): runs `block-sensitive-files.sh`, blocking writes
   to `.env*`, `*.pem`, `*.key`, credential directories, and other sensitive paths.
-- **PostToolUse** — writes a heartbeat to `/workspace/heartbeat.json` after every
-  tool invocation, enabling watchdog telemetry.
-- **Stop** — runs `on-complete.sh` to write `/workspace/result.json`.
+- PostToolUse: writes a heartbeat to `/workspace/heartbeat.json` after every
+  tool invocation, which gives the watchdog its telemetry.
+- Stop: runs `on-complete.sh` to write `/workspace/result.json`.
 
-### Layer 3: Guardrails.md / CLAUDE.md
+### Layer 3: guardrails.md and CLAUDE.md
 
 A per-repository `guardrails.md` or `CLAUDE.md` file can instruct the agent
-to follow repo-specific conventions — for example, forbidding changes to
+to follow repo-specific conventions, for example forbidding changes to
 deployment manifests or limiting modifications to specific directories.
 
 These files take effect when a Claude Code agent reads its `CLAUDE.md`
 naturally during execution. The controller does not currently inject them into
-the agent prompt — prompt-builder injection is on the [roadmap](roadmap.md#guardrailsmd-prompt-injection). This layer is
+the agent prompt; prompt-builder injection is on the [roadmap](roadmap.md#guardrailsmd-prompt-injection). This layer is
 advisory: the agent may read and follow the file, but the controller does not
 enforce compliance.
 
-### Layer 4: Task Profiles
+### Layer 4: Task profiles
 
 Task profiles define cost and duration budgets per task type. The config
-schema is fully defined and values are stored, but per-task-type file pattern
+schema is defined and values are stored, but per-task-type file pattern
 restrictions (`allowed_file_patterns`, `blocked_file_patterns`) are not yet
 enforced at runtime.
 
-### Layer 5: Quality Gate
+### Layer 5: Quality gate
 
 Before a pull request is merged, a quality gate reviews the agent's output.
-This may include automated linting, test execution, and human approval
-requirements, catching issues that slipped past earlier layers.
+This may include automated linting, test execution and human approval
+requirements. It catches issues that got past the earlier layers.
 
-### Layer 6: Progress Watchdog
+### Layer 6: Progress watchdog
 
 The watchdog (`internal/watchdog/watchdog.go`) continuously monitors running
 agents for anomalous behaviour:
 
-- **Loop detection** — terminates agents calling the same tool with identical
+- Loop detection: terminates agents calling the same tool with identical
   arguments more than 10 consecutive times with no file progress.
-- **Thrashing detection** — warns (then terminates) agents consuming more than
+- Thrashing detection: warns (then terminates) agents consuming more than
   80,000 tokens without meaningful file changes.
-- **Stall detection** — terminates agents idle for more than 300 seconds.
-- **Cost velocity** — warns when spending exceeds $15 USD per 10-minute window.
-- **Telemetry failure** — warns when heartbeat sequence numbers stop advancing.
-- **Unanswered human timeout** — terminates jobs waiting on human input for
+- Stall detection: terminates agents idle for more than 300 seconds.
+- Cost velocity: warns when spending exceeds $15 USD per 10-minute window.
+- Telemetry failure: warns when heartbeat sequence numbers stop advancing.
+- Unanswered human timeout: terminates jobs waiting on human input for
   longer than 30 minutes.
 
 All thresholds are configurable. Anomalies must persist for a minimum number of
-consecutive ticks before action is taken, avoiding false positives.
+consecutive ticks before action is taken, which avoids false positives.
 
 ---
 
-## Container Security
+## Container security
 
 Every agent job pod is created by the JobBuilder (`internal/jobbuilder/builder.go`)
 with a restrictive `SecurityContext`:
@@ -140,22 +140,22 @@ securityContext:
 
 Key properties:
 
-- **runAsNonRoot / runAsUser: 10000** — containers never run as root. The agent
+- `runAsNonRoot` / `runAsUser: 10000`: containers never run as root. The agent
   user (`osmia`, UID 10000) has no elevated privileges.
-- **readOnlyRootFilesystem** — prevents the agent from modifying the container
-  filesystem outside of explicitly mounted writable volumes.
-- **Drop ALL capabilities** — removes every Linux capability, including
+- `readOnlyRootFilesystem`: prevents the agent from modifying the container
+  filesystem outside explicitly mounted writable volumes.
+- Drop ALL capabilities: removes every Linux capability, including
   `NET_RAW`, `SYS_ADMIN`, and `PTRACE`.
-- **allowPrivilegeEscalation: false** — prevents gaining privileges via setuid
+- `allowPrivilegeEscalation: false`: prevents gaining privileges via setuid
   binaries or kernel exploits.
-- **SeccompProfile: RuntimeDefault** — applies the container runtime's default
+- `seccompProfile: RuntimeDefault`: applies the container runtime's default
   seccomp filter, blocking dangerous syscalls.
-- **ActiveDeadlineSeconds** — every job has a hard timeout, ensuring runaway
-  agents are killed by the kubelet.
+- `ActiveDeadlineSeconds`: every job has a hard timeout, so the kubelet kills
+  runaway agents.
 
 ---
 
-## Network Isolation
+## Network isolation
 
 Agent pods should have tightly restricted network access. The Helm chart includes
 built-in NetworkPolicy templates for both the controller and agent pods. Enable
@@ -177,15 +177,15 @@ networkPolicy:
 ### Agent NetworkPolicy
 
 The agent policy selects pods with `app.kubernetes.io/component: agent` and
-`app.kubernetes.io/managed-by: osmia` — labels applied by both `JobBuilder` and
-`SandboxBuilder` to every agent pod.
+`app.kubernetes.io/managed-by: osmia`, labels that both `JobBuilder` and
+`SandboxBuilder` apply to every agent pod.
 
 | Direction | Rule | Ports |
 |-----------|------|-------|
-| **Ingress** | Deny ALL — agent pods do not serve any network endpoints | — |
-| **Egress** | DNS resolution | UDP+TCP 53 |
-| **Egress** | HTTPS — LLM providers, SCM APIs, package registries | TCP 443 |
-| **Egress** | SSH — `git clone`/`push` over SSH | TCP 22 |
+| Ingress | Deny ALL. Agent pods do not serve any network endpoints | None |
+| Egress | DNS resolution | UDP+TCP 53 |
+| Egress | HTTPS: LLM providers, SCM APIs, package registries | TCP 443 |
+| Egress | SSH: `git clone`/`push` over SSH | TCP 22 |
 
 Additional egress rules can be added via `networkPolicy.agent.extraEgressRules`.
 
@@ -195,36 +195,36 @@ The controller policy uses the Helm chart's standard selector labels.
 
 | Direction | Rule | Ports |
 |-----------|------|-------|
-| **Ingress** | Webhook (if `webhook.enabled`) — optionally restricted by source CIDR | TCP 8081 (default) |
-| **Ingress** | Metrics scraping (if `metrics.enabled`) — optionally restricted by pod selector | TCP 8080 (default) |
-| **Egress** | DNS resolution | UDP+TCP 53 |
-| **Egress** | HTTPS — ticketing, notifications, SCM, LLM APIs | TCP 443 |
-| **Egress** | Kubernetes API server — defaults to `0.0.0.0/0`; set `kubeAPIServerCIDR` to lock down | TCP 443, 6443 |
+| Ingress | Webhook (if `webhook.enabled`), optionally restricted by source CIDR | TCP 8081 (default) |
+| Ingress | Metrics scraping (if `metrics.enabled`), optionally restricted by pod selector | TCP 8080 (default) |
+| Egress | DNS resolution | UDP+TCP 53 |
+| Egress | HTTPS: ticketing, notifications, SCM, LLM APIs | TCP 443 |
+| Egress | Kubernetes API server: defaults to `0.0.0.0/0`; set `kubeAPIServerCIDR` to lock down | TCP 443, 6443 |
 
 ### What is blocked
 
-- **Agent-to-agent traffic** — agent pods cannot communicate with each other or
+- Agent-to-agent traffic: agent pods cannot communicate with each other or
   with unrelated services.
-- **Inbound connections to agents** — all agent ingress is denied.
-- **Non-HTTPS egress** — plain HTTP (port 80) is blocked by default. If your
+- Inbound connections to agents: all agent ingress is denied.
+- Non-HTTPS egress: plain HTTP (port 80) is blocked by default. If your
   environment uses internal registries on port 80, add a rule via
   `networkPolicy.agent.extraEgressRules`.
-- **Controller access from arbitrary sources** — webhook and metrics ingress can
+- Controller access from arbitrary sources: webhook and metrics ingress can
   be restricted to specific CIDRs or pod selectors.
 
 ### Hardening recommendations
 
-- **Set `kubeAPIServerCIDR`** — the default (`0.0.0.0/0`) allows the controller
+- Set `kubeAPIServerCIDR`: the default (`0.0.0.0/0`) allows the controller
   to reach any IP on ports 443/6443. Lock it down to your cluster's API server IP.
-- **Restrict egress by FQDN** — where supported by your CNI (e.g. Cilium),
+- Restrict egress by FQDN: where supported by your CNI (e.g. Cilium),
   restrict agent egress to specific FQDNs such as `api.anthropic.com`,
   `api.github.com`, and your SCM host.
-- **Set `webhookSourceCIDR`** — restrict webhook ingress to your SCM provider's
+- Set `webhookSourceCIDR`: restrict webhook ingress to your SCM provider's
   IP ranges (e.g. GitHub's documented webhook IPs).
 
 ---
 
-## Secret Management
+## Secret management
 
 Secrets are injected into agent pods via Kubernetes `SecretKeyRef` references,
 never as plain-text environment variables in the Job spec. The JobBuilder's
@@ -243,23 +243,23 @@ sources = append(sources, corev1.EnvFromSource{
 
 Hard rules:
 
-- **No secrets in logs** — structured logging (via `slog`) does not include
+- No secrets in logs: structured logging (via `slog`) does not include
   secret values. Log fields are explicitly chosen; there is no catch-all
   serialisation of request bodies.
-- **No secrets in prompts** — API keys are injected as environment variables,
+- No secrets in prompts: API keys are injected as environment variables,
   never included in the task description or agent prompt.
-- **No secrets in container images** — images contain no baked-in credentials.
+- No secrets in container images: images contain no baked-in credentials.
 
 For production deployments, integrate with an external secrets manager:
 
-- **HashiCorp Vault** — use the Vault Agent injector or CSI driver.
-- **AWS Secrets Manager** — use IRSA with the AWS Secrets Store CSI driver.
-- **External Secrets Operator** — synchronises external secret stores to
-  Kubernetes Secrets, providing a uniform interface regardless of backend.
+- HashiCorp Vault: use the Vault Agent injector or CSI driver.
+- AWS Secrets Manager: use IRSA with the AWS Secrets Store CSI driver.
+- External Secrets Operator: synchronises external secret stores to
+  Kubernetes Secrets, giving one interface whatever the backend.
 
 ---
 
-## Input Validation
+## Input validation
 
 All external input is treated as untrusted. The controller validates ticket
 content before it reaches an agent.
@@ -289,50 +289,50 @@ The following patterns are blocked by default in the PreToolUse Bash hook:
 
 Writes to the following paths are blocked by default:
 
-- `.env*` — environment files containing secrets
-- `**/credentials/**`, `**/secrets/**` — credential directories
-- `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`, `*.keystore` — cryptographic keys
+- `.env*`: environment files containing secrets
+- `**/credentials/**`, `**/secrets/**`: credential directories
+- `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`, `*.keystore`: cryptographic keys
 
 Both blocked-command and blocked-file lists are configurable via the engine
 configuration and the `BLOCKED_FILE_PATTERNS` environment variable.
 
 ---
 
-## Image Security
+## Image security
 
-### Controller Image
+### Controller image
 
-The controller (`docker/controller/Dockerfile`) uses a **multi-stage build**:
+The controller (`docker/controller/Dockerfile`) uses a multi-stage build:
 
-1. **Builder stage** — `golang:1.23-alpine` compiles the binary with
+1. Builder stage: `golang:1.23-alpine` compiles the binary with
    `-trimpath -ldflags="-s -w"`, stripping debug information and file paths.
-2. **Runtime stage** — `gcr.io/distroless/static-debian12:nonroot` contains no
+2. Runtime stage: `gcr.io/distroless/static-debian12:nonroot` contains no
    shell, no package manager, and no unnecessary libraries. The `nonroot` tag
-   ensures the image runs as a non-root user by default.
+   makes the image run as a non-root user by default.
 
-### Agent Image
+### Agent image
 
 The Claude Code engine image (`docker/engine-claude-code/Dockerfile`) uses
 `node:22-slim` as a base (required for the Claude Code CLI), installs only
-essential tools (`git`, `jq`, `gh`), and creates a dedicated non-root user
+the tools it needs (`git`, `jq`, `gh`), and creates a dedicated non-root user
 (`osmia`, UID 10000).
 
-### Image Signing and Provenance
+### Image signing and provenance
 
 For production deployments, the following practices are recommended:
 
-- **cosign** — sign all images with `cosign sign` and verify signatures in your
+- cosign: sign all images with `cosign sign` and verify signatures in your
   admission controller (e.g. Kyverno, Gatekeeper).
-- **SBOM generation** — generate software bills of materials with `syft` for
-  every image build, enabling downstream vulnerability tracking.
-- **Vulnerability scanning** — integrate `trivy`, `grype`, or your preferred
+- SBOM generation: generate software bills of materials with `syft` for
+  every image build, so vulnerabilities can be tracked downstream.
+- Vulnerability scanning: integrate `trivy`, `grype`, or your preferred
   scanner into CI. Fail builds on critical/high CVEs.
-- **Pinned base images** — use image digests (`@sha256:...`) rather than mutable
+- Pinned base images: use image digests (`@sha256:...`) rather than mutable
   tags for reproducible builds.
 
 ---
 
-## Multi-Tenancy Security
+## Multi-tenancy security
 
 In multi-tenant deployments, each tenant should be isolated to prevent data
 leakage and resource contention.
@@ -351,7 +351,7 @@ leakage and resource contention.
 
 **Secret isolation:**
 
-- Secrets are namespace-scoped in Kubernetes by default. Ensure no
+- Secrets are namespace-scoped in Kubernetes by default. Make sure no
   `ClusterRoleBinding` grants cross-namespace secret access to tenant service
   accounts.
 
@@ -394,7 +394,7 @@ spec:
           values: ["amd64"]
 ```
 
-The JobBuilder automatically adds a toleration for `osmia.io/agent`, so agent
+The JobBuilder adds a toleration for `osmia.io/agent`, so agent
 pods will schedule onto dedicated nodes when available.
 
 ---
@@ -402,7 +402,7 @@ pods will schedule onto dedicated nodes when available.
 ## RBAC
 
 The controller's service account (`charts/osmia/templates/rbac.yaml`) follows
-the **principle of least privilege**:
+the principle of least privilege:
 
 | API Group | Resources | Verbs | Rationale |
 |---|---|---|---|
@@ -414,17 +414,17 @@ the **principle of least privilege**:
 
 Key constraints:
 
-- The controller **cannot** create or modify Deployments, DaemonSets, or other
-  workload types — only batch Jobs.
-- The controller **cannot** create or modify Secrets — only read them.
-- The controller **cannot** create or modify Namespaces, Nodes, or
+- The controller cannot create or modify Deployments, DaemonSets, or other
+  workload types, only batch Jobs.
+- The controller cannot create or modify Secrets, only read them.
+- The controller cannot create or modify Namespaces, Nodes, or
   cluster-scoped resources beyond its own ClusterRole.
 - For multi-tenant deployments, consider scoping the binding to a `Role` +
   `RoleBinding` per namespace instead of a `ClusterRole` + `ClusterRoleBinding`.
 
 ---
 
-## Audit Logging
+## Audit logging
 
 Osmia uses Go's standard `slog` package with structured JSON output for all
 controller logs. Every significant action is logged with contextual fields:
@@ -462,7 +462,7 @@ Logged events include:
 
 ---
 
-## Vulnerability Disclosure
+## Vulnerability disclosure
 
 If you discover a security vulnerability in Osmia, please report it
 responsibly. See the [Security Policy](security-policy.md) for our disclosure process.

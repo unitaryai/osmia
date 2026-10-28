@@ -1,8 +1,8 @@
-# Guard Rails
+# Guard rails
 
 ## Overview
 
-Osmia provides layered safety boundaries — guard rails — to ensure autonomous AI agents operate within enterprise-approved limits. Guard rails are applied at multiple levels for defence in depth.
+Guard rails are the safety limits that keep an agent inside the bounds your organisation has approved. Osmia applies them at several levels, so that no single failure removes all protection.
 
 !!! tip "New to guard rails?"
     For a plain-language introduction, see [Guard Rails Overview](concepts/guardrails-overview.md). This page covers the detailed configuration reference.
@@ -24,7 +24,7 @@ sequenceDiagram
     Note over L4: Detect loops, stalls,<br/>cost overruns
 ```
 
-## 1. Controller-Level Guards
+## 1. Controller-level guards
 
 Applied before a job is created. Configured in `osmia-config.yaml`:
 
@@ -48,7 +48,7 @@ guardrails:
     - "documentation"
 ```
 
-### What Each Guard Does
+### What each guard does
 
 | Guard | Effect |
 |-------|--------|
@@ -60,7 +60,7 @@ guardrails:
 | `require_human_approval_before_mr` | Pauses before PR creation for human sign-off |
 | `allowed_task_types` | Rejects tickets with disallowed task types |
 
-## 2. Engine-Level Guards (Claude Code Hooks)
+## 2. Engine-level guards (Claude Code hooks)
 
 !!! info "Only applies to Claude Code"
     Engine hooks are only available for the Claude Code engine. Other engines (Codex, Aider, OpenCode, Cline) rely on prompt-based rules which are advisory, not enforced.
@@ -104,7 +104,7 @@ Applied inside the execution container via Claude Code's hooks system. Osmia gen
 }
 ```
 
-### Blocked Commands
+### Blocked commands
 
 The `block-dangerous-commands.sh` hook blocks:
 - `rm -rf /` and similar destructive commands
@@ -114,7 +114,7 @@ The `block-dangerous-commands.sh` hook blocks:
 - `chmod 777` (insecure permissions)
 - `git push --force` to main/master
 
-### Blocked Files
+### Blocked files
 
 The `block-sensitive-files.sh` hook blocks writes to:
 - `.env*` files
@@ -124,7 +124,7 @@ The `block-sensitive-files.sh` hook blocks writes to:
 
 Custom patterns can be added via the `BLOCKED_FILE_PATTERNS` environment variable.
 
-## 3. Custom Guard Rails via Markdown (Planned)
+## 3. Custom guard rails via Markdown (planned)
 
 !!! note "Not yet wired"
     The `guardrails.md` injection path is not currently wired in the controller. The `TaskProfileConfig` struct has a `Workflow` field and the promptbuilder package exists, but the controller builds execution specs directly from ticket fields rather than routing through the promptbuilder. This feature is on the roadmap.
@@ -142,7 +142,7 @@ The intention is that users will provide a `guardrails.md` file (mounted from a 
 - Always run the full test suite before creating an MR
 ```
 
-## 4. Per-Task-Type Permission Profiles (Partially Implemented)
+## 4. Per-task-type permission profiles (partially implemented)
 
 !!! note "Config schema only"
     `task_profiles` is present in the config schema and values are stored, but per-task-type file pattern restrictions (`allowed_file_patterns`, `blocked_file_patterns`) are not enforced at runtime. The controller reads `AllowedTaskTypes` for validation but does not yet apply profile-level constraints to agent pods.
@@ -176,7 +176,7 @@ guardrails:
 
 The controller selects the profile based on ticket labels or the `ticket_type` field from the ticketing backend.
 
-## 5. Quality Gate
+## 5. Quality gate
 
 An optional post-completion review that runs as a separate K8s Job:
 
@@ -194,9 +194,9 @@ quality_gate:
   on_failure: "retry_with_feedback"
 ```
 
-The quality gate is read-only — it cannot modify the repository.
+The quality gate is read-only. It cannot modify the repository.
 
-## 6. Progress Watchdog
+## 6. Progress watchdog
 
 Detects agents that are stalled, looping, or unproductive during execution:
 
@@ -213,7 +213,7 @@ progress_watchdog:
   unanswered_human_timeout_minutes: 30
 ```
 
-### Detection Rules
+### Detection rules
 
 | Rule | Detects | Action |
 |------|---------|--------|

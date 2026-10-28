@@ -1953,6 +1953,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#34-ticket-readiness-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        34. Ticket Readiness Check
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2482,6 +2493,17 @@
     <span class="md-ellipsis">
       
         31. Regional Deployments and Data Residency Routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-ticket-readiness-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        34. Ticket Readiness Check
       
     </span>
   </a>
@@ -3155,6 +3177,51 @@ it is not a safe boundary.</p>
 - Should a cross-region dashboard exist, showing status only, or is one
   dashboard per region enough?</p>
 <hr />
+<h3 id="34-ticket-readiness-check">34. Ticket Readiness Check<a class="headerlink" href="#34-ticket-readiness-check" title="Permanent link">&para;</a></h3>
+<p><strong>Priority:</strong> High
+<strong>Scope:</strong> Small to Medium
+<strong>Dependencies:</strong> None (uses <code>internal/llm</code>)</p>
+<p>Osmia starts an agent on any ticket that passes the guard rails. A vague
+ticket still gets a full run: the agent guesses at the intent, spends the
+budget, and either opens a PR nobody wanted or fails. The cost estimator
+(<code>internal/estimator</code>) scores how big a task looks, not whether it is clear
+enough to do.</p>
+<p>A readiness check runs before launch and asks three questions of the ticket
+and repository:</p>
+<ul>
+<li>Is the scope bounded: one change, in a known place?</li>
+<li>Is there enough context: the repository, the affected area, and what is
+  wrong or wanted?</li>
+<li>Is success observable: a test, a command, or a stated result a reviewer can
+  check?</li>
+</ul>
+<p>The result is a score with a short reason for each question. Above the
+threshold, the task launches as today. Below it, Osmia holds the ticket and
+comments on it with what is missing, instead of starting a job.</p>
+<ul>
+<li>[ ] Readiness signature in <code>internal/llm</code>, returning a structured score and
+  reasons; one call on a small model per ticket</li>
+<li>[ ] Run it in <code>ProcessTicket</code> after guard rails and before cost estimation,
+  for new tickets only (not review follow-ups or retries)</li>
+<li>[ ] Config: <code>readiness.enabled</code> (off by default), <code>readiness.threshold</code>, and
+  <code>readiness.mode</code> of <code>advisory</code> (comment and launch anyway) or <code>gate</code>
+  (comment and hold)</li>
+<li>[ ] When holding, move the ticket to a "needs info" state or label and
+  re-check it when the ticket is edited</li>
+<li>[ ] Record the score and reasons on the TaskRun, so they can be compared
+  with outcomes and the threshold tuned from real data</li>
+<li>[ ] Treat the ticket text as untrusted input: the check can only return a
+  score and reasons, and its output never becomes part of the agent's
+  instructions</li>
+<li>[ ] Show the score on the run detail page (item 10)</li>
+</ul>
+<p><strong>Open questions:</strong>
+- Should the check see repository content (for example, whether tests exist
+  for the affected area), or only the ticket? Repository access makes it more
+  accurate but slower and costlier.
+- For build stages (Application Build Pilot), is the input a ticket at all,
+  or a stage specification that needs its own checks?</p>
+<hr />
 <h2 id="3-design-first-adr-required-before-implementation">3. Design-First — ADR Required Before Implementation<a class="headerlink" href="#3-design-first-adr-required-before-implementation" title="Permanent link">&para;</a></h2>
 <p>These items have a clear problem and rough direction but need a design document or ADR
 agreed before writing code.</p>
@@ -3742,6 +3809,12 @@ live controller and <code>main.go</code>:</p>
 <tr>
 <td>31</td>
 <td>Regional Deployments and Data Residency Routing</td>
+<td>High</td>
+<td>Not started</td>
+</tr>
+<tr>
+<td>34</td>
+<td>Ticket Readiness Check</td>
 <td>High</td>
 <td>Not started</td>
 </tr>

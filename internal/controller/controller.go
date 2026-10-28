@@ -2294,7 +2294,6 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	r.mu.Unlock()
 
 	go func() {
-		defer close(done)
 		eventCh := make(chan *agentstream.StreamEvent, 100)
 
 		reader := agentstream.NewReader(
@@ -2450,6 +2449,11 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 				)
 			}
 		}
+
+		// Every event has been processed, including the final result, so
+		// completion handling can go ahead. Signalled before the transcript
+		// flush so a slow flush does not hold up handleJobComplete.
+		close(done)
 
 		// Flush the transcript now that all events for this task run have been
 		// forwarded (successful completion or context cancellation on failure).

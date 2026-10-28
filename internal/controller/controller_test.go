@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/unitaryai/osmia/internal/agentstream"
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/memory"
 	"github.com/unitaryai/osmia/internal/prm"
@@ -1420,4 +1421,59 @@ func TestResolveApproval_PreStartApproval(t *testing.T) {
 	jobs, err := k8s.BatchV1().Jobs("test-ns").List(ctx, metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, jobs.Items, 1)
+}
+
+// blockingTranscriptSink blocks Flush until released, standing in for a slow
+// transcript store.
+type blockingTranscriptSink struct {
+	flushStarted chan struct{}
+	release      chan struct{}
+}
+
+func (s *blockingTranscriptSink) Append(context.Context, string, *agentstream.StreamEvent) error {
+	return nil
+}
+
+func (s *blockingTranscriptSink) Flush(context.Context, string) error {
+	close(s.flushStarted)
+	<-s.release
+	return nil
+}
+
+// TestStartStreamReader_SignalsDoneBeforeTranscriptFlush checks a slow
+// transcript flush does not hold up completion handling: the reader's done
+// channel closes once events are forwarded, before the flush finishes.
+func TestStartStreamReader_SignalsDoneBeforeTranscriptFlush(t *testing.T) {
+	sink := &blockingTranscriptSink{flushStarted: make(chan struct{}), release: make(chan struct{})}
+	defer close(sink.release)
+
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	tr.CurrentEngine = "claude-code"
+	r := &Reconciler{
+		logger:         testLogger(),
+		engines:        map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		streamReaders:  make(map[string]context.CancelFunc),
+		streamDone:     make(map[string]chan struct{}),
+		transcriptSink: sink,
+		prmEvaluators:  make(map[string]*prm.Evaluator),
+	}
+
+	// With no Kubernetes client the log reader ends at once, so the reader
+	// goes straight to signalling and flushing.
+	r.startStreamReader(context.Background(), tr)
+	r.mu.RLock()
+	done := r.streamDone["tr-1"]
+	r.mu.RUnlock()
+	require.NotNil(t, done)
+
+	select {
+	case <-sink.flushStarted:
+	case <-time.After(time.Second):
+		t.Fatal("transcript flush never started")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("done was not signalled while the transcript flush was still running")
+	}
 }

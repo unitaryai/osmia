@@ -492,6 +492,56 @@ it is not a safe boundary.
 
 ---
 
+### 34. Ticket Readiness Check
+
+**Priority:** High
+**Scope:** Small to Medium
+**Dependencies:** None (uses `internal/llm`)
+
+Osmia starts an agent on any ticket that passes the guard rails. A vague
+ticket still gets a full run: the agent guesses at the intent, spends the
+budget, and either opens a PR nobody wanted or fails. The cost estimator
+(`internal/estimator`) scores how big a task looks, not whether it is clear
+enough to do.
+
+A readiness check runs before launch and asks three questions of the ticket
+and repository:
+
+- Is the scope bounded: one change, in a known place?
+- Is there enough context: the repository, the affected area, and what is
+  wrong or wanted?
+- Is success observable: a test, a command, or a stated result a reviewer can
+  check?
+
+The result is a score with a short reason for each question. Above the
+threshold, the task launches as today. Below it, Osmia holds the ticket and
+comments on it with what is missing, instead of starting a job.
+
+- [ ] Readiness signature in `internal/llm`, returning a structured score and
+  reasons; one call on a small model per ticket
+- [ ] Run it in `ProcessTicket` after guard rails and before cost estimation,
+  for new tickets only (not review follow-ups or retries)
+- [ ] Config: `readiness.enabled` (off by default), `readiness.threshold`, and
+  `readiness.mode` of `advisory` (comment and launch anyway) or `gate`
+  (comment and hold)
+- [ ] When holding, move the ticket to a "needs info" state or label and
+  re-check it when the ticket is edited
+- [ ] Record the score and reasons on the TaskRun, so they can be compared
+  with outcomes and the threshold tuned from real data
+- [ ] Treat the ticket text as untrusted input: the check can only return a
+  score and reasons, and its output never becomes part of the agent's
+  instructions
+- [ ] Show the score on the run detail page (item 10)
+
+**Open questions:**
+- Should the check see repository content (for example, whether tests exist
+  for the affected area), or only the ticket? Repository access makes it more
+  accurate but slower and costlier.
+- For build stages (Application Build Pilot), is the input a ticket at all,
+  or a stage specification that needs its own checks?
+
+---
+
 ## 3. Design-First — ADR Required Before Implementation
 
 These items have a clear problem and rough direction but need a design document or ADR
@@ -885,6 +935,7 @@ live controller and `main.go`:
 | 29 | Workload Identity for Agent Pods | High | Not started |
 | 30 | Remote Transcript and Artifact Storage | High | Not started |
 | 31 | Regional Deployments and Data Residency Routing | High | Not started |
+| 34 | Ticket Readiness Check | High | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 32 | Customer Context and Repository Lookup | High | Design doc required |

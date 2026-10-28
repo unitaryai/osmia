@@ -328,18 +328,22 @@ func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, com
 			discussions = append(discussions, page...)
 			return nil
 		})
-		if err == nil {
-			for _, d := range discussions {
-				for _, n := range d.Notes {
-					if strconv.Itoa(n.ID) == commentID {
-						threadID = d.ID
-						break
-					}
-				}
-				if threadID != "" {
+		// Search whatever pages were read even if a later one failed: the
+		// comment may well be on an earlier page.
+		for _, d := range discussions {
+			for _, n := range d.Notes {
+				if strconv.Itoa(n.ID) == commentID {
+					threadID = d.ID
 					break
 				}
 			}
+			if threadID != "" {
+				break
+			}
+		}
+		if err != nil && threadID == "" {
+			b.logger.Warn("could not find the discussion for a comment; replying as a standalone note",
+				"comment_id", commentID, "error", err)
 		}
 	}
 

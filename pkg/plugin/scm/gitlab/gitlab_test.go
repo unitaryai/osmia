@@ -523,3 +523,36 @@ func TestGitLabSCMBackend_ListReviewComments_RefusesCrossHostNextPage(t *testing
 	require.NoError(t, err)
 	assert.False(t, foreignHit, "next page on another host must not be fetched")
 }
+
+// TestGitLabSCMBackend_ReplyToComment_SearchesPagesReadBeforeAnError checks
+// that when the discussion lookup fails on a later page, a comment found on
+// an earlier page is still replied to in its own thread.
+func TestGitLabSCMBackend_ReplyToComment_SearchesPagesReadBeforeAnError(t *testing.T) {
+	var postedPath string
+	var srvURL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			postedPath = r.URL.Path
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		if r.URL.Query().Get("page") == "2" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", "<"+srvURL+r.URL.Path+`?per_page=100&page=2>; rel="next"`)
+		_ = json.NewEncoder(w).Encode([]map[string]any{
+			{"id": "disc-1", "notes": []map[string]any{{"id": 42, "body": "please fix"}}},
+		})
+	}))
+	defer srv.Close()
+	srvURL = srv.URL
+
+	b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	err := b.ReplyToComment(context.Background(), "https://gitlab.com/o/r/-/merge_requests/7", "42", "", "on it")
+	require.NoError(t, err)
+	assert.Contains(t, postedPath, "/discussions/disc-1/notes")
+}

@@ -13,7 +13,7 @@ hashicorp/go-plugin transport.
 
 ## Installation
 
-> **Note:** The package is not yet published to npm — this is a scaffold.
+> **Note:** The package is not yet published to npm. This is a scaffold.
 > Install from source for now:
 
 ```bash
@@ -30,7 +30,7 @@ npm install @unitaryai/osmia-plugin-sdk
 
 ## Generating protobuf stubs
 
-Run the following from the repository root. This regenerates all TypeScript
+Run this from the repository root. It regenerates all TypeScript
 (and Python) stubs from the canonical `proto/` definitions:
 
 ```bash
@@ -38,14 +38,14 @@ make sdk-gen
 ```
 
 Generated files are written to `sdk/typescript/src/proto/`. Do not edit
-them by hand — they are overwritten on every `make sdk-gen` run.
+them by hand; every `make sdk-gen` run overwrites them.
 
-## Quick-start — notifications plugin
+## Quick start: notifications plugin
 
 ```typescript
 import { PluginBase } from "@unitaryai/osmia-plugin-sdk";
 
-// Generated stubs — run `make sdk-gen` first.
+// Generated stubs. Run `make sdk-gen` first.
 // import { NotificationChannelService } from "./proto/notifications_pb.js";
 
 class MyNotificationPlugin extends PluginBase {

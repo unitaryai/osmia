@@ -1,7 +1,7 @@
 # Osmia Go Plugin SDK
 
 The Go SDK is the controller's own `pkg/plugin/` packages, importable directly
-from the main module. There is no separate package to install — third-party
+from the main module. There is no separate package to install. Third-party
 consumers import the interfaces directly from:
 
 ```

@@ -2527,10 +2527,10 @@
   
 
 
-<h1 id="plugin-grpc-api-reference">Plugin gRPC API Reference<a class="headerlink" href="#plugin-grpc-api-reference" title="Permanent link">&para;</a></h1>
+<h1 id="plugin-grpc-api-reference">Plugin gRPC API reference<a class="headerlink" href="#plugin-grpc-api-reference" title="Permanent link">&para;</a></h1>
 <p>All Osmia plugin interfaces are defined as protobuf services in <code>proto/</code>.
-The proto files are the <strong>source of truth</strong> — generated Go stubs, Python stubs,
-and TypeScript stubs are all derived from them. Do not edit generated files
+The proto files are the source of truth. The generated Go, Python and
+TypeScript stubs are all derived from them. Do not edit generated files
 directly; regenerate them with <code>make sdk-gen</code> instead.</p>
 <p>Plugins communicate with the controller over gRPC using the
 <a href="https://github.com/hashicorp/go-plugin">hashicorp/go-plugin</a> subprocess
@@ -2637,14 +2637,14 @@ local Unix socket.</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Current version enforcement</strong> uses a two-level check — not a live <code>Handshake</code> RPC call:</p>
+<p>Version enforcement currently uses a two-level check, not a live <code>Handshake</code> RPC call:</p>
 <ol>
-<li><strong>Pre-spawn config check</strong> — before starting the subprocess, the controller compares the <code>interface_version</code> declared in <code>osmia-config.yaml</code> against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.</li>
-<li><strong>Transport handshake</strong> — hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid Osmia plugin binary.</li>
+<li>Pre-spawn config check: before starting the subprocess, the controller compares the <code>interface_version</code> declared in <code>osmia-config.yaml</code> against the version it expects for that plugin type. A mismatch is rejected immediately. This relies on the operator setting the correct version in config.</li>
+<li>Transport handshake: hashicorp/go-plugin verifies a magic cookie when the subprocess connects, confirming the binary is a valid Osmia plugin binary.</li>
 </ol>
 <p>The protobuf <code>Handshake</code> RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure <code>interface_version</code> in config matches the binary they deploy.</p>
-<p>If the declared <code>interface_version</code> does not match what the controller expects, <code>LoadPlugin</code> returns an error and no plugin instance is created or stored. The plugin is simply never registered — there is no health state to mark. Restarting cannot resolve a version mismatch.</p>
-<p>The current <code>interface_version</code> for most services is <strong>1</strong>. SCM is version <strong>2</strong> (bumped when <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code>, and <code>GetDiff</code> were added).</p>
+<p>If the declared <code>interface_version</code> does not match what the controller expects, <code>LoadPlugin</code> returns an error and no plugin instance is created or stored. The plugin is never registered, so there is no health state to mark. Restarting cannot resolve a version mismatch.</p>
+<p>The current <code>interface_version</code> for most services is 1. SCM is version 2 (bumped when <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code> and <code>GetDiff</code> were added).</p>
 <hr />
 <h2 id="shared-message-types-protocommonproto">Shared message types (<code>proto/common.proto</code>)<a class="headerlink" href="#shared-message-types-protocommonproto" title="Permanent link">&para;</a></h2>
 <p>The following types are defined in <code>proto/common.proto</code> and referenced by
@@ -3164,9 +3164,9 @@ server's Slack endpoint.</p>
 </table>
 <hr />
 <h2 id="secretsbackend-protosecretsproto"><code>SecretsBackend</code> (<code>proto/secrets.proto</code>)<a class="headerlink" href="#secretsbackend-protosecretsproto" title="Permanent link">&para;</a></h2>
-<p>Secrets backends abstract over different secret storage systems (Kubernetes
+<p>Secrets backends wrap different secret storage systems (Kubernetes
 Secrets, HashiCorp Vault, AWS Secrets Manager, 1Password, External Secrets
-Operator) to provide a uniform way of injecting credentials into agent
+Operator) and give a uniform way to inject credentials into agent
 execution containers.</p>
 <h3 id="rpcs_3">RPCs<a class="headerlink" href="#rpcs_3" title="Permanent link">&para;</a></h3>
 <table>
@@ -3201,7 +3201,7 @@ execution containers.</p>
 <td><code>BuildEnvVars</code></td>
 <td><code>BuildEnvVarsRequest</code></td>
 <td><code>BuildEnvVarsResponse</code></td>
-<td>Translates secret references into Kubernetes-native <code>EnvVar</code> specifications, enabling backends to use native <code>secretKeyRef</code> where possible.</td>
+<td>Translates secret references into Kubernetes-native <code>EnvVar</code> specifications, so backends can use native <code>secretKeyRef</code> where possible.</td>
 </tr>
 </tbody>
 </table>
@@ -3301,10 +3301,10 @@ execution containers.</p>
 </table>
 <hr />
 <h2 id="scmbackend-protoscmproto"><code>SCMBackend</code> (<code>proto/scm.proto</code>)<a class="headerlink" href="#scmbackend-protoscmproto" title="Permanent link">&para;</a></h2>
-<p>SCM backends handle git hosting operations — creating branches, opening
-pull/merge requests, and querying their status. This abstracts over different
-hosting platforms (GitHub, GitLab, Bitbucket) so the controller can manage code
-changes without coupling to a specific provider.</p>
+<p>SCM backends handle git hosting operations: creating branches, opening
+pull/merge requests and querying their status. They hide the differences
+between hosting platforms (GitHub, GitLab, Bitbucket), so the controller does
+not depend on a specific provider.</p>
 <h3 id="rpcs_4">RPCs<a class="headerlink" href="#rpcs_4" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -3462,8 +3462,8 @@ changes without coupling to a specific provider.</p>
 </table>
 <hr />
 <h2 id="reviewbackend-protoreviewproto"><code>ReviewBackend</code> (<code>proto/review.proto</code>)<a class="headerlink" href="#reviewbackend-protoreviewproto" title="Permanent link">&para;</a></h2>
-<p>Review backends integrate with code review systems (CodeRabbit, native
-LLM-based review, custom pipelines) to provide quality gates that evaluate
+<p>Review backends connect to code review systems (CodeRabbit, native
+LLM-based review, custom pipelines) as quality gates that evaluate
 agent-produced diffs before they are merged. The quality gate is deliberately
 read-only: it reviews output but cannot modify the repository.</p>
 <h3 id="rpcs_5">RPCs<a class="headerlink" href="#rpcs_5" title="Permanent link">&para;</a></h3>
@@ -3609,8 +3609,8 @@ read-only: it reviews output but cannot modify the repository.</p>
 <p>Execution engines wrap AI coding tools (Claude Code, OpenAI Codex, Aider) and
 translate tasks into engine-agnostic <code>ExecutionSpec</code> records. The core
 <code>JobBuilder</code> (<code>internal/jobbuilder/</code>) then translates the spec into a
-Kubernetes Job. This decoupling enables testing without a cluster and opens the
-door to non-Kubernetes runtimes (Docker, Podman) in future.</p>
+Kubernetes Job. This split allows testing without a cluster and leaves room for
+non-Kubernetes runtimes (Docker, Podman) in future.</p>
 <h3 id="rpcs_6">RPCs<a class="headerlink" href="#rpcs_6" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -3632,7 +3632,7 @@ door to non-Kubernetes runtimes (Docker, Podman) in future.</p>
 <td><code>BuildExecutionSpec</code></td>
 <td><code>BuildExecutionSpecRequest</code></td>
 <td><code>BuildExecutionSpecResponse</code></td>
-<td>Returns a runtime-agnostic execution specification — container image, command, environment variables, resource requirements, and volumes.</td>
+<td>Returns a runtime-agnostic execution specification: container image, command, environment variables, resource requirements and volumes.</td>
 </tr>
 <tr>
 <td><code>BuildPrompt</code></td>
@@ -3782,11 +3782,11 @@ door to non-Kubernetes runtimes (Docker, Podman) in future.</p>
 <hr />
 <h2 id="sdk-generation">SDK generation<a class="headerlink" href="#sdk-generation" title="Permanent link">&para;</a></h2>
 <p>Stubs for all three supported languages can be regenerated from the proto
-sources at any time:</p>
+sources:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>sdk-gen
 </code></pre></div>
-<p>This runs <code>buf generate</code> with the appropriate templates for Go, Python, and
-TypeScript. Generated files are written to <code>sdk/go/</code>, <code>sdk/python/</code>, and
+<p>This runs <code>buf generate</code> with the appropriate templates for Go, Python and
+TypeScript. Generated files are written to <code>sdk/go/</code>, <code>sdk/python/</code> and
 <code>sdk/typescript/</code> respectively.</p>
 <p>See <a href="../../plugins/sdks/">SDKs</a> for how to use each SDK in a plugin
 implementation.</p>

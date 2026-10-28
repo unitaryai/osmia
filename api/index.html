@@ -1859,8 +1859,8 @@
   
 
 
-<h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
-<p>Osmia exposes two distinct API surfaces:</p>
+<h1 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<p>Osmia has two API surfaces:</p>
 <table>
 <thead>
 <tr>
@@ -1871,19 +1871,19 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Webhook HTTP API</strong></td>
-<td>An HTTP server that receives events from GitHub, GitLab, Shortcut, and Slack and feeds them into the controller as tickets.</td>
+<td>Webhook HTTP API</td>
+<td>An HTTP server that receives events from GitHub, GitLab, Shortcut and Slack and passes them to the controller as tickets.</td>
 <td><a href="webhooks/">Webhook API</a></td>
 </tr>
 <tr>
-<td><strong>Plugin gRPC API</strong></td>
-<td>A set of protobuf services that plugins implement to integrate with external ticketing systems, notification channels, secrets vaults, SCM providers, review tools, and execution engines.</td>
+<td>Plugin gRPC API</td>
+<td>Protobuf services that plugins implement to connect ticketing systems, notification channels, secrets vaults, SCM providers, review tools and execution engines.</td>
 <td><a href="plugins/">Plugin gRPC API</a></td>
 </tr>
 </tbody>
 </table>
 <h2 id="webhook-http-api">Webhook HTTP API<a class="headerlink" href="#webhook-http-api" title="Permanent link">&para;</a></h2>
-<p>The webhook server is an optional component. When enabled, it listens for
+<p>The webhook server is optional. When enabled, it listens for
 inbound events and converts them into <code>Ticket</code> records that the controller
 reconciles. Each source has its own endpoint under <code>/webhooks/</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>POST /webhooks/github
@@ -1896,10 +1896,10 @@ reconciles. Each source has its own endpoint under <code>/webhooks/</code>:</p>
 before processing the request body. See <a href="webhooks/">Webhook API</a> for the
 full reference.</p>
 <h2 id="plugin-grpc-api">Plugin gRPC API<a class="headerlink" href="#plugin-grpc-api" title="Permanent link">&para;</a></h2>
-<p>All plugin interfaces are defined as protobuf services in <code>proto/</code> — this is
+<p>All plugin interfaces are defined as protobuf services in <code>proto/</code>, which is
 the source of truth. The generated Go stubs and client/server wrappers live in
-<code>pkg/plugin/</code>. SDKs for Go, Python, and TypeScript are in <code>sdk/</code> and can be
-regenerated at any time with:</p>
+<code>pkg/plugin/</code>. SDKs for Go, Python and TypeScript are in <code>sdk/</code> and can be
+regenerated with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>sdk-gen
 </code></pre></div>
 <p>See <a href="plugins/">Plugin gRPC API</a> for the full service reference, including

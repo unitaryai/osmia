@@ -2757,11 +2757,11 @@
   
 
 
-<h1 id="webhook-api-reference">Webhook API Reference<a class="headerlink" href="#webhook-api-reference" title="Permanent link">&para;</a></h1>
+<h1 id="webhook-api-reference">Webhook API reference<a class="headerlink" href="#webhook-api-reference" title="Permanent link">&para;</a></h1>
 <p>Osmia optionally runs an HTTP webhook server that accepts events from GitHub,
-GitLab, Shortcut, and Slack. When an event is received, it is validated,
-parsed into one or more <code>Ticket</code> records, and forwarded to the controller's
-reconciliation loop for processing.</p>
+GitLab, Shortcut and Slack. When an event arrives, Osmia validates it,
+parses it into one or more <code>Ticket</code> records and forwards them to the
+controller's reconciliation loop.</p>
 <p>The webhook server is implemented in <code>internal/webhook/</code>. It is separate from
 the plugin gRPC API; see <a href="../plugins/">Plugin gRPC API</a> for the plugin system.</p>
 <hr />
@@ -2782,7 +2782,7 @@ the plugin gRPC API; see <a href="../plugins/">Plugin gRPC API</a> for the plugi
 </tr>
 <tr>
 <td><code>webhook.secrets.&lt;source&gt;</code></td>
-<td>—</td>
+<td>None</td>
 <td>Per-source signing secret. Required for all sources except Shortcut (optional) and Generic (depends on <code>auth_mode</code>).</td>
 </tr>
 <tr>
@@ -2803,7 +2803,7 @@ with body <code>ok</code>. This is suitable for Kubernetes liveness and readines
 <p>GitHub signs every delivery using HMAC-SHA256. The signature is sent in the
 <code>X-Hub-Signature-256</code> header in the format <code>sha256=&lt;hex-digest&gt;</code>. Osmia
 rejects requests that do not carry a valid signature for the configured secret.
-The signature is validated <strong>before</strong> the JSON body is parsed (fail-fast).</p>
+The signature is validated before the JSON body is parsed (fail-fast).</p>
 <h3 id="supported-events">Supported events<a class="headerlink" href="#supported-events" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2826,7 +2826,7 @@ The signature is validated <strong>before</strong> the JSON body is parsed (fail
 </tr>
 <tr>
 <td>All other event types</td>
-<td>—</td>
+<td>n/a</td>
 <td>Acknowledged (<code>200 OK</code>) but not forwarded.</td>
 </tr>
 </tbody>
@@ -2860,7 +2860,7 @@ The signature is validated <strong>before</strong> the JSON body is parsed (fail
 <h3 id="authentication_1">Authentication<a class="headerlink" href="#authentication_1" title="Permanent link">&para;</a></h3>
 <p>GitLab sends a shared secret in the <code>X-Gitlab-Token</code> header. Osmia performs
 a constant-time string comparison of this header value against the configured
-secret. The token is validated <strong>before</strong> the request body is read (fail-fast).</p>
+secret. The token is validated before the request body is read (fail-fast).</p>
 <h3 id="supported-events_1">Supported events<a class="headerlink" href="#supported-events_1" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2913,12 +2913,12 @@ the title, <code>object_attributes.description</code> the description, and
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>POST /webhooks/shortcut
 </code></pre></div>
 <h3 id="authentication_2">Authentication<a class="headerlink" href="#authentication_2" title="Permanent link">&para;</a></h3>
-<p>Shortcut signature validation is <strong>optional</strong>. If a secret is configured under
+<p>Shortcut signature validation is optional. If a secret is configured under
 <code>webhook.secrets.shortcut</code>, the <code>X-Shortcut-Signature</code> header is validated
 using HMAC-SHA256. The header value may be sent with or without a <code>sha256=</code>
-prefix — both formats are accepted.</p>
-<p>If no secret is configured, all well-formed requests are accepted. It is
-strongly recommended to configure a secret in production.</p>
+prefix. Both formats are accepted.</p>
+<p>If no secret is configured, all well-formed requests are accepted. Configure a
+secret in production.</p>
 <h3 id="supported-events_2">Supported events<a class="headerlink" href="#supported-events_2" title="Permanent link">&para;</a></h3>
 <p>Shortcut delivers a list of <code>actions</code> in each webhook payload. Osmia
 processes actions where:</p>
@@ -2964,19 +2964,19 @@ reaching the controller unnecessarily.</p>
 <p>Slack uses a versioned HMAC-SHA256 scheme. The signature is computed over the
 string <code>v0:&lt;X-Slack-Request-Timestamp&gt;:&lt;raw-body&gt;</code> using the signing secret,
 and sent in <code>X-Slack-Signature</code> as <code>v0=&lt;hex-digest&gt;</code>.</p>
-<p>Osmia additionally validates that the <code>X-Slack-Request-Timestamp</code> is within
-<strong>5 minutes</strong> of the current server time. Requests with older timestamps are
+<p>Osmia also checks that <code>X-Slack-Request-Timestamp</code> is within
+5 minutes of the current server time. Requests with older timestamps are
 rejected to prevent replay attacks.</p>
 <h3 id="supported-events_3">Supported events<a class="headerlink" href="#supported-events_3" title="Permanent link">&para;</a></h3>
-<p>The Slack handler processes <strong>interactive component</strong> payloads. Payloads may
+<p>The Slack handler processes interactive component payloads. Payloads may
 arrive as:</p>
 <ul>
 <li>JSON body (<code>Content-Type: application/json</code>)</li>
 <li>URL-encoded form data with a <code>payload</code> field (<code>Content-Type: application/x-www-form-urlencoded</code>)</li>
 </ul>
 <p>Actions with an <code>action_id</code> prefixed <code>osmia_approval_</code> are recognised as
-approval callbacks and routed directly to the approval handler. They are <strong>not</strong>
-forwarded as tickets — doing so would create spurious task runs. Only
+approval callbacks and routed directly to the approval handler. They are not
+forwarded as tickets, because that would create spurious task runs. Only
 non-approval Slack interactions (slash commands, other button actions) are
 forwarded as tickets with <code>ticket_type: "slack_interaction"</code>.</p>
 <h3 id="example-payload-interactive-message-action">Example payload (interactive message action)<a class="headerlink" href="#example-payload-interactive-message-action" title="Permanent link">&para;</a></h3>
@@ -3024,7 +3024,7 @@ forwarded as tickets with <code>ticket_type: "slack_interaction"</code>.</p>
 </tr>
 <tr>
 <td><code>svix</code></td>
-<td>Verified by the official Svix Go library — five-minute replay window, <code>svix-*</code> and enterprise <code>webhook-*</code> header prefixes, <code>whsec_</code>-prefixed secrets. Use this for sources that sign with Svix conventions (e.g. Stripe, OpenAI, Linear).</td>
+<td>Verified by the official Svix Go library: five-minute replay window, <code>svix-*</code> and enterprise <code>webhook-*</code> header prefixes, <code>whsec_</code>-prefixed secrets. Use this for sources that sign with Svix conventions (e.g. Stripe, OpenAI, Linear).</td>
 </tr>
 </tbody>
 </table>
@@ -3042,7 +3042,7 @@ using <code>webhook.generic.field_mapping</code>. Keys are dot-notation JSON pat
 <tbody>
 <tr>
 <td><code>id</code></td>
-<td>Ticket identifier. <strong>Required</strong> — requests producing no <code>id</code> are rejected.</td>
+<td>Ticket identifier. Required. Requests producing no <code>id</code> are rejected.</td>
 </tr>
 <tr>
 <td><code>title</code></td>
@@ -3090,7 +3090,7 @@ using <code>webhook.generic.field_mapping</code>. Keys are dot-notation JSON pat
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">}</span>
 </code></pre></div>
 <p>Alternatively, without field mapping configured, a flat payload with top-level
-<code>title</code>, <code>description</code>, and <code>repo_url</code> fields will work when the mapping keys
+<code>title</code>, <code>description</code> and <code>repo_url</code> fields will work when the mapping keys
 match those names directly.</p>
 <hr />
 <h2 id="incidentio">incident.io<a class="headerlink" href="#incidentio" title="Permanent link">&para;</a></h2>
@@ -3117,7 +3117,7 @@ incident.io emits). Configure via <code>webhook.incident_io</code>:</p>
 <tbody>
 <tr>
 <td><code>svix</code></td>
-<td>Verified by the official Svix Go library — five-minute replay window, <code>svix-*</code> and enterprise <code>webhook-*</code> header prefixes, <code>whsec_</code>-prefixed secrets.</td>
+<td>Verified by the official Svix Go library: five-minute replay window, <code>svix-*</code> and enterprise <code>webhook-*</code> header prefixes, <code>whsec_</code>-prefixed secrets.</td>
 </tr>
 </tbody>
 </table>
@@ -3140,14 +3140,14 @@ incident.io emits). Configure via <code>webhook.incident_io</code>:</p>
 </tr>
 </tbody>
 </table>
-<p>Other event types are rejected with 400 — add a constant and a case in
-<code>internal/webhook/incident.go</code> to extend.</p>
+<p>Other event types are rejected with 400. To extend this, add a constant and a case in
+<code>internal/webhook/incident.go</code>.</p>
 <h3 id="fields-surfaced-to-the-agent">Fields surfaced to the agent<a class="headerlink" href="#fields-surfaced-to-the-agent" title="Permanent link">&para;</a></h3>
 <p>On dispatch, <code>ProcessIncidentEvent</code> builds the agent's <code>engine.Task</code> from
-the parsed <code>IncidentV2</code>. Beyond the incident's name (→ <code>Task.Title</code>),
-summary (→ <code>Task.Description</code>) and permalink (→ <code>Task.TicketURL</code>), the
+the parsed <code>IncidentV2</code>. Beyond the incident's name (<code>Task.Title</code>),
+summary (<code>Task.Description</code>) and permalink (<code>Task.TicketURL</code>), the
 following fields are surfaced to the agent:</p>
-<p><strong>Labels</strong> (<code>Task.Labels</code> — short, enum-like categoricals):</p>
+<p>Labels (<code>Task.Labels</code>, short enum-like categoricals):</p>
 <table>
 <thead>
 <tr>
@@ -3184,16 +3184,16 @@ following fields are surfaced to the agent:</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Description block</strong> appended after the incident summary, when the
+<p>Description block, appended after the incident summary, when the
 incident was alert-driven (<code>creator.alert</code> populated):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>## Underlying alert
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
 <a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>&lt;alert.title&gt; (alert id: &lt;alert.id&gt;)
 </code></pre></div>
-<p>Other fields parsed but <strong>not surfaced</strong> through labels or the
-description today — <code>severity.name</code>, <code>incident_type.name</code>,
+<p>Other fields are parsed but not surfaced through labels or the
+description today: <code>severity.name</code>, <code>incident_type.name</code>,
 <code>custom_field_entries</code>, <code>slack_channel_id</code>, <code>slack_channel_name</code>,
-<code>most_recent_update_message</code>, etc. — are either operator-defined
+<code>most_recent_update_message</code> and so on. They are either operator-defined
 (names, custom field structure varies per deployment) or sentinel-
 guarded (<code>slack_channel_id: "not_created_yet"</code> on the <code>created</code> event).
 The full parsed <code>IncidentV2</code> is available to downstream consumers via
@@ -3221,7 +3221,7 @@ are dispatched to an engine:</p>
 </tr>
 <tr>
 <td><code>slack_channel_id</code></td>
-<td>Slack channel for the incident-triage agent Job's MCP-based notifications. The ticketing flow's channel is configured under <code>notifications.channels</code>; this field is the equivalent for incident triage. Both flows are first-class — a single Osmia deployment can run them side-by-side with separate channels and bot tokens. When empty, the incident flow falls back to the first configured channel under <code>notifications.channels</code> — useful only if the operator wants both flows in the same channel.</td>
+<td>Slack channel for the incident-triage agent Job's MCP-based notifications. The ticketing flow's channel is configured under <code>notifications.channels</code>; this field is the equivalent for incident triage. A single Osmia deployment can run both flows side by side with separate channels and bot tokens. When empty, the incident flow falls back to the first configured channel under <code>notifications.channels</code>, which is useful only if you want both flows in the same channel.</td>
 </tr>
 <tr>
 <td><code>slack_token_secret</code></td>
@@ -3278,14 +3278,14 @@ are dispatched to an engine:</p>
 <a id="__codelineno-14-27" name="__codelineno-14-27" href="#__codelineno-14-27"></a><span class="p">}</span>
 </code></pre></div>
 <h3 id="authoring-the-classifier-skill">Authoring the classifier skill<a class="headerlink" href="#authoring-the-classifier-skill" title="Permanent link">&para;</a></h3>
-<p>Osmia does not ship an incident classifier skill — operators provide
+<p>Osmia does not ship an incident classifier skill. Operators provide
 one to suit their own incident taxonomy and chosen response surface
 (Slack, an internal portal, an ITSM tool, etc.). The skill is an
 ordinary Markdown file delivered to the agent via the engine's
 <a href="../../plugins/engines/#skills">skills mechanism</a>;
 <code>incident_triage.append_system_prompt</code> then directs the agent to
 invoke it.</p>
-<p>The pieces fit together as follows. The <code>incident_triage</code> block points
+<p>The <code>incident_triage</code> block points
 the agent at a slash-command name, and a matching entry under
 <code>engines.&lt;engine&gt;.skills</code> makes that command resolvable inside the
 agent container:</p>
@@ -3304,7 +3304,7 @@ agent container:</p>
 <a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">        </span><span class="nt">configmap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">incident-classifier-skill</span>
 <a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">incident-classifier.md</span>
 </code></pre></div>
-<p>Create the ConfigMap separately — by hand for a one-off, or via your
+<p>Create the ConfigMap separately, by hand for a one-off or with your
 configuration tool of choice:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>configmap<span class="w"> </span>incident-classifier-skill<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>--namespace<span class="w"> </span>osmia<span class="w"> </span><span class="se">\</span>
@@ -3319,33 +3319,33 @@ ConfigMap, and the <code>append_system_prompt</code> text to match.</p>
 incident.io event. There is no fixed format, but in practice a skill
 that produces consistent classifications covers:</p>
 <ol>
-<li><strong>Input contract.</strong> What the agent can rely on being in its prompt.
+<li>Input contract. What the agent can rely on being in its prompt.
    The user prompt carries the incident's title, description (the
-   incident summary), permalink, and labels containing
+   incident summary), permalink and labels containing
    <code>osmia:source:incident-io</code> and <code>osmia:event:&lt;event_type&gt;</code>. See the
    <a href="https://api-docs.incident.io/">incident.io API documentation</a> for
    the full shape of <code>IncidentV2</code> and the status-updated event if you
    need to derive additional fields from the description.</li>
-<li><strong>Classifications or output values.</strong> An enumerated set the agent
+<li>Classifications or output values. An enumerated set the agent
    must choose from, with the signals that distinguish them. The
    taxonomy is deployment-specific and intentionally not opinionated
    by Osmia.</li>
-<li><strong>Output contract.</strong> A precise structure for what the agent emits —
+<li>Output contract. A precise structure for what the agent emits,
    typically a short human-readable summary plus a JSON object that
    downstream tooling can validate against a schema.</li>
-<li><strong>Bail-out conditions.</strong> If incident.io is configured to deliver
-   all events (no severity, type, or label filter), the skill must
-   reject events outside its remit early — for example by returning a
+<li>Bail-out conditions. If incident.io is configured to deliver
+   all events (no severity, type or label filter), the skill must
+   reject events outside its remit early, for example by returning a
    sentinel classification that downstream consumers route to a no-op.</li>
-<li><strong>Operational constraints.</strong> Whether the agent may take action
+<li>Operational constraints. Whether the agent may take action
    (close incidents, restart workloads, page humans) or only observe.
    New deployments typically start observation-only to validate
    classification accuracy before any action paths are enabled.</li>
 </ol>
 <h4 id="iterating-on-the-skill">Iterating on the skill<a class="headerlink" href="#iterating-on-the-skill" title="Permanent link">&para;</a></h4>
 <p>Because the skill is mounted from a ConfigMap, content updates do not
-require redeploying the controller. Re-apply the ConfigMap — for
-example, with an idempotent dry-run + apply:</p>
+require redeploying the controller. Re-apply the ConfigMap, for
+example with an idempotent dry-run and apply:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>configmap<span class="w"> </span>incident-classifier-skill<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span>--namespace<span class="w"> </span>osmia<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>--from-file<span class="o">=</span>incident-classifier.md<span class="o">=</span>./skills/incident-classifier.md<span class="w"> </span><span class="se">\</span>
@@ -3355,7 +3355,7 @@ example, with an idempotent dry-run + apply:</p>
 Jobs continue with the version they started with.</p>
 <p>If you prefer the skill to live in-tree with your deployment
 manifests, the same content can be inlined under
-<code>engines.&lt;engine&gt;.skills[].inline</code> instead — the trade-offs are
+<code>engines.&lt;engine&gt;.skills[].inline</code> instead. The trade-offs are
 covered in the <a href="../../plugins/engines/#skills">Skills section</a>.</p>
 <p>Without the YAML blocks, <code>POST /webhooks/incident-io</code> responds with 500
 "not configured" and existing deployments are unaffected.</p>
@@ -3370,7 +3370,7 @@ you enable and rotate secrets regularly.</p>
 <ul>
 <li>Signatures are validated using <code>crypto/hmac</code> constant-time comparison to
   prevent timing attacks.</li>
-<li>The GitHub handler validates the signature <strong>before</strong> JSON parsing so that
+<li>The GitHub handler validates the signature before JSON parsing so that
   malformed payloads cannot cause a denial-of-service via parsing overhead.</li>
 <li>The Slack handler validates both the HMAC signature and the request timestamp
   to prevent replay attacks.</li>

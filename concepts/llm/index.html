@@ -859,7 +859,7 @@
   <a href="#why-a-dedicated-llm-layer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why a Dedicated LLM Layer?
+        Why a dedicated LLM layer?
       
     </span>
   </a>
@@ -870,12 +870,12 @@
   <a href="#core-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Concepts
+        Core concepts
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Core Concepts">
+    <nav class="md-nav" aria-label="Core concepts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -893,7 +893,7 @@
   <a href="#field-types" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Field Types
+        Field types
       
     </span>
   </a>
@@ -970,7 +970,7 @@
   <a href="#prompt-formatting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prompt Formatting
+        Prompt formatting
       
     </span>
   </a>
@@ -992,7 +992,7 @@
   <a href="#usage-by-subsystems" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage by Subsystems
+        Usage by subsystems
       
     </span>
   </a>
@@ -1949,7 +1949,7 @@
   <a href="#why-a-dedicated-llm-layer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why a Dedicated LLM Layer?
+        Why a dedicated LLM layer?
       
     </span>
   </a>
@@ -1960,12 +1960,12 @@
   <a href="#core-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core Concepts
+        Core concepts
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Core Concepts">
+    <nav class="md-nav" aria-label="Core concepts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1983,7 +1983,7 @@
   <a href="#field-types" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Field Types
+        Field types
       
     </span>
   </a>
@@ -2060,7 +2060,7 @@
   <a href="#prompt-formatting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prompt Formatting
+        Prompt formatting
       
     </span>
   </a>
@@ -2082,7 +2082,7 @@
   <a href="#usage-by-subsystems" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Usage by Subsystems
+        Usage by subsystems
       
     </span>
   </a>
@@ -2125,21 +2125,21 @@
   
 
 
-<h1 id="llm-abstraction-layer">LLM Abstraction Layer<a class="headerlink" href="#llm-abstraction-layer" title="Permanent link">&para;</a></h1>
-<p>Osmia includes a DSPy-inspired LLM abstraction package (<code>internal/llm/</code>) that provides typed, composable LLM interactions for all intelligent subsystems. Rather than making ad-hoc API calls, subsystems define <strong>signatures</strong> that declare their inputs and outputs, and the framework handles prompt formatting, response parsing, and cost tracking automatically.</p>
-<h2 id="why-a-dedicated-llm-layer">Why a Dedicated LLM Layer?<a class="headerlink" href="#why-a-dedicated-llm-layer" title="Permanent link">&para;</a></h2>
-<p>Osmia's subsystems (PRM scoring, memory extraction, causal diagnosis, tournament judging) all need to call LLMs, but with very different schemas and cost constraints. Without a shared abstraction, each subsystem would re-implement prompt formatting, JSON parsing, error handling, and budget enforcement. The <code>internal/llm/</code> package provides this shared foundation.</p>
-<p><strong>Key benefits:</strong></p>
+<h1 id="llm-abstraction-layer">LLM abstraction layer<a class="headerlink" href="#llm-abstraction-layer" title="Permanent link">&para;</a></h1>
+<p><code>internal/llm/</code> is a DSPy-inspired package for typed, composable LLM calls. The PRM, memory, diagnosis and tournament judge all use it. Each subsystem defines a signature that declares its inputs and outputs, and the package handles prompt formatting, response parsing and cost tracking.</p>
+<h2 id="why-a-dedicated-llm-layer">Why a dedicated LLM layer?<a class="headerlink" href="#why-a-dedicated-llm-layer" title="Permanent link">&para;</a></h2>
+<p>PRM scoring, memory extraction, causal diagnosis and tournament judging all call LLMs, with different schemas and cost constraints. Without a shared package, each would re-implement prompt formatting, JSON parsing, error handling and budget enforcement. <code>internal/llm/</code> provides those once.</p>
+<p>What it gives you:</p>
 <ul>
-<li><strong>Type safety</strong> — signatures define expected input/output fields with types, catching mismatches at build time rather than runtime</li>
-<li><strong>Composability</strong> — modules can be chained (e.g. chain-of-thought wraps predict)</li>
-<li><strong>Budget enforcement</strong> — per-subsystem spend limits prevent runaway costs</li>
-<li><strong>No external dependencies</strong> — uses only <code>net/http</code> and <code>encoding/json</code> from the standard library</li>
-<li><strong>Testability</strong> — the <code>Client</code> interface makes it trivial to mock LLM calls in tests</li>
+<li>Typed fields: signatures define expected input and output fields with types.</li>
+<li>Composable modules: chain-of-thought wraps predict, for example.</li>
+<li>Per-subsystem spend limits.</li>
+<li>No external dependencies: it uses only <code>net/http</code> and <code>encoding/json</code> from the standard library.</li>
+<li>A <code>Client</code> interface that is easy to mock in tests.</li>
 </ul>
-<h2 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
+<h2 id="core-concepts">Core concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
 <h3 id="signatures">Signatures<a class="headerlink" href="#signatures" title="Permanent link">&para;</a></h3>
-<p>A <strong>Signature</strong> defines a typed contract for an LLM interaction, inspired by <a href="https://github.com/stanfordnlp/dspy">DSPy</a>:</p>
+<p>A signature defines a typed contract for an LLM interaction, inspired by <a href="https://github.com/stanfordnlp/dspy">DSPy</a>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nx">sig</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">llm</span><span class="p">.</span><span class="nx">Signature</span><span class="p">{</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="nx">Name</span><span class="p">:</span><span class="w">        </span><span class="s">"ScoreToolCall"</span><span class="p">,</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nx">Description</span><span class="p">:</span><span class="w"> </span><span class="s">"Evaluate an agent's recent tool call for productivity"</span><span class="p">,</span>
@@ -2153,13 +2153,13 @@
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="p">},</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">}</span>
 </code></pre></div>
-<p>The signature is validated before use — it must have a name and at least one output field. Input fields marked as <code>Required</code> are checked at prompt-formatting time.</p>
-<h3 id="field-types">Field Types<a class="headerlink" href="#field-types" title="Permanent link">&para;</a></h3>
+<p>The signature is validated before use: it must have a name and at least one output field. Input fields marked as <code>Required</code> are checked at prompt-formatting time.</p>
+<h3 id="field-types">Field types<a class="headerlink" href="#field-types" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Type</th>
-<th>Go Representation</th>
+<th>Go representation</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -2191,17 +2191,17 @@
 </tr>
 </tbody>
 </table>
-<p>The adapter automatically coerces LLM responses to the declared type (e.g. JSON <code>7.0</code> → Go <code>int(7)</code> for <code>FieldTypeInt</code>).</p>
+<p>The adapter coerces LLM responses to the declared type (e.g. JSON <code>7.0</code> → Go <code>int(7)</code> for <code>FieldTypeInt</code>).</p>
 <h3 id="modules">Modules<a class="headerlink" href="#modules" title="Permanent link">&para;</a></h3>
-<p>A <strong>Module</strong> is a composable LLM operation that takes named inputs and returns named outputs:</p>
+<p>A module is a composable LLM operation that takes named inputs and returns named outputs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Module</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="nx">Forward</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">inputs</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nx">GetSignature</span><span class="p">()</span><span class="w"> </span><span class="nx">Signature</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">}</span>
 </code></pre></div>
-<p>Two built-in modules are provided:</p>
+<p>Osmia provides two modules:</p>
 <h4 id="predict">Predict<a class="headerlink" href="#predict" title="Permanent link">&para;</a></h4>
-<p>The simplest module — a single LLM call with signature-based prompt formatting:</p>
+<p>The simplest module: a single LLM call with signature-based prompt formatting:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nx">predict</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">llm</span><span class="p">.</span><span class="nx">NewPredict</span><span class="p">(</span><span class="nx">sig</span><span class="p">,</span><span class="w"> </span><span class="nx">client</span><span class="p">,</span><span class="w"> </span><span class="nx">budget</span><span class="p">)</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nx">result</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">predict</span><span class="p">.</span><span class="nx">Forward</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span><span class="p">{</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="s">"tool_calls"</span><span class="p">:</span><span class="w"> </span><span class="s">"Read main.go, Edit main.go, Bash go test"</span><span class="p">,</span>
@@ -2211,21 +2211,21 @@
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c1">// result["reasoning"] = "productive sequence: read, edit, test"  (string)</span>
 </code></pre></div>
 <h4 id="chainofthought">ChainOfThought<a class="headerlink" href="#chainofthought" title="Permanent link">&para;</a></h4>
-<p>Wraps Predict with an additional "reasoning" step that encourages step-by-step thinking:</p>
+<p>Wraps Predict with an extra "reasoning" step that encourages step-by-step thinking:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nx">cot</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">llm</span><span class="p">.</span><span class="nx">NewChainOfThought</span><span class="p">(</span><span class="nx">sig</span><span class="p">,</span><span class="w"> </span><span class="nx">client</span><span class="p">,</span><span class="w"> </span><span class="nx">budget</span><span class="p">)</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nx">result</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">cot</span><span class="p">.</span><span class="nx">Forward</span><span class="p">(</span><span class="nx">ctx</span><span class="p">,</span><span class="w"> </span><span class="nx">inputs</span><span class="p">)</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// result["reasoning"] = "Step 1: the agent read the file..."</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1">// result["score"] = 8</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1">// result["verdict"] = "productive"</span>
 </code></pre></div>
-<p>ChainOfThought automatically adds a <code>reasoning</code> output field and modifies the system prompt to encourage structured thinking before answering.</p>
+<p>ChainOfThought adds a <code>reasoning</code> output field and changes the system prompt to ask for structured thinking before the answer.</p>
 <h3 id="client">Client<a class="headerlink" href="#client" title="Permanent link">&para;</a></h3>
 <p>The <code>Client</code> interface abstracts LLM API calls:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">type</span><span class="w"> </span><span class="nx">Client</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nx">Complete</span><span class="p">(</span><span class="nx">ctx</span><span class="w"> </span><span class="nx">context</span><span class="p">.</span><span class="nx">Context</span><span class="p">,</span><span class="w"> </span><span class="nx">req</span><span class="w"> </span><span class="nx">CompletionRequest</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">CompletionResponse</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="p">}</span>
 </code></pre></div>
-<p>An <code>AnthropicClient</code> implementation is included, using <code>net/http</code> directly with no SDK dependency:</p>
+<p><code>AnthropicClient</code> is included. It uses <code>net/http</code> directly, with no SDK dependency:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nx">client</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">llm</span><span class="p">.</span><span class="nx">NewAnthropicClient</span><span class="p">(</span><span class="s">"sk-ant-..."</span><span class="p">,</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="nx">llm</span><span class="p">.</span><span class="nx">WithDefaultModel</span><span class="p">(</span><span class="s">"claude-sonnet-4-20250514"</span><span class="p">),</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nx">llm</span><span class="p">.</span><span class="nx">WithBaseURL</span><span class="p">(</span><span class="s">"https://api.anthropic.com"</span><span class="p">),</span><span class="w">  </span><span class="c1">// or custom endpoint</span>
@@ -2240,7 +2240,7 @@
 <li>Configurable HTTP client for proxies or custom TLS</li>
 </ul>
 <h3 id="budget">Budget<a class="headerlink" href="#budget" title="Permanent link">&para;</a></h3>
-<p>The <code>Budget</code> type tracks cumulative spend for a subsystem and refuses calls when the budget is exhausted:</p>
+<p>The <code>Budget</code> type tracks cumulative spend for a subsystem and refuses calls once the budget is exhausted:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nx">budget</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">llm</span><span class="p">.</span><span class="nx">NewBudget</span><span class="p">(</span><span class="mf">0.50</span><span class="p">)</span><span class="w"> </span><span class="c1">// $0.50 maximum</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1">// Before each LLM call, the module checks:</span>
@@ -2253,10 +2253,10 @@
 <a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="nx">remaining</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">budget</span><span class="p">.</span><span class="nx">Remaining</span><span class="p">()</span><span class="w"> </span><span class="c1">// $0.35</span>
 <a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="nx">spent</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">budget</span><span class="p">.</span><span class="nx">Spent</span><span class="p">()</span><span class="w">         </span><span class="c1">// $0.15</span>
 </code></pre></div>
-<p>Budgets are thread-safe and can be shared across multiple modules within a subsystem.</p>
-<h2 id="prompt-formatting">Prompt Formatting<a class="headerlink" href="#prompt-formatting" title="Permanent link">&para;</a></h2>
-<p>The adapter converts a Signature + inputs into a structured LLM request:</p>
-<p><strong>System prompt</strong> (auto-generated):
+<p>Budgets are thread-safe and can be shared by several modules in one subsystem.</p>
+<h2 id="prompt-formatting">Prompt formatting<a class="headerlink" href="#prompt-formatting" title="Permanent link">&para;</a></h2>
+<p>The adapter converts a signature and its inputs into a structured LLM request:</p>
+<p>System prompt (generated):
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>You are executing the "ScoreToolCall" operation.
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>Evaluate an agent's recent tool call for productivity
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
@@ -2269,7 +2269,7 @@
 <a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
 <a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>Respond ONLY with the JSON object. No markdown fences, no explanation.
 </code></pre></div></p>
-<p><strong>User message</strong> (auto-generated from inputs):
+<p>User message (generated from the inputs):
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>## tool_calls
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>(recent tool call sequence)
@@ -2282,7 +2282,7 @@
 <a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
 <a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>fixing a nil pointer dereference
 </code></pre></div></p>
-<p>The response is expected to be a JSON object matching the output fields. The parser handles common LLM response quirks:</p>
+<p>The response is expected to be a JSON object matching the output fields. The parser handles common quirks in LLM responses:</p>
 <ul>
 <li>Strips markdown code fences if present</li>
 <li>Coerces numeric types (JSON <code>float64</code> → Go <code>int</code>)</li>
@@ -2297,43 +2297,43 @@
 <a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>├── budget.go      — Budget tracking with spend limits
 <a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>└── *_test.go      — Table-driven tests for all components
 </code></pre></div>
-<p>The entire package uses only standard library imports (<code>net/http</code>, <code>encoding/json</code>, <code>fmt</code>, <code>sync</code>, <code>context</code>). No external SDK dependencies.</p>
-<h2 id="usage-by-subsystems">Usage by Subsystems<a class="headerlink" href="#usage-by-subsystems" title="Permanent link">&para;</a></h2>
+<p>The package uses only standard library imports (<code>net/http</code>, <code>encoding/json</code>, <code>fmt</code>, <code>sync</code>, <code>context</code>).</p>
+<h2 id="usage-by-subsystems">Usage by subsystems<a class="headerlink" href="#usage-by-subsystems" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Subsystem</th>
-<th>How It Uses <code>internal/llm/</code></th>
+<th>How it uses <code>internal/llm/</code></th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>PRM (v2)</strong></td>
+<td>PRM (v2)</td>
 <td><code>ChainOfThought</code> module with a scoring signature to evaluate agent tool calls</td>
 </tr>
 <tr>
-<td><strong>Memory (v2)</strong></td>
+<td>Memory (v2)</td>
 <td><code>Predict</code> module with an extraction signature to identify facts from TaskRun data</td>
 </tr>
 <tr>
-<td><strong>Diagnosis (v2)</strong></td>
+<td>Diagnosis (v2)</td>
 <td><code>ChainOfThought</code> module with a classification signature to diagnose failure modes</td>
 </tr>
 <tr>
-<td><strong>Tournament Judge</strong></td>
+<td>Tournament judge</td>
 <td><code>ChainOfThought</code> module with a judging signature to compare candidate diffs</td>
 </tr>
 </tbody>
 </table>
-<p>Each subsystem creates its own <code>Budget</code> to enforce per-subsystem cost limits independently.</p>
+<p>Each subsystem creates its own <code>Budget</code>, so cost limits apply independently.</p>
 <h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
-<p>All components have table-driven unit tests:</p>
+<p>Every component has table-driven unit tests:</p>
 <ul>
-<li><strong>types_test.go</strong> — signature validation, field name helpers</li>
-<li><strong>adapter_test.go</strong> — prompt formatting, response parsing, type coercion, edge cases (markdown fences, missing fields)</li>
-<li><strong>client_test.go</strong> — HTTP request/response validation using <code>httptest.NewServer</code>, error handling, context cancellation</li>
-<li><strong>module_test.go</strong> — Predict and ChainOfThought with mock clients, budget integration</li>
-<li><strong>budget_test.go</strong> — spend tracking, limit enforcement, unlimited budgets, reset</li>
+<li><code>types_test.go</code>: signature validation, field name helpers</li>
+<li><code>adapter_test.go</code>: prompt formatting, response parsing, type coercion, edge cases (markdown fences, missing fields)</li>
+<li><code>client_test.go</code>: HTTP request/response validation using <code>httptest.NewServer</code>, error handling, context cancellation</li>
+<li><code>module_test.go</code>: Predict and ChainOfThought with mock clients, budget integration</li>
+<li><code>budget_test.go</code>: spend tracking, limit enforcement, unlimited budgets, reset</li>
 </ul>
 <p>To run the tests:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>go<span class="w"> </span><span class="nb">test</span><span class="w"> </span>./internal/llm/...<span class="w"> </span>-v

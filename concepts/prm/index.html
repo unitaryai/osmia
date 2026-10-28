@@ -803,7 +803,7 @@
   <a href="#why-prm-matters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why PRM Matters
+        Why PRM matters
       
     </span>
   </a>
@@ -814,19 +814,19 @@
   <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        How it works
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How It Works">
+    <nav class="md-nav" aria-label="How it works">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#1-event-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Event Collection
+        1. Event collection
       
     </span>
   </a>
@@ -848,7 +848,7 @@
   <a href="#3-trajectory-pattern-detection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Trajectory Pattern Detection
+        3. Trajectory pattern detection
       
     </span>
   </a>
@@ -887,7 +887,7 @@
   <a href="#configuration-fields" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Fields
+        Configuration fields
       
     </span>
   </a>
@@ -898,7 +898,7 @@
   <a href="#tuning-tips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tuning Tips
+        Tuning tips
       
     </span>
   </a>
@@ -914,7 +914,7 @@
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prometheus Metrics
+        Prometheus metrics
       
     </span>
   </a>
@@ -936,7 +936,7 @@
   <a href="#backwards-compatibility" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backwards Compatibility
+        Backwards compatibility
       
     </span>
   </a>
@@ -947,7 +947,7 @@
   <a href="#future-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Future Work
+        Future work
       
     </span>
   </a>
@@ -1949,7 +1949,7 @@
   <a href="#why-prm-matters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why PRM Matters
+        Why PRM matters
       
     </span>
   </a>
@@ -1960,19 +1960,19 @@
   <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        How it works
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="How It Works">
+    <nav class="md-nav" aria-label="How it works">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#1-event-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Event Collection
+        1. Event collection
       
     </span>
   </a>
@@ -1994,7 +1994,7 @@
   <a href="#3-trajectory-pattern-detection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Trajectory Pattern Detection
+        3. Trajectory pattern detection
       
     </span>
   </a>
@@ -2033,7 +2033,7 @@
   <a href="#configuration-fields" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration Fields
+        Configuration fields
       
     </span>
   </a>
@@ -2044,7 +2044,7 @@
   <a href="#tuning-tips" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tuning Tips
+        Tuning tips
       
     </span>
   </a>
@@ -2060,7 +2060,7 @@
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prometheus Metrics
+        Prometheus metrics
       
     </span>
   </a>
@@ -2082,7 +2082,7 @@
   <a href="#backwards-compatibility" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backwards Compatibility
+        Backwards compatibility
       
     </span>
   </a>
@@ -2093,7 +2093,7 @@
   <a href="#future-work" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Future Work
+        Future work
       
     </span>
   </a>
@@ -2125,20 +2125,20 @@
   
 
 
-<h1 id="real-time-agent-coaching-prm">Real-Time Agent Coaching (PRM)<a class="headerlink" href="#real-time-agent-coaching-prm" title="Permanent link">&para;</a></h1>
-<p>The <strong>Process Reward Model</strong> (PRM) is Osmia's real-time quality assurance system. While an AI agent works on a task, the PRM continuously evaluates its behaviour by analysing the NDJSON event stream — scoring each step, detecting trajectory patterns, and intervening before small problems become expensive failures.</p>
-<h2 id="why-prm-matters">Why PRM Matters<a class="headerlink" href="#why-prm-matters" title="Permanent link">&para;</a></h2>
-<p>Without real-time coaching, an AI agent can spend 30 minutes and $15 going in circles before anyone notices. The PRM catches unproductive patterns within seconds and intervenes with targeted guidance — turning a failed $15 run into a successful $5 run.</p>
-<p><strong>Key benefits:</strong></p>
+<h1 id="real-time-agent-coaching-prm">Real-time agent coaching (PRM)<a class="headerlink" href="#real-time-agent-coaching-prm" title="Permanent link">&para;</a></h1>
+<p>The Process Reward Model (PRM) scores an agent's work while it runs. It reads the NDJSON event stream, scores each step, detects trajectory patterns, and intervenes before small problems become expensive failures.</p>
+<h2 id="why-prm-matters">Why PRM matters<a class="headerlink" href="#why-prm-matters" title="Permanent link">&para;</a></h2>
+<p>Without real-time coaching, an agent can spend 30 minutes and $15 going in circles before anyone notices. The PRM catches unproductive patterns within seconds and writes targeted guidance, which can turn a failed $15 run into a successful $5 run.</p>
+<p>What it gives you:</p>
 <ul>
-<li><strong>Early detection</strong> — identifies repetitive loops, stalls, and declining productivity before they escalate</li>
-<li><strong>Targeted guidance</strong> — produces specific hints rather than generic "try again" instructions</li>
-<li><strong>Cost savings</strong> — stops wasteful agent behaviour early, reducing token spend by up to 60% on failing tasks</li>
-<li><strong>No agent modification</strong> — operates purely on observable telemetry; works with any engine that produces streaming events</li>
-<li><strong>Configurable thresholds</strong> — tune sensitivity per-environment so the PRM nudges when you want it to</li>
+<li>Early detection of repetitive loops, stalls and declining productivity.</li>
+<li>Specific hints rather than a generic "try again".</li>
+<li>Lower token spend on failing tasks, by up to 60%.</li>
+<li>No change to the agent: it works only on observable telemetry, with any engine that produces streaming events.</li>
+<li>Configurable thresholds, so you can tune sensitivity per environment.</li>
 </ul>
-<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>The PRM operates as a pipeline that runs alongside the agent's event stream:</p>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>The PRM is a pipeline that runs alongside the agent's event stream:</p>
 <pre class="mermaid"><code>graph LR
     A["NDJSON Stream\n(tool calls, costs,\ncontent deltas)"] --&gt; B["Rolling Window\n(last N events)"]
     B --&gt; C["Scorer\n(rule-based, 1-10)"]
@@ -2148,80 +2148,80 @@
     F --&gt;|"Score 7+"| G["Continue\n(no action)"]
     F --&gt;|"Score 3-7"| H["Nudge\n(write hint)"]
     F --&gt;|"Score 1-3"| I["Escalate\n(watchdog)"]</code></pre>
-<h3 id="1-event-collection">1. Event Collection<a class="headerlink" href="#1-event-collection" title="Permanent link">&para;</a></h3>
-<p>When streaming is enabled, Claude Code emits an NDJSON event stream containing tool calls, content deltas, cost updates, and results. The PRM's event processor is wired into the <code>agentstream.Forwarder</code> via <code>WithEventProcessor</code>, so it receives every event in real-time without buffering the entire stream.</p>
+<h3 id="1-event-collection">1. Event collection<a class="headerlink" href="#1-event-collection" title="Permanent link">&para;</a></h3>
+<p>When streaming is enabled, Claude Code emits an NDJSON event stream containing tool calls, content deltas, cost updates, and results. The PRM's event processor is wired into the <code>agentstream.Forwarder</code> via <code>WithEventProcessor</code>, so it receives every event in real time without buffering the whole stream.</p>
 <h3 id="2-scoring">2. Scoring<a class="headerlink" href="#2-scoring" title="Permanent link">&para;</a></h3>
 <p>The scorer evaluates a rolling window of recent tool calls. It considers:</p>
 <table>
 <thead>
 <tr>
 <th>Signal</th>
-<th>Effect on Score</th>
+<th>Effect on score</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Diverse tool usage</strong> (Read → Edit → Bash)</td>
+<td>Diverse tool usage (Read → Edit → Bash)</td>
 <td>Increases score (productive pattern)</td>
 </tr>
 <tr>
-<td><strong>Repetitive tool calls</strong> (Bash → Bash → Bash)</td>
+<td>Repetitive tool calls (Bash → Bash → Bash)</td>
 <td>Decreases score (likely looping)</td>
 </tr>
 <tr>
-<td><strong>File progress</strong> (new files read/edited)</td>
+<td>File progress (new files read/edited)</td>
 <td>Increases score</td>
 </tr>
 <tr>
-<td><strong>No progress</strong> (same files repeatedly)</td>
+<td>No progress (same files repeatedly)</td>
 <td>Decreases score</td>
 </tr>
 <tr>
-<td><strong>Tool call frequency</strong></td>
+<td>Tool call frequency</td>
 <td>Very high frequency with no file changes penalised</td>
 </tr>
 </tbody>
 </table>
 <p>Scores range from 1 (completely unproductive) to 10 (highly productive). The scorer runs every <code>evaluation_interval</code> events (default: 5).</p>
-<h3 id="3-trajectory-pattern-detection">3. Trajectory Pattern Detection<a class="headerlink" href="#3-trajectory-pattern-detection" title="Permanent link">&para;</a></h3>
+<h3 id="3-trajectory-pattern-detection">3. Trajectory pattern detection<a class="headerlink" href="#3-trajectory-pattern-detection" title="Permanent link">&para;</a></h3>
 <p>Individual scores are tracked over time in a trajectory. The PRM detects four patterns:</p>
 <table>
 <thead>
 <tr>
 <th>Pattern</th>
 <th>Description</th>
-<th>Typical Cause</th>
+<th>Typical cause</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Sustained Decline</strong></td>
+<td>Sustained decline</td>
 <td>3+ consecutive score drops</td>
 <td>Agent going off-track</td>
 </tr>
 <tr>
-<td><strong>Plateau</strong></td>
+<td>Plateau</td>
 <td>5+ identical low scores</td>
 <td>Agent stuck in a loop</td>
 </tr>
 <tr>
-<td><strong>Oscillation</strong></td>
+<td>Oscillation</td>
 <td>Alternating up/down scores</td>
 <td>Agent undoing and redoing work</td>
 </tr>
 <tr>
-<td><strong>Recovery</strong></td>
+<td>Recovery</td>
 <td>3+ consecutive score increases</td>
 <td>Agent self-correcting (good)</td>
 </tr>
 </tbody>
 </table>
 <h3 id="4-intervention">4. Intervention<a class="headerlink" href="#4-intervention" title="Permanent link">&para;</a></h3>
-<p>Based on the current score and trajectory pattern, the decider chooses an action:</p>
+<p>Based on the current score and trajectory pattern, the decider chooses one of three actions:</p>
 <ul>
-<li><strong>Continue</strong> — the agent is productive, no action needed</li>
-<li><strong>Nudge</strong> — log a structured hint with specific guidance (e.g. "Consider a different approach — you've been editing the same file 8 times without running tests")</li>
-<li><strong>Escalate</strong> — signal the watchdog to consider terminating the job with diagnostic feedback</li>
+<li>Continue: the agent is productive, so no action is needed.</li>
+<li>Nudge: log a structured hint with specific guidance (for example, "Consider a different approach. You've been editing the same file 8 times without running tests").</li>
+<li>Escalate: signal the watchdog to consider terminating the job with diagnostic feedback.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Enable PRM in your <code>osmia-config.yaml</code>:</p>
@@ -2234,7 +2234,7 @@
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">"/workspace/.osmia-hint.md"</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">     </span><span class="c1"># Maximum trajectory points stored</span>
 </code></pre></div>
-<h3 id="configuration-fields">Configuration Fields<a class="headerlink" href="#configuration-fields" title="Permanent link">&para;</a></h3>
+<h3 id="configuration-fields">Configuration fields<a class="headerlink" href="#configuration-fields" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -2289,14 +2289,14 @@
 </tr>
 </tbody>
 </table>
-<h3 id="tuning-tips">Tuning Tips<a class="headerlink" href="#tuning-tips" title="Permanent link">&para;</a></h3>
+<h3 id="tuning-tips">Tuning tips<a class="headerlink" href="#tuning-tips" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Start conservative</strong>: set <code>score_threshold_nudge: 5</code> and <code>score_threshold_escalate: 2</code> to avoid false positives, then tighten thresholds as you observe real agent behaviour</li>
-<li><strong>Increase <code>window_size</code></strong> for long-running tasks (60+ minutes) to smooth out natural variations</li>
-<li><strong>Decrease <code>evaluation_interval</code></strong> for expensive engines where early detection saves more money</li>
+<li>Start conservative: set <code>score_threshold_nudge: 5</code> and <code>score_threshold_escalate: 2</code> to avoid false positives, then tighten thresholds as you observe real agent behaviour</li>
+<li>Increase <code>window_size</code> for long-running tasks (60+ minutes) to smooth out natural variations</li>
+<li>Decrease <code>evaluation_interval</code> for expensive engines where early detection saves more money</li>
 </ul>
-<h2 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h2>
-<p>The PRM exposes the following metrics:</p>
+<h2 id="prometheus-metrics">Prometheus metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h2>
+<p>The PRM exposes these metrics:</p>
 <table>
 <thead>
 <tr>
@@ -2328,7 +2328,7 @@
 </tbody>
 </table>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
-<p>The PRM is implemented in <code>internal/prm/</code> with the following components:</p>
+<p>The PRM lives in <code>internal/prm/</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>internal/prm/
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── scorer.go          — Rule-based step scoring
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── trajectory.go      — Pattern detection across score history
@@ -2337,13 +2337,13 @@
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>└── *_test.go          — Table-driven unit tests
 </code></pre></div>
 <p>The controller creates one <code>prm.Evaluator</code> per active TaskRun when PRM is enabled. The evaluator is stored in a thread-safe map and cleaned up when the job completes or fails.</p>
-<h2 id="backwards-compatibility">Backwards Compatibility<a class="headerlink" href="#backwards-compatibility" title="Permanent link">&para;</a></h2>
-<p>PRM is <strong>disabled by default</strong> and has <strong>zero overhead</strong> when disabled. The controller behaves identically to a PRM-less deployment — no additional goroutines, no scoring, no memory allocation for evaluators. Enabling PRM is a pure additive change.</p>
-<h2 id="future-work">Future Work<a class="headerlink" href="#future-work" title="Permanent link">&para;</a></h2>
+<h2 id="backwards-compatibility">Backwards compatibility<a class="headerlink" href="#backwards-compatibility" title="Permanent link">&para;</a></h2>
+<p>PRM is disabled by default and has no overhead when disabled. The controller behaves as it would without a PRM: no extra goroutines, no scoring, no evaluator allocation. Enabling PRM changes nothing else.</p>
+<h2 id="future-work">Future work<a class="headerlink" href="#future-work" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>LLM-based scoring (v2)</strong>: replace the rule-based scorer with an LLM call using the <code>internal/llm/</code> package for richer, more contextual evaluation</li>
-<li><strong>Pod-level hint delivery</strong>: write hints directly to the agent pod via a projected ConfigMap volume</li>
-<li><strong>Escalation-to-watchdog integration</strong>: direct signalling from PRM escalation to watchdog termination</li>
+<li>LLM-based scoring (v2): replace the rule-based scorer with an LLM call using the <code>internal/llm/</code> package for richer, more contextual evaluation</li>
+<li>Pod-level hint delivery: write hints directly to the agent pod via a projected ConfigMap volume</li>
+<li>Escalation-to-watchdog integration: direct signalling from PRM escalation to watchdog termination</li>
 </ul>
 
 

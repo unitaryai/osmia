@@ -887,7 +887,7 @@
   <a href="#failure-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Failure Modes
+        Failure modes
       
     </span>
   </a>
@@ -898,7 +898,7 @@
   <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        How it works
       
     </span>
   </a>
@@ -920,7 +920,7 @@
   <a href="#engine-switching" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Engine Switching
+        Engine switching
       
     </span>
   </a>
@@ -942,7 +942,7 @@
   <a href="#relationship-to-the-watchdog" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Relationship to the Watchdog
+        Relationship to the watchdog
       
     </span>
   </a>
@@ -953,7 +953,7 @@
   <a href="#further-reading" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Further Reading
+        Further reading
       
     </span>
   </a>
@@ -1871,7 +1871,7 @@
   <a href="#failure-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Failure Modes
+        Failure modes
       
     </span>
   </a>
@@ -1882,7 +1882,7 @@
   <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        How it works
       
     </span>
   </a>
@@ -1904,7 +1904,7 @@
   <a href="#engine-switching" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Engine Switching
+        Engine switching
       
     </span>
   </a>
@@ -1926,7 +1926,7 @@
   <a href="#relationship-to-the-watchdog" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Relationship to the Watchdog
+        Relationship to the watchdog
       
     </span>
   </a>
@@ -1937,7 +1937,7 @@
   <a href="#further-reading" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Further Reading
+        Further reading
       
     </span>
   </a>
@@ -1969,9 +1969,9 @@
   
 
 
-<h1 id="causal-failure-diagnosis">Causal Failure Diagnosis<a class="headerlink" href="#causal-failure-diagnosis" title="Permanent link">&para;</a></h1>
-<p>When a task fails, Osmia does not just retry it blindly. The causal diagnosis subsystem classifies <em>why</em> the failure happened and generates targeted corrective instructions that are injected into the retry prompt — so the next attempt starts with a more informed approach.</p>
-<h2 id="failure-modes">Failure Modes<a class="headerlink" href="#failure-modes" title="Permanent link">&para;</a></h2>
+<h1 id="causal-failure-diagnosis">Causal failure diagnosis<a class="headerlink" href="#causal-failure-diagnosis" title="Permanent link">&para;</a></h1>
+<p>When a task fails, Osmia does not retry it blindly. The causal diagnosis subsystem classifies <em>why</em> the failure happened and writes corrective instructions into the retry prompt, so the next attempt starts with more information.</p>
+<h2 id="failure-modes">Failure modes<a class="headerlink" href="#failure-modes" title="Permanent link">&para;</a></h2>
 <p>The analyser classifies every failed task into one of eight modes:</p>
 <table>
 <thead>
@@ -2007,7 +2007,7 @@
 </tr>
 <tr>
 <td><code>model_confusion</code></td>
-<td>High oscillation in tool calls — repeated undo/redo patterns</td>
+<td>High oscillation in tool calls (repeated undo/redo patterns)</td>
 </tr>
 <tr>
 <td><code>unknown</code></td>
@@ -2016,37 +2016,37 @@
 </tbody>
 </table>
 <p>Each diagnosis includes a confidence score (0–1) and the specific evidence strings that triggered the classification.</p>
-<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p>The analyser processes three sources of signal from the failed run:</p>
 <ol>
-<li><strong>Event stream</strong> — tool call inputs and outputs from the agent pod NDJSON stream</li>
-<li><strong>Watchdog reason</strong> — any reason string recorded by the progress watchdog at termination</li>
-<li><strong>Task result summary</strong> — the structured result emitted by the engine at exit</li>
+<li>The event stream: tool call inputs and outputs from the agent pod NDJSON stream.</li>
+<li>The watchdog reason: any reason string the progress watchdog recorded at termination.</li>
+<li>The task result summary: the structured result the engine emits at exit.</li>
 </ol>
 <p>Pattern matching runs in priority order. Infrastructure failures are checked first because retrying an OOM-killed job without changing resources is futile. Permission and dependency failures follow. Watchdog-specific patterns (thrashing, looping) map to <code>model_confusion</code>.</p>
-<p>For <code>infra_failure</code>, the retry is suppressed entirely — the controller records the diagnosis and parks the task rather than burning tokens on a doomed retry.</p>
+<p>For <code>infra_failure</code>, the retry is suppressed entirely. The controller records the diagnosis and parks the task rather than spending tokens on a retry that cannot succeed.</p>
 <h2 id="prescriptions">Prescriptions<a class="headerlink" href="#prescriptions" title="Permanent link">&para;</a></h2>
-<p>For every other failure mode, the <code>RetryBuilder</code> prepends a corrective instruction to the retry prompt. Examples:</p>
+<p>For every other failure mode, the <code>RetryBuilder</code> adds a corrective instruction to the retry prompt. Examples:</p>
 <ul>
-<li><strong><code>dependency_missing</code></strong> — <em>"A previous attempt failed due to a missing dependency. Before writing any code, verify that all required packages are installed and importable."</em></li>
-<li><strong><code>test_misunderstanding</code></strong> — <em>"A previous attempt modified tests incorrectly. Read the failing test carefully before making any changes. Do not alter test assertions unless the task explicitly requires it."</em></li>
-<li><strong><code>scope_creep</code></strong> — <em>"A previous attempt changed too many files. Focus only on the files directly relevant to the task."</em></li>
+<li><code>dependency_missing</code>: <em>"A previous attempt failed due to a missing dependency. Before writing any code, verify that all required packages are installed and importable."</em></li>
+<li><code>test_misunderstanding</code>: <em>"A previous attempt modified tests incorrectly. Read the failing test carefully before making any changes. Do not alter test assertions unless the task explicitly requires it."</em></li>
+<li><code>scope_creep</code>: <em>"A previous attempt changed too many files. Focus only on the files directly relevant to the task."</em></li>
 </ul>
 <p>The prescription is appended after the original task prompt, so the agent receives both the full task context and the corrective guidance.</p>
-<h2 id="engine-switching">Engine Switching<a class="headerlink" href="#engine-switching" title="Permanent link">&para;</a></h2>
-<p>When the diagnosis suggests the failure is engine-specific (for example, <code>model_confusion</code> on an engine with known oscillation issues), the <code>RetryBuilder</code> can optionally switch to a different engine for the retry attempt. This is configured per failure mode in the diagnosis config.</p>
+<h2 id="engine-switching">Engine switching<a class="headerlink" href="#engine-switching" title="Permanent link">&para;</a></h2>
+<p>When the diagnosis suggests the failure is engine-specific (for example, <code>model_confusion</code> on an engine with known oscillation issues), the <code>RetryBuilder</code> can switch to a different engine for the retry attempt. You configure this per failure mode in the diagnosis config.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">diagnosis</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">switch_engine_on</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">model_confusion</span><span class="w">   </span><span class="c1"># retry with fallback engine when confused</span>
 </code></pre></div>
-<h2 id="relationship-to-the-watchdog">Relationship to the Watchdog<a class="headerlink" href="#relationship-to-the-watchdog" title="Permanent link">&para;</a></h2>
-<p>The watchdog detects problems <em>during</em> a run and intervenes early. Causal diagnosis runs <em>after</em> a run has failed and informs the retry. They are complementary: the watchdog tries to salvage a run in progress; diagnosis tries to make the next attempt succeed.</p>
-<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<h2 id="relationship-to-the-watchdog">Relationship to the watchdog<a class="headerlink" href="#relationship-to-the-watchdog" title="Permanent link">&para;</a></h2>
+<p>The watchdog detects problems <em>during</em> a run and intervenes early. Causal diagnosis runs <em>after</em> a run has failed and informs the retry. The watchdog tries to salvage a run in progress; diagnosis tries to make the next attempt succeed.</p>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../guardrails-overview/">Guard Rails Overview</a> — how diagnosis fits into the broader safety architecture</li>
-<li><a href="../../getting-started/configuration/">Configuration Reference</a> — diagnosis config options</li>
+<li><a href="../guardrails-overview/">Guard Rails Overview</a>: how diagnosis fits into the broader safety architecture</li>
+<li><a href="../../getting-started/configuration/">Configuration Reference</a>: diagnosis config options</li>
 </ul>
 
 

@@ -1099,7 +1099,7 @@
   <a href="#controller-high-availability" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Controller High Availability
+        Controller high availability
       
     </span>
   </a>
@@ -1110,12 +1110,12 @@
   <a href="#karpenter-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Karpenter Integration
+        Karpenter integration
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Karpenter Integration">
+    <nav class="md-nav" aria-label="Karpenter integration">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1149,7 +1149,7 @@
   <a href="#concurrency-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Concurrency Limits
+        Concurrency limits
       
     </span>
   </a>
@@ -1160,7 +1160,7 @@
   <a href="#cost-controls" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cost Controls
+        Cost controls
       
     </span>
   </a>
@@ -1171,7 +1171,7 @@
   <a href="#keda-scaling" class="md-nav__link">
     <span class="md-ellipsis">
       
-        KEDA Scaling
+        KEDA scaling
       
     </span>
   </a>
@@ -1182,7 +1182,7 @@
   <a href="#multi-tenancy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Multi-Tenancy
+        Multi-tenancy
       
     </span>
   </a>
@@ -1205,7 +1205,7 @@
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prometheus Metrics
+        Prometheus metrics
       
     </span>
   </a>
@@ -1216,7 +1216,7 @@
   <a href="#grafana-dashboard" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grafana Dashboard
+        Grafana dashboard
       
     </span>
   </a>
@@ -1227,7 +1227,7 @@
   <a href="#structured-logging" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Structured Logging
+        Structured logging
       
     </span>
   </a>
@@ -1960,7 +1960,7 @@
   <a href="#controller-high-availability" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Controller High Availability
+        Controller high availability
       
     </span>
   </a>
@@ -1971,12 +1971,12 @@
   <a href="#karpenter-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Karpenter Integration
+        Karpenter integration
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Karpenter Integration">
+    <nav class="md-nav" aria-label="Karpenter integration">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2010,7 +2010,7 @@
   <a href="#concurrency-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Concurrency Limits
+        Concurrency limits
       
     </span>
   </a>
@@ -2021,7 +2021,7 @@
   <a href="#cost-controls" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Cost Controls
+        Cost controls
       
     </span>
   </a>
@@ -2032,7 +2032,7 @@
   <a href="#keda-scaling" class="md-nav__link">
     <span class="md-ellipsis">
       
-        KEDA Scaling
+        KEDA scaling
       
     </span>
   </a>
@@ -2043,7 +2043,7 @@
   <a href="#multi-tenancy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Multi-Tenancy
+        Multi-tenancy
       
     </span>
   </a>
@@ -2066,7 +2066,7 @@
   <a href="#prometheus-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prometheus Metrics
+        Prometheus metrics
       
     </span>
   </a>
@@ -2077,7 +2077,7 @@
   <a href="#grafana-dashboard" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grafana Dashboard
+        Grafana dashboard
       
     </span>
   </a>
@@ -2088,7 +2088,7 @@
   <a href="#structured-logging" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Structured Logging
+        Structured logging
       
     </span>
   </a>
@@ -2127,23 +2127,25 @@
 
 <h1 id="scaling">Scaling<a class="headerlink" href="#scaling" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Osmia is designed for horizontal scaling on Kubernetes. The controller runs as a single replica, whilst agent jobs scale independently via Karpenter node provisioning and configurable concurrency limits.</p>
-<h2 id="controller-high-availability">Controller High Availability<a class="headerlink" href="#controller-high-availability" title="Permanent link">&para;</a></h2>
+<p>Osmia runs on Kubernetes. The controller is a single replica, while agent jobs scale independently through Karpenter node provisioning and a configurable concurrency limit.</p>
+<h2 id="controller-high-availability">Controller high availability<a class="headerlink" href="#controller-high-availability" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Planned feature</p>
 <p>Leader election (multiple controller replicas with automatic failover) is not yet implemented. The controller currently runs as a single replica. HA support via controller-runtime Kubernetes Lease objects is on the roadmap.</p>
 </div>
-<p>For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and are unaffected by a controller restart — in-flight jobs complete normally.</p>
-<h2 id="karpenter-integration">Karpenter Integration<a class="headerlink" href="#karpenter-integration" title="Permanent link">&para;</a></h2>
+<p>For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and are unaffected by a controller restart. In-flight jobs complete normally.</p>
+<h2 id="karpenter-integration">Karpenter integration<a class="headerlink" href="#karpenter-integration" title="Permanent link">&para;</a></h2>
 <p>Osmia agent jobs are ephemeral, CPU-bound workloads. Karpenter provisions dedicated nodes on demand when jobs are created and scales down when they complete.</p>
 <h3 id="recommended-nodepool">Recommended NodePool<a class="headerlink" href="#recommended-nodepool" title="Permanent link">&para;</a></h3>
-<p>See <code>examples/karpenter/nodepool.yaml</code> for a production-ready configuration.</p>
-<p>Key design decisions:
-- <strong>Spot instances</strong> for cost savings (jobs are stateless and retryable)
-- <strong>Taints</strong> to isolate agent workloads from production services
-- <strong><code>WhenEmpty</code> consolidation</strong> to avoid disrupting running jobs
-- <strong>Instance type diversity</strong> across c6i/c7i/m6i for spot availability
-- <strong>CPU limits</strong> to cap maximum infrastructure spend</p>
+<p>See <code>examples/karpenter/nodepool.yaml</code> for an example configuration.</p>
+<p>The example makes these choices:</p>
+<ul>
+<li>Spot instances, to save cost. Jobs are stateless and retryable.</li>
+<li>Taints, to keep agent workloads apart from production services.</li>
+<li><code>WhenEmpty</code> consolidation, so running jobs are not disrupted.</li>
+<li>A mix of c6i, c7i and m6i instance types, to improve spot availability.</li>
+<li>CPU limits, to cap infrastructure spend.</li>
+</ul>
 <h3 id="tolerations">Tolerations<a class="headerlink" href="#tolerations" title="Permanent link">&para;</a></h3>
 <p>Agent jobs include tolerations for the <code>osmia.io/agent</code> taint by default:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">tolerations</span><span class="p">:</span>
@@ -2151,28 +2153,28 @@
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">"true"</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">effect</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">NoSchedule</span>
 </code></pre></div>
-<h2 id="concurrency-limits">Concurrency Limits<a class="headerlink" href="#concurrency-limits" title="Permanent link">&para;</a></h2>
-<p>The controller enforces a maximum number of concurrent jobs to prevent runaway scaling:</p>
+<h2 id="concurrency-limits">Concurrency limits<a class="headerlink" href="#concurrency-limits" title="Permanent link">&para;</a></h2>
+<p>The controller caps the number of concurrent jobs so scaling cannot run away:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">guardrails</span><span class="p">:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">max_concurrent_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 </code></pre></div>
 <p>When the limit is reached, new tickets are queued until running jobs complete.</p>
-<h2 id="cost-controls">Cost Controls<a class="headerlink" href="#cost-controls" title="Permanent link">&para;</a></h2>
-<p>Multiple layers of cost control are available:</p>
+<h2 id="cost-controls">Cost controls<a class="headerlink" href="#cost-controls" title="Permanent link">&para;</a></h2>
+<p>Cost is limited in several places:</p>
 <ol>
-<li><strong>Per-job cost ceiling</strong> — <code>max_cost_per_job</code> terminates jobs exceeding the budget</li>
-<li><strong>Job duration limit</strong> — <code>max_job_duration_minutes</code> sets a hard timeout</li>
-<li><strong>Progress watchdog</strong> — detects and terminates unproductive agents early</li>
-<li><strong>Karpenter CPU limits</strong> — caps total compute across all Osmia nodes</li>
-<li><strong>Cost velocity alerts</strong> — warns when spending exceeds thresholds</li>
+<li>Per-job cost ceiling: <code>max_cost_per_job</code> terminates jobs that exceed the budget.</li>
+<li>Job duration limit: <code>max_job_duration_minutes</code> sets a hard timeout.</li>
+<li>Progress watchdog: detects and terminates unproductive agents early.</li>
+<li>Karpenter CPU limits: cap total compute across all Osmia nodes.</li>
+<li>Cost velocity alerts: warn when spending exceeds thresholds.</li>
 </ol>
-<h2 id="keda-scaling">KEDA Scaling<a class="headerlink" href="#keda-scaling" title="Permanent link">&para;</a></h2>
-<p>For advanced scaling scenarios, KEDA can trigger scaling based on ticket queue depth:</p>
+<h2 id="keda-scaling">KEDA scaling<a class="headerlink" href="#keda-scaling" title="Permanent link">&para;</a></h2>
+<p>KEDA can trigger scaling based on ticket queue depth:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># See examples/keda/scaledobject.yaml</span>
 </code></pre></div>
 <p>Note: The controller currently runs as a single replica (leader election is on the roadmap). KEDA is most useful for alerting or for scaling downstream resources.</p>
-<h2 id="multi-tenancy">Multi-Tenancy<a class="headerlink" href="#multi-tenancy" title="Permanent link">&para;</a></h2>
-<p>For shared clusters, Osmia defines a tenancy configuration schema. Namespace-per-tenant runtime isolation is on the roadmap; the config structure and RBAC recommendations are in place:</p>
+<h2 id="multi-tenancy">Multi-tenancy<a class="headerlink" href="#multi-tenancy" title="Permanent link">&para;</a></h2>
+<p>For shared clusters, Osmia defines a tenancy configuration schema. Runtime isolation per tenant namespace is on the roadmap. The config structure and RBAC recommendations exist already:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">tenancy</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">"namespace-per-tenant"</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">tenants</span><span class="p">:</span>
@@ -2183,17 +2185,19 @@
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="nt">config</span><span class="p">:</span>
 <a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">          </span><span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="s">"alpha-org/repos"</span>
 </code></pre></div>
-<p>When namespace-per-tenant isolation is implemented, each tenant will receive:
-- Dedicated namespace with its own RBAC, NetworkPolicies, and ResourceQuotas
-- Separate Kubernetes Secrets (no cross-tenant secret access)
-- Independent job limits and cost budgets
-- Isolated Karpenter NodePool (optional, for compute isolation)</p>
+<p>When namespace-per-tenant isolation is implemented, each tenant will get:</p>
+<ul>
+<li>Dedicated namespace with its own RBAC, NetworkPolicies, and ResourceQuotas</li>
+<li>Separate Kubernetes Secrets (no cross-tenant secret access)</li>
+<li>Independent job limits and cost budgets</li>
+<li>Isolated Karpenter NodePool (optional, for compute isolation)</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">Tenancy runtime isolation is on the roadmap</p>
 <p>The <code>tenancy</code> config block is parsed and stored but has no runtime effect today. All jobs currently run in the controller's own namespace regardless of tenant configuration. See the <a href="../roadmap/#namespace-per-tenant-isolation">roadmap</a> for planned work.</p>
 </div>
 <h2 id="observability">Observability<a class="headerlink" href="#observability" title="Permanent link">&para;</a></h2>
-<h3 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
+<h3 id="prometheus-metrics">Prometheus metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
 <p>The controller exposes the following metrics:</p>
 <table>
 <thead>
@@ -2226,9 +2230,9 @@
 </tr>
 </tbody>
 </table>
-<h3 id="grafana-dashboard">Grafana Dashboard<a class="headerlink" href="#grafana-dashboard" title="Permanent link">&para;</a></h3>
-<p>A Grafana dashboard JSON model is included in the Helm chart for visualising Osmia metrics.</p>
-<h3 id="structured-logging">Structured Logging<a class="headerlink" href="#structured-logging" title="Permanent link">&para;</a></h3>
+<h3 id="grafana-dashboard">Grafana dashboard<a class="headerlink" href="#grafana-dashboard" title="Permanent link">&para;</a></h3>
+<p>The Helm chart includes a Grafana dashboard JSON model for Osmia metrics.</p>
+<h3 id="structured-logging">Structured logging<a class="headerlink" href="#structured-logging" title="Permanent link">&para;</a></h3>
 <p>All controller logs are structured JSON via Go's <code>slog</code>, suitable for log aggregation systems (Elasticsearch, Loki, CloudWatch Logs).</p>
 
 

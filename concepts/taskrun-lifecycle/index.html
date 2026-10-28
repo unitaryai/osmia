@@ -719,7 +719,7 @@
   <a href="#state-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
-        State Machine
+        State machine
       
     </span>
   </a>
@@ -730,7 +730,7 @@
   <a href="#states-explained" class="md-nav__link">
     <span class="md-ellipsis">
       
-        States Explained
+        States explained
       
     </span>
   </a>
@@ -741,19 +741,19 @@
   <a href="#lifecycle-walkthrough" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lifecycle Walkthrough
+        Lifecycle walkthrough
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Lifecycle Walkthrough">
+    <nav class="md-nav" aria-label="Lifecycle walkthrough">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#step-by-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step by Step
+        Step by step
       
     </span>
   </a>
@@ -792,7 +792,7 @@
   <a href="#causal-diagnosis-coming-soon" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Causal Diagnosis (Coming Soon)
+        Causal diagnosis (coming soon)
       
     </span>
   </a>
@@ -808,7 +808,7 @@
   <a href="#heartbeats-and-staleness" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Heartbeats and Staleness
+        Heartbeats and staleness
       
     </span>
   </a>
@@ -830,7 +830,7 @@
   <a href="#durable-taskrun-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Durable TaskRun State
+        Durable TaskRun state
       
     </span>
   </a>
@@ -841,7 +841,7 @@
   <a href="#real-time-monitoring" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Real-Time Monitoring
+        Real-time monitoring
       
     </span>
   </a>
@@ -849,10 +849,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#further-reading" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Further reading
       
     </span>
   </a>
@@ -1938,7 +1938,7 @@
   <a href="#state-machine" class="md-nav__link">
     <span class="md-ellipsis">
       
-        State Machine
+        State machine
       
     </span>
   </a>
@@ -1949,7 +1949,7 @@
   <a href="#states-explained" class="md-nav__link">
     <span class="md-ellipsis">
       
-        States Explained
+        States explained
       
     </span>
   </a>
@@ -1960,19 +1960,19 @@
   <a href="#lifecycle-walkthrough" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lifecycle Walkthrough
+        Lifecycle walkthrough
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Lifecycle Walkthrough">
+    <nav class="md-nav" aria-label="Lifecycle walkthrough">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#step-by-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step by Step
+        Step by step
       
     </span>
   </a>
@@ -2011,7 +2011,7 @@
   <a href="#causal-diagnosis-coming-soon" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Causal Diagnosis (Coming Soon)
+        Causal diagnosis (coming soon)
       
     </span>
   </a>
@@ -2027,7 +2027,7 @@
   <a href="#heartbeats-and-staleness" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Heartbeats and Staleness
+        Heartbeats and staleness
       
     </span>
   </a>
@@ -2049,7 +2049,7 @@
   <a href="#durable-taskrun-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Durable TaskRun State
+        Durable TaskRun state
       
     </span>
   </a>
@@ -2060,7 +2060,7 @@
   <a href="#real-time-monitoring" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Real-Time Monitoring
+        Real-time monitoring
       
     </span>
   </a>
@@ -2068,10 +2068,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#further-reading" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Further reading
       
     </span>
   </a>
@@ -2103,10 +2103,10 @@
   
 
 
-<h1 id="how-a-taskrun-works">How a TaskRun Works<a class="headerlink" href="#how-a-taskrun-works" title="Permanent link">&para;</a></h1>
-<p>A <strong>TaskRun</strong> represents a single attempt to complete a task. When Osmia picks up a labelled issue, it creates a TaskRun that tracks the work from start to finish — including retries, timeouts, and human intervention.</p>
-<h2 id="state-machine">State Machine<a class="headerlink" href="#state-machine" title="Permanent link">&para;</a></h2>
-<p>Every TaskRun moves through a set of states. The transitions are enforced by the controller — invalid transitions are rejected.</p>
+<h1 id="how-a-taskrun-works">How a TaskRun works<a class="headerlink" href="#how-a-taskrun-works" title="Permanent link">&para;</a></h1>
+<p>A TaskRun represents a single attempt to complete a task. When Osmia picks up a labelled issue, it creates a TaskRun that tracks the work from start to finish, including retries, timeouts and human intervention.</p>
+<h2 id="state-machine">State machine<a class="headerlink" href="#state-machine" title="Permanent link">&para;</a></h2>
+<p>Every TaskRun moves through a set of states. The controller enforces the transitions and rejects invalid ones.</p>
 <pre class="mermaid"><code>stateDiagram-v2
     [*] --&gt; Queued
     Queued --&gt; Running
@@ -2120,47 +2120,47 @@
     Retrying --&gt; Running
     Succeeded --&gt; [*]
     TimedOut --&gt; [*]</code></pre>
-<h2 id="states-explained">States Explained<a class="headerlink" href="#states-explained" title="Permanent link">&para;</a></h2>
+<h2 id="states-explained">States explained<a class="headerlink" href="#states-explained" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>State</th>
-<th>What's Happening</th>
+<th>What is happening</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Queued</strong></td>
+<td>Queued</td>
 <td>The TaskRun has been created but no agent container has been launched yet. This is the initial state.</td>
 </tr>
 <tr>
-<td><strong>Running</strong></td>
-<td>An AI agent container is actively working on the task — cloning the repo, reading code, making changes, running tests.</td>
+<td>Running</td>
+<td>An AI agent container is actively working on the task: cloning the repo, reading code, making changes, running tests.</td>
 </tr>
 <tr>
-<td><strong>NeedsHuman</strong></td>
+<td>NeedsHuman</td>
 <td>The agent has asked a question that requires human input. Execution is paused until someone responds.</td>
 </tr>
 <tr>
-<td><strong>Succeeded</strong></td>
+<td>Succeeded</td>
 <td>The agent finished successfully and produced a result (typically a pull request). This is a terminal state.</td>
 </tr>
 <tr>
-<td><strong>Failed</strong></td>
+<td>Failed</td>
 <td>The agent failed. If retries are available, the TaskRun moves to <code>Retrying</code>. If retries are exhausted, this is terminal.</td>
 </tr>
 <tr>
-<td><strong>Retrying</strong></td>
+<td>Retrying</td>
 <td>A retry has been scheduled. The controller will create a new agent container and transition back to <code>Running</code>.</td>
 </tr>
 <tr>
-<td><strong>TimedOut</strong></td>
+<td>TimedOut</td>
 <td>The agent exceeded its deadline (<code>max_job_duration_minutes</code>). This is a terminal state.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="lifecycle-walkthrough">Lifecycle Walkthrough<a class="headerlink" href="#lifecycle-walkthrough" title="Permanent link">&para;</a></h2>
-<p>Here is the complete lifecycle of a TaskRun, from issue discovery to pull request:</p>
+<h2 id="lifecycle-walkthrough">Lifecycle walkthrough<a class="headerlink" href="#lifecycle-walkthrough" title="Permanent link">&para;</a></h2>
+<p>The full lifecycle of a TaskRun, from issue discovery to pull request:</p>
 <pre class="mermaid"><code>sequenceDiagram
     participant Poller as Ticketing Poller
     participant Ctrl as Controller
@@ -2189,47 +2189,47 @@
     Ctrl-&gt;&gt;Ctrl: Read TaskResult
     Ctrl-&gt;&gt;SCM: Create pull request
     Note over Ctrl: TaskRun → Succeeded</code></pre>
-<h3 id="step-by-step">Step by Step<a class="headerlink" href="#step-by-step" title="Permanent link">&para;</a></h3>
+<h3 id="step-by-step">Step by step<a class="headerlink" href="#step-by-step" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
-<p><strong>Ticket discovered</strong> — the ticketing poller finds a labelled issue and hands it to the controller.</p>
+<p>Ticket discovered: the ticketing poller finds a labelled issue and hands it to the controller.</p>
 </li>
 <li>
-<p><strong>Idempotency check</strong> — the controller generates a key from the ticket ID and attempt number. If a non-terminal TaskRun already exists for this key, the ticket is skipped. This prevents duplicate work.</p>
+<p>Idempotency check: the controller generates a key from the ticket ID and attempt number. If a non-terminal TaskRun already exists for this key, the ticket is skipped. This prevents duplicate work.</p>
 </li>
 <li>
-<p><strong>Guard rail validation</strong> — the ticket is checked against controller-level rules (allowed repos, allowed task types, concurrent job limit, blocked file patterns). If it fails, the ticket is rejected.</p>
+<p>Guard rail validation: the ticket is checked against controller-level rules (allowed repos, allowed task types, concurrent job limit, blocked file patterns). If it fails, the ticket is rejected.</p>
 </li>
 <li>
-<p><strong>Engine selection</strong> — the controller picks an engine (from config or ticket labels) and calls <code>BuildExecutionSpec</code> to produce a container specification.</p>
+<p>Engine selection: the controller picks an engine (from config or ticket labels) and calls <code>BuildExecutionSpec</code> to produce a container specification.</p>
 </li>
 <li>
-<p><strong>Job creation</strong> — the <code>JobBuilder</code> translates the spec into a Kubernetes Job with security contexts, resource limits, tolerations, and environment variables. The TaskRun transitions to <strong>Running</strong>.</p>
+<p>Job creation: the <code>JobBuilder</code> translates the spec into a Kubernetes Job with security contexts, resource limits, tolerations, and environment variables. The TaskRun transitions to Running.</p>
 </li>
 <li>
-<p><strong>Agent execution</strong> — the container starts, clones the repository, and works on the task. It sends heartbeats so the watchdog knows it is alive.</p>
+<p>Agent execution: the container starts, clones the repository, and works on the task. It sends heartbeats so the watchdog knows it is alive.</p>
 </li>
 <li>
-<p><strong>Watchdog monitoring</strong> — a background loop checks all running TaskRuns for anomalies (loops, stalls, cost overruns). See <a href="../guardrails-overview/">Guard Rails Overview</a>.</p>
+<p>Watchdog monitoring: a background loop checks all running TaskRuns for anomalies (loops, stalls, cost overruns). See <a href="../guardrails-overview/">Guard Rails Overview</a>.</p>
 </li>
 <li>
-<p><strong>Completion</strong> — when the agent finishes, it writes a <code>result.json</code> with the outcome. The controller reads it and transitions the TaskRun to <strong>Succeeded</strong> or <strong>Failed</strong>.</p>
+<p>Completion: when the agent finishes, it writes a <code>result.json</code> with the outcome. The controller reads it and transitions the TaskRun to Succeeded or Failed.</p>
 </li>
 <li>
-<p><strong>Knowledge extraction</strong> — if <a href="../memory/">episodic memory</a> is enabled, the controller extracts knowledge from the completed task (success patterns, failure insights, engine notes) into the persistent knowledge graph. This runs in a background goroutine and does not block the TaskRun.</p>
+<p>Knowledge extraction: if <a href="../memory/">episodic memory</a> is enabled, the controller extracts knowledge from the completed task (success patterns, failure insights, engine notes) into the persistent knowledge graph. This runs in a background goroutine and does not block the TaskRun.</p>
 </li>
 <li>
-<p><strong>PR creation</strong> — on success, the SCM backend creates a pull request from the agent's branch.</p>
+<p>PR creation: on success, the SCM backend creates a pull request from the agent's branch.</p>
 </li>
 <li>
-<p><strong>Notification</strong> — the ticketing backend is updated and notifications are sent.</p>
+<p>Notification: the ticketing backend is updated and notifications are sent.</p>
 </li>
 </ol>
 <h2 id="retries">Retries<a class="headerlink" href="#retries" title="Permanent link">&para;</a></h2>
-<p>If a job fails and retries remain (default <code>max_retries: 1</code>), the controller transitions through <code>Failed</code> → <code>Retrying</code> → <code>Running</code>, creating a new agent container. The retry count increments each time. Once retries are exhausted, the TaskRun enters a terminal <strong>Failed</strong> state.</p>
-<p>Retry is useful for transient failures (API timeouts, rate limits). Persistent failures (invalid credentials, unsupported task) will fail again — the quality of error messages helps humans decide whether to retry manually.</p>
+<p>If a job fails and retries remain (default <code>max_retries: 1</code>), the controller transitions through <code>Failed</code> → <code>Retrying</code> → <code>Running</code>, creating a new agent container. The retry count increments each time. Once retries are exhausted, the TaskRun enters a terminal Failed state.</p>
+<p>Retry helps with transient failures (API timeouts, rate limits). Persistent failures (invalid credentials, unsupported task) will fail again, so clear error messages help humans decide whether to retry manually.</p>
 <h3 id="continuation-strategies">Continuation strategies<a class="headerlink" href="#continuation-strategies" title="Permanent link">&para;</a></h3>
-<p>When an agent hits <code>--max-turns</code>, Osmia needs to decide what happens next. Three strategies are available:</p>
+<p>When an agent hits <code>--max-turns</code>, Osmia has to decide what happens next. There are three strategies:</p>
 <table>
 <thead>
 <tr>
@@ -2241,42 +2241,42 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Git-based</strong></td>
+<td>Git-based</td>
 <td>Yes</td>
 <td>All engines</td>
 <td>The prior run pushes its branch. The retry prompt includes <code>## Continuation</code> with instructions to clone that branch and read <code>git log --oneline -20</code></td>
 </tr>
 <tr>
-<td><strong>Session persistence</strong></td>
+<td>Session persistence</td>
 <td>Opt-in</td>
 <td>Claude Code only</td>
-<td>The <code>~/.claude/</code> directory and workspace are stored on a PVC. The retry pod resumes with <code>--resume &lt;session-id&gt;</code>, restoring the full conversation — no git-clone needed, no wasted turns</td>
+<td>The <code>~/.claude/</code> directory and workspace are stored on a PVC. The retry pod resumes with <code>--resume &lt;session-id&gt;</code>, restoring the full conversation, with no git clone and no wasted turns</td>
 </tr>
 <tr>
-<td><strong>User-prompted continuation</strong></td>
+<td>User-prompted continuation</td>
 <td>Opt-in</td>
 <td>Claude Code only</td>
 <td>When turns are exhausted, the controller asks the user via the approval backend (e.g. Slack) whether to continue or stop. On approval, a new pod resumes the session. Requires session persistence.</td>
 </tr>
 </tbody>
 </table>
-<p>Session persistence eliminates the main downside of git-based continuation: the retry agent must infer context from git history alone, spending turns re-reading code it already understood. With <code>--resume</code>, the agent continues as if the pod never restarted.</p>
-<p>User-prompted continuation builds on session persistence to give humans control over long-running tasks — rather than auto-retrying indefinitely, the controller pauses and presents a summary of progress, letting the operator decide whether the remaining work is worth another batch of turns.</p>
+<p>Session persistence removes the main downside of git-based continuation: the retry agent has to infer context from git history alone, spending turns re-reading code it already understood. With <code>--resume</code>, the agent continues as if the pod never restarted.</p>
+<p>User-prompted continuation builds on session persistence to give humans control over long-running tasks. Instead of retrying indefinitely, the controller pauses and presents a summary of progress, and the operator decides whether the remaining work is worth another batch of turns.</p>
 <blockquote>
 <p><strong>Note:</strong> Session persistence and user-prompted continuation currently require the Claude Code engine. Other engines (Codex, Aider, OpenCode) use git-based continuation only.</p>
 </blockquote>
 <p>See <a href="../../plugins/engines/#session-persistence">Session Persistence</a> and <a href="../../plugins/engines/#continuation-prompts">Continuation Prompts</a> in the Claude Code engine docs for configuration details.</p>
-<h3 id="causal-diagnosis-coming-soon">Causal Diagnosis (Coming Soon)<a class="headerlink" href="#causal-diagnosis-coming-soon" title="Permanent link">&para;</a></h3>
+<h3 id="causal-diagnosis-coming-soon">Causal diagnosis (coming soon)<a class="headerlink" href="#causal-diagnosis-coming-soon" title="Permanent link">&para;</a></h3>
 <blockquote>
 <p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>
 </blockquote>
-<p>Osmia is building a causal diagnosis system (<code>internal/diagnosis/</code>) that replaces blind retries with informed corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:</p>
+<p>Osmia is building a causal diagnosis system (<code>internal/diagnosis/</code>) that replaces blind retries with corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:</p>
 <table>
 <thead>
 <tr>
-<th>Failure Mode</th>
+<th>Failure mode</th>
 <th>Example</th>
-<th>Corrective Action</th>
+<th>Corrective action</th>
 </tr>
 </thead>
 <tbody>
@@ -2317,8 +2317,8 @@
 </tr>
 </tbody>
 </table>
-<p>The diagnosis is injected into the retry prompt alongside the original task, and the system can optionally switch to a different engine if the failure is engine-specific.</p>
-<h2 id="heartbeats-and-staleness">Heartbeats and Staleness<a class="headerlink" href="#heartbeats-and-staleness" title="Permanent link">&para;</a></h2>
+<p>The diagnosis is injected into the retry prompt alongside the original task, and the system can switch to a different engine if the failure is engine-specific.</p>
+<h2 id="heartbeats-and-staleness">Heartbeats and staleness<a class="headerlink" href="#heartbeats-and-staleness" title="Permanent link">&para;</a></h2>
 <p>Each TaskRun carries a <code>HeartbeatAt</code> timestamp. The agent container is expected to push heartbeats at regular intervals (via the PostToolUse hook). If the time since the last heartbeat exceeds <code>heartbeat_ttl_seconds</code> (default: 300), the TaskRun is considered stale and the watchdog may intervene.</p>
 <h2 id="idempotency">Idempotency<a class="headerlink" href="#idempotency" title="Permanent link">&para;</a></h2>
 <p>Every TaskRun is keyed by <code>&lt;ticket_id&gt;-&lt;attempt&gt;</code>. The controller checks this key before processing any ticket. This ensures:</p>
@@ -2327,29 +2327,29 @@
 <li>Restarted controllers do not duplicate in-flight work.</li>
 <li>Retries get a new attempt number and are tracked separately.</li>
 </ul>
-<h2 id="durable-taskrun-state">Durable TaskRun State<a class="headerlink" href="#durable-taskrun-state" title="Permanent link">&para;</a></h2>
+<h2 id="durable-taskrun-state">Durable TaskRun state<a class="headerlink" href="#durable-taskrun-state" title="Permanent link">&para;</a></h2>
 <p>By default, TaskRun state lives only in memory (<code>MemoryStore</code>) and is lost when the controller pod restarts. Set <code>taskrun_store.backend</code> to <code>sqlite</code> to persist TaskRun records to a SQLite database instead:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">taskrun_store</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sqlite</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">sqlite</span><span class="p">:</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/taskruns.db</span><span class="w">  </span><span class="c1"># defaults to /data/taskruns.db if omitted</span>
 </code></pre></div>
-<p>This requires a mounted, writable path — the Helm chart's <code>persistence.enabled: true</code> mounts a PVC at <code>/data</code> for exactly this purpose (see <code>charts/osmia/values.yaml</code>).</p>
-<p>Today this only persists state for post-mortem inspection and debugging (querying the SQLite file directly after a crash). The controller does not yet read the store back on startup, so in-flight TaskRuns are still forgotten across a restart — recovering and rehydrating them is separate follow-up work. See <a href="../../adr/0001-taskrun-store-sqlite-not-crd/">ADR 0001</a> for the reasoning behind choosing SQLite over a <code>TaskRun</code> CRD.</p>
-<h2 id="real-time-monitoring">Real-Time Monitoring<a class="headerlink" href="#real-time-monitoring" title="Permanent link">&para;</a></h2>
-<p>While a TaskRun is in the <strong>Running</strong> state, two monitoring systems operate in parallel:</p>
+<p>This requires a mounted, writable path. The Helm chart's <code>persistence.enabled: true</code> mounts a PVC at <code>/data</code> for this purpose (see <code>charts/osmia/values.yaml</code>).</p>
+<p>Today this only persists state for post-mortem inspection and debugging (querying the SQLite file directly after a crash). The controller does not yet read the store back on startup, so in-flight TaskRuns are still forgotten across a restart. Recovering and rehydrating them is separate follow-up work. See <a href="../../adr/0001-taskrun-store-sqlite-not-crd/">ADR 0001</a> for the reasoning behind choosing SQLite over a <code>TaskRun</code> CRD.</p>
+<h2 id="real-time-monitoring">Real-time monitoring<a class="headerlink" href="#real-time-monitoring" title="Permanent link">&para;</a></h2>
+<p>While a TaskRun is in the Running state, two monitoring systems run in parallel:</p>
 <ul>
-<li><strong><a href="../guardrails-overview/">Progress watchdog</a></strong> — detects loops, stalls, thrashing, and cost overruns using heartbeat telemetry</li>
-<li><strong><a href="../prm/">PRM (Process Reward Model)</a></strong> — when enabled, scores agent productivity at each tool call and intervenes with guidance before problems escalate</li>
+<li><a href="../guardrails-overview/">Progress watchdog</a>: detects loops, stalls, thrashing and cost overruns using heartbeat telemetry.</li>
+<li><a href="../prm/">PRM (Process Reward Model)</a>: when enabled, scores agent productivity at each tool call and intervenes with guidance before problems escalate.</li>
 </ul>
-<p>Both systems operate non-invasively on observable telemetry — neither modifies the agent's behaviour directly.</p>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<p>Both work on observable telemetry. Neither modifies the agent's behaviour directly.</p>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../guardrails-overview/">Guard Rails Overview</a> — the six safety layers protecting every TaskRun</li>
-<li><a href="../prm/">Real-Time Agent Coaching (PRM)</a> — how the PRM scores and coaches agents</li>
-<li><a href="../memory/">Episodic Memory</a> — how knowledge accumulates across tasks</li>
-<li><a href="../engines/">Engines Explained</a> — which AI agent runs inside the container</li>
-<li><a href="../../architecture/">Architecture: System Overview</a> — the full system design</li>
+<li><a href="../guardrails-overview/">Guard Rails Overview</a>: the six safety layers protecting every TaskRun</li>
+<li><a href="../prm/">Real-Time Agent Coaching (PRM)</a>: how the PRM scores and coaches agents</li>
+<li><a href="../memory/">Episodic Memory</a>: how knowledge accumulates across tasks</li>
+<li><a href="../engines/">Engines Explained</a>: which AI agent runs inside the container</li>
+<li><a href="../../architecture/">Architecture: System Overview</a>: the full system design</li>
 </ul>
 
 

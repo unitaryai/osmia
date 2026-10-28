@@ -453,3 +453,73 @@ func TestGitLabSCMBackend_AuthenticatedUser(t *testing.T) {
 		})
 	}
 }
+
+// TestGitLabSCMBackend_ListReviewComments_ReadsEveryPage reproduces a busy
+// merge request: twenty bot and system notes fill the first page, and the
+// reviewer's comment is on the second. Reading only the first page missed it.
+func TestGitLabSCMBackend_ListReviewComments_ReadsEveryPage(t *testing.T) {
+	note := func(id int, user string, system bool) map[string]any {
+		return map[string]any{
+			"id": id, "system": system, "body": "note",
+			"author":     map[string]any{"username": user},
+			"created_at": "2026-10-28T13:00:00Z",
+		}
+	}
+	var page1 []map[string]any
+	for i := 1; i <= 20; i++ {
+		page1 = append(page1, note(i, "bot", i%2 == 0))
+	}
+	review := note(21, "reviewer", false)
+	review["body"] = "Please fix the size check."
+
+	var pagesServed []string
+	var srvURL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "100", r.URL.Query().Get("per_page"))
+		pagesServed = append(pagesServed, r.URL.Query().Get("page"))
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page") == "2" {
+			_ = json.NewEncoder(w).Encode([]map[string]any{review})
+			return
+		}
+		next := srvURL + r.URL.Path + "?sort=asc&order_by=created_at&per_page=100&page=2"
+		w.Header().Set("Link", "<"+next+`>; rel="next"`)
+		_ = json.NewEncoder(w).Encode(page1)
+	}))
+	defer srv.Close()
+	srvURL = srv.URL
+
+	b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	comments, err := b.ListReviewComments(context.Background(), "https://gitlab.com/o/r/-/merge_requests/258")
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"", "2"}, pagesServed)
+	require.Len(t, comments, 11, "10 non-system notes on page 1 plus the review on page 2")
+	last := comments[len(comments)-1]
+	assert.Equal(t, "21", last.ID)
+	assert.Equal(t, "reviewer", last.Author)
+}
+
+// TestGitLabSCMBackend_ListReviewComments_RefusesCrossHostNextPage checks the
+// API token is not sent to a host named in a Link header.
+func TestGitLabSCMBackend_ListReviewComments_RefusesCrossHostNextPage(t *testing.T) {
+	var foreignHit bool
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		foreignHit = true
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("[]"))
+	}))
+	defer foreign.Close()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Link", "<"+foreign.URL+`/notes?page=2>; rel="next"`)
+		_, _ = w.Write([]byte("[]"))
+	}))
+	defer srv.Close()
+
+	b := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	_, err := b.ListReviewComments(context.Background(), "https://gitlab.com/o/r/-/merge_requests/1")
+	require.NoError(t, err)
+	assert.False(t, foreignHit, "next page on another host must not be fetched")
+}

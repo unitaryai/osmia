@@ -79,6 +79,11 @@ type Reconciler struct {
 	// keyed by task run ID. Used to stop streaming when a job completes or fails.
 	streamReaders map[string]context.CancelFunc
 
+	// streamDone holds, per task run ID, a channel closed when that run's
+	// stream reader has forwarded every event it read. handleJobComplete
+	// waits on it so the agent's final result event is not lost.
+	streamDone map[string]chan struct{}
+
 	// ticketCache caches the full Ticket for each processed ticket ID so that
 	// completion handlers (NotifyComplete, etc.) can access ticket metadata
 	// (e.g. title) without an additional backend round-trip.
@@ -413,6 +418,7 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 		taskRuns:               make(map[string]*taskrun.TaskRun),
 		engineChains:           make(map[string][]string),
 		streamReaders:          make(map[string]context.CancelFunc),
+		streamDone:             make(map[string]chan struct{}),
 		prmEvaluators:          make(map[string]*prm.Evaluator),
 		ticketCache:            make(map[string]ticketing.Ticket),
 		heartbeats:             make(map[string]*watchdog.Heartbeat),
@@ -893,7 +899,7 @@ func (r *Reconciler) checkJobStatus(ctx context.Context, tr *taskrun.TaskRun) {
 
 // handleJobComplete processes a successfully completed job.
 func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun) {
-	r.cancelStreamReader(tr.ID)
+	r.drainStreamReader(ctx, tr.ID)
 	r.cleanupPRMEvaluator(tr.ID)
 	r.cleanupHintFile(ctx, tr.ID)
 	defer r.cleanupPodName(tr.ID)
@@ -2277,12 +2283,18 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	}
 
 	streamCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
 
 	r.mu.Lock()
 	r.streamReaders[tr.ID] = cancel
+	if r.streamDone == nil {
+		r.streamDone = make(map[string]chan struct{})
+	}
+	r.streamDone[tr.ID] = done
 	r.mu.Unlock()
 
 	go func() {
+		defer close(done)
 		eventCh := make(chan *agentstream.StreamEvent, 100)
 
 		reader := agentstream.NewReader(
@@ -2495,6 +2507,43 @@ func (r *Reconciler) resolvePodName(ctx context.Context, taskRunID string) (stri
 	}
 }
 
+// streamDrainTimeout bounds how long handleJobComplete waits for a stream
+// reader to finish. The pod's log stream ends when the agent container
+// exits, so the wait is normally well under a second; the bound only stops
+// a stuck log stream from holding up the reconcile loop.
+const streamDrainTimeout = 20 * time.Second
+
+// drainStreamReader waits for the stream reader of a finished task run to
+// forward every event it has read, then stops it.
+//
+// The agent's result event, which carries the merge request URL, is the
+// last line it writes. Cancelling the reader as soon as the Job is seen to
+// have completed could drop that line if the reader had not processed it
+// yet. The run then fell back to a generic "task completed successfully"
+// result with no merge request URL, so the merge request it opened was never
+// registered for review follow-ups.
+func (r *Reconciler) drainStreamReader(ctx context.Context, taskRunID string) {
+	r.mu.RLock()
+	done, ok := r.streamDone[taskRunID]
+	r.mu.RUnlock()
+
+	if ok {
+		timer := time.NewTimer(streamDrainTimeout)
+		select {
+		case <-done:
+		case <-timer.C:
+			r.logger.WarnContext(ctx, "stream reader did not finish after job completed; its final events may be lost",
+				"task_run_id", taskRunID,
+				"timeout", streamDrainTimeout,
+			)
+		case <-ctx.Done():
+		}
+		timer.Stop()
+	}
+
+	r.cancelStreamReader(taskRunID)
+}
+
 // cancelStreamReader stops the stream reader goroutine for the given task run
 // and removes it from the map. It is safe to call even if no reader exists.
 func (r *Reconciler) cancelStreamReader(taskRunID string) {
@@ -2503,6 +2552,7 @@ func (r *Reconciler) cancelStreamReader(taskRunID string) {
 	if ok {
 		delete(r.streamReaders, taskRunID)
 	}
+	delete(r.streamDone, taskRunID)
 	r.mu.Unlock()
 
 	if ok {

@@ -471,6 +471,73 @@ func TestHandleJobComplete(t *testing.T) {
 	assert.Contains(t, tb.markedComplete, "TICKET-1")
 }
 
+// TestHandleJobComplete_WaitsForFinalResultEvent reproduces a job seen as
+// complete while its stream reader has not yet processed the agent's last
+// line, the result event carrying the merge request URL. Completion must
+// wait for the reader rather than fall back to a generic result.
+func TestHandleJobComplete_WaitsForFinalResultEvent(t *testing.T) {
+	tb := newMockTicketing(nil)
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+
+	done := make(chan struct{})
+	readerCancelled := make(chan struct{})
+	r := &Reconciler{
+		config:        testConfig(),
+		logger:        testLogger(),
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		streamReaders: map[string]context.CancelFunc{"tr-1": func() { close(readerCancelled) }},
+		streamDone:    map[string]chan struct{}{"tr-1": done},
+	}
+
+	// The reader delivers the result event shortly after the job completes.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		r.mu.Lock()
+		tr.Result = &engine.TaskResult{
+			Success:         true,
+			Summary:         "opened the MR",
+			MergeRequestURL: "https://gitlab.com/o/r/-/merge_requests/256",
+		}
+		r.mu.Unlock()
+		close(done)
+	}()
+
+	r.handleJobComplete(context.Background(), tr)
+
+	require.NotNil(t, tr.Result)
+	assert.Equal(t, "https://gitlab.com/o/r/-/merge_requests/256", tr.Result.MergeRequestURL)
+	assert.Equal(t, "opened the MR", tr.Result.Summary)
+	select {
+	case <-readerCancelled:
+	default:
+		t.Fatal("stream reader was not stopped after draining")
+	}
+	assert.Empty(t, r.streamReaders)
+	assert.Empty(t, r.streamDone)
+}
+
+// TestDrainStreamReader_GivesUpOnContextCancel checks a stuck reader cannot
+// hold completion handling past the caller's context.
+func TestDrainStreamReader_GivesUpOnContextCancel(t *testing.T) {
+	cancelled := false
+	r := &Reconciler{
+		logger:        testLogger(),
+		streamReaders: map[string]context.CancelFunc{"tr-1": func() { cancelled = true }},
+		streamDone:    map[string]chan struct{}{"tr-1": make(chan struct{})},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	r.drainStreamReader(ctx, "tr-1")
+	assert.Less(t, time.Since(start), streamDrainTimeout)
+	assert.True(t, cancelled)
+}
+
 func TestHandleJobFailed_WithRetry(t *testing.T) {
 	logger := testLogger()
 	tb := newMockTicketing(nil)

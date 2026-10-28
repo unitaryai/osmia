@@ -118,25 +118,7 @@ func (r *Reconciler) pollRepoURL(ctx context.Context, taskRunID string, ticket t
 			reason = fmt.Sprintf("slack repo URL request failed: %v", err)
 		}
 		r.logger.WarnContext(ctx, reason, "ticket_id", ticket.ID)
-
-		if r.ticketing != nil {
-			if markErr := r.ticketing.MarkFailed(ctx, ticket.ID, reason); markErr != nil {
-				r.logger.ErrorContext(ctx, "failed to mark ticket failed",
-					"ticket_id", ticket.ID,
-					"error", markErr,
-				)
-			}
-		}
-
-		// Transition the TaskRun to Failed.
-		r.mu.Lock()
-		for _, tr := range r.taskRuns {
-			if tr.ID == taskRunID {
-				_ = tr.Transition(taskrun.StateFailed)
-				break
-			}
-		}
-		r.mu.Unlock()
+		r.failRepoURLTaskRun(ctx, taskRunID, ticket.ID, reason)
 		return
 	}
 
@@ -145,8 +127,20 @@ func (r *Reconciler) pollRepoURL(ctx context.Context, taskRunID string, ticket t
 		"repo_url", url,
 	)
 
-	// Update the ticket cache with the resolved URL.
+	// ProcessTicket validates guard rails only after a URL is known, so a
+	// ticket that arrived without one reaches here unchecked. Without this
+	// a URL typed into Slack would bypass allowed_repos entirely.
 	ticket.RepoURL = url
+	if err := r.validateGuardRails(ticket); err != nil {
+		r.logger.WarnContext(ctx, "ticket rejected by guard rails",
+			"ticket_id", ticket.ID,
+			"reason", err,
+		)
+		r.failRepoURLTaskRun(ctx, taskRunID, ticket.ID, fmt.Sprintf("guard rail violation: %v", err))
+		return
+	}
+
+	// Update the ticket cache with the resolved URL.
 	r.mu.Lock()
 	r.ticketCache[ticket.ID] = ticket
 	r.mu.Unlock()
@@ -157,5 +151,41 @@ func (r *Reconciler) pollRepoURL(ctx context.Context, taskRunID string, ticket t
 			"task_run_id", taskRunID,
 			"error", err,
 		)
+	}
+}
+
+// failRepoURLTaskRun marks the ticket and the TaskRun held at the
+// missing_repo_url gate as failed, and persists the TaskRun so the failure
+// survives a restart.
+//
+// The failure is final: no job ran, and retrying cannot produce a repository
+// URL or make a rejected one allowed. Exhausting the retry budget makes the
+// TaskRun terminal. Otherwise IsTerminal reports it as retryable, so
+// activeJobCount counts it against MaxConcurrentJobs although no job exists,
+// and enough of them stop the controller polling for new tickets.
+func (r *Reconciler) failRepoURLTaskRun(ctx context.Context, taskRunID, ticketID, reason string) {
+	if r.ticketing != nil {
+		if markErr := r.ticketing.MarkFailed(ctx, ticketID, reason); markErr != nil {
+			r.logger.ErrorContext(ctx, "failed to mark ticket failed",
+				"ticket_id", ticketID,
+				"error", markErr,
+			)
+		}
+	}
+
+	var failed *taskrun.TaskRun
+	r.mu.Lock()
+	for _, tr := range r.taskRuns {
+		if tr.ID == taskRunID {
+			_ = tr.Transition(taskrun.StateFailed)
+			tr.RetryCount = tr.MaxRetries
+			failed = tr
+			break
+		}
+	}
+	r.mu.Unlock()
+
+	if failed != nil && r.taskRunStore != nil {
+		r.saveTaskRunOrLog(ctx, failed)
 	}
 }

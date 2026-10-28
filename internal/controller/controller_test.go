@@ -311,6 +311,16 @@ func TestValidateGuardRails(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			name: "missing repo with allow-list fails",
+			config: config.GuardRailsConfig{
+				AllowedRepos: []string{"https://github.com/org/*"},
+			},
+			ticket: ticketing.Ticket{
+				ID: "T-3b",
+			},
+			expectErr: true,
+		},
+		{
 			name: "allowed task type passes",
 			config: config.GuardRailsConfig{
 				AllowedTaskTypes: []string{"bug_fix", "test_fix"},

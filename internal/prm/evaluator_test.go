@@ -124,3 +124,62 @@ func TestEvaluator_HintFilePath(t *testing.T) {
 	eval := NewEvaluator(cfg, testLogger())
 	assert.Equal(t, "/custom/hint.md", eval.HintFilePath())
 }
+
+// TestEvaluator_OnlyEnabledSetUsesDefaults reproduces a config with only
+// `prm.enabled: true`. Every other field arrives as zero; EvaluationInterval
+// is a modulus, so before defaults were applied the first tool call panicked
+// with an integer divide by zero.
+func TestEvaluator_OnlyEnabledSetUsesDefaults(t *testing.T) {
+	eval := NewEvaluator(Config{Enabled: true}, testLogger())
+	ctx := context.Background()
+
+	var iv *Intervention
+	require.NotPanics(t, func() {
+		for i := 0; i < DefaultConfig().EvaluationInterval; i++ {
+			iv = eval.ProcessEvent(ctx, makeToolEvent("Read"))
+		}
+	})
+	assert.NotNil(t, iv, "should evaluate at the default interval")
+}
+
+func TestConfig_WithDefaults(t *testing.T) {
+	d := DefaultConfig()
+	tests := []struct {
+		name string
+		in   Config
+		want Config
+	}{
+		{
+			name: "all unset take defaults, enabled kept",
+			in:   Config{Enabled: true},
+			want: d,
+		},
+		{
+			name: "set values are kept",
+			in: Config{
+				Enabled: true, EvaluationInterval: 10, WindowSize: 5,
+				ScoreThresholdNudge: 40, ScoreThresholdEscalate: 20,
+				HintFilePath: "/tmp/h.md", MaxTrajectoryLength: 200,
+			},
+			want: Config{
+				Enabled: true, EvaluationInterval: 10, WindowSize: 5,
+				ScoreThresholdNudge: 40, ScoreThresholdEscalate: 20,
+				HintFilePath: "/tmp/h.md", MaxTrajectoryLength: 200,
+			},
+		},
+		{
+			name: "negative counts are replaced",
+			in:   Config{EvaluationInterval: -1, WindowSize: -2, MaxTrajectoryLength: -3},
+			want: Config{
+				EvaluationInterval: d.EvaluationInterval, WindowSize: d.WindowSize,
+				ScoreThresholdNudge: d.ScoreThresholdNudge, ScoreThresholdEscalate: d.ScoreThresholdEscalate,
+				HintFilePath: d.HintFilePath, MaxTrajectoryLength: d.MaxTrajectoryLength,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.in.WithDefaults())
+		})
+	}
+}

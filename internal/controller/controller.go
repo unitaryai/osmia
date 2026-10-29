@@ -84,6 +84,11 @@ type Reconciler struct {
 	// waits on it so the agent's final result event is not lost.
 	streamDone map[string]chan struct{}
 
+	// runEvents keeps the most recent stream events of each running task,
+	// keyed by task run ID, for failure diagnosis. Only populated when
+	// diagnosis is enabled; see recordRunEvent.
+	runEvents map[string][]*agentstream.StreamEvent
+
 	// ticketCache caches the full Ticket for each processed ticket ID so that
 	// completion handlers (NotifyComplete, etc.) can access ticket metadata
 	// (e.g. title) without an additional backend round-trip.
@@ -900,6 +905,7 @@ func (r *Reconciler) checkJobStatus(ctx context.Context, tr *taskrun.TaskRun) {
 // handleJobComplete processes a successfully completed job.
 func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun) {
 	r.drainStreamReader(ctx, tr.ID)
+	r.takeRunEvents(tr.ID)
 	r.cleanupPRMEvaluator(tr.ID)
 	r.cleanupHintFile(ctx, tr.ID)
 	defer r.cleanupPodName(tr.ID)
@@ -1394,7 +1400,9 @@ func (r *Reconciler) ticketCacheRepoURL(ticketID string) string {
 // handleJobFailed processes a failed job, attempting engine fallback or
 // retrying with the same engine if allowed.
 func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, reason string) {
-	r.cancelStreamReader(tr.ID)
+	// Drain rather than cancel, so the diagnosis below sees the agent's
+	// final events.
+	r.drainStreamReader(ctx, tr.ID)
 	r.cleanupPRMEvaluator(tr.ID)
 	r.cleanupHintFile(ctx, tr.ID)
 	defer r.cleanupPodName(tr.ID)
@@ -1429,11 +1437,28 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 		}
 	}
 
+	// Diagnose before choosing between fallback and retry, so that an
+	// infrastructure failure stops here instead of moving to the next
+	// engine, which would meet the same infrastructure. Only diagnose when a
+	// fallback or retry is actually possible: the analyser may call an LLM.
+	r.mu.RLock()
+	chain := r.engineChains[tr.IdempotencyKey]
+	canFallBack := len(chain) > len(tr.EngineAttempts)
+	canRetry := tr.RetryCount < tr.MaxRetries
+	r.mu.RUnlock()
+
+	var diag *diagnosis.Diagnosis
+	if canFallBack || canRetry {
+		diag = r.diagnoseFailure(ctx, tr, reason)
+	} else {
+		r.takeRunEvents(tr.ID)
+	}
+
 	r.mu.Lock()
 
-	// Check whether a fallback engine is available before exhausting retries.
-	chain := r.engineChains[tr.IdempotencyKey]
-	if len(chain) > len(tr.EngineAttempts) {
+	// Use a fallback engine before exhausting retries, unless the failure was
+	// infrastructure.
+	if canFallBack && !isInfraFailure(diag) {
 		nextEngine := chain[len(tr.EngineAttempts)]
 		previousEngine := tr.CurrentEngine
 
@@ -1470,28 +1495,21 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 		// Optionally enrich the retry with diagnosis-based instructions.
 		retryPrompt := ""
 		shouldDoRetry := true
-		if r.analyser != nil && r.config.Diagnosis.Enabled {
-			diag, diagErr := r.analyser.Analyse(ctx, diagnosis.DiagnosisInput{
-				TaskRun:        tr,
-				WatchdogReason: reason,
-				Result:         tr.Result,
-			})
-			if diagErr == nil && diag != nil {
-				maxDiag := r.config.Diagnosis.MaxDiagnosesPerTask
-				if maxDiag <= 0 {
-					maxDiag = 3
-				}
-				shouldDoRetry = diagnosis.ShouldRetry(tr.DiagnosisHistory, diag, maxDiag)
-				tr.DiagnosisHistory = append(tr.DiagnosisHistory, diagnosis.ToDiagnosisRecord(diag))
-				if shouldDoRetry && r.retryBuilder != nil {
-					if cachedTicket, ok := r.ticketCache[tr.TicketID]; ok {
-						spec, specErr := r.retryBuilder.Build(ctx, cachedTicket.Description, diag, tr.CurrentEngine, r.config.Diagnosis.EnableEngineSwitch)
-						if specErr == nil && spec != nil {
-							retryPrompt = spec.Prompt
-							if spec.Engine != tr.CurrentEngine {
-								tr.CurrentEngine = spec.Engine
-								tr.EngineAttempts = append(tr.EngineAttempts, spec.Engine)
-							}
+		if diag != nil {
+			maxDiag := r.config.Diagnosis.MaxDiagnosesPerTask
+			if maxDiag <= 0 {
+				maxDiag = 3
+			}
+			shouldDoRetry = diagnosis.ShouldRetry(tr.DiagnosisHistory, diag, maxDiag)
+			tr.DiagnosisHistory = append(tr.DiagnosisHistory, diagnosis.ToDiagnosisRecord(diag))
+			if shouldDoRetry && r.retryBuilder != nil {
+				if cachedTicket, ok := r.ticketCache[tr.TicketID]; ok {
+					spec, specErr := r.retryBuilder.Build(ctx, cachedTicket.Description, diag, tr.CurrentEngine, r.config.Diagnosis.EnableEngineSwitch)
+					if specErr == nil && spec != nil {
+						retryPrompt = spec.Prompt
+						if spec.Engine != tr.CurrentEngine {
+							tr.CurrentEngine = spec.Engine
+							tr.EngineAttempts = append(tr.EngineAttempts, spec.Engine)
 						}
 					}
 				}
@@ -2369,6 +2387,15 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 			r.mu.Unlock()
 		}
 		forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(resultProcessor))
+
+		// Keep recent events so a failure can be diagnosed from what the
+		// agent actually did, not only from the watchdog reason.
+		if r.diagnosisEnabled() {
+			forwarderOpts = append(forwarderOpts, agentstream.WithEventProcessor(
+				func(_ context.Context, event *agentstream.StreamEvent) {
+					r.recordRunEvent(tr.ID, event)
+				}))
+		}
 
 		// Wire PRM evaluator into the streaming pipeline when enabled.
 		if r.prmConfig.Enabled {

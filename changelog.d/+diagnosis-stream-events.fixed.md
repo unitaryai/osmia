@@ -1,0 +1,1 @@
+Failure diagnosis now sees what the agent did. The controller keeps the last 500 stream events of each run and passes them to the analyser; previously it received none, so checks based on tool calls and agent output, such as detecting an agent oscillating between edits, never matched.

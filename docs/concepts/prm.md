@@ -65,7 +65,7 @@ Based on the current score and trajectory pattern, the decider chooses one of th
 
 - Continue: the agent is productive, so no action is needed.
 - Nudge: log a structured hint with specific guidance (for example, "Consider a different approach. You've been editing the same file 8 times without running tests").
-- Escalate: signal the watchdog to consider terminating the job with diagnostic feedback.
+- Escalate: log that the agent needs stronger intervention. The controller defers this to the watchdog but does not act on it directly yet, so an escalation alone does not stop the job.
 
 ## Configuration
 

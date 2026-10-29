@@ -1,0 +1,92 @@
+Metadata-Version: 2.4
+Name: osmia-plugin-sdk
+Version: 0.1.0
+Summary: Python SDK for building Osmia plugins
+License: Apache-2.0
+Project-URL: Homepage, https://github.com/unitaryai/osmia
+Project-URL: Documentation, https://unitaryai.github.io/osmia/plugins/writing-a-plugin/
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: grpcio>=1.60
+Requires-Dist: grpcio-tools>=1.60
+Requires-Dist: protobuf>=4.25
+
+# Osmia Python Plugin SDK
+
+Use this SDK to build external Osmia plugins in Python. Plugins run as
+out-of-process gRPC servers, and the Osmia controller loads them at start-up
+via the hashicorp/go-plugin subprocess transport.
+
+## Prerequisites
+
+- Python 3.10 or later
+- `grpcio >= 1.60`
+- `grpcio-tools >= 1.60`
+- `protobuf >= 4.25`
+
+## Installation
+
+> **Note:** The package is not yet published to PyPI. This is a scaffold.
+> Install from source for now:
+
+```bash
+pip install -e sdk/python/
+```
+
+Once published, installation will be:
+
+```bash
+pip install osmia-plugin-sdk
+```
+
+## Generating protobuf stubs
+
+Run this from the repository root. It regenerates all Python
+(and TypeScript) stubs from the canonical `proto/` definitions:
+
+```bash
+make sdk-gen
+```
+
+Generated files are written to `sdk/python/src/osmia/proto/`. Do not
+edit them by hand; every `make sdk-gen` run overwrites them.
+
+## Quick start: ticketing plugin
+
+```python
+import grpc
+from concurrent import futures
+
+# Generated stubs. Run `make sdk-gen` first.
+from osmia.proto import ticketing_pb2, ticketing_pb2_grpc, common_pb2
+
+INTERFACE_VERSION = 1
+
+
+class MyTicketingPlugin(ticketing_pb2_grpc.TicketingBackendServicer):
+    """A minimal custom ticketing backend."""
+
+    def Handshake(self, request, context):
+        return common_pb2.HandshakeResponse(
+            interface_version=INTERFACE_VERSION,
+            plugin_name="my-ticketing",
+            plugin_version="0.1.0",
+        )
+
+    def PollReadyTickets(self, request, context):
+        # Return tickets ready for the agent to process.
+        return ticketing_pb2.PollReadyTicketsResponse(tickets=[])
+
+    def MarkComplete(self, request, context):
+        return ticketing_pb2.MarkCompleteResponse()
+
+
+if __name__ == "__main__":
+    from osmia.plugin import PluginBase
+    PluginBase.serve(MyTicketingPlugin())
+```
+
+## Further reading
+
+Full plugin authoring guide:
+<https://unitaryai.github.io/osmia/plugins/writing-a-plugin/>

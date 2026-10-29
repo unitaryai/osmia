@@ -143,9 +143,9 @@ async function main(): Promise<void> {
   const channel = new TeamsNotificationChannel(TEAMS_WEBHOOK_URL);
   console.log(`teams channel initialised: ${channel.name} v${channel.interfaceVersion}`);
 
-  // When the SDK is available:
-  // import { serve } from '@unitaryai/osmia-plugin-sdk';
-  // serve(channel, { interface: 'notifications' });
+  // The SDK does not provide a gRPC server helper yet; it exports only
+  // PluginBase and SDK_VERSION. Serving this channel needs the generated
+  // stubs from `make sdk-gen` and a go-plugin compatible gRPC server.
 }
 
 main().catch((err) => {

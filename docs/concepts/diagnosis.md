@@ -43,15 +43,14 @@ The prescription is appended after the original task prompt, so the agent receiv
 
 ## Engine switching
 
-When the diagnosis suggests the failure is engine-specific (for example, `model_confusion` on an engine with known oscillation issues), the `RetryBuilder` can switch to a different engine for the retry attempt. You configure this per failure mode in the diagnosis config.
+When the diagnosis suggests the failure is engine-specific (for example, `model_confusion` on an engine with known oscillation issues), the `RetryBuilder` can switch to a different engine for the retry attempt. Engine switching is off by default and is turned on for all failure modes with `enable_engine_switch`.
 
 ## Configuration
 
 ```yaml
 diagnosis:
   enabled: true
-  switch_engine_on:
-    - model_confusion   # retry with fallback engine when confused
+  enable_engine_switch: true   # allow a retry on the fallback engine
 ```
 
 ## Relationship to the watchdog

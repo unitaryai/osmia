@@ -21,10 +21,10 @@ See `examples/karpenter/nodepool.yaml` for an example configuration.
 
 The example makes these choices:
 
-- Spot instances, to save cost. Jobs are stateless and retryable.
+- On-Demand instances. Spot is cheaper, but a reclaimed node loses the agent's progress and every token it has spent, so the example NodePool in `examples/karpenter/nodepool.yaml` requires On-Demand.
 - Taints, to keep agent workloads apart from production services.
 - `WhenEmpty` consolidation, so running jobs are not disrupted.
-- A mix of c6i, c7i and m6i instance types, to improve spot availability.
+- A mix of c6i, c7i and m6i instance types, to improve availability.
 - CPU limits, to cap infrastructure spend.
 
 ### Tolerations

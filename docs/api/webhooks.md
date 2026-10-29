@@ -15,7 +15,7 @@ the plugin gRPC API; see [Plugin gRPC API](plugins.md) for the plugin system.
 | Configuration key | Default | Description |
 |---|---|---|
 | `webhook.port` | `8080` | TCP port the webhook server listens on. |
-| `webhook.secrets.<source>` | None | Per-source signing secret. Required for all sources except Shortcut (optional) and Generic (depends on `auth_mode`). |
+| `webhook.<source>.secret` | None | Per-source signing secret, where `<source>` is `github`, `gitlab`, `slack`, `shortcut`, `generic` or `incident_io`. Required for all sources except Shortcut (optional) and Generic (depends on `auth_mode`). |
 | `webhook.path_prefix` | `/webhooks` | Base path prepended to all route registrations. Not configurable at present; all routes are hard-coded under `/webhooks/`. |
 
 A health-check endpoint is available at `GET /healthz` and returns `200 OK`
@@ -135,7 +135,7 @@ POST /webhooks/shortcut
 ### Authentication
 
 Shortcut signature validation is optional. If a secret is configured under
-`webhook.secrets.shortcut`, the `X-Shortcut-Signature` header is validated
+`webhook.shortcut.secret`, the `X-Shortcut-Signature` header is validated
 using HMAC-SHA256. The header value may be sent with or without a `sha256=`
 prefix. Both formats are accepted.
 
@@ -306,9 +306,18 @@ Given the mapping above, a minimal triggering payload would be:
 }
 ```
 
-Alternatively, without field mapping configured, a flat payload with top-level
-`title`, `description` and `repo_url` fields will work when the mapping keys
-match those names directly.
+There is no automatic mapping. Fields are copied into the ticket only through
+`field_mapping`, and a request whose mapping produces no `id` is rejected with
+`400 missing ticket id in payload`. A flat payload still needs a mapping, even
+when its keys already have the right names:
+
+```yaml
+field_mapping:
+  id: id
+  title: title
+  description: description
+  repo_url: repo_url
+```
 
 ---
 

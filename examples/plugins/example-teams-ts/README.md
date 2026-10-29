@@ -37,8 +37,12 @@ plugins:
   notifications:
     teams:
       command: "node /opt/osmia/plugins/osmia-plugin-teams/dist/index.js"
-      interface_version: 1
+      interface_version: 3
 ```
+
+The controller expects notifications interface version 3. This example still
+reports version 1 from `interfaceVersion` and has not been updated to the
+version 3 contract, so update it before relying on it.
 
 ## Environment Variables
 

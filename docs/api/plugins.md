@@ -56,7 +56,7 @@ The protobuf `Handshake` RPC is a required part of the external plugin contract 
 
 If the declared `interface_version` does not match what the controller expects, `LoadPlugin` returns an error and no plugin instance is created or stored. The plugin is never registered, so there is no health state to mark. Restarting cannot resolve a version mismatch.
 
-The current `interface_version` for most services is 1. SCM is version 2 (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread` and `GetDiff` were added).
+The current `interface_version` is 1 for ticketing, approval, secrets and review. Notifications is version 3 and SCM is version 2 (bumped when `ListReviewComments`, `ReplyToComment`, `ResolveThread` and `GetDiff` were added). These values come from `knownInterfaceVersions` in `pkg/plugin/host.go`.
 
 ---
 
@@ -108,8 +108,11 @@ by the engine.
 
 Ticketing backends poll external issue trackers for ready tickets and manage
 ticket lifecycle transitions throughout the TaskRun state machine. Built-in
-backends (GitHub Issues, Shortcut, Linear) are compiled into the controller binary. Other
-backends, such as Jira, run as gRPC subprocesses.
+backends (GitHub Issues, Shortcut, Linear) are compiled into the controller binary.
+The controller does not load external plugin subprocesses yet: the plugin host in
+`pkg/plugin/host.go` exists, but nothing in the controller calls it, and
+`ticketing.backend` accepts only the built-in names. The Jira example in
+`examples/plugins/` is a starting template, not a backend you can deploy today.
 
 ### RPCs
 

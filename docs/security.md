@@ -57,8 +57,9 @@ before creating a TaskRun:
 - Allowed repositories: the ticket's `RepoURL` is matched against a
   configurable glob list (`guardrails.allowed_repos`). Unrecognised repositories
   are rejected.
-- Allowed task types: the ticket's `TicketType` must appear in
-  `guardrails.allowed_task_types`.
+- Allowed task types: when the ticket has a `TicketType`, it must appear in
+  `guardrails.allowed_task_types`. A ticket with no type is not checked
+  against this list.
 - Concurrent job limit: `guardrails.max_concurrent_jobs` (default: 5)
   prevents resource exhaustion.
 

@@ -12,6 +12,9 @@ Osmia is extended through plugins: modular backends that integrate with external
 
 Both types implement the same logical interface; they differ only in how they are compiled, deployed and loaded.
 
+!!! warning "External plugins are not loaded yet"
+    The controller does not start third-party plugin subprocesses today. The plugin host (`pkg/plugin/host.go`) is written but not called from the controller, and config such as `ticketing.backend: jira` is rejected as unsupported. The guidance on third-party plugins below describes the intended contract; use the examples in `examples/plugins/` as templates until loading is wired in.
+
 ## Plugin interfaces
 
 Every plugin implements one of six interfaces, defined as protobuf services in `proto/` with corresponding Go interfaces in `pkg/plugin/`:
@@ -322,7 +325,7 @@ The current `interface_version` for each interface is defined as a constant in t
 | Interface | Version | Constant |
 |-----------|---------|----------|
 | Ticketing | 1 | `ticketing.InterfaceVersion` |
-| Notifications | 1 | `notifications.InterfaceVersion` |
+| Notifications | 3 | `notifications.InterfaceVersion` |
 | Approval | 1 | `approval.InterfaceVersion` |
 | Secrets | 1 | `secrets.InterfaceVersion` |
 | Review | 1 | `review.InterfaceVersion` |

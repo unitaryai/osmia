@@ -84,6 +84,9 @@ prm:
 
 ### Configuration fields
 
+!!! warning "Set every field"
+    The defaults below are what `prm.DefaultConfig()` uses, but the controller does not apply them when loading `osmia-config.yaml`. Any field you leave out is zero. In particular, `evaluation_interval: 0` makes the evaluator divide by zero on the first tool call, so always set it.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `enabled` | bool | `false` | Enables PRM scoring of agent tool calls |

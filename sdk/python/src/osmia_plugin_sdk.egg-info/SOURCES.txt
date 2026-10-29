@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-src/osmia/__init__.py
-src/osmia/plugin.py
-src/osmia_plugin_sdk.egg-info/PKG-INFO
-src/osmia_plugin_sdk.egg-info/SOURCES.txt
-src/osmia_plugin_sdk.egg-info/dependency_links.txt
-src/osmia_plugin_sdk.egg-info/requires.txt
-src/osmia_plugin_sdk.egg-info/top_level.txt

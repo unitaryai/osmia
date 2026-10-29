@@ -119,7 +119,7 @@ See [Session Persistence](../plugins/engines.md#session-persistence) and [Contin
 
 ### Causal diagnosis
 
-With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective action (`internal/diagnosis/`). When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:
+With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective action (`internal/diagnosis/`). When a task fails, a diagnosis pipeline analyses the watchdog reason and result data to classify the failure. The stream transcript is not passed to it yet, so checks that rely on agent events see none:
 
 | Failure mode | Example | Corrective action |
 |---|---|---|
@@ -129,9 +129,9 @@ With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective act
 | `ScopeCreep` | Too many files changed | "Limit changes to at most [N] files." |
 | `PermissionBlocked` | `EACCES` errors | "Try [alternative approach] that doesn't require elevated permissions." |
 | `ModelConfusion` | Repeated undo/redo cycles | "Take a step-by-step approach." |
-| `InfraFailure` | OOMKilled, timeout | No retry. The diagnosis is recorded and the task is not run again, since the same infrastructure would fail the same way |
+| `InfraFailure` | OOMKilled, timeout | No retry on the same engine. The diagnosis is recorded and the task is not run again, since the same infrastructure would fail the same way. Exception: if an engine fallback chain is configured, the next engine is launched before diagnosis runs, so an infrastructure failure still moves to the fallback engine |
 
-The diagnosis is injected into the retry prompt alongside the original task, and the system can switch to a different engine if the failure is engine-specific.
+The diagnosis is injected into the retry prompt alongside the original task. Switching engine based on the diagnosis is not active yet; see [Causal diagnosis](diagnosis.md#engine-switching).
 
 ## Heartbeats and staleness
 

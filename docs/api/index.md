@@ -4,7 +4,7 @@ Osmia has two API surfaces:
 
 | API | Description | Reference |
 |---|---|---|
-| Webhook HTTP API | An HTTP server that receives events from GitHub, GitLab, Shortcut and Slack and passes them to the controller as tickets. | [Webhook API](webhooks.md) |
+| Webhook HTTP API | An HTTP server that receives events from GitHub, GitLab, Shortcut, Slack, incident.io and generic sources and passes them to the controller as tickets. | [Webhook API](webhooks.md) |
 | Plugin gRPC API | Protobuf services that plugins implement to connect ticketing systems, notification channels, secrets vaults, SCM providers, review tools and execution engines. | [Plugin gRPC API](plugins.md) |
 
 ## Webhook HTTP API

@@ -40,6 +40,15 @@ const (
 	Unknown FailureMode = "unknown"
 )
 
+// IsEngineSpecific reports whether a failure mode points at the engine
+// rather than the task, so that a different engine might succeed where this
+// one did not. Only ModelConfusion qualifies today: the other modes describe
+// the task, the repository or the environment, which a new engine would meet
+// in the same state.
+func IsEngineSpecific(mode FailureMode) bool {
+	return mode == ModelConfusion
+}
+
 // AllFailureModes is a convenience slice of all defined failure modes.
 var AllFailureModes = []FailureMode{
 	WrongApproach,

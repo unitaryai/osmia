@@ -39,6 +39,37 @@ func DefaultConfig() Config {
 	}
 }
 
+// WithDefaults returns c with every unset field (zero, or negative for the
+// counts) replaced by its value from DefaultConfig. Enabled is left as is.
+//
+// Configuration is loaded from YAML, where a field that is left out arrives
+// as zero, and the loader does not apply PRM defaults. A zero
+// EvaluationInterval is used as a modulus, so without this an operator who
+// set only `prm.enabled: true` crashed the controller on the first tool
+// call.
+func (c Config) WithDefaults() Config {
+	d := DefaultConfig()
+	if c.EvaluationInterval <= 0 {
+		c.EvaluationInterval = d.EvaluationInterval
+	}
+	if c.WindowSize <= 0 {
+		c.WindowSize = d.WindowSize
+	}
+	if c.ScoreThresholdNudge == 0 {
+		c.ScoreThresholdNudge = d.ScoreThresholdNudge
+	}
+	if c.ScoreThresholdEscalate == 0 {
+		c.ScoreThresholdEscalate = d.ScoreThresholdEscalate
+	}
+	if c.HintFilePath == "" {
+		c.HintFilePath = d.HintFilePath
+	}
+	if c.MaxTrajectoryLength <= 0 {
+		c.MaxTrajectoryLength = d.MaxTrajectoryLength
+	}
+	return c
+}
+
 // Evaluator is the main entry point for the PRM subsystem. It accumulates
 // stream events, periodically scores agent behaviour, tracks the score
 // trajectory, and decides whether intervention is needed.
@@ -56,7 +87,9 @@ type Evaluator struct {
 }
 
 // NewEvaluator creates a fully wired Evaluator from the given configuration.
+// Unset fields take their defaults; see Config.WithDefaults.
 func NewEvaluator(cfg Config, logger *slog.Logger) *Evaluator {
+	cfg = cfg.WithDefaults()
 	return &Evaluator{
 		config:     cfg,
 		logger:     logger,

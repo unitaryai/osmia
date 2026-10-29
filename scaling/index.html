@@ -2140,10 +2140,10 @@
 <p>See <code>examples/karpenter/nodepool.yaml</code> for an example configuration.</p>
 <p>The example makes these choices:</p>
 <ul>
-<li>Spot instances, to save cost. Jobs are stateless and retryable.</li>
+<li>On-Demand instances. Spot is cheaper, but a reclaimed node loses the agent's progress and every token it has spent, so the example NodePool in <code>examples/karpenter/nodepool.yaml</code> requires On-Demand.</li>
 <li>Taints, to keep agent workloads apart from production services.</li>
 <li><code>WhenEmpty</code> consolidation, so running jobs are not disrupted.</li>
-<li>A mix of c6i, c7i and m6i instance types, to improve spot availability.</li>
+<li>A mix of c6i, c7i and m6i instance types, to improve availability.</li>
 <li>CPU limits, to cap infrastructure spend.</li>
 </ul>
 <h3 id="tolerations">Tolerations<a class="headerlink" href="#tolerations" title="Permanent link">&para;</a></h3>

@@ -2776,7 +2776,7 @@
 </tr>
 <tr>
 <td><code>quality_gate</code></td>
-<td>Optional AI-powered review of agent output before merging</td>
+<td>Review of agent output before merging. Not built yet: the settings are read but have no effect</td>
 </tr>
 <tr>
 <td><code>review</code></td>
@@ -3048,7 +3048,7 @@
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">fallback_engines</span><span class="p">:</span><span class="w">        </span><span class="c1"># Tried in order if the default fails</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">codex</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aider</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">claude_code</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nt">auth</span><span class="p">:</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">      </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api_key</span>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">      </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="s">"osmia-anthropic-key"</span>
@@ -3094,7 +3094,7 @@
 <p>Agent jobs re-check the registry for the engine image every time they start, unless the image is pinned by digest. A tag such as <code>main</code> is rewritten on every build, and without this a node that had downloaded an earlier <code>main</code> would keep running it, so which version a job got depended on which node it landed on. Layers the node already has are not downloaded again, so an unchanged tag costs one small registry request.</p>
 <p>The trade-off is that a job on a tagged image cannot start while the registry is unreachable, even on a node that already has the image. If you need jobs to survive a registry outage, or you run without registry access, pin the engine image by digest:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">claude_code</span><span class="p">:</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/osmia/engine-claude-code@sha256:&lt;digest&gt;</span>
 </code></pre></div>
 <p>A digest can only ever mean one image, so a node that already has it uses its cached copy without asking the registry. Pinning does not put the image on a node, though: a job scheduled onto a node that has never pulled that digest still needs the registry to fetch it. To keep jobs starting through an outage, or to run with no registry access at all, pre-pull the pinned image onto every node that can run agent jobs, for example by baking it into the node image or running a DaemonSet that references it, and pull it again whenever you change the digest.</p>
@@ -3322,6 +3322,10 @@ stronger one: it does not depend on knowing what any Secret contains.</p>
 <p>Set it for any credential a task must never be able to name, whether or not
 the collision check would catch it.</p>
 <h2 id="quality-gate">Quality gate<a class="headerlink" href="#quality-gate" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Not built yet</p>
+<p>The <code>quality_gate</code> settings are read from the config file, but the controller does not run a review yet. Setting <code>enabled: true</code> has no effect.</p>
+</div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">quality_gate</span><span class="p">:</span>
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">"post-completion"</span><span class="w">          </span><span class="c1"># or "security-only"</span>

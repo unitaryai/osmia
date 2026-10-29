@@ -1872,7 +1872,7 @@
 <tbody>
 <tr>
 <td>Webhook HTTP API</td>
-<td>An HTTP server that receives events from GitHub, GitLab, Shortcut and Slack and passes them to the controller as tickets.</td>
+<td>An HTTP server that receives events from GitHub, GitLab, Shortcut, Slack, incident.io and generic sources and passes them to the controller as tickets.</td>
 <td><a href="webhooks/">Webhook API</a></td>
 </tr>
 <tr>
@@ -1891,9 +1891,11 @@ reconciles. Each source has its own endpoint under <code>/webhooks/</code>:</p>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>POST /webhooks/slack
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>POST /webhooks/shortcut
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>POST /webhooks/generic
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>POST /webhooks/incident-io
 </code></pre></div>
-<p>All endpoints require a configured signing secret and validate signatures
-before processing the request body. See <a href="webhooks/">Webhook API</a> for the
+<p>Every endpoint validates a signature or token before processing the request
+body, with two exceptions: Shortcut checks its signature only when a secret is
+configured, and the generic endpoint depends on its <code>auth_mode</code>. See <a href="webhooks/">Webhook API</a> for the
 full reference.</p>
 <h2 id="plugin-grpc-api">Plugin gRPC API<a class="headerlink" href="#plugin-grpc-api" title="Permanent link">&para;</a></h2>
 <p>All plugin interfaces are defined as protobuf services in <code>proto/</code>, which is

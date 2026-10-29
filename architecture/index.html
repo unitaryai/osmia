@@ -2950,7 +2950,7 @@
 <p>For the full technical plan and product requirements, see <code>oss-plan.md</code>.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Osmia follows the Kubernetes operator pattern. A single controller binary runs inside the cluster and drives a reconciliation loop. It polls a ticketing backend for work, turns each ticket into a Kubernetes Job that runs an AI coding agent, watches the job until it finishes, and reports the result to the source control and ticketing systems.</p>
-<p>The controller does not generate code. It only orchestrates. The coding happens inside short-lived Kubernetes Jobs, each running one of the supported AI engines (Claude Code, OpenAI Codex or Aider). Because of this split, the controller can manage many concurrent agents across several repositories and organisations without depending on one AI provider.</p>
+<p>The controller does not generate code. It only orchestrates. The coding happens inside short-lived Kubernetes Jobs, each running one of the supported AI engines (Claude Code, OpenAI Codex, Aider, OpenCode or Cline). Because of this split, the controller can manage many concurrent agents across several repositories and organisations without depending on one AI provider.</p>
 <p>All external integrations (ticketing, notifications, approvals, secrets, SCM and code review) sit behind plugin interfaces. Built-in plugins compile directly into the controller binary; third-party plugins run as separate gRPC subprocesses managed by <code>hashicorp/go-plugin</code>.</p>
 <h2 id="system-architecture">System architecture<a class="headerlink" href="#system-architecture" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>graph TD
@@ -2969,7 +2969,7 @@
     Ctrl --&gt; WD["Watchdog Loop"]
     Ctrl --&gt; Approval["Approval Backend"]
     Ctrl --&gt; Notif["Notification Channel&lt;br/&gt;(Slack / Teams)"]
-    JB --&gt; Job["K8s Job&lt;br/&gt;(AI Agent Pod)&lt;br/&gt;Claude Code / Codex / Aider"]
+    JB --&gt; Job["K8s Job&lt;br/&gt;(AI Agent Pod)&lt;br/&gt;Claude Code / Codex / Aider /&lt;br/&gt;OpenCode / Cline"]
 
     Job --&gt;|result + branch| SCM["SCM Backend&lt;br/&gt;(GitHub / GitLab)&lt;br/&gt;create PR/MR"]
     Job --&gt;|result + branch| Review["Review Backend&lt;br/&gt;(CodeRabbit)&lt;br/&gt;auto-review"]</code></pre>
@@ -3107,6 +3107,14 @@
 <td>Aider</td>
 <td>Open-source AI pair programming tool. Supports multiple LLM backends.</td>
 </tr>
+<tr>
+<td>OpenCode</td>
+<td>Open-source terminal coding agent. Supports Anthropic, OpenAI and Google providers.</td>
+</tr>
+<tr>
+<td>Cline</td>
+<td>Open-source coding agent, run headless. Supports Anthropic, OpenAI, Google and Bedrock providers.</td>
+</tr>
 </tbody>
 </table>
 <p>The default engine is <code>claude-code</code>, configurable via <code>osmia-config.yaml</code>.</p>
@@ -3195,7 +3203,7 @@
 <p>Task profiles: configuration-driven profiles that define cost and duration limits per task type. The config schema is defined and values are stored, but per-task-type file pattern restrictions (<code>allowed_file_patterns</code>, <code>blocked_file_patterns</code>) are not yet enforced at runtime.</p>
 </li>
 <li>
-<p>Quality gate: an optional post-completion review step. A separate AI engine (or the same one) reviews the agent's output for security issues, OWASP patterns, leaked secrets, and dependency CVEs. Configurable responses include <code>retry_with_feedback</code>, <code>block_mr</code>, or <code>notify_human</code>.</p>
+<p>Quality gate (not built yet; the settings are read but have no effect): an optional post-completion review step. A separate AI engine (or the same one) reviews the agent's output for security issues, OWASP patterns, leaked secrets, and dependency CVEs. Configurable responses include <code>retry_with_feedback</code>, <code>block_mr</code>, or <code>notify_human</code>.</p>
 </li>
 <li>
 <p>Progress watchdog: a continuous monitoring loop that detects stalled, looping, or unproductive agents during execution. See below for details.</p>
@@ -3240,7 +3248,7 @@
 <li>Build spec: the selected engine produces an <code>ExecutionSpec</code> containing the container image, command, environment variables, secret references, resource limits, and deadline.</li>
 <li>Create job: the <code>JobBuilder</code> translates the spec into a <code>batch/v1.Job</code> with:</li>
 <li>Labels: <code>app=osmia-agent</code>, <code>osmia.io/task-run-id</code>, <code>osmia.io/engine</code></li>
-<li>Security context: <code>runAsNonRoot</code>, <code>runAsUser: 1000</code>, <code>readOnlyRootFilesystem</code>, <code>allowPrivilegeEscalation: false</code>, all capabilities dropped, <code>RuntimeDefault</code> seccomp profile</li>
+<li>Security context: <code>runAsNonRoot</code>, <code>runAsUser: 10000</code>, <code>readOnlyRootFilesystem</code>, <code>allowPrivilegeEscalation: false</code>, all capabilities dropped, <code>RuntimeDefault</code> seccomp profile</li>
 <li>Tolerations for the <code>osmia.io/agent</code> taint (to schedule on dedicated node pools)</li>
 <li><code>BackoffLimit: 0</code> (retries are handled by the controller, not Kubernetes)</li>
 <li><code>RestartPolicy: Never</code></li>
@@ -3424,7 +3432,7 @@
 <p>Every agent Job is created with a restrictive security context:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">securityContext</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">runAsNonRoot</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">runAsUser</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">runAsUser</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">readOnlyRootFilesystem</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">allowPrivilegeEscalation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">capabilities</span><span class="p">:</span>

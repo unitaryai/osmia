@@ -772,15 +772,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-six-layers" class="md-nav__link">
+  <a href="#the-six-core-layers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The six layers
+        The six core layers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="The six layers">
+    <nav class="md-nav" aria-label="The six core layers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -859,23 +859,6 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coming-soon" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coming soon
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Coming soon">
-      <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#layer-8-adaptive-watchdog-calibration" class="md-nav__link">
@@ -1935,15 +1918,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-six-layers" class="md-nav__link">
+  <a href="#the-six-core-layers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The six layers
+        The six core layers
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="The six layers">
+    <nav class="md-nav" aria-label="The six core layers">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -2023,23 +2006,6 @@
   
 </li>
         
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coming-soon" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coming soon
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Coming soon">
-      <ul class="md-nav__list">
-        
           <li class="md-nav__item">
   <a href="#layer-8-adaptive-watchdog-calibration" class="md-nav__link">
     <span class="md-ellipsis">
@@ -2104,8 +2070,8 @@
 
 
 <h1 id="guard-rails-overview">Guard rails overview<a class="headerlink" href="#guard-rails-overview" title="Permanent link">&para;</a></h1>
-<p>Guard rails are safety boundaries that stop AI agents doing things they should not. Osmia has six independent layers. If one fails, the others can still catch the problem.</p>
-<h2 id="the-six-layers">The six layers<a class="headerlink" href="#the-six-layers" title="Permanent link">&para;</a></h2>
+<p>Guard rails are safety boundaries that stop AI agents doing things they should not. Osmia has six core layers, shown below. If one fails, the others can still catch the problem. Two more layers adjust behaviour while agents run: real-time coaching (layer 7) and adaptive watchdog calibration (layer 8).</p>
+<h2 id="the-six-core-layers">The six core layers<a class="headerlink" href="#the-six-core-layers" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>graph LR
     A["📥 Incoming Ticket"] --&gt; B["1. Controller&lt;br/&gt;Validation"]
     B --&gt; C["2. Engine&lt;br/&gt;Hooks"]
@@ -2201,6 +2167,10 @@ What: different task types get different cost and duration budgets.</p>
 <p><code>max_cost_per_job</code> and <code>max_job_duration_minutes</code> overrides per task type are read from config. However, <code>allowed_file_patterns</code> and <code>blocked_file_patterns</code> at the profile level are not yet enforced at runtime. Only the global <code>blocked_file_patterns</code> is injected into engine hooks. Per-profile enforcement is on the roadmap.</p>
 </div>
 <h3 id="layer-5-quality-gate">Layer 5: Quality gate<a class="headerlink" href="#layer-5-quality-gate" title="Permanent link">&para;</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Not built yet</p>
+<p>The <code>quality_gate</code> settings are read from the config file, but the controller does not run a review yet. Setting <code>enabled: true</code> has no effect.</p>
+</div>
 <p>When: after the agent finishes, before the PR is created.
 What: a separate review step that checks the agent's output.</p>
 <p>The quality gate can:</p>
@@ -2274,21 +2244,18 @@ What: monitors agent behaviour and terminates unproductive agents.</p>
 What: evaluates agent productivity at each tool call and intervenes with guidance before problems escalate.</p>
 <div class="admonition info">
 <p class="admonition-title">Only applies to Claude Code</p>
-<p>The PRM operates on the NDJSON event stream which is only available from the Claude Code engine. Other engines are not scored by the PRM.</p>
+<p>The PRM works on the NDJSON event stream. Claude Code is currently the only engine that produces one, so other engines are not scored by the PRM.</p>
 </div>
 <p>The Process Reward Model (PRM) reads the NDJSON event stream from Claude Code. It scores each evaluation window of tool calls on a 1-10 scale, tracks the score trajectory over time, and decides on interventions:</p>
+<p>With the default thresholds:</p>
 <ul>
-<li>Score ≥ 7: the agent is productive, so continue.</li>
-<li>Score 4-6 with a negative trend: write a hint file (<code>/workspace/.osmia-hint.md</code>) with targeted guidance, such as "Your approach appears to be oscillating. Try committing to a single strategy."</li>
-<li>Score ≤ 3 with sustained decline: escalate to the watchdog for termination.</li>
+<li>Score 7 or above: the agent is productive, so continue.</li>
+<li>Score 3 or below with a sustained decline: escalate to the watchdog for termination.</li>
+<li>Any other score below 7 with a declining trend, oscillation or plateau: write a hint file (<code>/workspace/.osmia-hint.md</code>) with targeted guidance, such as "Your approach appears to be oscillating. Try committing to a single strategy."</li>
 </ul>
 <p>Unlike the watchdog, which detects anomalies in raw telemetry, the PRM evaluates <em>productivity patterns</em>: whether the agent is making progress toward the goal, not only whether it is alive.</p>
-<h2 id="coming-soon">Coming soon<a class="headerlink" href="#coming-soon" title="Permanent link">&para;</a></h2>
-<blockquote>
-<p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>
-</blockquote>
 <h3 id="layer-8-adaptive-watchdog-calibration">Layer 8: Adaptive watchdog calibration<a class="headerlink" href="#layer-8-adaptive-watchdog-calibration" title="Permanent link">&para;</a></h3>
-<p>When: applied automatically once enough historical data accumulates.
+<p>When: with <code>progress_watchdog.adaptive_calibration.enabled: true</code>, once enough historical data has accumulated.
 What: replaces static watchdog thresholds with adaptive per-(repo, engine, task_type) thresholds.</p>
 <p>A bug fix in a small Python script has very different "normal" telemetry from a TypeScript monorepo refactor. Static thresholds either miss real anomalies in simple tasks or give false positives on complex ones. Adaptive calibration learns what "normal" looks like for each context from historical TaskRun data.</p>
 <p>Cold-start safety: a minimum of 10 completed TaskRuns for a given context is required before calibrated thresholds override static defaults.</p>
@@ -2299,10 +2266,10 @@ What: replaces static watchdog thresholds with adaptive per-(repo, engine, task_
 <li>Engine hooks would block writes to <code>.github/workflows/**</code> if configured. ✅ Blocked if needed.</li>
 <li>The repository <code>guardrails.md</code> says "Never modify CI/CD pipeline configuration", so the agent should avoid it (advisory).</li>
 <li>The task profile for the <code>infrastructure</code> type defines a lower cost budget. ✅ Enforced. (File pattern enforcement is on the roadmap.)</li>
-<li>The quality gate scans the output and flags it if deployment files were changed. ✅ Caught.</li>
+<li>The quality gate would flag changes to deployment files. Not built yet.</li>
 <li>The watchdog stops the agent looping endlessly while it looks for the right file. ✅ Monitored.</li>
 </ol>
-<p>If the agent ignores layer 3 (prompt-based), layers 2 and 5 still catch the problem.</p>
+<p>If the agent ignores layer 3 (prompt-based), layer 2 still catches the problem, provided the hooks are configured.</p>
 <h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../../guardrails/">Guard Rails (Detailed)</a>: configuration reference for all guard rail options</li>

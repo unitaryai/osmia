@@ -2134,7 +2134,7 @@
 <li>Early detection of repetitive loops, stalls and declining productivity.</li>
 <li>Specific hints rather than a generic "try again".</li>
 <li>Lower token spend on failing tasks, by up to 60%.</li>
-<li>No change to the agent: it works only on observable telemetry, with any engine that produces streaming events.</li>
+<li>No change to the agent: it works only on observable telemetry, with any engine that produces an event stream. Today that is Claude Code only.</li>
 <li>Configurable thresholds, so you can tune sensitivity per environment.</li>
 </ul>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
@@ -2221,7 +2221,7 @@
 <ul>
 <li>Continue: the agent is productive, so no action is needed.</li>
 <li>Nudge: log a structured hint with specific guidance (for example, "Consider a different approach. You've been editing the same file 8 times without running tests").</li>
-<li>Escalate: signal the watchdog to consider terminating the job with diagnostic feedback.</li>
+<li>Escalate: log that the agent needs stronger intervention. The controller defers this to the watchdog but does not act on it directly yet, so an escalation alone does not stop the job.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>Enable PRM in your <code>osmia-config.yaml</code>:</p>
@@ -2229,12 +2229,13 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">evaluation_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">        </span><span class="c1"># Evaluate every N tool calls</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">window_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">               </span><span class="c1"># Rolling window of recent events</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">      </span><span class="c1"># Score below this triggers a nudge</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">   </span><span class="c1"># Score below this triggers escalation</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">score_threshold_nudge</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span><span class="w">      </span><span class="c1"># Below this, a declining or stuck agent gets a hint</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">score_threshold_escalate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">   </span><span class="c1"># At or below this, a sustained decline is escalated</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">hint_file_path</span><span class="p">:</span><span class="w"> </span><span class="s">"/workspace/.osmia-hint.md"</span>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">max_trajectory_length</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">     </span><span class="c1"># Maximum trajectory points stored</span>
 </code></pre></div>
 <h3 id="configuration-fields">Configuration fields<a class="headerlink" href="#configuration-fields" title="Permanent link">&para;</a></h3>
+<p>Any field you leave out takes the default below. A field set to zero is treated as left out, and so are negative values for <code>evaluation_interval</code>, <code>window_size</code> and <code>max_trajectory_length</code>.</p>
 <table>
 <thead>
 <tr>
@@ -2265,15 +2266,15 @@
 </tr>
 <tr>
 <td><code>score_threshold_nudge</code></td>
-<td>float</td>
-<td><code>7.0</code></td>
-<td>Scores below this produce a nudge intervention</td>
+<td>int</td>
+<td><code>7</code></td>
+<td>Below this score, a declining trend, oscillation or plateau produces a nudge</td>
 </tr>
 <tr>
 <td><code>score_threshold_escalate</code></td>
-<td>float</td>
-<td><code>3.0</code></td>
-<td>Scores below this produce an escalation</td>
+<td>int</td>
+<td><code>3</code></td>
+<td>At or below this score, a sustained decline produces an escalation</td>
 </tr>
 <tr>
 <td><code>hint_file_path</code></td>

@@ -2415,6 +2415,10 @@
 <li>Third-party plugins are standalone processes that talk gRPC through <a href="https://github.com/hashicorp/go-plugin">hashicorp/go-plugin</a>. They can be written in any language and suit organisation-specific integrations (Jira, PagerDuty, Slack).</li>
 </ol>
 <p>Both types implement the same logical interface; they differ only in how they are compiled, deployed and loaded.</p>
+<div class="admonition warning">
+<p class="admonition-title">External plugins are not loaded yet</p>
+<p>The controller does not start third-party plugin subprocesses today. The plugin host (<code>pkg/plugin/host.go</code>) is written but not called from the controller, and config such as <code>ticketing.backend: jira</code> is rejected as unsupported. Everything below about third-party plugins (how they are spawned, health checks and restarts, Helm deployment and the <code>plugins:</code> config) describes the planned behaviour, not what runs today. Use the examples in <code>examples/plugins/</code> as templates until loading is wired in.</p>
+</div>
 <h2 id="plugin-interfaces">Plugin interfaces<a class="headerlink" href="#plugin-interfaces" title="Permanent link">&para;</a></h2>
 <p>Every plugin implements one of six interfaces, defined as protobuf services in <code>proto/</code> with corresponding Go interfaces in <code>pkg/plugin/</code>:</p>
 <table>
@@ -2588,7 +2592,7 @@
 </code></pre></div>
 <p>Packaged with a <code>Dockerfile</code> and <code>pyproject.toml</code>. See the full source for details.</p>
 <h3 id="typescript-example">TypeScript example<a class="headerlink" href="#typescript-example" title="Permanent link">&para;</a></h3>
-<p>A Teams notification plugin is provided at <code>examples/plugins/example-teams-ts/</code>. Key excerpt from <code>src/index.ts</code>:</p>
+<p>A Teams notification plugin is provided at <code>examples/plugins/example-teams-ts/</code>. It predates notifications interface version 3 and still reports version 1, so treat it as a template to update rather than a working plugin. Key excerpt from <code>src/index.ts</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kd">class</span><span class="w"> </span><span class="nx">TeamsNotificationChannel</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nx">get</span><span class="w"> </span><span class="nx">name</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s1">'teams'</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nx">get</span><span class="w"> </span><span class="nx">interfaceVersion</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mf">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
@@ -2729,7 +2733,7 @@
 </tr>
 <tr>
 <td>Notifications</td>
-<td>1</td>
+<td>3</td>
 <td><code>notifications.InterfaceVersion</code></td>
 </tr>
 <tr>

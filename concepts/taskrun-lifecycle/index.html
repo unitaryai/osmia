@@ -789,10 +789,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#causal-diagnosis-coming-soon" class="md-nav__link">
+  <a href="#causal-diagnosis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Causal diagnosis (coming soon)
+        Causal diagnosis
       
     </span>
   </a>
@@ -2008,10 +2008,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#causal-diagnosis-coming-soon" class="md-nav__link">
+  <a href="#causal-diagnosis" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Causal diagnosis (coming soon)
+        Causal diagnosis
       
     </span>
   </a>
@@ -2266,11 +2266,8 @@
 <p><strong>Note:</strong> Session persistence and user-prompted continuation currently require the Claude Code engine. Other engines (Codex, Aider, OpenCode) use git-based continuation only.</p>
 </blockquote>
 <p>See <a href="../../plugins/engines/#session-persistence">Session Persistence</a> and <a href="../../plugins/engines/#continuation-prompts">Continuation Prompts</a> in the Claude Code engine docs for configuration details.</p>
-<h3 id="causal-diagnosis-coming-soon">Causal diagnosis (coming soon)<a class="headerlink" href="#causal-diagnosis-coming-soon" title="Permanent link">&para;</a></h3>
-<blockquote>
-<p><strong>Status:</strong> Scaffolding complete, integration pending. See <code>docs/roadmap.md</code> Phase I.</p>
-</blockquote>
-<p>Osmia is building a causal diagnosis system (<code>internal/diagnosis/</code>) that replaces blind retries with corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:</p>
+<h3 id="causal-diagnosis">Causal diagnosis<a class="headerlink" href="#causal-diagnosis" title="Permanent link">&para;</a></h3>
+<p>With <code>diagnosis.enabled: true</code>, Osmia replaces blind retries with corrective action (<code>internal/diagnosis/</code>). When a task fails, a diagnosis pipeline analyses the watchdog reason, the result data and the run's most recent stream events (up to the last 500) to classify the failure. Diagnosis runs before a fallback engine is chosen, and only when a fallback or retry is still possible:</p>
 <table>
 <thead>
 <tr>
@@ -2313,11 +2310,11 @@
 <tr>
 <td><code>InfraFailure</code></td>
 <td>OOMKilled, timeout</td>
-<td>Engine switch or resource adjustment</td>
+<td>No retry and no fallback engine. The task is not run again, since the same infrastructure would fail the same way</td>
 </tr>
 </tbody>
 </table>
-<p>The diagnosis is injected into the retry prompt alongside the original task, and the system can switch to a different engine if the failure is engine-specific.</p>
+<p>The diagnosis is injected into the retry prompt alongside the original task. With <code>diagnosis.enable_engine_switch</code>, an engine-specific failure also moves the retry to an engine the task has not tried; see <a href="../diagnosis/#engine-switching">Causal diagnosis</a>.</p>
 <h2 id="heartbeats-and-staleness">Heartbeats and staleness<a class="headerlink" href="#heartbeats-and-staleness" title="Permanent link">&para;</a></h2>
 <p>Each TaskRun carries a <code>HeartbeatAt</code> timestamp. The agent container is expected to push heartbeats at regular intervals (via the PostToolUse hook). If the time since the last heartbeat exceeds <code>heartbeat_ttl_seconds</code> (default: 300), the TaskRun is considered stale and the watchdog may intervene.</p>
 <h2 id="idempotency">Idempotency<a class="headerlink" href="#idempotency" title="Permanent link">&para;</a></h2>

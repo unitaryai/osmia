@@ -2644,7 +2644,7 @@ local Unix socket.</p>
 </ol>
 <p>The protobuf <code>Handshake</code> RPC is a required part of the external plugin contract (plugins must implement it) and will be called by the controller once generated proto stubs are available. Until then, operators must ensure <code>interface_version</code> in config matches the binary they deploy.</p>
 <p>If the declared <code>interface_version</code> does not match what the controller expects, <code>LoadPlugin</code> returns an error and no plugin instance is created or stored. The plugin is never registered, so there is no health state to mark. Restarting cannot resolve a version mismatch.</p>
-<p>The current <code>interface_version</code> for most services is 1. SCM is version 2 (bumped when <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code> and <code>GetDiff</code> were added).</p>
+<p>The current <code>interface_version</code> is 1 for ticketing, approval, secrets and review. Notifications is version 3 and SCM is version 2 (bumped when <code>ListReviewComments</code>, <code>ReplyToComment</code>, <code>ResolveThread</code> and <code>GetDiff</code> were added). These values come from <code>knownInterfaceVersions</code> in <code>pkg/plugin/host.go</code>.</p>
 <hr />
 <h2 id="shared-message-types-protocommonproto">Shared message types (<code>proto/common.proto</code>)<a class="headerlink" href="#shared-message-types-protocommonproto" title="Permanent link">&para;</a></h2>
 <p>The following types are defined in <code>proto/common.proto</code> and referenced by
@@ -2777,8 +2777,11 @@ by the engine.</p>
 <h2 id="ticketingbackend-prototicketingproto"><code>TicketingBackend</code> (<code>proto/ticketing.proto</code>)<a class="headerlink" href="#ticketingbackend-prototicketingproto" title="Permanent link">&para;</a></h2>
 <p>Ticketing backends poll external issue trackers for ready tickets and manage
 ticket lifecycle transitions throughout the TaskRun state machine. Built-in
-backends (GitHub Issues) are compiled into the controller binary. External
-backends (Jira, Linear, Shortcut) run as gRPC subprocesses.</p>
+backends (GitHub Issues, Shortcut, Linear) are compiled into the controller binary.
+The controller does not load external plugin subprocesses yet: the plugin host in
+<code>pkg/plugin/host.go</code> exists, but nothing in the controller calls it, and
+<code>ticketing.backend</code> accepts only the built-in names. The Jira example in
+<code>examples/plugins/</code> is a starting template, not a backend you can deploy today.</p>
 <h3 id="rpcs">RPCs<a class="headerlink" href="#rpcs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

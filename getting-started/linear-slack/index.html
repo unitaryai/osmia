@@ -2121,13 +2121,14 @@
 <p>Copy the <code>id</code> value. You will need it for the config.</p>
 <hr />
 <h2 id="step-3-create-the-required-labels">Step 3: Create the required labels<a class="headerlink" href="#step-3-create-the-required-labels" title="Permanent link">&para;</a></h2>
-<p>Osmia uses two labels to track issue state:</p>
+<p>Osmia uses three labels to track issue state:</p>
 <ol>
 <li>In Linear, go to <strong>Settings → Labels</strong>.</li>
 <li>Create a label named <code>osmia</code>. This is the trigger label you add to issues you want the agent to pick up.</li>
+<li>Create a label named <code>in-progress</code>, if it does not already exist. Osmia adds this when it starts work on an issue.</li>
 <li>Create a label named <code>osmia-failed</code>. Osmia adds this when a task fails, so the issue is not retried automatically.</li>
 </ol>
-<p>The <code>in-progress</code> label is typically already present in Linear. If not, create it too.</p>
+<p>Osmia skips issues that carry <code>in-progress</code> or <code>osmia-failed</code>.</p>
 <hr />
 <h2 id="step-4-create-a-slack-bot">Step 4: Create a Slack bot<a class="headerlink" href="#step-4-create-a-slack-bot" title="Permanent link">&para;</a></h2>
 <ol>

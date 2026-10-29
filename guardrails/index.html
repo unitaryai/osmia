@@ -2275,6 +2275,10 @@
 </code></pre></div>
 <p>The controller selects the profile based on ticket labels or the <code>ticket_type</code> field from the ticketing backend.</p>
 <h2 id="5-quality-gate">5. Quality gate<a class="headerlink" href="#5-quality-gate" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Not built yet</p>
+<p>The <code>quality_gate</code> settings are read from the config file, but the controller does not run a review yet. Setting <code>enabled: true</code> has no effect.</p>
+</div>
 <p>An optional post-completion review that runs as a separate K8s Job:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">quality_gate</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>

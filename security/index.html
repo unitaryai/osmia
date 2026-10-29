@@ -2459,9 +2459,13 @@ codebases.</p>
 </table>
 <hr />
 <h2 id="defence-in-depth-the-six-guard-rail-layers">Defence in depth: the six guard rail layers<a class="headerlink" href="#defence-in-depth-the-six-guard-rail-layers" title="Permanent link">&para;</a></h2>
-<p>Osmia enforces safety through six independent layers. Layers 1, 2, 5, and 6
-are enforced by the controller at runtime. Layers 3 and 4 are advisory or
-partially implemented; see the notes under each layer and the <a href="../roadmap/">roadmap</a>.</p>
+<p>Osmia is designed around six independent layers. Layers 1, 2 and 6 are
+enforced at runtime, with two conditions. Layer 2 is enforced by hooks only for
+Claude Code; other engines receive the same rules as prompt text, which the
+agent is asked but not forced to follow. Layer 6, the watchdog, runs only when
+<code>progress_watchdog.enabled</code> is true, which the Helm chart does not set by
+default. Layers 3 and 4 are advisory or partially implemented, and
+layer 5 is not built yet; see the notes under each layer and the <a href="../roadmap/">roadmap</a>.</p>
 <pre class="mermaid"><code>graph LR
     A["Incoming&lt;br/&gt;Ticket"] --&gt; L1["1. Controller&lt;br/&gt;Validation"]
     L1 --&gt; L2["2. Engine&lt;br/&gt;Hooks"]
@@ -2475,11 +2479,12 @@ partially implemented; see the notes under each layer and the <a href="../roadma
 before creating a TaskRun:</p>
 <ul>
 <li>Allowed repositories: the ticket's <code>RepoURL</code> is matched against a
-  configurable glob list (<code>guard_rails.allowed_repos</code>). Unrecognised repositories
+  configurable glob list (<code>guardrails.allowed_repos</code>). Unrecognised repositories
   are rejected.</li>
-<li>Allowed task types: the ticket's <code>TicketType</code> must appear in
-  <code>guard_rails.allowed_task_types</code>.</li>
-<li>Concurrent job limit: <code>guard_rails.max_concurrent_jobs</code> (default: 5)
+<li>Allowed task types: when the ticket has a <code>TicketType</code>, it must appear in
+  <code>guardrails.allowed_task_types</code>. A ticket with no type is not checked
+  against this list.</li>
+<li>Concurrent job limit: <code>guardrails.max_concurrent_jobs</code> (default: 5)
   prevents resource exhaustion.</li>
 </ul>
 <h3 id="layer-2-engine-hooks">Layer 2: Engine hooks<a class="headerlink" href="#layer-2-engine-hooks" title="Permanent link">&para;</a></h3>
@@ -2510,9 +2515,10 @@ schema is defined and values are stored, but per-task-type file pattern
 restrictions (<code>allowed_file_patterns</code>, <code>blocked_file_patterns</code>) are not yet
 enforced at runtime.</p>
 <h3 id="layer-5-quality-gate">Layer 5: Quality gate<a class="headerlink" href="#layer-5-quality-gate" title="Permanent link">&para;</a></h3>
-<p>Before a pull request is merged, a quality gate reviews the agent's output.
-This may include automated linting, test execution and human approval
-requirements. It catches issues that got past the earlier layers.</p>
+<p>Not built yet. The <code>quality_gate</code> settings are read from the config file, but
+the controller does not run a review. The design is a review of the agent's
+output before a pull request is merged, to catch issues that got past the
+earlier layers.</p>
 <h3 id="layer-6-progress-watchdog">Layer 6: Progress watchdog<a class="headerlink" href="#layer-6-progress-watchdog" title="Permanent link">&para;</a></h3>
 <p>The watchdog (<code>internal/watchdog/watchdog.go</code>) continuously monitors running
 agents for anomalous behaviour:</p>
@@ -2705,10 +2711,13 @@ never as plain-text environment variables in the Job spec. The JobBuilder's
 content before it reaches an agent.</p>
 <p><strong>Controller-level validation:</strong></p>
 <ul>
-<li>Repository URL must match an entry in <code>guard_rails.allowed_repos</code> (glob
+<li>Repository URL must match an entry in <code>guardrails.allowed_repos</code> (glob
   matching via <code>matchGlob</code>).</li>
-<li>Task type must be in <code>guard_rails.allowed_task_types</code>.</li>
-<li>Tickets from unknown sources or with missing fields are rejected.</li>
+<li>When the ticket has a task type, it must be in
+  <code>guardrails.allowed_task_types</code>. A ticket with no task type is not checked
+  against this list.</li>
+<li>A ticket with no repository URL is rejected, unless Osmia can find one in
+  the description or ask for it in Slack.</li>
 </ul>
 <p><strong>Command blocking</strong> (<code>block-dangerous-commands.sh</code>):</p>
 <p>The following patterns are blocked by default in the PreToolUse Bash hook:</p>

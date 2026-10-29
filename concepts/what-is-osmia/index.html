@@ -2038,7 +2038,7 @@
 <li><strong>Engine hooks</strong> intercept dangerous commands (like <code>rm -rf</code> or <code>sudo</code>) before they run.</li>
 <li><strong>Repository rules</strong> are a <code>guardrails.md</code> file in your repo that tells the agent what it must never do.</li>
 <li><strong>Task profiles</strong> give different task types different permissions (e.g. documentation tasks can only edit <code>.md</code> files).</li>
-<li><strong>Quality gate</strong> is an optional review step that checks the agent's output for security issues before the PR is created.</li>
+<li><strong>Quality gate</strong> is a planned review step that will check the agent's output for security issues before the PR is created. It is not built yet.</li>
 <li><strong>Progress watchdog</strong> monitors the agent while it runs and stops it if it gets stuck in a loop or uses tokens without making progress.</li>
 </ol>
 <p>The layers work independently, so a failure in one does not compromise the others. See <a href="../guardrails-overview/">Guard Rails Overview</a> for details.</p>

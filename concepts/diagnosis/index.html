@@ -2024,7 +2024,7 @@
 <li>The task result summary: the structured result the engine emits at exit.</li>
 </ol>
 <p>Pattern matching runs in priority order. Infrastructure failures are checked first because retrying an OOM-killed job without changing resources is futile. Permission and dependency failures follow. Watchdog-specific patterns (thrashing, looping) map to <code>model_confusion</code>.</p>
-<p>For <code>infra_failure</code>, the retry is suppressed entirely. The controller records the diagnosis and parks the task rather than spending tokens on a retry that cannot succeed.</p>
+<p>For <code>infra_failure</code>, the retry is suppressed entirely, and no fallback engine is tried. The controller records the diagnosis and parks the task rather than spending tokens on a retry that cannot succeed.</p>
 <h2 id="prescriptions">Prescriptions<a class="headerlink" href="#prescriptions" title="Permanent link">&para;</a></h2>
 <p>For every other failure mode, the <code>RetryBuilder</code> adds a corrective instruction to the retry prompt. Examples:</p>
 <ul>
@@ -2034,12 +2034,12 @@
 </ul>
 <p>The prescription is appended after the original task prompt, so the agent receives both the full task context and the corrective guidance.</p>
 <h2 id="engine-switching">Engine switching<a class="headerlink" href="#engine-switching" title="Permanent link">&para;</a></h2>
-<p>When the diagnosis suggests the failure is engine-specific (for example, <code>model_confusion</code> on an engine with known oscillation issues), the <code>RetryBuilder</code> can switch to a different engine for the retry attempt. You configure this per failure mode in the diagnosis config.</p>
+<p>When the failure is engine-specific, the retry can move to a different engine. Only <code>model_confusion</code> counts as engine-specific today; the other failure modes describe the task, repository or environment, which a new engine would meet unchanged.</p>
+<p>Engine switching is off by default and is turned on with <code>enable_engine_switch</code>. The retry then uses the first engine, in the order <code>engines.default</code> followed by <code>engines.fallback_engines</code>, that is registered and that the task has not tried yet. If every configured engine has been tried, the retry stays on the current engine.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">diagnosis</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">switch_engine_on</span><span class="p">:</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">model_confusion</span><span class="w">   </span><span class="c1"># retry with fallback engine when confused</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">enable_engine_switch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">   </span><span class="c1"># allow a retry on the fallback engine</span>
 </code></pre></div>
 <h2 id="relationship-to-the-watchdog">Relationship to the watchdog<a class="headerlink" href="#relationship-to-the-watchdog" title="Permanent link">&para;</a></h2>
 <p>The watchdog detects problems <em>during</em> a run and intervenes early. Causal diagnosis runs <em>after</em> a run has failed and informs the retry. The watchdog tries to salvage a run in progress; diagnosis tries to make the next attempt succeed.</p>

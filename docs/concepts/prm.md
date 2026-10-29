@@ -84,8 +84,7 @@ prm:
 
 ### Configuration fields
 
-!!! warning "Set every field"
-    The defaults below are what `prm.DefaultConfig()` uses, but the controller does not apply them when loading `osmia-config.yaml`. Any field you leave out is zero. In particular, `evaluation_interval: 0` makes the evaluator divide by zero on the first tool call, so always set it.
+Any field you leave out takes the default below. A field set to zero is treated as left out, and so are negative values for `evaluation_interval`, `window_size` and `max_trajectory_length`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|

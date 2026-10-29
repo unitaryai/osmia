@@ -119,7 +119,7 @@ See [Session Persistence](../plugins/engines.md#session-persistence) and [Contin
 
 ### Causal diagnosis
 
-With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective action (`internal/diagnosis/`). When a task fails, a diagnosis pipeline analyses the watchdog reason and result data to classify the failure. The stream transcript is not passed to it yet, so checks that rely on agent events see none:
+With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective action (`internal/diagnosis/`). When a task fails, a diagnosis pipeline analyses the watchdog reason, the result data and the run's most recent stream events (up to the last 500) to classify the failure. Diagnosis runs before a fallback engine is chosen, and only when a fallback or retry is still possible:
 
 | Failure mode | Example | Corrective action |
 |---|---|---|
@@ -129,9 +129,9 @@ With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective act
 | `ScopeCreep` | Too many files changed | "Limit changes to at most [N] files." |
 | `PermissionBlocked` | `EACCES` errors | "Try [alternative approach] that doesn't require elevated permissions." |
 | `ModelConfusion` | Repeated undo/redo cycles | "Take a step-by-step approach." |
-| `InfraFailure` | OOMKilled, timeout | No retry on the same engine. The diagnosis is recorded and the task is not run again, since the same infrastructure would fail the same way. Exception: if an engine fallback chain is configured, the next engine is launched before diagnosis runs, so an infrastructure failure still moves to the fallback engine |
+| `InfraFailure` | OOMKilled, timeout | No retry and no fallback engine. The task is not run again, since the same infrastructure would fail the same way |
 
-The diagnosis is injected into the retry prompt alongside the original task. Switching engine based on the diagnosis is not active yet; see [Causal diagnosis](diagnosis.md#engine-switching).
+The diagnosis is injected into the retry prompt alongside the original task. With `diagnosis.enable_engine_switch`, an engine-specific failure also moves the retry to an engine the task has not tried; see [Causal diagnosis](diagnosis.md#engine-switching).
 
 ## Heartbeats and staleness
 

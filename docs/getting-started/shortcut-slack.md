@@ -197,7 +197,7 @@ You should see:
 
 1. In Shortcut, go to **Settings → Integrations → Webhooks**.
 2. Click **Add Webhook**.
-3. Set the **URL** to `https://YOUR_OSMIA_HOST:8081/webhook/shortcut`.
+3. Set the **URL** to `https://YOUR_OSMIA_HOST/webhooks/shortcut`, where `YOUR_OSMIA_HOST` is an ingress or load balancer that terminates TLS and forwards to the webhook port (8081). The webhook server itself speaks plain HTTP, so pointing Shortcut straight at port 8081 needs an `http://` URL.
 4. Set the **Secret** to the same value you used for `webhook.shortcut.secret` in Step 6.
 5. Click **Save**.
 

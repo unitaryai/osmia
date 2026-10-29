@@ -117,11 +117,9 @@ User-prompted continuation builds on session persistence to give humans control 
 
 See [Session Persistence](../plugins/engines.md#session-persistence) and [Continuation Prompts](../plugins/engines.md#continuation-prompts) in the Claude Code engine docs for configuration details.
 
-### Causal diagnosis (coming soon)
+### Causal diagnosis
 
-> **Status:** Scaffolding complete, integration pending. See `docs/roadmap.md` Phase I.
-
-Osmia is building a causal diagnosis system (`internal/diagnosis/`) that replaces blind retries with corrective action. When a task fails, a diagnosis pipeline analyses the stream transcript, watchdog reason, and result data to classify the failure:
+With `diagnosis.enabled: true`, Osmia replaces blind retries with corrective action (`internal/diagnosis/`). When a task fails, a diagnosis pipeline analyses the watchdog reason, the result data and the run's most recent stream events (up to the last 500) to classify the failure. Diagnosis runs before a fallback engine is chosen, and only when a fallback or retry is still possible:
 
 | Failure mode | Example | Corrective action |
 |---|---|---|
@@ -131,9 +129,9 @@ Osmia is building a causal diagnosis system (`internal/diagnosis/`) that replace
 | `ScopeCreep` | Too many files changed | "Limit changes to at most [N] files." |
 | `PermissionBlocked` | `EACCES` errors | "Try [alternative approach] that doesn't require elevated permissions." |
 | `ModelConfusion` | Repeated undo/redo cycles | "Take a step-by-step approach." |
-| `InfraFailure` | OOMKilled, timeout | Engine switch or resource adjustment |
+| `InfraFailure` | OOMKilled, timeout | No retry and no fallback engine. The task is not run again, since the same infrastructure would fail the same way |
 
-The diagnosis is injected into the retry prompt alongside the original task, and the system can switch to a different engine if the failure is engine-specific.
+The diagnosis is injected into the retry prompt alongside the original task. With `diagnosis.enable_engine_switch`, an engine-specific failure also moves the retry to an engine the task has not tried; see [Causal diagnosis](diagnosis.md#engine-switching).
 
 ## Heartbeats and staleness
 

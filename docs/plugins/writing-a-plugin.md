@@ -12,6 +12,9 @@ Osmia is extended through plugins: modular backends that integrate with external
 
 Both types implement the same logical interface; they differ only in how they are compiled, deployed and loaded.
 
+!!! warning "External plugins are not loaded yet"
+    The controller does not start third-party plugin subprocesses today. The plugin host (`pkg/plugin/host.go`) is written but not called from the controller, and config such as `ticketing.backend: jira` is rejected as unsupported. Everything below about third-party plugins (how they are spawned, health checks and restarts, Helm deployment and the `plugins:` config) describes the planned behaviour, not what runs today. Use the examples in `examples/plugins/` as templates until loading is wired in.
+
 ## Plugin interfaces
 
 Every plugin implements one of six interfaces, defined as protobuf services in `proto/` with corresponding Go interfaces in `pkg/plugin/`:
@@ -193,7 +196,7 @@ Packaged with a `Dockerfile` and `pyproject.toml`. See the full source for detai
 
 ### TypeScript example
 
-A Teams notification plugin is provided at `examples/plugins/example-teams-ts/`. Key excerpt from `src/index.ts`:
+A Teams notification plugin is provided at `examples/plugins/example-teams-ts/`. It predates notifications interface version 3 and still reports version 1, so treat it as a template to update rather than a working plugin. Key excerpt from `src/index.ts`:
 
 ```typescript
 class TeamsNotificationChannel {
@@ -322,7 +325,7 @@ The current `interface_version` for each interface is defined as a constant in t
 | Interface | Version | Constant |
 |-----------|---------|----------|
 | Ticketing | 1 | `ticketing.InterfaceVersion` |
-| Notifications | 1 | `notifications.InterfaceVersion` |
+| Notifications | 3 | `notifications.InterfaceVersion` |
 | Approval | 1 | `approval.InterfaceVersion` |
 | Secrets | 1 | `secrets.InterfaceVersion` |
 | Review | 1 | `review.InterfaceVersion` |

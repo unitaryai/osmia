@@ -34,9 +34,13 @@ codebases.
 
 ## Defence in depth: the six guard rail layers
 
-Osmia enforces safety through six independent layers. Layers 1, 2, 5, and 6
-are enforced by the controller at runtime. Layers 3 and 4 are advisory or
-partially implemented; see the notes under each layer and the [roadmap](roadmap.md).
+Osmia is designed around six independent layers. Layers 1, 2 and 6 are
+enforced at runtime, with two conditions. Layer 2 is enforced by hooks only for
+Claude Code; other engines receive the same rules as prompt text, which the
+agent is asked but not forced to follow. Layer 6, the watchdog, runs only when
+`progress_watchdog.enabled` is true, which the Helm chart does not set by
+default. Layers 3 and 4 are advisory or partially implemented, and
+layer 5 is not built yet; see the notes under each layer and the [roadmap](roadmap.md).
 
 ```mermaid
 graph LR
@@ -55,11 +59,12 @@ The reconciler (`internal/controller/controller.go`) validates every ticket
 before creating a TaskRun:
 
 - Allowed repositories: the ticket's `RepoURL` is matched against a
-  configurable glob list (`guard_rails.allowed_repos`). Unrecognised repositories
+  configurable glob list (`guardrails.allowed_repos`). Unrecognised repositories
   are rejected.
-- Allowed task types: the ticket's `TicketType` must appear in
-  `guard_rails.allowed_task_types`.
-- Concurrent job limit: `guard_rails.max_concurrent_jobs` (default: 5)
+- Allowed task types: when the ticket has a `TicketType`, it must appear in
+  `guardrails.allowed_task_types`. A ticket with no type is not checked
+  against this list.
+- Concurrent job limit: `guardrails.max_concurrent_jobs` (default: 5)
   prevents resource exhaustion.
 
 ### Layer 2: Engine hooks
@@ -97,9 +102,10 @@ enforced at runtime.
 
 ### Layer 5: Quality gate
 
-Before a pull request is merged, a quality gate reviews the agent's output.
-This may include automated linting, test execution and human approval
-requirements. It catches issues that got past the earlier layers.
+Not built yet. The `quality_gate` settings are read from the config file, but
+the controller does not run a review. The design is a review of the agent's
+output before a pull request is merged, to catch issues that got past the
+earlier layers.
 
 ### Layer 6: Progress watchdog
 
@@ -266,10 +272,13 @@ content before it reaches an agent.
 
 **Controller-level validation:**
 
-- Repository URL must match an entry in `guard_rails.allowed_repos` (glob
+- Repository URL must match an entry in `guardrails.allowed_repos` (glob
   matching via `matchGlob`).
-- Task type must be in `guard_rails.allowed_task_types`.
-- Tickets from unknown sources or with missing fields are rejected.
+- When the ticket has a task type, it must be in
+  `guardrails.allowed_task_types`. A ticket with no task type is not checked
+  against this list.
+- A ticket with no repository URL is rejected, unless Osmia can find one in
+  the description or ask for it in Slack.
 
 **Command blocking** (`block-dangerous-commands.sh`):
 

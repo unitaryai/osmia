@@ -53,13 +53,14 @@ Copy the `id` value. You will need it for the config.
 
 ## Step 3: Create the required labels
 
-Osmia uses two labels to track issue state:
+Osmia uses three labels to track issue state:
 
 1. In Linear, go to **Settings → Labels**.
 2. Create a label named `osmia`. This is the trigger label you add to issues you want the agent to pick up.
-3. Create a label named `osmia-failed`. Osmia adds this when a task fails, so the issue is not retried automatically.
+3. Create a label named `in-progress`, if it does not already exist. Osmia adds this when it starts work on an issue.
+4. Create a label named `osmia-failed`. Osmia adds this when a task fails, so the issue is not retried automatically.
 
-The `in-progress` label is typically already present in Linear. If not, create it too.
+Osmia skips issues that carry `in-progress` or `osmia-failed`.
 
 ---
 

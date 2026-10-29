@@ -50,6 +50,14 @@ Once Osmia is running, follow the guide for your ticketing and notification setu
 
     [:octicons-arrow-right-24: Shortcut + Slack guide](shortcut-slack.md)
 
+-   :material-ticket:{ .lg .middle } **Linear + Slack**
+
+    ---
+
+    Picks up Linear issues labelled `osmia`, tracks them with labels and posts results to Slack.
+
+    [:octicons-arrow-right-24: Linear + Slack guide](linear-slack.md)
+
 </div>
 
 ## After setup

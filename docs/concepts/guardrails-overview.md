@@ -1,8 +1,8 @@
 # Guard rails overview
 
-Guard rails are safety boundaries that stop AI agents doing things they should not. Osmia has six independent layers. If one fails, the others can still catch the problem.
+Guard rails are safety boundaries that stop AI agents doing things they should not. Osmia has six core layers, shown below. If one fails, the others can still catch the problem. Two more layers adjust behaviour while agents run: real-time coaching (layer 7) and adaptive watchdog calibration (layer 8).
 
-## The six layers
+## The six core layers
 
 ```mermaid
 graph LR
@@ -97,6 +97,9 @@ guardrails:
 
 ### Layer 5: Quality gate
 
+!!! warning "Not built yet"
+    The `quality_gate` settings are read from the config file, but the controller does not run a review yet. Setting `enabled: true` has no effect.
+
 When: after the agent finishes, before the PR is created.
 What: a separate review step that checks the agent's output.
 
@@ -145,23 +148,21 @@ When: continuously, while the agent is running (alongside the watchdog).
 What: evaluates agent productivity at each tool call and intervenes with guidance before problems escalate.
 
 !!! info "Only applies to Claude Code"
-    The PRM operates on the NDJSON event stream which is only available from the Claude Code engine. Other engines are not scored by the PRM.
+    The PRM works on the NDJSON event stream. Claude Code is currently the only engine that produces one, so other engines are not scored by the PRM.
 
 The Process Reward Model (PRM) reads the NDJSON event stream from Claude Code. It scores each evaluation window of tool calls on a 1-10 scale, tracks the score trajectory over time, and decides on interventions:
 
-- Score ≥ 7: the agent is productive, so continue.
-- Score 4-6 with a negative trend: write a hint file (`/workspace/.osmia-hint.md`) with targeted guidance, such as "Your approach appears to be oscillating. Try committing to a single strategy."
-- Score ≤ 3 with sustained decline: escalate to the watchdog for termination.
+With the default thresholds:
+
+- Score 7 or above: the agent is productive, so continue.
+- Score 3 or below with a sustained decline: escalate to the watchdog for termination.
+- Any other score below 7 with a declining trend, oscillation or plateau: write a hint file (`/workspace/.osmia-hint.md`) with targeted guidance, such as "Your approach appears to be oscillating. Try committing to a single strategy."
 
 Unlike the watchdog, which detects anomalies in raw telemetry, the PRM evaluates *productivity patterns*: whether the agent is making progress toward the goal, not only whether it is alive.
 
-## Coming soon
-
-> **Status:** Scaffolding complete, integration pending. See `docs/roadmap.md` Phase I.
-
 ### Layer 8: Adaptive watchdog calibration
 
-When: applied automatically once enough historical data accumulates.
+When: with `progress_watchdog.adaptive_calibration.enabled: true`, once enough historical data has accumulated.
 What: replaces static watchdog thresholds with adaptive per-(repo, engine, task_type) thresholds.
 
 A bug fix in a small Python script has very different "normal" telemetry from a TypeScript monorepo refactor. Static thresholds either miss real anomalies in simple tasks or give false positives on complex ones. Adaptive calibration learns what "normal" looks like for each context from historical TaskRun data.
@@ -176,10 +177,10 @@ For example, a ticket asks the agent to "update the deployment manifest":
 2. Engine hooks would block writes to `.github/workflows/**` if configured. ✅ Blocked if needed.
 3. The repository `guardrails.md` says "Never modify CI/CD pipeline configuration", so the agent should avoid it (advisory).
 4. The task profile for the `infrastructure` type defines a lower cost budget. ✅ Enforced. (File pattern enforcement is on the roadmap.)
-5. The quality gate scans the output and flags it if deployment files were changed. ✅ Caught.
+5. The quality gate would flag changes to deployment files. Not built yet.
 6. The watchdog stops the agent looping endlessly while it looks for the right file. ✅ Monitored.
 
-If the agent ignores layer 3 (prompt-based), layers 2 and 5 still catch the problem.
+If the agent ignores layer 3 (prompt-based), layer 2 still catches the problem, provided the hooks are configured.
 
 ## Further reading
 

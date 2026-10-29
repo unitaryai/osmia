@@ -40,7 +40,7 @@ A watchdog also looks for repeated tool calls, sudden cost spikes, an agent edit
 - Plugins for ticketing, notifications, secrets, SCM and code review. Plugins can be written in any language with gRPC support.
 - Approval gates before a job starts (`pre_start`) and before merge (`pre_merge`), answered in Slack.
 - Credentials come from Kubernetes Secrets or HashiCorp Vault. Tasks can also reference their own secrets, checked against a policy before the job starts.
-- Several separate safety layers: controller guard rails, engine hooks, a quality gate, the watchdog, NetworkPolicies and the secret policy.
+- Several separate safety layers: controller guard rails, engine hooks, the watchdog, NetworkPolicies and the secret policy.
 - Agent pods run as non-root with a read-only root filesystem and all capabilities dropped. gVisor or Kata Containers sandboxing is optional.
 - Per-task cost limits, Prometheus metrics and Grafana dashboards. A multi-tenancy config schema exists but is not enforced yet; namespace isolation is planned.
 
@@ -56,7 +56,7 @@ kubectl create secret generic osmia-github-token \
 kubectl create secret generic osmia-anthropic-key \
   -n osmia --from-literal=api_key=sk-ant-YOUR_KEY
 
-helm repo add osmia https://unitaryai.github.io/osmia/charts
+helm repo add osmia https://unitaryai.github.io/osmia
 helm install osmia osmia/osmia -n osmia -f osmia-config.yaml
 ```
 

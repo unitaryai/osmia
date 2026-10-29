@@ -29,7 +29,7 @@ The analyser processes three sources of signal from the failed run:
 
 Pattern matching runs in priority order. Infrastructure failures are checked first because retrying an OOM-killed job without changing resources is futile. Permission and dependency failures follow. Watchdog-specific patterns (thrashing, looping) map to `model_confusion`.
 
-For `infra_failure`, the retry is suppressed entirely. The controller records the diagnosis and parks the task rather than spending tokens on a retry that cannot succeed.
+For `infra_failure`, the retry is suppressed entirely, and no fallback engine is tried. The controller records the diagnosis and parks the task rather than spending tokens on a retry that cannot succeed.
 
 ## Prescriptions
 
@@ -43,15 +43,16 @@ The prescription is appended after the original task prompt, so the agent receiv
 
 ## Engine switching
 
-When the diagnosis suggests the failure is engine-specific (for example, `model_confusion` on an engine with known oscillation issues), the `RetryBuilder` can switch to a different engine for the retry attempt. You configure this per failure mode in the diagnosis config.
+When the failure is engine-specific, the retry can move to a different engine. Only `model_confusion` counts as engine-specific today; the other failure modes describe the task, repository or environment, which a new engine would meet unchanged.
+
+Engine switching is off by default and is turned on with `enable_engine_switch`. The retry then uses the first engine, in the order `engines.default` followed by `engines.fallback_engines`, that is registered and that the task has not tried yet. If every configured engine has been tried, the retry stays on the current engine.
 
 ## Configuration
 
 ```yaml
 diagnosis:
   enabled: true
-  switch_engine_on:
-    - model_confusion   # retry with fallback engine when confused
+  enable_engine_switch: true   # allow a retry on the fallback engine
 ```
 
 ## Relationship to the watchdog

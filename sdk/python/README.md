@@ -1,8 +1,10 @@
 # Osmia Python Plugin SDK
 
-Use this SDK to build external Osmia plugins in Python. Plugins run as
-out-of-process gRPC servers, and the Osmia controller loads them at start-up
-via the hashicorp/go-plugin subprocess transport.
+Use this SDK to build external Osmia plugins in Python. Plugins are designed
+to run as out-of-process gRPC servers loaded through the hashicorp/go-plugin
+subprocess transport. The controller does not load external plugins yet, so a
+plugin built with this SDK cannot be deployed today; see
+[Writing a plugin](../../docs/plugins/writing-a-plugin.md).
 
 ## Prerequisites
 

@@ -1,0 +1,1 @@
+The Python plugin SDK can be installed from source again. Its `pyproject.toml` named a build backend that does not exist (`setuptools.backends.legacy:build`), so `pip install` failed; it now uses `setuptools.build_meta`.

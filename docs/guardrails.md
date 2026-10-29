@@ -178,6 +178,9 @@ The controller selects the profile based on ticket labels or the `ticket_type` f
 
 ## 5. Quality gate
 
+!!! warning "Not built yet"
+    The `quality_gate` settings are read from the config file, but the controller does not run a review yet. Setting `enabled: true` has no effect.
+
 An optional post-completion review that runs as a separate K8s Job:
 
 ```yaml

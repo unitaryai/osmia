@@ -60,7 +60,7 @@ Guard rails are safety boundaries that stop the AI agent doing things it should 
 2. **Engine hooks** intercept dangerous commands (like `rm -rf` or `sudo`) before they run.
 3. **Repository rules** are a `guardrails.md` file in your repo that tells the agent what it must never do.
 4. **Task profiles** give different task types different permissions (e.g. documentation tasks can only edit `.md` files).
-5. **Quality gate** is an optional review step that checks the agent's output for security issues before the PR is created.
+5. **Quality gate** is a planned review step that will check the agent's output for security issues before the PR is created. It is not built yet.
 6. **Progress watchdog** monitors the agent while it runs and stops it if it gets stuck in a loop or uses tokens without making progress.
 
 The layers work independently, so a failure in one does not compromise the others. See [Guard Rails Overview](guardrails-overview.md) for details.

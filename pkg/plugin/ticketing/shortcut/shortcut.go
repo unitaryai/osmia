@@ -513,10 +513,7 @@ func (b *ShortcutBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Tic
 			labels = append(labels, l.Name)
 		}
 
-		var repoURL string
-		if len(story.ExternalLinks) > 0 {
-			repoURL = story.ExternalLinks[0]
-		}
+		repoURL := repoURLFromLinks(story.ExternalLinks)
 
 		tickets = append(tickets, ticketing.Ticket{
 			ID:          strconv.Itoa(story.ID),
@@ -849,4 +846,87 @@ func (b *ShortcutBackend) doPut(ctx context.Context, url string, payload any) er
 func (b *ShortcutBackend) setAuthHeaders(req *http.Request) {
 	req.Header.Set("Shortcut-Token", b.token)
 	req.Header.Set("Content-Type", "application/json")
+}
+
+// repoURLFromLinks returns the first of a story's external links that points
+// at a GitHub or GitLab repository, reduced to the repository URL.
+//
+// Stories often carry other links too (design docs, Notion pages, dashboards),
+// in any order. Taking the first link regardless of what it was made Osmia try
+// to clone a document as a repository. A link into a repository, such as a
+// merge request, file or branch, is reduced to the repository it belongs to.
+// It returns "" when no link qualifies, so the controller falls back to the
+// description and then to asking a person.
+func repoURLFromLinks(links []string) string {
+	for _, link := range links {
+		if repoURL := repoURLFromLink(strings.TrimSpace(link)); repoURL != "" {
+			return repoURL
+		}
+	}
+	return ""
+}
+
+// githubReservedOwners are first path segments on github.com that are site
+// pages rather than an owner, so a link under them is never a repository.
+var githubReservedOwners = map[string]struct{}{
+	"about": {}, "account": {}, "apps": {}, "codespaces": {}, "collections": {},
+	"dashboard": {}, "enterprise": {}, "explore": {}, "features": {}, "issues": {},
+	"login": {}, "logout": {}, "marketplace": {}, "new": {}, "notifications": {},
+	"organizations": {}, "orgs": {}, "pricing": {}, "pulls": {}, "search": {},
+	"security": {}, "settings": {}, "site": {}, "sponsors": {}, "topics": {},
+	"users": {},
+}
+
+// gitlabReservedRoots are first path segments on gitlab.com that are site,
+// group or user pages rather than a namespace, so a link under them is never
+// a project.
+var gitlabReservedRoots = map[string]struct{}{
+	"-": {}, "admin": {}, "api": {}, "dashboard": {}, "explore": {}, "groups": {},
+	"help": {}, "projects": {}, "search": {}, "snippets": {}, "users": {},
+}
+
+// repoURLFromLink reduces a single GitHub or GitLab link to its repository
+// URL, or returns "" if the link is not into a repository on either host.
+//
+// Site pages (settings, group pages, the marketplace and similar) are
+// rejected by their first path segment. A GitLab link to a subgroup, such as
+// gitlab.com/org/team, cannot be told apart from a project without calling
+// the API, so it is accepted; cloning it then fails rather than working on
+// the wrong repository.
+func repoURLFromLink(link string) string {
+	u, err := url.Parse(link)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return ""
+	}
+
+	path := strings.Trim(u.Path, "/")
+	switch strings.ToLower(u.Host) {
+	case "github.com":
+		// github.com/{owner}/{repo}[/pull/1, /tree/main, ...]
+		parts := strings.Split(path, "/")
+		if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+			return ""
+		}
+		if _, reserved := githubReservedOwners[strings.ToLower(parts[0])]; reserved {
+			return ""
+		}
+		path = parts[0] + "/" + parts[1]
+	case "gitlab.com":
+		// gitlab.com/{group}[/{subgroup}...]/{project}[/-/merge_requests/1, ...]
+		root, _, _ := strings.Cut(path, "/")
+		if _, reserved := gitlabReservedRoots[strings.ToLower(root)]; reserved {
+			return ""
+		}
+		if i := strings.Index(path, "/-/"); i >= 0 {
+			path = path[:i]
+		}
+		if !strings.Contains(path, "/") {
+			return ""
+		}
+	default:
+		return ""
+	}
+
+	path = strings.TrimSuffix(path, ".git")
+	return u.Scheme + "://" + u.Host + "/" + path
 }

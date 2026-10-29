@@ -217,6 +217,12 @@ func (b *GitLabSCMBackend) AuthenticatedUser(ctx context.Context) (string, error
 	return user.Username, nil
 }
 
+// glDiscussion is a merge request discussion: a thread of notes.
+type glDiscussion struct {
+	ID    string   `json:"id"`
+	Notes []glNote `json:"notes"`
+}
+
 // glNote is the subset of a GitLab MR note (comment) we parse.
 type glNote struct {
 	ID     int  `json:"id"`
@@ -245,18 +251,24 @@ func (b *GitLabSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 	}
 
 	encodedPath := url.PathEscape(projectPath)
-	apiURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes?sort=asc&order_by=created_at",
+	apiURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/notes?sort=asc&order_by=created_at&per_page=100",
 		b.baseURL, encodedPath, mrIID)
 
-	body, err := b.doGet(ctx, apiURL)
+	// Every page is read. GitLab returns 20 notes per page by default, oldest
+	// first, and system notes count towards that, so reading only the first
+	// page hid every comment after the twentieth note: on a busy merge request
+	// a reviewer's latest feedback was never seen.
+	var notes []glNote
+	err = b.getAllPages(ctx, apiURL, func(r io.Reader) error {
+		var page []glNote
+		if err := json.NewDecoder(r).Decode(&page); err != nil {
+			return fmt.Errorf("decoding merge request notes: %w", err)
+		}
+		notes = append(notes, page...)
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fetching merge request notes: %w", err)
-	}
-	defer body.Close()
-
-	var notes []glNote
-	if err := json.NewDecoder(body).Decode(&notes); err != nil {
-		return nil, fmt.Errorf("decoding merge request notes: %w", err)
 	}
 
 	var comments []scm.ReviewComment
@@ -303,30 +315,35 @@ func (b *GitLabSCMBackend) ReplyToComment(ctx context.Context, prURL string, com
 
 	// Use the provided threadID if available (avoids the expensive note lookup).
 	if threadID == "" && commentID != "" {
-		// Fall back to looking up the discussion ID from the notes list.
-		// Use per_page=100 and the discussions endpoint to find DiffNotes.
+		// Fall back to looking up the discussion ID from the discussions
+		// list, across every page so a late comment can still be found.
 		discURL := fmt.Sprintf("%s/projects/%s/merge_requests/%d/discussions?per_page=100",
 			b.baseURL, encodedPath, mrIID)
-		discBody, err := b.doGet(ctx, discURL)
-		if err == nil {
-			defer discBody.Close()
-			var discussions []struct {
-				ID    string   `json:"id"`
-				Notes []glNote `json:"notes"`
+		var discussions []glDiscussion
+		err := b.getAllPages(ctx, discURL, func(r io.Reader) error {
+			var page []glDiscussion
+			if err := json.NewDecoder(r).Decode(&page); err != nil {
+				return err
 			}
-			if json.NewDecoder(discBody).Decode(&discussions) == nil {
-				for _, d := range discussions {
-					for _, n := range d.Notes {
-						if strconv.Itoa(n.ID) == commentID {
-							threadID = d.ID
-							break
-						}
-					}
-					if threadID != "" {
-						break
-					}
+			discussions = append(discussions, page...)
+			return nil
+		})
+		// Search whatever pages were read even if a later one failed: the
+		// comment may well be on an earlier page.
+		for _, d := range discussions {
+			for _, n := range d.Notes {
+				if strconv.Itoa(n.ID) == commentID {
+					threadID = d.ID
+					break
 				}
 			}
+			if threadID != "" {
+				break
+			}
+		}
+		if err != nil && threadID == "" {
+			b.logger.Warn("could not find the discussion for a comment; replying as a standalone note",
+				"comment_id", commentID, "error", err)
 		}
 	}
 
@@ -521,6 +538,39 @@ func parseMRURL(mrURL string) (string, int, error) {
 // It validates that the response is JSON before returning — HTML responses
 // (e.g. from auth redirects to a sign-in page) are rejected with a clear error.
 func (b *GitLabSCMBackend) doGet(ctx context.Context, u string) (io.ReadCloser, error) {
+	resp, err := b.doGetResponse(ctx, u)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+// getAllPages fetches a paginated list starting at u and calls decode with
+// each page's body, following Link rel="next" until there are no more pages
+// or scm.MaxPages is reached. u should request per_page=100 to keep the
+// number of round trips low.
+func (b *GitLabSCMBackend) getAllPages(ctx context.Context, u string, decode func(io.Reader) error) error {
+	for page := 0; u != ""; page++ {
+		if page == scm.MaxPages {
+			return fmt.Errorf("more than %d pages at %s", scm.MaxPages, u)
+		}
+		resp, err := b.doGetResponse(ctx, u)
+		if err != nil {
+			return err
+		}
+		err = decode(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		u = scm.NextPageURL(resp.Header, u)
+	}
+	return nil
+}
+
+// doGetResponse performs an authenticated GET and returns the response for
+// a 200 JSON reply. The caller must close the body.
+func (b *GitLabSCMBackend) doGetResponse(ctx context.Context, u string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -543,7 +593,7 @@ func (b *GitLabSCMBackend) doGet(ctx context.Context, u string) (io.ReadCloser, 
 		return nil, fmt.Errorf("unexpected content-type %q (expected application/json) — the token may lack access to this resource", ct)
 	}
 
-	return resp.Body, nil
+	return resp, nil
 }
 
 // doPost performs a POST request with a JSON body, discarding the response.

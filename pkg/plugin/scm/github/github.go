@@ -260,16 +260,21 @@ func (b *GitHubSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 	var all []scm.ReviewComment
 
 	// Fetch line-level review comments.
-	reviewURL := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/comments", b.baseURL, owner, repo, number)
-	reviewBody, err := b.doGet(ctx, reviewURL)
+	// Both listings read every page. GitHub returns 30 items per page by
+	// default, so reading only the first page hid every later comment on a
+	// busy pull request.
+	reviewURL := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/comments?per_page=100", b.baseURL, owner, repo, number)
+	var reviewComments []ghReviewComment
+	err = b.getAllPages(ctx, reviewURL, func(r io.Reader) error {
+		var page []ghReviewComment
+		if err := json.NewDecoder(r).Decode(&page); err != nil {
+			return fmt.Errorf("decoding review comments: %w", err)
+		}
+		reviewComments = append(reviewComments, page...)
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fetching review comments: %w", err)
-	}
-	defer reviewBody.Close()
-
-	var reviewComments []ghReviewComment
-	if err := json.NewDecoder(reviewBody).Decode(&reviewComments); err != nil {
-		return nil, fmt.Errorf("decoding review comments: %w", err)
 	}
 
 	for _, rc := range reviewComments {
@@ -297,16 +302,18 @@ func (b *GitHubSCMBackend) ListReviewComments(ctx context.Context, prURL string)
 	}
 
 	// Fetch general PR comments (issue comments).
-	issueURL := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments", b.baseURL, owner, repo, number)
-	issueBody, err := b.doGet(ctx, issueURL)
+	issueURL := fmt.Sprintf("%s/repos/%s/%s/issues/%d/comments?per_page=100", b.baseURL, owner, repo, number)
+	var issueComments []ghIssueComment
+	err = b.getAllPages(ctx, issueURL, func(r io.Reader) error {
+		var page []ghIssueComment
+		if err := json.NewDecoder(r).Decode(&page); err != nil {
+			return fmt.Errorf("decoding issue comments: %w", err)
+		}
+		issueComments = append(issueComments, page...)
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fetching issue comments: %w", err)
-	}
-	defer issueBody.Close()
-
-	var issueComments []ghIssueComment
-	if err := json.NewDecoder(issueBody).Decode(&issueComments); err != nil {
-		return nil, fmt.Errorf("decoding issue comments: %w", err)
 	}
 
 	for _, ic := range issueComments {
@@ -459,6 +466,39 @@ func parsePRURL(prURL string) (string, string, int, error) {
 
 // doGet performs a GET request and returns the response body.
 func (b *GitHubSCMBackend) doGet(ctx context.Context, url string) (io.ReadCloser, error) {
+	resp, err := b.doGetResponse(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+// getAllPages fetches a paginated list starting at u and calls decode with
+// each page's body, following Link rel="next" until there are no more pages
+// or scm.MaxPages is reached. u should request per_page=100 to keep the
+// number of round trips low.
+func (b *GitHubSCMBackend) getAllPages(ctx context.Context, u string, decode func(io.Reader) error) error {
+	for page := 0; u != ""; page++ {
+		if page == scm.MaxPages {
+			return fmt.Errorf("more than %d pages at %s", scm.MaxPages, u)
+		}
+		resp, err := b.doGetResponse(ctx, u)
+		if err != nil {
+			return err
+		}
+		err = decode(resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		u = scm.NextPageURL(resp.Header, u)
+	}
+	return nil
+}
+
+// doGetResponse performs an authenticated GET and returns the response for
+// a 200 JSON reply. The caller must close the body.
+func (b *GitHubSCMBackend) doGetResponse(ctx context.Context, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
@@ -481,7 +521,7 @@ func (b *GitHubSCMBackend) doGet(ctx context.Context, url string) (io.ReadCloser
 		return nil, fmt.Errorf("unexpected content-type %q (expected application/json) — the token may lack access to this resource", ct)
 	}
 
-	return resp.Body, nil
+	return resp, nil
 }
 
 // doPost performs a POST request with a JSON body, discarding the response.

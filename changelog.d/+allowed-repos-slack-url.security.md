@@ -1,0 +1,1 @@
+A repository URL supplied through the Slack repo-URL prompt is now checked against `guard_rails.allowed_repos` before the job starts. Previously a ticket that arrived without a repository could be pointed at any repository by replying in Slack. With an allow-list configured, a ticket whose repository cannot be determined is now rejected instead of passed.

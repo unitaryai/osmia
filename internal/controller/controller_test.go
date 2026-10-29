@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/unitaryai/osmia/internal/agentstream"
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/memory"
 	"github.com/unitaryai/osmia/internal/prm"
@@ -469,6 +470,73 @@ func TestHandleJobComplete(t *testing.T) {
 	assert.NotNil(t, tr.Result)
 	assert.True(t, tr.Result.Success)
 	assert.Contains(t, tb.markedComplete, "TICKET-1")
+}
+
+// TestHandleJobComplete_WaitsForFinalResultEvent reproduces a job seen as
+// complete while its stream reader has not yet processed the agent's last
+// line, the result event carrying the merge request URL. Completion must
+// wait for the reader rather than fall back to a generic result.
+func TestHandleJobComplete_WaitsForFinalResultEvent(t *testing.T) {
+	tb := newMockTicketing(nil)
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+
+	done := make(chan struct{})
+	readerCancelled := make(chan struct{})
+	r := &Reconciler{
+		config:        testConfig(),
+		logger:        testLogger(),
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		streamReaders: map[string]context.CancelFunc{"tr-1": func() { close(readerCancelled) }},
+		streamDone:    map[string]chan struct{}{"tr-1": done},
+	}
+
+	// The reader delivers the result event shortly after the job completes.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		r.mu.Lock()
+		tr.Result = &engine.TaskResult{
+			Success:         true,
+			Summary:         "opened the MR",
+			MergeRequestURL: "https://gitlab.com/o/r/-/merge_requests/256",
+		}
+		r.mu.Unlock()
+		close(done)
+	}()
+
+	r.handleJobComplete(context.Background(), tr)
+
+	require.NotNil(t, tr.Result)
+	assert.Equal(t, "https://gitlab.com/o/r/-/merge_requests/256", tr.Result.MergeRequestURL)
+	assert.Equal(t, "opened the MR", tr.Result.Summary)
+	select {
+	case <-readerCancelled:
+	default:
+		t.Fatal("stream reader was not stopped after draining")
+	}
+	assert.Empty(t, r.streamReaders)
+	assert.Empty(t, r.streamDone)
+}
+
+// TestDrainStreamReader_GivesUpOnContextCancel checks a stuck reader cannot
+// hold completion handling past the caller's context.
+func TestDrainStreamReader_GivesUpOnContextCancel(t *testing.T) {
+	cancelled := false
+	r := &Reconciler{
+		logger:        testLogger(),
+		streamReaders: map[string]context.CancelFunc{"tr-1": func() { cancelled = true }},
+		streamDone:    map[string]chan struct{}{"tr-1": make(chan struct{})},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	r.drainStreamReader(ctx, "tr-1")
+	assert.Less(t, time.Since(start), streamDrainTimeout)
+	assert.True(t, cancelled)
 }
 
 func TestHandleJobFailed_WithRetry(t *testing.T) {
@@ -1353,4 +1421,59 @@ func TestResolveApproval_PreStartApproval(t *testing.T) {
 	jobs, err := k8s.BatchV1().Jobs("test-ns").List(ctx, metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, jobs.Items, 1)
+}
+
+// blockingTranscriptSink blocks Flush until released, standing in for a slow
+// transcript store.
+type blockingTranscriptSink struct {
+	flushStarted chan struct{}
+	release      chan struct{}
+}
+
+func (s *blockingTranscriptSink) Append(context.Context, string, *agentstream.StreamEvent) error {
+	return nil
+}
+
+func (s *blockingTranscriptSink) Flush(context.Context, string) error {
+	close(s.flushStarted)
+	<-s.release
+	return nil
+}
+
+// TestStartStreamReader_SignalsDoneBeforeTranscriptFlush checks a slow
+// transcript flush does not hold up completion handling: the reader's done
+// channel closes once events are forwarded, before the flush finishes.
+func TestStartStreamReader_SignalsDoneBeforeTranscriptFlush(t *testing.T) {
+	sink := &blockingTranscriptSink{flushStarted: make(chan struct{}), release: make(chan struct{})}
+	defer close(sink.release)
+
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	tr.CurrentEngine = "claude-code"
+	r := &Reconciler{
+		logger:         testLogger(),
+		engines:        map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		streamReaders:  make(map[string]context.CancelFunc),
+		streamDone:     make(map[string]chan struct{}),
+		transcriptSink: sink,
+		prmEvaluators:  make(map[string]*prm.Evaluator),
+	}
+
+	// With no Kubernetes client the log reader ends at once, so the reader
+	// goes straight to signalling and flushing.
+	r.startStreamReader(context.Background(), tr)
+	r.mu.RLock()
+	done := r.streamDone["tr-1"]
+	r.mu.RUnlock()
+	require.NotNil(t, done)
+
+	select {
+	case <-sink.flushStarted:
+	case <-time.After(time.Second):
+		t.Fatal("transcript flush never started")
+	}
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("done was not signalled while the transcript flush was still running")
+	}
 }

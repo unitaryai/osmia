@@ -388,3 +388,41 @@ func TestGitHubSCMBackend_AuthenticatedUser(t *testing.T) {
 		})
 	}
 }
+
+// TestGitHubSCMBackend_ListReviewComments_ReadsEveryPage serves both comment
+// listings over two pages and checks the second page of each is read.
+func TestGitHubSCMBackend_ListReviewComments_ReadsEveryPage(t *testing.T) {
+	comment := func(id int, user string) map[string]any {
+		return map[string]any{
+			"id": id, "body": "c", "user": map[string]any{"login": user},
+			"created_at": "2026-10-28T13:00:00Z",
+		}
+	}
+	var srvURL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "100", r.URL.Query().Get("per_page"))
+		w.Header().Set("Content-Type", "application/json")
+		base := 100
+		if r.URL.Path == "/repos/o/r/issues/7/comments" {
+			base = 200
+		}
+		if r.URL.Query().Get("page") == "2" {
+			_ = json.NewEncoder(w).Encode([]map[string]any{comment(base+2, "reviewer")})
+			return
+		}
+		w.Header().Set("Link", "<"+srvURL+r.URL.Path+`?per_page=100&page=2>; rel="next"`)
+		_ = json.NewEncoder(w).Encode([]map[string]any{comment(base+1, "bot")})
+	}))
+	defer srv.Close()
+	srvURL = srv.URL
+
+	b := NewGitHubSCMBackend("tok", testLogger(), WithBaseURL(srv.URL))
+	comments, err := b.ListReviewComments(context.Background(), "https://github.com/o/r/pull/7")
+	require.NoError(t, err)
+
+	var ids []string
+	for _, c := range comments {
+		ids = append(ids, c.ID)
+	}
+	assert.ElementsMatch(t, []string{"101", "102", "201", "202"}, ids)
+}

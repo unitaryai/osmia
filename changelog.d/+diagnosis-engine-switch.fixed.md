@@ -1,0 +1,1 @@
+`diagnosis.enable_engine_switch` now works. For an engine-specific failure (currently `model_confusion`), the retry moves to the first configured engine the task has not yet tried. Previously nothing suggested an engine, so the setting had no effect.

@@ -513,7 +513,7 @@ func main() {
 			ScoreThresholdEscalate: cfg.PRM.ScoreThresholdEscalate,
 			HintFilePath:           cfg.PRM.HintFilePath,
 			MaxTrajectoryLength:    cfg.PRM.MaxTrajectoryLength,
-		}
+		}.WithDefaults()
 		opts = append(opts, controller.WithPRMConfig(prmCfg))
 		logger.Info("prm evaluator enabled",
 			"evaluation_interval", prmCfg.EvaluationInterval,

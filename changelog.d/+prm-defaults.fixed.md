@@ -1,0 +1,1 @@
+The PRM evaluator now applies its documented defaults to any setting left out of `prm:`. Previously only the values in the config file were used, so enabling PRM without `evaluation_interval` crashed the controller with a divide by zero on the first tool call.

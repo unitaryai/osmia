@@ -1,0 +1,1 @@
+An infrastructure failure (out of memory, timeout, network) no longer moves a task to the next engine in its fallback chain. Diagnosis now runs before the fallback is chosen, and an infrastructure failure ends the run, since another engine would meet the same infrastructure.

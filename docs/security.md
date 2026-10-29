@@ -35,9 +35,11 @@ codebases.
 ## Defence in depth: the six guard rail layers
 
 Osmia is designed around six independent layers. Layers 1, 2 and 6 are
-enforced at runtime, with layer 2 enforced by hooks only for Claude Code;
-other engines receive the same rules as prompt text, which the agent is asked
-but not forced to follow. Layers 3 and 4 are advisory or partially implemented, and
+enforced at runtime, with two conditions. Layer 2 is enforced by hooks only for
+Claude Code; other engines receive the same rules as prompt text, which the
+agent is asked but not forced to follow. Layer 6, the watchdog, runs only when
+`progress_watchdog.enabled` is true, which the Helm chart does not set by
+default. Layers 3 and 4 are advisory or partially implemented, and
 layer 5 is not built yet; see the notes under each layer and the [roadmap](roadmap.md).
 
 ```mermaid
@@ -275,9 +277,8 @@ content before it reaches an agent.
 - When the ticket has a task type, it must be in
   `guardrails.allowed_task_types`. A ticket with no task type is not checked
   against this list.
-- Tickets from unknown sources are rejected. A ticket with no repository URL
-  is rejected, unless Osmia can find one in the description or ask for it in
-  Slack.
+- A ticket with no repository URL is rejected, unless Osmia can find one in
+  the description or ask for it in Slack.
 
 **Command blocking** (`block-dangerous-commands.sh`):
 

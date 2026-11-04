@@ -80,6 +80,16 @@ func WithToolWhitelist(tools []string) Option {
 	}
 }
 
+// WithToolBlacklist sets the list of tools the agent must never use. They are
+// passed via --disallowedTools. A per-task blacklist in EngineConfig is added
+// to this list rather than replacing it, so an operator-level restriction
+// cannot be lifted by a narrower setting.
+func WithToolBlacklist(tools []string) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.toolBlacklist = tools
+	}
+}
+
 // WithJSONSchema sets the JSON schema for structured output. When set,
 // the engine uses --output-format stream-json with --json-schema instead
 // of the default --output-format json.
@@ -147,6 +157,7 @@ type ClaudeCodeEngine struct {
 	fallbackModel string
 	maxTurns      int
 	toolWhitelist []string
+	toolBlacklist []string
 	jsonSchema    string
 	teamsConfig   TeamsConfig
 	skills        []Skill
@@ -296,8 +307,8 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		command = append(command, "--allowedTools", strings.Join(toolWhitelist, ","))
 	}
 
-	if len(config.ToolBlacklist) > 0 {
-		command = append(command, "--disallowedTools", strings.Join(config.ToolBlacklist, ","))
+	if toolBlacklist := mergeToolLists(e.toolBlacklist, config.ToolBlacklist); len(toolBlacklist) > 0 {
+		command = append(command, "--disallowedTools", strings.Join(toolBlacklist, ","))
 	}
 
 	// Append agent teams flags when teams are enabled.
@@ -647,4 +658,22 @@ func writeMRURLPlaceholder(b *strings.Builder, task engine.Task, stepNum string)
 	b.WriteString("<MR URL from step ")
 	b.WriteString(stepNum)
 	b.WriteString(">")
+}
+
+// mergeToolLists returns the union of the given tool lists in first-seen
+// order, without duplicates. A denylist is merged rather than overridden so
+// that every source of restriction applies.
+func mergeToolLists(lists ...[]string) []string {
+	seen := make(map[string]struct{})
+	var merged []string
+	for _, list := range lists {
+		for _, tool := range list {
+			if _, ok := seen[tool]; ok {
+				continue
+			}
+			seen[tool] = struct{}{}
+			merged = append(merged, tool)
+		}
+	}
+	return merged
 }

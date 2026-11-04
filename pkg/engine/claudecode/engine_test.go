@@ -519,6 +519,31 @@ func TestBuildExecutionSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "tool blacklist from engine option",
+			opts: []Option{WithToolBlacklist([]string{"WebFetch", "WebSearch"})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Contains(t, spec.Command, "--disallowedTools")
+				assert.Contains(t, spec.Command, "WebFetch,WebSearch")
+			},
+		},
+		{
+			name: "config tool blacklist is merged with engine option",
+			opts: []Option{WithToolBlacklist([]string{"WebFetch", "Bash"})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+				ToolBlacklist:  []string{"Bash", "NotebookEdit"},
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Contains(t, spec.Command, "--disallowedTools")
+				assert.Contains(t, spec.Command, "WebFetch,Bash,NotebookEdit")
+			},
+		},
+		{
 			name: "empty tool blacklist omits flag",
 			task: baseTask,
 			config: engine.EngineConfig{
@@ -777,6 +802,13 @@ func TestFunctionalOptions(t *testing.T) {
 			opts: []Option{WithToolWhitelist([]string{"Read", "Write"})},
 			check: func(t *testing.T, e *ClaudeCodeEngine) {
 				assert.Equal(t, []string{"Read", "Write"}, e.toolWhitelist)
+			},
+		},
+		{
+			name: "WithToolBlacklist sets blacklist",
+			opts: []Option{WithToolBlacklist([]string{"WebFetch"})},
+			check: func(t *testing.T, e *ClaudeCodeEngine) {
+				assert.Equal(t, []string{"WebFetch"}, e.toolBlacklist)
 			},
 		},
 		{

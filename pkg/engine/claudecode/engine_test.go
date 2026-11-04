@@ -466,8 +466,10 @@ func TestBuildExecutionSpec(t *testing.T) {
 				ToolWhitelist:  []string{"Read", "Write", "Bash"},
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.Contains(t, spec.Command, "--allowedTools")
+				assert.Contains(t, spec.Command, "--tools")
 				assert.Contains(t, spec.Command, "Read,Write,Bash")
+				assert.NotContains(t, spec.Command, "--allowedTools",
+					"--allowedTools only pre-approves tools and restricts nothing")
 			},
 		},
 		{
@@ -478,7 +480,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 				TimeoutSeconds: 3600,
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.Contains(t, spec.Command, "--allowedTools")
+				assert.Contains(t, spec.Command, "--tools")
 				assert.Contains(t, spec.Command, "Read,Grep")
 			},
 		},
@@ -491,10 +493,28 @@ func TestBuildExecutionSpec(t *testing.T) {
 				ToolWhitelist:  []string{"Bash", "Write"},
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.Contains(t, spec.Command, "--allowedTools")
+				assert.Contains(t, spec.Command, "--tools")
 				assert.Contains(t, spec.Command, "Bash,Write")
 				assert.NotContains(t, spec.Command, "Read,Grep")
 			},
+		},
+		{
+			name: "tool whitelist with a permission pattern is rejected",
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+				ToolWhitelist:  []string{"Read", "Bash(git *)"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "tool whitelist with an MCP tool is rejected",
+			opts: []Option{WithToolWhitelist([]string{"Read", "mcp__osmia-slack__ask_human"})},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			wantErr: true,
 		},
 		{
 			name: "empty tool whitelist omits flag",
@@ -503,7 +523,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 				TimeoutSeconds: 3600,
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
-				assert.NotContains(t, spec.Command, "--allowedTools")
+				assert.NotContains(t, spec.Command, "--tools")
 			},
 		},
 		{
@@ -748,7 +768,7 @@ func TestBuildExecutionSpec(t *testing.T) {
 				assert.Contains(t, spec.Command, "--session-id")
 				assert.Contains(t, spec.Command, "--append-system-prompt")
 				assert.Contains(t, spec.Command, "Be careful.")
-				assert.Contains(t, spec.Command, "--allowedTools")
+				assert.Contains(t, spec.Command, "--tools")
 				assert.Contains(t, spec.Command, "Read,Write")
 				assert.Contains(t, spec.Command, "--disallowedTools")
 				assert.Contains(t, spec.Command, "Bash")
@@ -1346,4 +1366,30 @@ func TestBuildPrompt_IncidentTriageGolden(t *testing.T) {
 	}
 	assert.Contains(t, prompt, "Complete the task described above. Work in the /workspace directory.")
 	assert.Contains(t, prompt, "Write a result.json file to /workspace/result.json when finished.")
+}
+
+func TestValidateToolWhitelist(t *testing.T) {
+	tests := []struct {
+		name    string
+		tools   []string
+		wantErr string
+	}{
+		{name: "plain built-in names are accepted", tools: []string{"Bash", "Edit", "Read"}},
+		{name: "empty list is accepted", tools: nil},
+		{name: "empty entry is rejected", tools: []string{"Read", " "}, wantErr: "empty entry"},
+		{name: "permission pattern is rejected", tools: []string{"Bash(git *)"}, wantErr: "permission patterns"},
+		{name: "space-separated entry is rejected", tools: []string{"Read Edit"}, wantErr: "not a plain tool name"},
+		{name: "MCP tool is rejected", tools: []string{"mcp__context7__query-docs"}, wantErr: "built-in tools only"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateToolWhitelist(tt.tools)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
 }

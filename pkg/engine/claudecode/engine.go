@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 
@@ -698,8 +699,10 @@ func ValidateToolWhitelist(tools []string) error {
 		switch {
 		case strings.TrimSpace(tool) == "":
 			return errors.New("tool whitelist contains an empty entry")
-		case strings.ContainsAny(tool, "(), "):
+		case strings.ContainsAny(tool, "(),"):
 			return fmt.Errorf("tool whitelist entry %q is not a plain tool name: permission patterns are not supported", tool)
+		case strings.IndexFunc(tool, unicode.IsSpace) >= 0:
+			return fmt.Errorf("tool whitelist entry %q is not a plain tool name: whitespace is not supported", tool)
 		case strings.HasPrefix(tool, "mcp__"):
 			return fmt.Errorf("tool whitelist entry %q is an MCP tool: the whitelist applies to built-in tools only", tool)
 		}

@@ -1378,7 +1378,11 @@ func TestValidateToolWhitelist(t *testing.T) {
 		{name: "empty list is accepted", tools: nil},
 		{name: "empty entry is rejected", tools: []string{"Read", " "}, wantErr: "empty entry"},
 		{name: "permission pattern is rejected", tools: []string{"Bash(git *)"}, wantErr: "permission patterns"},
-		{name: "space-separated entry is rejected", tools: []string{"Read Edit"}, wantErr: "not a plain tool name"},
+		{name: "space-separated entry is rejected", tools: []string{"Read Edit"}, wantErr: "whitespace is not supported"},
+		{name: "tab-separated entry is rejected", tools: []string{"Read\tEdit"}, wantErr: "whitespace is not supported"},
+		{name: "newline-separated entry is rejected", tools: []string{"Read\nEdit"}, wantErr: "whitespace is not supported"},
+		{name: "non-breaking space is rejected", tools: []string{"Read\u00a0Edit"}, wantErr: "whitespace is not supported"},
+		{name: "em space is rejected", tools: []string{"Read\u2003Edit"}, wantErr: "whitespace is not supported"},
 		{name: "MCP tool is rejected", tools: []string{"mcp__context7__query-docs"}, wantErr: "built-in tools only"},
 	}
 

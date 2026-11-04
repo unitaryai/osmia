@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -261,20 +262,85 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 		return fmt.Errorf("adding completion comment: %w", err)
 	}
 
-	// Update issue state to completed.
-	const mutation = `mutation($id: String!, $stateId: String!) {
-  issueUpdate(id: $id, input: { stateId: $stateId }) {
-    success
-  }
-}`
-	_, err := b.doGraphQL(ctx, mutation, map[string]any{
+	stateID, err := b.completedStateID(ctx, ticketID)
+	if err != nil {
+		return fmt.Errorf("resolving completed state for ticket %s: %w", ticketID, err)
+	}
+
+	_, err = b.doGraphQL(ctx, issueUpdateStateMutation, map[string]any{
 		"id":      ticketID,
-		"stateId": "completed",
+		"stateId": stateID,
 	})
 	if err != nil {
 		return fmt.Errorf("updating ticket %s to completed state: %w", ticketID, err)
 	}
 	return nil
+}
+
+const issueUpdateStateMutation = `mutation($id: String!, $stateId: String!) {
+  issueUpdate(id: $id, input: { stateId: $stateId }) {
+    success
+  }
+}`
+
+// completedStatesQuery lists the workflow states of type "completed" on the
+// team that owns the issue. Linear's issueUpdate needs a state UUID, and each
+// team defines its own states, so the ID must be looked up per issue.
+const completedStatesQuery = `query($id: String!) {
+  issue(id: $id) {
+    team {
+      states(filter: { type: { eq: "completed" } }) {
+        nodes { id name position }
+      }
+    }
+  }
+}`
+
+// completedStatesResponse maps the data portion of completedStatesQuery.
+type completedStatesResponse struct {
+	Issue struct {
+		Team struct {
+			States struct {
+				Nodes []linearWorkflowState `json:"nodes"`
+			} `json:"states"`
+		} `json:"team"`
+	} `json:"issue"`
+}
+
+// linearWorkflowState is the subset of a Linear workflow state we parse.
+type linearWorkflowState struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Position float64 `json:"position"`
+}
+
+// completedStateID returns the ID of the issue team's first "completed"
+// workflow state, ordered by position as shown in the Linear board. A team
+// may define several completed states (for example "Done" and "Released");
+// the first one is the conventional target for finished work.
+func (b *LinearBackend) completedStateID(ctx context.Context, ticketID string) (string, error) {
+	data, err := b.doGraphQL(ctx, completedStatesQuery, map[string]any{"id": ticketID})
+	if err != nil {
+		return "", err
+	}
+
+	var resp completedStatesResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("decoding workflow states response: %w", err)
+	}
+
+	states := resp.Issue.Team.States.Nodes
+	if len(states) == 0 {
+		return "", errors.New("team has no workflow state of type completed")
+	}
+
+	first := states[0]
+	for _, st := range states[1:] {
+		if st.Position < first.Position {
+			first = st
+		}
+	}
+	return first.ID, nil
 }
 
 // MarkFailed adds a "osmia-failed" label and posts the failure reason

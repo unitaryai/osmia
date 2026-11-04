@@ -273,48 +273,90 @@ func TestLinearBackend_MarkInProgress(t *testing.T) {
 }
 
 func TestLinearBackend_MarkComplete(t *testing.T) {
-	var calls []graphqlRequest
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var gqlReq graphqlRequest
-		_ = json.NewDecoder(r.Body).Decode(&gqlReq)
-		calls = append(calls, gqlReq)
-
-		resp := graphqlResponse{}
-		data, _ := json.Marshal(map[string]any{
-			"commentCreate": map[string]any{"success": true},
-			"issueUpdate":   map[string]any{"success": true},
-		})
-		resp.Data = data
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-
-	result := engine.TaskResult{
-		Success:         true,
-		Summary:         "Fixed the bug",
-		MergeRequestURL: "https://github.com/owner/repo/pull/10",
+	tests := []struct {
+		name        string
+		states      []map[string]any
+		wantStateID string
+		wantErr     string
+	}{
+		{
+			name: "moves the issue to the team's first completed state",
+			states: []map[string]any{
+				{"id": "state-released", "name": "Released", "position": 5.0},
+				{"id": "state-done", "name": "Done", "position": 3.0},
+			},
+			wantStateID: "state-done",
+		},
+		{
+			name:    "fails when the team has no completed state",
+			states:  []map[string]any{},
+			wantErr: "no workflow state of type completed",
+		},
 	}
-	err := b.MarkComplete(context.Background(), "ENG-123", result)
-	require.NoError(t, err)
-	require.Len(t, calls, 2)
 
-	// First call: comment creation.
-	assert.Contains(t, calls[0].Query, "commentCreate")
-	assert.Equal(t, "ENG-123", calls[0].Variables["issueId"])
-	body, ok := calls[0].Variables["body"].(string)
-	require.True(t, ok)
-	assert.Contains(t, body, "Fixed the bug")
-	assert.Contains(t, body, "https://github.com/owner/repo/pull/10")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls []graphqlRequest
 
-	// Second call: state update.
-	assert.Contains(t, calls[1].Query, "issueUpdate")
-	assert.Equal(t, "ENG-123", calls[1].Variables["id"])
-	assert.Equal(t, "completed", calls[1].Variables["stateId"])
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var gqlReq graphqlRequest
+				_ = json.NewDecoder(r.Body).Decode(&gqlReq)
+				calls = append(calls, gqlReq)
+
+				resp := graphqlResponse{}
+				data, _ := json.Marshal(map[string]any{
+					"commentCreate": map[string]any{"success": true},
+					"issueUpdate":   map[string]any{"success": true},
+					"issue": map[string]any{
+						"team": map[string]any{
+							"states": map[string]any{"nodes": tt.states},
+						},
+					},
+				})
+				resp.Data = data
+
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(resp)
+			}))
+			defer srv.Close()
+
+			b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
+
+			result := engine.TaskResult{
+				Success:         true,
+				Summary:         "Fixed the bug",
+				MergeRequestURL: "https://github.com/owner/repo/pull/10",
+			}
+			err := b.MarkComplete(context.Background(), "ENG-123", result)
+
+			// First call: comment creation.
+			require.NotEmpty(t, calls)
+			assert.Contains(t, calls[0].Query, "commentCreate")
+			assert.Equal(t, "ENG-123", calls[0].Variables["issueId"])
+			body, ok := calls[0].Variables["body"].(string)
+			require.True(t, ok)
+			assert.Contains(t, body, "Fixed the bug")
+			assert.Contains(t, body, "https://github.com/owner/repo/pull/10")
+
+			// Second call: completed-state lookup for the issue's team.
+			require.GreaterOrEqual(t, len(calls), 2)
+			assert.Contains(t, calls[1].Query, `type: { eq: "completed" }`)
+			assert.Equal(t, "ENG-123", calls[1].Variables["id"])
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Len(t, calls, 2, "no state update should be sent")
+				return
+			}
+
+			// Third call: state update with the resolved state UUID.
+			require.NoError(t, err)
+			require.Len(t, calls, 3)
+			assert.Contains(t, calls[2].Query, "issueUpdate")
+			assert.Equal(t, "ENG-123", calls[2].Variables["id"])
+			assert.Equal(t, tt.wantStateID, calls[2].Variables["stateId"])
+		})
+	}
 }
 
 func TestLinearBackend_MarkFailed(t *testing.T) {

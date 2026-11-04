@@ -267,12 +267,22 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 		return fmt.Errorf("resolving completed state for ticket %s: %w", ticketID, err)
 	}
 
-	_, err = b.doGraphQL(ctx, issueUpdateStateMutation, map[string]any{
+	data, err := b.doGraphQL(ctx, issueUpdateStateMutation, map[string]any{
 		"id":      ticketID,
 		"stateId": stateID,
 	})
 	if err != nil {
 		return fmt.Errorf("updating ticket %s to completed state: %w", ticketID, err)
+	}
+
+	// Linear can reject a mutation with success: false and no top-level
+	// GraphQL error, so the payload must be checked as well.
+	var update issueUpdateResponse
+	if err := json.Unmarshal(data, &update); err != nil {
+		return fmt.Errorf("decoding issue update response for ticket %s: %w", ticketID, err)
+	}
+	if !update.IssueUpdate.Success {
+		return fmt.Errorf("linear did not update ticket %s to completed state", ticketID)
 	}
 	return nil
 }
@@ -283,25 +293,43 @@ const issueUpdateStateMutation = `mutation($id: String!, $stateId: String!) {
   }
 }`
 
-// completedStatesQuery lists the workflow states of type "completed" on the
-// team that owns the issue. Linear's issueUpdate needs a state UUID, and each
-// team defines its own states, so the ID must be looked up per issue.
-const completedStatesQuery = `query($id: String!) {
+// issueUpdateResponse maps the data portion of issueUpdateStateMutation.
+type issueUpdateResponse struct {
+	IssueUpdate struct {
+		Success bool `json:"success"`
+	} `json:"issueUpdate"`
+}
+
+// completedStatesQuery lists one page of the workflow states of type
+// "completed" on the team that owns the issue. Linear's issueUpdate needs a
+// state UUID, and each team defines its own states, so the ID must be looked
+// up per issue.
+const completedStatesQuery = `query($id: String!, $after: String) {
   issue(id: $id) {
     team {
-      states(filter: { type: { eq: "completed" } }) {
+      states(filter: { type: { eq: "completed" } }, after: $after) {
         nodes { id name position }
+        pageInfo { hasNextPage endCursor }
       }
     }
   }
 }`
+
+// maxCompletedStatePages bounds the paging loop so that a cursor which never
+// advances cannot make MarkComplete loop forever. At Linear's default page
+// size of 50, this allows far more completed states than any team defines.
+const maxCompletedStatePages = 20
 
 // completedStatesResponse maps the data portion of completedStatesQuery.
 type completedStatesResponse struct {
 	Issue struct {
 		Team struct {
 			States struct {
-				Nodes []linearWorkflowState `json:"nodes"`
+				Nodes    []linearWorkflowState `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
 			} `json:"states"`
 		} `json:"team"`
 	} `json:"issue"`
@@ -319,17 +347,10 @@ type linearWorkflowState struct {
 // may define several completed states (for example "Done" and "Released");
 // the first one is the conventional target for finished work.
 func (b *LinearBackend) completedStateID(ctx context.Context, ticketID string) (string, error) {
-	data, err := b.doGraphQL(ctx, completedStatesQuery, map[string]any{"id": ticketID})
+	states, err := b.completedStates(ctx, ticketID)
 	if err != nil {
 		return "", err
 	}
-
-	var resp completedStatesResponse
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return "", fmt.Errorf("decoding workflow states response: %w", err)
-	}
-
-	states := resp.Issue.Team.States.Nodes
 	if len(states) == 0 {
 		return "", errors.New("team has no workflow state of type completed")
 	}
@@ -341,6 +362,36 @@ func (b *LinearBackend) completedStateID(ctx context.Context, ticketID string) (
 		}
 	}
 	return first.ID, nil
+}
+
+// completedStates reads every page of the issue team's completed workflow
+// states. Choosing the lowest position from a partial list could pick the
+// wrong state, so it fails rather than return an incomplete result.
+func (b *LinearBackend) completedStates(ctx context.Context, ticketID string) ([]linearWorkflowState, error) {
+	var states []linearWorkflowState
+	variables := map[string]any{"id": ticketID}
+	for page := 0; page < maxCompletedStatePages; page++ {
+		data, err := b.doGraphQL(ctx, completedStatesQuery, variables)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp completedStatesResponse
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("decoding workflow states response: %w", err)
+		}
+
+		conn := resp.Issue.Team.States
+		states = append(states, conn.Nodes...)
+		if !conn.PageInfo.HasNextPage {
+			return states, nil
+		}
+		if conn.PageInfo.EndCursor == "" {
+			return nil, errors.New("workflow states response has a next page but no end cursor")
+		}
+		variables["after"] = conn.PageInfo.EndCursor
+	}
+	return nil, fmt.Errorf("workflow states exceed %d pages", maxCompletedStatePages)
 }
 
 // MarkFailed adds a "osmia-failed" label and posts the failure reason

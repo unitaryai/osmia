@@ -19,8 +19,10 @@ type lifetimeContext struct {
 // merge request URL are lost.
 //
 // It is read without r.mu, so it is safe to call whether or not the caller
-// holds the lock. Before Run starts (in tests, for example) it returns
-// context.Background().
+// holds the lock. Before Run starts it returns an early context that Run
+// cancels when it returns, so work started then still stops at shutdown,
+// even if it picks up the context after Run has finished. A Reconciler not
+// built by NewReconciler (in tests, for example) gets context.Background().
 func (r *Reconciler) backgroundContext() context.Context {
 	if lc, ok := r.lifetime.Load().(lifetimeContext); ok {
 		return lc.ctx

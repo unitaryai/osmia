@@ -61,6 +61,9 @@ type Reconciler struct {
 	// lifetime holds a lifetimeContext with the context passed to Run. See
 	// backgroundContext.
 	lifetime atomic.Value
+	// stopEarly cancels the context used before Run starts. See
+	// backgroundContext.
+	stopEarly context.CancelFunc
 
 	config         *config.Config
 	logger         *slog.Logger
@@ -452,6 +455,12 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 		r.taskRunStore = taskrun.NewMemoryStore()
 	}
 	r.useCases = newUseCaseRegistry()
+
+	// Work started before Run (by a webhook, say) needs a context that Run's
+	// shutdown can still cancel.
+	earlyCtx, stopEarly := context.WithCancel(context.Background())
+	r.lifetime.Store(lifetimeContext{ctx: earlyCtx})
+	r.stopEarly = stopEarly
 	return r
 }
 
@@ -503,6 +512,11 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 	)
 
 	r.lifetime.Store(lifetimeContext{ctx: ctx})
+	// Stop work that started before Run, and anything that picks up the
+	// early context late, when Run returns.
+	if r.stopEarly != nil {
+		defer r.stopEarly()
+	}
 
 	// Start the watchdog background loop if one is configured.
 	if r.wd != nil {

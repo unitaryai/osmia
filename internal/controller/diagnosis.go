@@ -51,23 +51,24 @@ func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamE
 	r.runEvents[taskRunID] = events
 }
 
-// eventSize estimates the memory an event holds from every variable-size
-// parsed field. Fixed-size events (cost, for example) count as zero; the
-// event-count bound covers them.
+// eventSize estimates the memory an event holds from its type and every
+// variable-size parsed field. The type comes from the agent and is kept even
+// for unknown events, so it counts too. Fixed-size fields (cost, for example)
+// count as zero; the event-count bound covers them.
 func eventSize(ev *agentstream.StreamEvent) int {
+	size := len(ev.Type)
 	switch p := ev.Parsed.(type) {
 	case *agentstream.ToolCallEvent:
-		return len(p.Tool) + len(p.Args)
+		size += len(p.Tool) + len(p.Args)
 	case *agentstream.ContentDeltaEvent:
-		return len(p.Content) + len(p.Role)
+		size += len(p.Content) + len(p.Role)
 	case *agentstream.ResultEvent:
-		return len(p.Summary) + len(p.MergeRequestURL) + len(p.BranchName) +
+		size += len(p.Summary) + len(p.MergeRequestURL) + len(p.BranchName) +
 			len(p.RawResult) + len(p.RawStructured)
 	case *agentstream.SystemEvent:
-		return len(p.SessionID) + len(p.Subtype)
-	default:
-		return 0
+		size += len(p.SessionID) + len(p.Subtype)
 	}
+	return size
 }
 
 // takeRunEvents returns and forgets the stream events kept for a task run.

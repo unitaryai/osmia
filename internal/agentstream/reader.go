@@ -122,14 +122,16 @@ func (r *Reader) handleLine(ctx context.Context, line []byte, eventCh chan<- *St
 	return nil
 }
 
-// readLine returns the next line without its line ending. A line longer than
-// maxBytes is read to its end and discarded, and tooLong is set. At the end
-// of the stream it returns any final unterminated line with io.EOF.
+// readLine returns the next line without its line ending. A line whose
+// content (excluding the line ending) is longer than maxBytes is read to its
+// end and discarded, and tooLong is set. At the end of the stream it returns
+// any final unterminated line with io.EOF.
 func readLine(br *bufio.Reader, maxBytes int) (line []byte, tooLong bool, err error) {
 	for {
 		chunk, err := br.ReadSlice('\n')
+		// Leave room for a CRLF ending; the content is checked once it is trimmed.
 		if !tooLong {
-			if len(line)+len(chunk) > maxBytes {
+			if len(line)+len(chunk) > maxBytes+2 {
 				tooLong, line = true, nil
 			} else {
 				line = append(line, chunk...)
@@ -138,7 +140,11 @@ func readLine(br *bufio.Reader, maxBytes int) (line []byte, tooLong bool, err er
 		if err == bufio.ErrBufferFull {
 			continue
 		}
-		return bytes.TrimRight(line, "\r\n"), tooLong, err
+		line = bytes.TrimRight(line, "\r\n")
+		if len(line) > maxBytes {
+			return nil, true, err
+		}
+		return line, tooLong, err
 	}
 }
 

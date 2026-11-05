@@ -129,10 +129,10 @@ func TestRecordRunEvent_BoundsBytes(t *testing.T) {
 	for _, ev := range events {
 		total += eventSize(ev)
 	}
-	assert.Less(t, len(events), 10, "old events are dropped once the byte budget is reached")
 	assert.LessOrEqual(t, total, maxDiagnosisBytes)
-	newest := events[len(events)-1].Parsed.(*agentstream.ContentDeltaEvent).Content
-	assert.Equal(t, "9", newest[:1], "the newest event is kept")
+	require.Len(t, events, 2, "only as many old events are dropped as the budget needs")
+	assert.Equal(t, "8", events[0].Parsed.(*agentstream.ContentDeltaEvent).Content[:1])
+	assert.Equal(t, "9", events[1].Parsed.(*agentstream.ContentDeltaEvent).Content[:1], "the newest event is kept")
 }
 
 func TestSuggestEngine(t *testing.T) {

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/unitaryai/osmia/internal/metrics"
 	"github.com/unitaryai/osmia/internal/taskrun"
@@ -30,6 +31,7 @@ func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.Tas
 	}
 	tr.RetryCount = tr.MaxRetries
 	gateType := tr.ApprovalGateType
+	threadRef := tr.NotificationThreadRef
 	r.mu.Unlock()
 
 	r.saveTaskRunOrLog(ctx, tr)
@@ -52,6 +54,8 @@ func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.Tas
 			r.logger.ErrorContext(ctx, "failed to mark ticket failed", "ticket_id", tr.TicketID, "error", err)
 		}
 	}
+	r.updateNotificationStatus(ctx, threadRef,
+		fmt.Sprintf("\u274C *Osmia failed:* %s", tr.TicketID))
 
 	r.logger.WarnContext(ctx, "approval gate not answered in time; task run failed without retry",
 		"task_run_id", tr.ID,

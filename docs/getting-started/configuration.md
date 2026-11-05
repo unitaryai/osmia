@@ -119,6 +119,7 @@ ticketing:
     exclude_labels:
       - "in-progress"
       - "osmia-failed"
+    completed_state_name: "In Review" # optional; default is the first "completed" state
 ```
 
 | Field | Required | Description |

@@ -5,6 +5,7 @@ package linear
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/unitaryai/osmia/pkg/engine"
@@ -78,6 +80,9 @@ type LinearBackend struct {
 	labels        []string
 	excludeLabels []string
 	stateFilter   string
+	// completedStateName, if set, names the workflow state MarkComplete
+	// moves issues to. Otherwise it uses the team's first completed state.
+	completedStateName string
 }
 
 // Option is a functional option for configuring a LinearBackend.
@@ -124,6 +129,18 @@ func WithExcludeLabels(labels []string) Option {
 func WithStateFilter(state string) Option {
 	return func(b *LinearBackend) {
 		b.stateFilter = state
+	}
+}
+
+// WithCompletedStateName sets the workflow state that issues are moved to when
+// Osmia completes a task, for example "In Review". When it is not set,
+// MarkComplete uses the first state of type "completed" in the issue's team.
+// The agent usually finishes with a pull request that nobody has reviewed or
+// merged yet, so many teams will want a review state rather than one that
+// closes the issue.
+func WithCompletedStateName(name string) Option {
+	return func(b *LinearBackend) {
+		b.completedStateName = name
 	}
 }
 
@@ -252,14 +269,15 @@ const commentCreateMutation = `mutation($issueId: String!, $body: String!) {
   }
 }`
 
-// MarkComplete moves the issue to its team's first completed state, then
-// posts a summary comment.
+// MarkComplete moves the issue to the configured completed state (see
+// WithCompletedStateName), or else to its team's first state of type
+// "completed", then posts a summary comment.
 func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, result engine.TaskResult) error {
 	comment := fmt.Sprintf("Task completed successfully.\n\n**Summary:** %s", result.Summary)
 	if result.MergeRequestURL != "" {
 		comment += fmt.Sprintf("\n**Merge Request:** %s", result.MergeRequestURL)
 	}
-	stateID, err := b.completedStateID(ctx, ticketID)
+	stateID, err := b.targetStateID(ctx, ticketID)
 	if err != nil {
 		return fmt.Errorf("resolving completed state for ticket %s: %w", ticketID, err)
 	}
@@ -303,14 +321,14 @@ type issueUpdateResponse struct {
 	} `json:"issueUpdate"`
 }
 
-// completedStatesQuery lists one page of the workflow states of type
-// "completed" on the team that owns the issue. Linear's issueUpdate needs a
-// state UUID, and each team defines its own states, so the ID must be looked
-// up per issue.
-const completedStatesQuery = `query($id: String!, $after: String) {
+// teamStatesQuery lists one page of the workflow states that match $filter
+// on the team that owns the issue. Linear's issueUpdate needs a state UUID,
+// and each team defines its own states, so the ID must be looked up per
+// issue. Archived states are left out, which is the API default.
+const teamStatesQuery = `query($id: String!, $filter: WorkflowStateFilter, $after: String) {
   issue(id: $id) {
     team {
-      states(filter: { type: { eq: "completed" } }, after: $after) {
+      states(filter: $filter, after: $after) {
         nodes { id name position }
         pageInfo { hasNextPage endCursor }
       }
@@ -318,8 +336,8 @@ const completedStatesQuery = `query($id: String!, $after: String) {
   }
 }`
 
-// completedStatesResponse maps the data portion of completedStatesQuery.
-type completedStatesResponse struct {
+// teamStatesResponse maps the data portion of teamStatesQuery.
+type teamStatesResponse struct {
 	Issue struct {
 		Team struct {
 			States struct {
@@ -340,44 +358,50 @@ type linearWorkflowState struct {
 	Position float64 `json:"position"`
 }
 
-// completedStateID returns the ID of the issue team's first "completed"
-// workflow state, ordered by position as shown in the Linear board. A team
-// may define several completed states (for example "Done" and "Released");
-// the first one is the conventional target for finished work.
-func (b *LinearBackend) completedStateID(ctx context.Context, ticketID string) (string, error) {
-	states, err := b.completedStates(ctx, ticketID)
+// targetStateID returns the ID of the workflow state MarkComplete moves the
+// issue to. With a configured name, that is the team's state of that name.
+// Otherwise it is the team's first state of type "completed", ordered by
+// position as on the Linear board: a team may define several (for example
+// "Done" and "Released"), and the first is the conventional target.
+func (b *LinearBackend) targetStateID(ctx context.Context, ticketID string) (string, error) {
+	filter := map[string]any{"type": map[string]any{"eq": "completed"}}
+	if b.completedStateName != "" {
+		filter = map[string]any{"name": map[string]any{"eq": b.completedStateName}}
+	}
+
+	states, err := b.teamStates(ctx, ticketID, filter)
 	if err != nil {
 		return "", err
 	}
 	if len(states) == 0 {
+		if b.completedStateName != "" {
+			return "", fmt.Errorf("team has no workflow state named %q", b.completedStateName)
+		}
 		return "", errors.New("team has no workflow state of type completed")
 	}
 
-	first := states[0]
-	for _, st := range states[1:] {
-		if st.Position < first.Position {
-			first = st
-		}
-	}
+	first := slices.MinFunc(states, func(a, b linearWorkflowState) int {
+		return cmp.Compare(a.Position, b.Position)
+	})
 	return first.ID, nil
 }
 
-// completedStates reads every page of the issue team's completed workflow
-// states. Choosing the lowest position from a partial list could pick the
+// teamStates reads every page of the issue team's workflow states that match
+// filter. Choosing the lowest position from a partial list could pick the
 // wrong state, so it fails rather than return an incomplete result. Paging
 // follows hasNextPage with no fixed page limit; a cursor that was already
 // used would repeat a page for ever, so it is an error.
-func (b *LinearBackend) completedStates(ctx context.Context, ticketID string) ([]linearWorkflowState, error) {
+func (b *LinearBackend) teamStates(ctx context.Context, ticketID string, filter map[string]any) ([]linearWorkflowState, error) {
 	var states []linearWorkflowState
-	variables := map[string]any{"id": ticketID}
+	variables := map[string]any{"id": ticketID, "filter": filter}
 	seenCursors := make(map[string]struct{})
 	for {
-		data, err := b.doGraphQL(ctx, completedStatesQuery, variables)
+		data, err := b.doGraphQL(ctx, teamStatesQuery, variables)
 		if err != nil {
 			return nil, err
 		}
 
-		var resp completedStatesResponse
+		var resp teamStatesResponse
 		if err := json.Unmarshal(data, &resp); err != nil {
 			return nil, fmt.Errorf("decoding workflow states response: %w", err)
 		}

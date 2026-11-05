@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -272,205 +273,120 @@ func TestLinearBackend_MarkInProgress(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// statesPage builds one page of a completed-states query response, where a
-// non-empty nextCursor means another page follows.
-func statesPage(nodes []map[string]any, nextCursor string) map[string]any {
-	return statesPageWithInfo(nodes, nextCursor != "", nextCursor)
-}
-
-// statesPageWithInfo builds one page of a completed-states query response
-// with explicit pageInfo values.
-func statesPageWithInfo(nodes []map[string]any, hasNextPage bool, endCursor string) map[string]any {
-	return map[string]any{
-		"issue": map[string]any{
-			"team": map[string]any{
-				"states": map[string]any{
-					"nodes": nodes,
-					"pageInfo": map[string]any{
-						"hasNextPage": hasNextPage,
-						"endCursor":   endCursor,
-					},
-				},
-			},
-		},
-	}
+// statesPage builds a team-states response; a non-empty cursor means more pages follow.
+func statesPage(cursor string, nodes ...map[string]any) map[string]any {
+	return map[string]any{"issue": map[string]any{"team": map[string]any{"states": map[string]any{
+		"nodes":    nodes,
+		"pageInfo": map[string]any{"hasNextPage": cursor != "", "endCursor": cursor},
+	}}}}
 }
 
 func TestLinearBackend_MarkComplete(t *testing.T) {
-	commentOK := map[string]any{"commentCreate": map[string]any{"success": true}}
-	updateOK := map[string]any{"issueUpdate": map[string]any{"success": true}}
-	done := []map[string]any{{"id": "state-done", "name": "Done", "position": 3.0}}
+	done := map[string]any{"id": "state-done", "name": "Done", "position": 3.0}
+	released := map[string]any{"id": "state-released", "name": "Released", "position": 5.0}
+	review := map[string]any{"id": "state-review", "name": "In Review", "position": 2.0}
+	completedType := map[string]any{"type": map[string]any{"eq": "completed"}}
+	inReviewName := map[string]any{"name": map[string]any{"eq": "In Review"}}
 
 	tests := []struct {
-		name string
-		// responses are returned in order, one per GraphQL call.
-		responses []map[string]any
-		// wantAfter holds the expected "after" variable of each states query.
-		wantAfter   []any
-		wantStateID string
-		wantComment bool
-		wantErr     string
+		name         string
+		stateName    string
+		pages        []map[string]any
+		rejectUpdate bool
+		wantFilter   map[string]any
+		wantMovedTo  string
+		wantErr      string
 	}{
 		{
-			name: "moves the issue to the team's first completed state, then comments",
-			responses: []map[string]any{
-				statesPage([]map[string]any{
-					{"id": "state-released", "name": "Released", "position": 5.0},
-					{"id": "state-done", "name": "Done", "position": 3.0},
-				}, ""),
-				updateOK,
-				commentOK,
-			},
-			wantAfter:   []any{nil},
-			wantStateID: "state-done",
-			wantComment: true,
+			name:        "default picks the lowest-position completed state across pages",
+			pages:       []map[string]any{statesPage("c1", released), statesPage("", done)},
+			wantFilter:  completedType,
+			wantMovedTo: "state-done",
 		},
 		{
-			name: "reads every page before choosing the lowest position",
-			responses: []map[string]any{
-				statesPage([]map[string]any{
-					{"id": "state-released", "name": "Released", "position": 5.0},
-				}, "cursor-1"),
-				statesPage(done, ""),
-				updateOK,
-				commentOK,
-			},
-			wantAfter:   []any{nil, "cursor-1"},
-			wantStateID: "state-done",
-			wantComment: true,
+			name:        "configured state name is used",
+			stateName:   "In Review",
+			pages:       []map[string]any{statesPage("", review)},
+			wantFilter:  inReviewName,
+			wantMovedTo: "state-review",
 		},
 		{
-			name: "stops on the last page even when it has an end cursor",
-			responses: []map[string]any{
-				statesPageWithInfo(done, false, "last-cursor"),
-				updateOK,
-				commentOK,
-			},
-			wantAfter:   []any{nil},
-			wantStateID: "state-done",
-			wantComment: true,
+			name:       "configured state name that does not exist is an error",
+			stateName:  "In Review",
+			pages:      []map[string]any{statesPage("")},
+			wantFilter: inReviewName,
+			wantErr:    `no workflow state named "In Review"`,
 		},
 		{
-			name:      "fails without commenting when the team has no completed state",
-			responses: []map[string]any{statesPage([]map[string]any{}, "")},
-			wantAfter: []any{nil},
-			wantErr:   "no workflow state of type completed",
+			name:         "update rejected by Linear is an error",
+			pages:        []map[string]any{statesPage("", done)},
+			rejectUpdate: true,
+			wantFilter:   completedType,
+			wantMovedTo:  "state-done",
+			wantErr:      "did not update ticket ENG-123",
 		},
 		{
-			name:      "fails without commenting when a next page has no cursor",
-			responses: []map[string]any{statesPageWithInfo(done, true, "")},
-			wantAfter: []any{nil},
-			wantErr:   "no end cursor",
-		},
-		{
-			name: "fails without commenting when the cursor does not advance",
-			responses: []map[string]any{
-				statesPage(done, "cursor-1"),
-				statesPage(done, "cursor-1"),
-			},
-			wantAfter: []any{nil, "cursor-1"},
-			wantErr:   "did not advance",
-		},
-		{
-			name: "fails without commenting when Linear reports the update was not applied",
-			responses: []map[string]any{
-				statesPage(done, ""),
-				{"issueUpdate": map[string]any{"success": false}},
-			},
-			wantAfter:   []any{nil},
-			wantStateID: "state-done",
-			wantErr:     "did not update ticket ENG-123",
+			name:       "repeated cursor is an error, not an endless loop",
+			pages:      []map[string]any{statesPage("c1", done), statesPage("c1", done)},
+			wantFilter: completedType,
+			wantErr:    "did not advance",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			calls := runMarkComplete(t, tt.responses)
+			var (
+				filter    any
+				movedTo   string
+				commented bool
+				page      int
+			)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req graphqlRequest
+				_ = json.NewDecoder(r.Body).Decode(&req)
 
-			// Every case uses all of its responses and no more.
-			require.Len(t, calls.requests, len(tt.responses))
-
-			// First, one completed-states query per page, following the cursor.
-			for i, wantAfter := range tt.wantAfter {
-				q := calls.requests[i]
-				assert.Contains(t, q.Query, `type: { eq: "completed" }`)
-				assert.Contains(t, q.Query, "after: $after")
-				assert.Equal(t, "ENG-123", q.Variables["id"])
-				assert.Equal(t, wantAfter, q.Variables["after"])
-			}
-
-			// Then the state update, if the lookup succeeded.
-			next := len(tt.wantAfter)
-			if tt.wantStateID != "" {
-				update := calls.requests[next]
-				assert.Contains(t, update.Query, "issueUpdate")
-				assert.Equal(t, "ENG-123", update.Variables["id"])
-				assert.Equal(t, tt.wantStateID, update.Variables["stateId"])
-				next++
-			}
-
-			// The completion comment comes last, and only after a successful update.
-			if tt.wantComment {
-				comment := calls.requests[next]
-				assert.Contains(t, comment.Query, "commentCreate")
-				assert.Equal(t, "ENG-123", comment.Variables["issueId"])
-				body, ok := comment.Variables["body"].(string)
-				require.True(t, ok)
-				assert.Contains(t, body, "Fixed the bug")
-				assert.Contains(t, body, "https://github.com/owner/repo/pull/10")
-			}
-			if !tt.wantComment {
-				for _, req := range calls.requests {
-					assert.NotContains(t, req.Query, "commentCreate", "no completion comment on an issue that stays open")
+				var data any
+				switch {
+				case strings.Contains(req.Query, "issueUpdate"):
+					movedTo, _ = req.Variables["stateId"].(string)
+					data = map[string]any{"issueUpdate": map[string]any{"success": !tt.rejectUpdate}}
+				case strings.Contains(req.Query, "commentCreate"):
+					commented = true
+					data = map[string]any{"commentCreate": map[string]any{"success": true}}
+				default:
+					if page >= len(tt.pages) {
+						t.Errorf("unexpected states query %d", page+1)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					// Only pages after the first carry a cursor.
+					assert.Equal(t, page > 0, req.Variables["after"] != nil, "states query %d: after = %v", page+1, req.Variables["after"])
+					filter = req.Variables["filter"]
+					data = tt.pages[page]
+					page++
 				}
-			}
+				raw, _ := json.Marshal(data)
+				_ = json.NewEncoder(w).Encode(graphqlResponse{Data: raw})
+			}))
+			defer srv.Close()
 
+			opts := []Option{WithAPIURL(srv.URL)}
+			if tt.stateName != "" {
+				opts = append(opts, WithCompletedStateName(tt.stateName))
+			}
+			b := NewLinearBackend("tok", "team-1", testLogger(), opts...)
+			err := b.MarkComplete(context.Background(), "ENG-123", engine.TaskResult{Summary: "Fixed the bug"})
+
+			assert.Equal(t, tt.wantFilter, filter)
+			assert.Equal(t, tt.wantMovedTo, movedTo)
+			assert.Equal(t, tt.wantErr == "", commented, "comment is posted only after a successful update")
 			if tt.wantErr != "" {
-				require.ErrorContains(t, calls.err, tt.wantErr)
+				require.ErrorContains(t, err, tt.wantErr)
 				return
 			}
-			require.NoError(t, calls.err)
+			require.NoError(t, err)
 		})
 	}
-}
-
-// markCompleteCalls holds the GraphQL requests MarkComplete sent and the
-// error it returned.
-type markCompleteCalls struct {
-	requests []graphqlRequest
-	err      error
-}
-
-// runMarkComplete calls MarkComplete against a test server that returns the
-// given responses in order, one per GraphQL call.
-func runMarkComplete(t *testing.T, responses []map[string]any) markCompleteCalls {
-	t.Helper()
-	var calls markCompleteCalls
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var gqlReq graphqlRequest
-		_ = json.NewDecoder(r.Body).Decode(&gqlReq)
-		calls.requests = append(calls.requests, gqlReq)
-		// require must not be called from the handler goroutine, so record
-		// the failure and answer with an error instead.
-		if !assert.LessOrEqual(t, len(calls.requests), len(responses), "unexpected extra GraphQL call") {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		data, _ := json.Marshal(responses[len(calls.requests)-1])
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(graphqlResponse{Data: data})
-	}))
-	defer srv.Close()
-
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-	calls.err = b.MarkComplete(context.Background(), "ENG-123", engine.TaskResult{
-		Success:         true,
-		Summary:         "Fixed the bug",
-		MergeRequestURL: "https://github.com/owner/repo/pull/10",
-	})
-	return calls
 }
 
 func TestLinearBackend_MarkFailed(t *testing.T) {

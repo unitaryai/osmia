@@ -3190,6 +3190,17 @@ func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) 
 		return
 	}
 
+	// A run waiting for a human has no job to terminate. Retrying it would
+	// launch a job nobody approved, so an unanswered gate fails for good.
+	// Route on the reason, not on the current state: if an approval lands
+	// after the check, the state is already Running, and the generic failure
+	// path below would start a retry next to the approved job. The helper
+	// re-checks the state under the lock and drops the timeout instead.
+	if wdReason.ReasonCode == watchdog.ReasonUnansweredHuman && action != watchdog.ActionWarn {
+		r.failUnansweredApproval(ctx, tr, wdReason.Message)
+		return
+	}
+
 	r.logger.WarnContext(ctx, "watchdog anomaly: terminating task run",
 		"task_run_id", tr.ID,
 		"reason_code", wdReason.ReasonCode,

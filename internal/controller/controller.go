@@ -58,11 +58,9 @@ type JobBuilder interface {
 // Reconciler orchestrates the full TaskRun lifecycle: polling tickets,
 // creating jobs, monitoring progress, and handling completion.
 type Reconciler struct {
-	// lifetime holds a lifetimeContext with the context passed to Run. See
-	// backgroundContext.
+	// lifetime holds Run's context; see backgroundContext.
 	lifetime atomic.Value
-	// stopEarly cancels the context used before Run starts. See
-	// backgroundContext.
+	// stopEarly cancels the pre-Run context; see backgroundContext.
 	stopEarly context.CancelFunc
 
 	config         *config.Config
@@ -456,8 +454,7 @@ func NewReconciler(cfg *config.Config, logger *slog.Logger, opts ...ReconcilerOp
 	}
 	r.useCases = newUseCaseRegistry()
 
-	// Work started before Run (by a webhook, say) needs a context that Run's
-	// shutdown can still cancel.
+	// Work started before Run needs a context that Run can cancel.
 	earlyCtx, stopEarly := context.WithCancel(context.Background())
 	r.lifetime.Store(lifetimeContext{ctx: earlyCtx})
 	r.stopEarly = stopEarly
@@ -512,8 +509,7 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 	)
 
 	r.lifetime.Store(lifetimeContext{ctx: ctx})
-	// Stop work that started before Run, and anything that picks up the
-	// early context late, when Run returns.
+	// Stop work that started before Run.
 	if r.stopEarly != nil {
 		defer r.stopEarly()
 	}

@@ -50,8 +50,7 @@ func TestStreamReaderOutlivesCallerContext(t *testing.T) {
 		WithK8sClient(kubernetes.NewForConfigOrDie(&rest.Config{Host: srv.URL})),
 		WithNamespace("test-ns"),
 	)
-	// Always let the log handler finish and stop the reader before the
-	// server closes, even when an assertion fails first.
+	// Release the handler and stop the reader before the server closes.
 	var releaseOnce sync.Once
 	defer func() {
 		releaseOnce.Do(func() { close(release) })

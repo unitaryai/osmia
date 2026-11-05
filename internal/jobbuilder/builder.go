@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/unitaryai/osmia/internal/k8sname"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -93,10 +94,7 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 	// non-root container cannot write to them.
 	fsGroup := runAsUser
 
-	jobName := fmt.Sprintf("osmia-%s", taskRunID)
-	if len(jobName) > 63 {
-		jobName = jobName[:63]
-	}
+	jobName := k8sname.Label("osmia-", taskRunID)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

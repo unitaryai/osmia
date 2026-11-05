@@ -1,0 +1,1 @@
+The Linear backend now works against the real Linear API; polling, labels and `MarkComplete` all failed before. New option `completed_state_name` sets the state `MarkComplete` moves issues to (default: the team's first completed state).

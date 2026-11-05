@@ -25,9 +25,7 @@ const (
 	ActionWarn Action = "warn"
 )
 
-// ReasonUnansweredHuman is the reason code for a TaskRun that has waited in
-// NeedsHuman longer than UnansweredHumanTimeoutMinutes. The controller must
-// treat it differently from a stuck job: there is no job to terminate.
+// ReasonUnansweredHuman marks a run that waited in NeedsHuman too long.
 const ReasonUnansweredHuman = "unanswered_human"
 
 // Heartbeat represents enriched telemetry data pushed from an agent container.

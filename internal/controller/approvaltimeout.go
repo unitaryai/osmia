@@ -8,19 +8,13 @@ import (
 	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
-// failUnansweredApproval ends a TaskRun whose approval gate (pre_start,
-// pre_merge, continuation or missing_repo_url) was not answered in time.
-//
-// The gate must fail closed. The generic failure path retries or falls back
-// to another engine, which for a run held at a gate means launching a job
-// that no human approved. So the run goes straight to Failed with its retry
-// budget used up. That also makes it terminal, so it no longer counts
-// against MaxConcurrentJobs.
+// failUnansweredApproval fails a run whose approval gate timed out, without
+// retry: a retry would launch a job nobody approved. Using up its retry budget
+// makes the run terminal, which frees its MaxConcurrentJobs slot.
 func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.TaskRun, reason string) {
 	r.mu.Lock()
 	if tr.State != taskrun.StateNeedsHuman {
-		// The gate was answered between the watchdog check and now, so the
-		// approval wins and the timeout is dropped.
+		// Answered since the watchdog check: the approval wins.
 		r.mu.Unlock()
 		return
 	}
@@ -36,9 +30,7 @@ func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.Tas
 
 	r.saveTaskRunOrLog(ctx, tr)
 	metrics.TaskRunsTotal.WithLabelValues(string(taskrun.StateFailed)).Inc()
-	// A pre_merge run still counts as an active job: its job finished, but the
-	// gauge is only decremented once the gate is resolved. The other gates
-	// either never incremented it or decremented it on entry.
+	// Only a pre_merge run still counts as an active job.
 	if gateType == "pre_merge" {
 		metrics.ActiveJobs.Dec()
 	}

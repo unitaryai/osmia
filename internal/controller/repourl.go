@@ -96,8 +96,7 @@ func (r *Reconciler) startRepoURLPoll(ctx context.Context, ticket ticketing.Tick
 	// Post a notification to get a thread reference, then start polling
 	// in that thread so the question lands in the right place.
 	threadRef := r.runNotifyStart(ctx, ticket)
-	// tr is already published in r.taskRuns, so other goroutines (the
-	// watchdog's approval timeout, for one) may read it.
+	// tr is already published, so other goroutines may read it.
 	r.mu.Lock()
 	tr.NotificationThreadRef = threadRef
 	r.mu.Unlock()

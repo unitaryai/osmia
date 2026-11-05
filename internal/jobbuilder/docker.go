@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/unitaryai/osmia/internal/k8sname"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -59,10 +60,7 @@ func (b *DockerBuilder) Build(taskRunID string, engineName string, spec *engine.
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
-	jobName := fmt.Sprintf("osmia-%s", taskRunID)
-	if len(jobName) > 63 {
-		jobName = jobName[:63]
-	}
+	jobName := k8sname.Label("osmia-", taskRunID)
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{

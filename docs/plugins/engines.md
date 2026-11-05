@@ -188,7 +188,7 @@ config:
 | `fallback_model` | string | (none) | Model to use when the primary is overloaded (e.g. `haiku`) |
 | `append_system_prompt` | string | (none) | Extra text appended to Claude Code's system prompt |
 | `session_persistence` | SessionPersistenceConfig | disabled | Opt-in session-state persistence between retries (see [Session persistence](#session-persistence)) |
-| `tool_whitelist` | []string | (none) | Only these built-in Claude Code tools are available (via `--tools`). Entries must be plain tool names: permission patterns such as `Bash(git *)` and MCP tool names are rejected at startup. MCP tools are not affected; restrict them with `tool_blacklist` or the MCP configuration. Include `Skill` if you use skills, and `Task` if you use sub-agents. |
+| `tool_whitelist` | []string | (none) | Only these built-in tools are available (`--tools`). Plain tool names only. MCP tools are not affected; restrict them with `tool_blacklist` or the MCP configuration. |
 | `tool_blacklist` | []string | (none) | Block these Claude Code tools (via `--disallowedTools`) |
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
 | `skills` | []SkillConfig | (none) | Custom skill files loaded into the agent (see [Skills](#skills)) |

@@ -74,19 +74,15 @@ func WithFallbackModel(model string) Option {
 	}
 }
 
-// WithToolWhitelist sets the built-in tools the agent may use. When set, it
-// is passed as --tools, so every other built-in tool is removed from the
-// session. See ValidateToolWhitelist for the entries that are accepted.
+// WithToolWhitelist sets the built-in tools the agent may use (--tools).
 func WithToolWhitelist(tools []string) Option {
 	return func(e *ClaudeCodeEngine) {
 		e.toolWhitelist = tools
 	}
 }
 
-// WithToolBlacklist sets the list of tools the agent must never use. They are
-// passed via --disallowedTools. A per-task blacklist in EngineConfig is added
-// to this list rather than replacing it, so an operator-level restriction
-// cannot be lifted by a narrower setting.
+// WithToolBlacklist sets tools the agent must never use (--disallowedTools).
+// A per-task blacklist adds to it.
 func WithToolBlacklist(tools []string) Option {
 	return func(e *ClaudeCodeEngine) {
 		e.toolBlacklist = tools
@@ -310,9 +306,7 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		if err := ValidateToolWhitelist(toolWhitelist); err != nil {
 			return nil, err
 		}
-		// --tools, not --allowedTools: --allowedTools only pre-approves tools
-		// and removes none, which has no effect alongside
-		// --dangerously-skip-permissions.
+		// --allowedTools only pre-approves tools; --tools removes the others.
 		command = append(command, "--tools", strings.Join(toolWhitelist, ","))
 	}
 
@@ -669,9 +663,7 @@ func writeMRURLPlaceholder(b *strings.Builder, task engine.Task, stepNum string)
 	b.WriteString(">")
 }
 
-// mergeToolLists returns the union of the given tool lists in first-seen
-// order, without duplicates. A denylist is merged rather than overridden so
-// that every source of restriction applies.
+// mergeToolLists returns the union of the lists, without duplicates.
 func mergeToolLists(lists ...[]string) []string {
 	seen := make(map[string]struct{})
 	var merged []string
@@ -687,13 +679,8 @@ func mergeToolLists(lists ...[]string) []string {
 	return merged
 }
 
-// ValidateToolWhitelist checks that every whitelist entry is a plain built-in
-// tool name, as --tools requires. The Claude Code CLI drops other entries
-// without any warning: a permission pattern such as "Bash(git *)" removes
-// Bash completely, and an MCP tool name has no effect because --tools does
-// not apply to MCP tools. An error here is better than a restriction that
-// silently differs from the configuration. Restrict MCP tools through the
-// MCP configuration or the tool blacklist instead.
+// ValidateToolWhitelist rejects entries that --tools would silently drop:
+// permission patterns such as "Bash(git *)" and MCP tool names.
 func ValidateToolWhitelist(tools []string) error {
 	for _, tool := range tools {
 		switch {

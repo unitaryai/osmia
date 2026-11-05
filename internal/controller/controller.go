@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -57,6 +58,10 @@ type JobBuilder interface {
 // Reconciler orchestrates the full TaskRun lifecycle: polling tickets,
 // creating jobs, monitoring progress, and handling completion.
 type Reconciler struct {
+	// lifetime holds a lifetimeContext with the context passed to Run. See
+	// backgroundContext.
+	lifetime atomic.Value
+
 	config         *config.Config
 	logger         *slog.Logger
 	k8sClient      kubernetes.Interface
@@ -496,6 +501,8 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 		"poll_interval", pollInterval,
 		"namespace", r.namespace,
 	)
+
+	r.lifetime.Store(lifetimeContext{ctx: ctx})
 
 	// Start the watchdog background loop if one is configured.
 	if r.wd != nil {
@@ -1105,7 +1112,7 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 
 	// Extract knowledge from the completed task into episodic memory.
 	if r.memoryExtractor != nil {
-		go r.extractMemory(ctx, tr)
+		go r.extractMemory(r.backgroundContext(), tr)
 	}
 
 	// Register the opened PR/MR for review comment monitoring.
@@ -1580,7 +1587,7 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 
 	// Extract knowledge from the failed task into episodic memory.
 	if r.memoryExtractor != nil {
-		go r.extractMemory(ctx, tr)
+		go r.extractMemory(r.backgroundContext(), tr)
 	}
 
 	// Record outcome for calibration, routing, and cost estimation.
@@ -1972,7 +1979,7 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 	}
 
 	if r.memoryExtractor != nil {
-		go r.extractMemory(ctx, tr)
+		go r.extractMemory(r.backgroundContext(), tr)
 	}
 
 	r.registerForReview(tr, result.MergeRequestURL)
@@ -2300,7 +2307,7 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		return
 	}
 
-	streamCtx, cancel := context.WithCancel(ctx)
+	streamCtx, cancel := context.WithCancel(r.backgroundContext())
 	done := make(chan struct{})
 
 	r.mu.Lock()
@@ -4000,7 +4007,7 @@ func (r *Reconciler) handleJudgeComplete(ctx context.Context, tr *taskrun.TaskRu
 		}
 		r.mu.RUnlock()
 		if winningTR != nil {
-			go r.extractMemory(ctx, winningTR)
+			go r.extractMemory(r.backgroundContext(), winningTR)
 		}
 	}
 }

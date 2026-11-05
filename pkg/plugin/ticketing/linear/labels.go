@@ -17,11 +17,11 @@ const labelLookupQuery = `query($id: String!, $name: String!) {
   issue(id: $id) {
     team {
       id
-      labels(filter: { name: { eq: $name } }) { nodes { id } }
+      labels(filter: { name: { eq: $name } }) { nodes { id isGroup } }
     }
   }
   issueLabels(filter: { name: { eq: $name }, team: { null: true } }) {
-    nodes { id }
+    nodes { id isGroup }
   }
 }`
 
@@ -41,8 +41,20 @@ const issueAddLabelMutation = `mutation($id: String!, $labelId: String!) {
 // labelNodes maps a connection of labels.
 type labelNodes struct {
 	Nodes []struct {
-		ID string `json:"id"`
+		ID      string `json:"id"`
+		IsGroup bool   `json:"isGroup"`
 	} `json:"nodes"`
+}
+
+// firstApplicable returns the ID of the first label that is not a label
+// group, or "". Linear does not let a group itself be applied to an issue.
+func (l labelNodes) firstApplicable() string {
+	for _, n := range l.Nodes {
+		if !n.IsGroup {
+			return n.ID
+		}
+	}
+	return ""
 }
 
 // labelLookupResponse maps the data portion of labelLookupQuery.
@@ -115,13 +127,10 @@ func (b *LinearBackend) findLabel(ctx context.Context, ticketID, name string) (l
 	}
 
 	team := resp.Issue.Team
-	if n := team.Labels.Nodes; len(n) > 0 {
-		return n[0].ID, team.ID, nil
+	if id := team.Labels.firstApplicable(); id != "" {
+		return id, team.ID, nil
 	}
-	if n := resp.IssueLabels.Nodes; len(n) > 0 {
-		return n[0].ID, team.ID, nil
-	}
-	return "", team.ID, nil
+	return resp.IssueLabels.firstApplicable(), team.ID, nil
 }
 
 // createLabel creates a label called name on the team and returns its ID.

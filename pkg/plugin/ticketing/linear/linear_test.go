@@ -270,10 +270,12 @@ type labelServer struct {
 	commented string
 }
 
+// labelNodesOf builds a label connection; an ID starting with "group-" is a
+// label group.
 func labelNodesOf(ids []string) map[string]any {
 	nodes := []map[string]any{}
 	for _, id := range ids {
-		nodes = append(nodes, map[string]any{"id": id})
+		nodes = append(nodes, map[string]any{"id": id, "isGroup": strings.HasPrefix(id, "group-")})
 	}
 	return map[string]any{"nodes": nodes}
 }
@@ -330,6 +332,12 @@ func TestLinearBackend_MarkInProgress(t *testing.T) {
 			name:      "uses an existing workspace label",
 			server:    labelServer{workspaceLabels: []string{"lbl-workspace"}},
 			wantAdded: "lbl-workspace",
+		},
+		{
+			name:        "skips a label group of the same name",
+			server:      labelServer{teamLabels: []string{"group-in-progress"}},
+			wantAdded:   "lbl-new",
+			wantCreated: true,
 		},
 		{
 			name:        "creates the label on the issue's team when there is none",

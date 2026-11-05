@@ -256,14 +256,26 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 	}
 }
 
-// labelServer fakes the label calls: a lookup that returns the given labels
-// for an issue on team-1, label creation, issueAddLabel and commentCreate. It
-// records what was created, which label was added and any comment.
+// labelServer fakes the label calls for an issue on team-1: a lookup that
+// returns the given team and workspace label IDs, label creation (which can
+// be made to fail once, as when another run created the label first),
+// issueAddLabel and commentCreate.
 type labelServer struct {
-	labels    []map[string]any
+	teamLabels      []string
+	workspaceLabels []string
+	createConflict  bool
+
 	created   map[string]any
 	addedID   string
 	commented string
+}
+
+func labelNodesOf(ids []string) map[string]any {
+	nodes := []map[string]any{}
+	for _, id := range ids {
+		nodes = append(nodes, map[string]any{"id": id})
+	}
+	return map[string]any{"nodes": nodes}
 }
 
 func (ls *labelServer) start(t *testing.T) *httptest.Server {
@@ -272,10 +284,17 @@ func (ls *labelServer) start(t *testing.T) *httptest.Server {
 		var req graphqlRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
 
+		resp := graphqlResponse{}
 		var data any
 		switch {
 		case strings.Contains(req.Query, "issueLabelCreate"):
 			ls.created = req.Variables
+			if ls.createConflict {
+				// The other run's label now exists; Linear refuses a duplicate.
+				ls.teamLabels = []string{"lbl-other-run"}
+				resp.Errors = []graphqlError{{Message: "duplicate label name"}}
+				break
+			}
 			data = map[string]any{"issueLabelCreate": map[string]any{"success": true, "issueLabel": map[string]any{"id": "lbl-new"}}}
 		case strings.Contains(req.Query, "issueAddLabel"):
 			ls.addedID, _ = req.Variables["labelId"].(string)
@@ -285,43 +304,48 @@ func (ls *labelServer) start(t *testing.T) *httptest.Server {
 			data = map[string]any{"commentCreate": map[string]any{"success": true}}
 		default:
 			data = map[string]any{
-				"issue":       map[string]any{"team": map[string]any{"id": "team-1"}},
-				"issueLabels": map[string]any{"nodes": ls.labels},
+				"issue":       map[string]any{"team": map[string]any{"id": "team-1", "labels": labelNodesOf(ls.teamLabels)}},
+				"issueLabels": labelNodesOf(ls.workspaceLabels),
 			}
 		}
-		raw, _ := json.Marshal(data)
-		_ = json.NewEncoder(w).Encode(graphqlResponse{Data: raw})
+		if data != nil {
+			resp.Data, _ = json.Marshal(data)
+		}
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	t.Cleanup(srv.Close)
 	return srv
 }
 
 // Linear's issueAddLabel takes a label ID, so the label is looked up by name
-// among workspace labels and the issue's team labels, and created if missing.
+// on the issue's team and the workspace, and created on the team if missing.
 func TestLinearBackend_MarkInProgress(t *testing.T) {
-	otherTeam := map[string]any{"id": "lbl-other", "team": map[string]any{"id": "team-2"}}
-
 	tests := []struct {
 		name        string
-		labels      []map[string]any
+		server      labelServer
 		wantAdded   string
 		wantCreated bool
 	}{
 		{
 			name:      "uses an existing workspace label",
-			labels:    []map[string]any{otherTeam, {"id": "lbl-workspace", "team": nil}},
+			server:    labelServer{workspaceLabels: []string{"lbl-workspace"}},
 			wantAdded: "lbl-workspace",
 		},
 		{
-			name:        "creates the label on the issue's team when none can be used",
-			labels:      []map[string]any{otherTeam},
+			name:        "creates the label on the issue's team when there is none",
 			wantAdded:   "lbl-new",
+			wantCreated: true,
+		},
+		{
+			name:        "uses the label another run created first",
+			server:      labelServer{createConflict: true},
+			wantAdded:   "lbl-other-run",
 			wantCreated: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ls := &labelServer{labels: tt.labels}
+			ls := tt.server
 			b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
 
 			require.NoError(t, b.MarkInProgress(context.Background(), "ENG-123"))
@@ -453,7 +477,7 @@ func TestLinearBackend_MarkComplete(t *testing.T) {
 }
 
 func TestLinearBackend_MarkFailed(t *testing.T) {
-	ls := &labelServer{labels: []map[string]any{{"id": "lbl-failed", "team": map[string]any{"id": "team-1"}}}}
+	ls := &labelServer{teamLabels: []string{"lbl-failed"}}
 	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
 
 	require.NoError(t, b.MarkFailed(context.Background(), "ENG-7", "timeout exceeded"))

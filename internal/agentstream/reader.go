@@ -2,6 +2,7 @@ package agentstream
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -14,9 +15,21 @@ import (
 // StreamEvents on a channel. It is tolerant of malformed lines, logging
 // parse errors and continuing to read the stream.
 type Reader struct {
-	logger     *slog.Logger
-	translator Translator
+	logger       *slog.Logger
+	translator   Translator
+	maxLineBytes int
 }
+
+// defaultMaxLineBytes caps one stream line. Agent events carry whole tool
+// results, such as a file read or a diff, so lines beyond 64 KiB are normal.
+// A longer line is skipped with a warning, not fatal. The cap is kept at
+// 1 MiB because several buffers hold whole events (the forwarder queue, PRM
+// and diagnosis), and together they must stay inside the controller's
+// memory limit.
+const defaultMaxLineBytes = 1 << 20
+
+// maxLoggedLineBytes bounds how much of an unparseable line is logged.
+const maxLoggedLineBytes = 512
 
 // ReaderOption configures optional Reader behaviour.
 type ReaderOption func(*Reader)
@@ -35,8 +48,9 @@ func WithTranslator(t Translator) ReaderOption {
 // stream format translator.
 func NewReader(logger *slog.Logger, opts ...ReaderOption) *Reader {
 	r := &Reader{
-		logger:     logger,
-		translator: NewPassthroughTranslator(),
+		logger:       logger,
+		translator:   NewPassthroughTranslator(),
+		maxLineBytes: defaultMaxLineBytes,
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -51,41 +65,81 @@ func NewReader(logger *slog.Logger, opts ...ReaderOption) *Reader {
 func (r *Reader) ReadStream(ctx context.Context, stream io.ReadCloser, eventCh chan<- *StreamEvent) error {
 	defer stream.Close()
 
-	scanner := bufio.NewScanner(stream)
-	for scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
-		events, err := r.translator.Translate(line)
-		if err != nil {
-			r.logger.Warn("failed to parse agent stream line",
-				"error", err,
-				"line", string(line),
+	// Not bufio.Scanner: it stops for good at the first line longer than its
+	// buffer, which ended the stream, and with it the run's result event and
+	// telemetry, at the first large tool result.
+	br := bufio.NewReader(stream)
+	for {
+		line, tooLong, readErr := readLine(br, r.maxLineBytes)
+		if tooLong {
+			r.logger.Warn("skipping agent stream line over the size limit",
+				"limit_bytes", r.maxLineBytes,
 			)
-			continue
 		}
-
-		for _, ev := range events {
-			select {
-			case eventCh <- ev:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
+		if err := r.handleLine(ctx, line, eventCh); err != nil {
+			return err
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
 		}
 	}
+}
 
-	if err := scanner.Err(); err != nil {
+// handleLine translates one line and sends its events. Malformed lines are
+// logged and skipped.
+func (r *Reader) handleLine(ctx context.Context, line []byte, eventCh chan<- *StreamEvent) error {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if len(line) == 0 {
+		return nil
+	}
+
+	events, err := r.translator.Translate(line)
+	if err != nil {
+		logged := line
+		if len(logged) > maxLoggedLineBytes {
+			logged = logged[:maxLoggedLineBytes]
+		}
+		r.logger.Warn("failed to parse agent stream line",
+			"error", err,
+			"line", string(logged),
+			"line_bytes", len(line),
+		)
+		return nil
+	}
+
+	for _, ev := range events {
+		select {
+		case eventCh <- ev:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return nil
+}
+
+// readLine returns the next line without its line ending. A line longer than
+// maxBytes is read to its end and discarded, and tooLong is set. At the end
+// of the stream it returns any final unterminated line with io.EOF.
+func readLine(br *bufio.Reader, maxBytes int) (line []byte, tooLong bool, err error) {
+	for {
+		chunk, err := br.ReadSlice('\n')
+		if !tooLong {
+			if len(line)+len(chunk) > maxBytes {
+				tooLong, line = true, nil
+			} else {
+				line = append(line, chunk...)
+			}
+		}
+		if err == bufio.ErrBufferFull {
+			continue
+		}
+		return bytes.TrimRight(line, "\r\n"), tooLong, err
+	}
 }
 
 // ReadPodLogs connects to a running Kubernetes pod's log stream and reads

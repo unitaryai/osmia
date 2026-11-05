@@ -15,13 +15,19 @@ import (
 // what matters, and the bound keeps memory flat for long runs.
 const maxDiagnosisEvents = 500
 
+// maxDiagnosisBytes bounds the approximate memory of the events kept for one
+// task run. Events hold whole tool results and tool arguments, and a single
+// stream line may be megabytes, so the event count alone does not bound it.
+const maxDiagnosisBytes = 8 << 20
+
 // diagnosisEnabled reports whether failed task runs are diagnosed.
 func (r *Reconciler) diagnosisEnabled() bool {
 	return r.analyser != nil && r.config != nil && r.config.Diagnosis.Enabled
 }
 
 // recordRunEvent keeps a stream event for a later failure diagnosis,
-// dropping the oldest once maxDiagnosisEvents is reached.
+// dropping the oldest once maxDiagnosisEvents or maxDiagnosisBytes is
+// reached. The newest event is always kept.
 func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -29,10 +35,39 @@ func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamE
 		r.runEvents = make(map[string][]*agentstream.StreamEvent)
 	}
 	events := append(r.runEvents[taskRunID], event)
-	if len(events) > maxDiagnosisEvents {
-		events = slices.Clone(events[len(events)-maxDiagnosisEvents:])
+
+	total := 0
+	for _, ev := range events {
+		total += eventSize(ev)
+	}
+	drop := 0
+	for drop < len(events)-1 && (len(events)-drop > maxDiagnosisEvents || total > maxDiagnosisBytes) {
+		total -= eventSize(events[drop])
+		drop++
+	}
+	if drop > 0 {
+		events = slices.Clone(events[drop:])
 	}
 	r.runEvents[taskRunID] = events
+}
+
+// eventSize estimates the memory an event holds from every variable-size
+// parsed field. Fixed-size events (cost, for example) count as zero; the
+// event-count bound covers them.
+func eventSize(ev *agentstream.StreamEvent) int {
+	switch p := ev.Parsed.(type) {
+	case *agentstream.ToolCallEvent:
+		return len(p.Tool) + len(p.Args)
+	case *agentstream.ContentDeltaEvent:
+		return len(p.Content) + len(p.Role)
+	case *agentstream.ResultEvent:
+		return len(p.Summary) + len(p.MergeRequestURL) + len(p.BranchName) +
+			len(p.RawResult) + len(p.RawStructured)
+	case *agentstream.SystemEvent:
+		return len(p.SessionID) + len(p.Subtype)
+	default:
+		return 0
+	}
 }
 
 // takeRunEvents returns and forgets the stream events kept for a task run.

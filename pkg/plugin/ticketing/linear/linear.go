@@ -252,16 +252,13 @@ const commentCreateMutation = `mutation($issueId: String!, $body: String!) {
   }
 }`
 
-// MarkComplete posts a summary comment and updates the issue state to completed.
+// MarkComplete moves the issue to its team's first completed state, then
+// posts a summary comment.
 func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, result engine.TaskResult) error {
 	comment := fmt.Sprintf("Task completed successfully.\n\n**Summary:** %s", result.Summary)
 	if result.MergeRequestURL != "" {
 		comment += fmt.Sprintf("\n**Merge Request:** %s", result.MergeRequestURL)
 	}
-	if err := b.AddComment(ctx, ticketID, comment); err != nil {
-		return fmt.Errorf("adding completion comment: %w", err)
-	}
-
 	stateID, err := b.completedStateID(ctx, ticketID)
 	if err != nil {
 		return fmt.Errorf("resolving completed state for ticket %s: %w", ticketID, err)
@@ -283,6 +280,12 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 	}
 	if !update.IssueUpdate.Success {
 		return fmt.Errorf("linear did not update ticket %s to completed state", ticketID)
+	}
+
+	// Comment only after the state change, so an issue that stays open never
+	// says the task completed.
+	if err := b.AddComment(ctx, ticketID, comment); err != nil {
+		return fmt.Errorf("adding completion comment: %w", err)
 	}
 	return nil
 }
@@ -314,11 +317,6 @@ const completedStatesQuery = `query($id: String!, $after: String) {
     }
   }
 }`
-
-// maxCompletedStatePages bounds the paging loop so that a cursor which never
-// advances cannot make MarkComplete loop forever. At Linear's default page
-// size of 50, this allows far more completed states than any team defines.
-const maxCompletedStatePages = 20
 
 // completedStatesResponse maps the data portion of completedStatesQuery.
 type completedStatesResponse struct {
@@ -366,11 +364,14 @@ func (b *LinearBackend) completedStateID(ctx context.Context, ticketID string) (
 
 // completedStates reads every page of the issue team's completed workflow
 // states. Choosing the lowest position from a partial list could pick the
-// wrong state, so it fails rather than return an incomplete result.
+// wrong state, so it fails rather than return an incomplete result. Paging
+// follows hasNextPage with no fixed page limit; a cursor that was already
+// used would repeat a page for ever, so it is an error.
 func (b *LinearBackend) completedStates(ctx context.Context, ticketID string) ([]linearWorkflowState, error) {
 	var states []linearWorkflowState
 	variables := map[string]any{"id": ticketID}
-	for page := 0; page < maxCompletedStatePages; page++ {
+	seenCursors := make(map[string]struct{})
+	for {
 		data, err := b.doGraphQL(ctx, completedStatesQuery, variables)
 		if err != nil {
 			return nil, err
@@ -386,12 +387,17 @@ func (b *LinearBackend) completedStates(ctx context.Context, ticketID string) ([
 		if !conn.PageInfo.HasNextPage {
 			return states, nil
 		}
-		if conn.PageInfo.EndCursor == "" {
+
+		cursor := conn.PageInfo.EndCursor
+		if cursor == "" {
 			return nil, errors.New("workflow states response has a next page but no end cursor")
 		}
-		variables["after"] = conn.PageInfo.EndCursor
+		if _, seen := seenCursors[cursor]; seen {
+			return nil, fmt.Errorf("workflow states cursor %q did not advance", cursor)
+		}
+		seenCursors[cursor] = struct{}{}
+		variables["after"] = cursor
 	}
-	return nil, fmt.Errorf("workflow states exceed %d pages", maxCompletedStatePages)
 }
 
 // MarkFailed adds a "osmia-failed" label and posts the failure reason

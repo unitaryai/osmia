@@ -233,6 +233,18 @@ func main() {
 		claudeOpts = append(claudeOpts, claudecode.WithMaxTurns(cfg.Engines.ClaudeCode.MaxTurns))
 		logger.Info("claude-code max turns configured", "max_turns", cfg.Engines.ClaudeCode.MaxTurns)
 	}
+	if cfg.Engines.ClaudeCode != nil && len(cfg.Engines.ClaudeCode.ToolWhitelist) > 0 {
+		if err := claudecode.ValidateToolWhitelist(cfg.Engines.ClaudeCode.ToolWhitelist); err != nil {
+			logger.Error("invalid engines.claude-code.tool_whitelist", "error", err)
+			os.Exit(1)
+		}
+		claudeOpts = append(claudeOpts, claudecode.WithToolWhitelist(cfg.Engines.ClaudeCode.ToolWhitelist))
+		logger.Info("claude-code tool whitelist configured", "tools", cfg.Engines.ClaudeCode.ToolWhitelist)
+	}
+	if cfg.Engines.ClaudeCode != nil && len(cfg.Engines.ClaudeCode.ToolBlacklist) > 0 {
+		claudeOpts = append(claudeOpts, claudecode.WithToolBlacklist(cfg.Engines.ClaudeCode.ToolBlacklist))
+		logger.Info("claude-code tool blacklist configured", "tools", cfg.Engines.ClaudeCode.ToolBlacklist)
+	}
 	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.AgentTeams.Enabled {
 		claudeOpts = append(claudeOpts, claudecode.WithTeamsConfig(claudecode.TeamsConfig{
 			Enabled:       true,

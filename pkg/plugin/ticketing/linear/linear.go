@@ -163,7 +163,7 @@ func NewLinearBackend(token string, teamID string, logger *slog.Logger, opts ...
 	return b
 }
 
-const pollQuery = `query($teamId: String!, $stateFilter: String, $labels: [String!]) {
+const pollQuery = `query($teamId: ID!, $stateFilter: String, $labels: [String!]) {
   issues(filter: {
     team: { id: { eq: $teamId } }
     state: { name: { eq: $stateFilter } }
@@ -245,19 +245,10 @@ func hasExcludedLabel(issueLabels []linearLabel, excludeSet map[string]struct{})
 	return false
 }
 
-const markInProgressMutation = `mutation($id: String!, $labelName: String!) {
-  issueAddLabel(id: $id, labelName: $labelName) {
-    success
-  }
-}`
-
-// MarkInProgress adds an "in-progress" label to the issue.
+// MarkInProgress adds an "in-progress" label to the issue, which the default
+// exclude list uses to stop the issue being picked up again.
 func (b *LinearBackend) MarkInProgress(ctx context.Context, ticketID string) error {
-	_, err := b.doGraphQL(ctx, markInProgressMutation, map[string]any{
-		"id":        ticketID,
-		"labelName": "in-progress",
-	})
-	if err != nil {
+	if err := b.addLabel(ctx, ticketID, "in-progress"); err != nil {
 		return fmt.Errorf("marking ticket %s in progress: %w", ticketID, err)
 	}
 	return nil
@@ -427,16 +418,7 @@ func (b *LinearBackend) teamStates(ctx context.Context, ticketID string, filter 
 // MarkFailed adds a "osmia-failed" label and posts the failure reason
 // as a comment.
 func (b *LinearBackend) MarkFailed(ctx context.Context, ticketID string, reason string) error {
-	const addLabelMutation = `mutation($id: String!, $labelName: String!) {
-  issueAddLabel(id: $id, labelName: $labelName) {
-    success
-  }
-}`
-	_, err := b.doGraphQL(ctx, addLabelMutation, map[string]any{
-		"id":        ticketID,
-		"labelName": "osmia-failed",
-	})
-	if err != nil {
+	if err := b.addLabel(ctx, ticketID, "osmia-failed"); err != nil {
 		return fmt.Errorf("adding failed label to ticket %s: %w", ticketID, err)
 	}
 

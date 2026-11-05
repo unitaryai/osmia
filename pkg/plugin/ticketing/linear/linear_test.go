@@ -256,21 +256,84 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 	}
 }
 
-func TestLinearBackend_MarkInProgress(t *testing.T) {
-	srv := httptest.NewServer(graphqlHandler(t, "",
-		func(t *testing.T, gqlReq graphqlRequest) {
-			t.Helper()
-			assert.Contains(t, gqlReq.Query, "issueAddLabel")
-			assert.Equal(t, "ENG-123", gqlReq.Variables["id"])
-			assert.Equal(t, "in-progress", gqlReq.Variables["labelName"])
-		},
-		map[string]any{"issueAddLabel": map[string]any{"success": true}},
-	))
-	defer srv.Close()
+// labelServer fakes the label calls: a lookup that returns the given labels
+// for an issue on team-1, label creation, issueAddLabel and commentCreate. It
+// records what was created, which label was added and any comment.
+type labelServer struct {
+	labels    []map[string]any
+	created   map[string]any
+	addedID   string
+	commented string
+}
 
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-	err := b.MarkInProgress(context.Background(), "ENG-123")
-	require.NoError(t, err)
+func (ls *labelServer) start(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req graphqlRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+
+		var data any
+		switch {
+		case strings.Contains(req.Query, "issueLabelCreate"):
+			ls.created = req.Variables
+			data = map[string]any{"issueLabelCreate": map[string]any{"success": true, "issueLabel": map[string]any{"id": "lbl-new"}}}
+		case strings.Contains(req.Query, "issueAddLabel"):
+			ls.addedID, _ = req.Variables["labelId"].(string)
+			data = map[string]any{"issueAddLabel": map[string]any{"success": true}}
+		case strings.Contains(req.Query, "commentCreate"):
+			ls.commented, _ = req.Variables["body"].(string)
+			data = map[string]any{"commentCreate": map[string]any{"success": true}}
+		default:
+			data = map[string]any{
+				"issue":       map[string]any{"team": map[string]any{"id": "team-1"}},
+				"issueLabels": map[string]any{"nodes": ls.labels},
+			}
+		}
+		raw, _ := json.Marshal(data)
+		_ = json.NewEncoder(w).Encode(graphqlResponse{Data: raw})
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// Linear's issueAddLabel takes a label ID, so the label is looked up by name
+// among workspace labels and the issue's team labels, and created if missing.
+func TestLinearBackend_MarkInProgress(t *testing.T) {
+	otherTeam := map[string]any{"id": "lbl-other", "team": map[string]any{"id": "team-2"}}
+
+	tests := []struct {
+		name        string
+		labels      []map[string]any
+		wantAdded   string
+		wantCreated bool
+	}{
+		{
+			name:      "uses an existing workspace label",
+			labels:    []map[string]any{otherTeam, {"id": "lbl-workspace", "team": nil}},
+			wantAdded: "lbl-workspace",
+		},
+		{
+			name:        "creates the label on the issue's team when none can be used",
+			labels:      []map[string]any{otherTeam},
+			wantAdded:   "lbl-new",
+			wantCreated: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ls := &labelServer{labels: tt.labels}
+			b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
+
+			require.NoError(t, b.MarkInProgress(context.Background(), "ENG-123"))
+
+			assert.Equal(t, tt.wantAdded, ls.addedID)
+			if tt.wantCreated {
+				assert.Equal(t, map[string]any{"teamId": "team-1", "name": "in-progress"}, ls.created)
+			} else {
+				assert.Nil(t, ls.created, "an existing label must not be duplicated")
+			}
+		})
+	}
 }
 
 // statesPage builds a team-states response; a non-empty cursor means more pages follow.
@@ -390,39 +453,13 @@ func TestLinearBackend_MarkComplete(t *testing.T) {
 }
 
 func TestLinearBackend_MarkFailed(t *testing.T) {
-	var calls []graphqlRequest
+	ls := &labelServer{labels: []map[string]any{{"id": "lbl-failed", "team": map[string]any{"id": "team-1"}}}}
+	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var gqlReq graphqlRequest
-		_ = json.NewDecoder(r.Body).Decode(&gqlReq)
-		calls = append(calls, gqlReq)
+	require.NoError(t, b.MarkFailed(context.Background(), "ENG-7", "timeout exceeded"))
 
-		resp := graphqlResponse{}
-		data, _ := json.Marshal(map[string]any{
-			"issueAddLabel": map[string]any{"success": true},
-			"commentCreate": map[string]any{"success": true},
-		})
-		resp.Data = data
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-	err := b.MarkFailed(context.Background(), "ENG-7", "timeout exceeded")
-	require.NoError(t, err)
-	require.Len(t, calls, 2)
-
-	// First call: add failed label.
-	assert.Contains(t, calls[0].Query, "issueAddLabel")
-	assert.Equal(t, "osmia-failed", calls[0].Variables["labelName"])
-
-	// Second call: failure comment.
-	assert.Contains(t, calls[1].Query, "commentCreate")
-	body, ok := calls[1].Variables["body"].(string)
-	require.True(t, ok)
-	assert.Contains(t, body, "timeout exceeded")
+	assert.Equal(t, "lbl-failed", ls.addedID)
+	assert.Contains(t, ls.commented, "timeout exceeded")
 }
 
 func TestLinearBackend_AddComment(t *testing.T) {

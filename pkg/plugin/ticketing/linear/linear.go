@@ -80,8 +80,8 @@ type LinearBackend struct {
 	labels        []string
 	excludeLabels []string
 	stateFilter   string
-	// completedStateName, if set, names the workflow state MarkComplete
-	// moves issues to. Otherwise it uses the team's first completed state.
+	// completedStateName is the state MarkComplete uses; empty means the first
+	// completed state.
 	completedStateName string
 }
 
@@ -132,12 +132,8 @@ func WithStateFilter(state string) Option {
 	}
 }
 
-// WithCompletedStateName sets the workflow state that issues are moved to when
-// Osmia completes a task, for example "In Review". When it is not set,
-// MarkComplete uses the first state of type "completed" in the issue's team.
-// The agent usually finishes with a pull request that nobody has reviewed or
-// merged yet, so many teams will want a review state rather than one that
-// closes the issue.
+// WithCompletedStateName sets the state MarkComplete moves issues to, such as
+// "In Review". The default is the team's first "completed" state.
 func WithCompletedStateName(name string) Option {
 	return func(b *LinearBackend) {
 		b.completedStateName = name
@@ -260,9 +256,8 @@ const commentCreateMutation = `mutation($issueId: String!, $body: String!) {
   }
 }`
 
-// MarkComplete moves the issue to the configured completed state (see
-// WithCompletedStateName), or else to its team's first state of type
-// "completed", then posts a summary comment.
+// MarkComplete moves the issue to completed_state_name (default: the first
+// completed state), then comments.
 func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, result engine.TaskResult) error {
 	comment := fmt.Sprintf("Task completed successfully.\n\n**Summary:** %s", result.Summary)
 	if result.MergeRequestURL != "" {
@@ -281,8 +276,7 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 		return fmt.Errorf("updating ticket %s to completed state: %w", ticketID, err)
 	}
 
-	// Linear can reject a mutation with success: false and no top-level
-	// GraphQL error, so the payload must be checked as well.
+	// Linear can fail with success: false and no GraphQL error.
 	var update issueUpdateResponse
 	if err := json.Unmarshal(data, &update); err != nil {
 		return fmt.Errorf("decoding issue update response for ticket %s: %w", ticketID, err)
@@ -291,8 +285,7 @@ func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, resul
 		return fmt.Errorf("linear did not update ticket %s to completed state", ticketID)
 	}
 
-	// Comment only after the state change, so an issue that stays open never
-	// says the task completed.
+	// Comment only once the state has changed.
 	if err := b.AddComment(ctx, ticketID, comment); err != nil {
 		return fmt.Errorf("adding completion comment: %w", err)
 	}
@@ -312,10 +305,7 @@ type issueUpdateResponse struct {
 	} `json:"issueUpdate"`
 }
 
-// teamStatesQuery lists one page of the workflow states that match $filter
-// on the team that owns the issue. Linear's issueUpdate needs a state UUID,
-// and each team defines its own states, so the ID must be looked up per
-// issue. Archived states are left out, which is the API default.
+// teamStatesQuery lists one page of the issue team's states matching $filter.
 const teamStatesQuery = `query($id: String!, $filter: WorkflowStateFilter, $after: String) {
   issue(id: $id) {
     team {
@@ -349,11 +339,8 @@ type linearWorkflowState struct {
 	Position float64 `json:"position"`
 }
 
-// targetStateID returns the ID of the workflow state MarkComplete moves the
-// issue to. With a configured name, that is the team's state of that name.
-// Otherwise it is the team's first state of type "completed", ordered by
-// position as on the Linear board: a team may define several (for example
-// "Done" and "Released"), and the first is the conventional target.
+// targetStateID returns the configured state, or else the team's first
+// "completed" state in board order.
 func (b *LinearBackend) targetStateID(ctx context.Context, ticketID string) (string, error) {
 	filter := map[string]any{"type": map[string]any{"eq": "completed"}}
 	if b.completedStateName != "" {
@@ -377,11 +364,8 @@ func (b *LinearBackend) targetStateID(ctx context.Context, ticketID string) (str
 	return first.ID, nil
 }
 
-// teamStates reads every page of the issue team's workflow states that match
-// filter. Choosing the lowest position from a partial list could pick the
-// wrong state, so it fails rather than return an incomplete result. Paging
-// follows hasNextPage with no fixed page limit; a cursor that was already
-// used would repeat a page for ever, so it is an error.
+// teamStates reads every page and fails on a repeated cursor, since a partial
+// list could pick the wrong state.
 func (b *LinearBackend) teamStates(ctx context.Context, ticketID string, filter map[string]any) ([]linearWorkflowState, error) {
 	var states []linearWorkflowState
 	variables := map[string]any{"id": ticketID, "filter": filter}

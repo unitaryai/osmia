@@ -256,10 +256,7 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 	}
 }
 
-// labelServer fakes the label calls for an issue on team-1: a lookup that
-// returns the given team and workspace label IDs, label creation (which can
-// be made to fail once, as when another run created the label first),
-// issueAddLabel and commentCreate.
+// labelServer fakes Linear's label calls for an issue on team-1.
 type labelServer struct {
 	teamLabels      []string
 	workspaceLabels []string

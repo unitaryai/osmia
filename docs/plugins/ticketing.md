@@ -271,7 +271,7 @@ config:
       completed_state_name: "In Review"           # optional
 ```
 
-`completed_state_name` names the workflow state that `MarkComplete` moves an issue to. Osmia usually finishes with a pull request that nobody has reviewed or merged yet, so a review state is often a better target than one that closes the issue. If you leave it out, Osmia uses the team's first state of type "completed" in board order, normally "Done". If you set a name and the issue's team has no state with that name, `MarkComplete` returns an error and leaves the issue where it is.
+`completed_state_name` is the state `MarkComplete` moves issues to, such as "In Review". The default is the team's first "completed" state in board order. If the team has no state with that name, `MarkComplete` fails and leaves the issue unchanged.
 
 ### Behaviour
 
@@ -279,7 +279,7 @@ config:
 |---|---|
 | `PollReadyTickets` | GraphQL `issues` query filtered by team, state name, and labels |
 | `MarkInProgress` | Adds the `in-progress` label to the issue |
-| `MarkComplete` | Moves the issue to `completed_state_name` (or the team's first completed-type state if not configured); then posts a comment with the PR link and summary |
+| `MarkComplete` | Moves the issue to `completed_state_name` (default: the first completed state), then comments with the PR link and summary |
 | `MarkFailed` | Adds the `osmia-failed` label; posts a comment with the failure reason |
 | `AddComment` | `commentCreate` GraphQL mutation |
 

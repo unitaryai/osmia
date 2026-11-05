@@ -6,12 +6,8 @@ import (
 	"fmt"
 )
 
-// Linear's issueAddLabel takes a label ID, not a name, so a label is first
-// looked up by name and created if it does not exist. A label may belong to
-// the whole workspace or to one team, and only the issue's own team's labels
-// and workspace labels can be applied to it. The lookup asks for exactly
-// those two scopes, so at most one label of each can match and no paging is
-// needed.
+// Linear's issueAddLabel takes a label ID, so a label is looked up by name on
+// the issue's team and the workspace, and created on the team if missing.
 
 const labelLookupQuery = `query($id: String!, $name: String!) {
   issue(id: $id) {
@@ -46,8 +42,7 @@ type labelNodes struct {
 	} `json:"nodes"`
 }
 
-// firstApplicable returns the ID of the first label that is not a label
-// group, or "". Linear does not let a group itself be applied to an issue.
+// firstApplicable returns the first label ID that is not a label group, or "".
 func (l labelNodes) firstApplicable() string {
 	for _, n := range l.Nodes {
 		if !n.IsGroup {
@@ -68,8 +63,7 @@ type labelLookupResponse struct {
 	IssueLabels labelNodes `json:"issueLabels"`
 }
 
-// addLabel applies the label called name to the issue, creating it on the
-// issue's team if no usable label of that name exists.
+// addLabel applies the label called name to the issue.
 func (b *LinearBackend) addLabel(ctx context.Context, ticketID, name string) error {
 	labelID, err := b.labelID(ctx, ticketID, name)
 	if err != nil {
@@ -94,8 +88,7 @@ func (b *LinearBackend) addLabel(ctx context.Context, ticketID, name string) err
 	return nil
 }
 
-// labelID returns the ID of a label called name on the issue's team or the
-// workspace, creating a team label if there is none.
+// labelID finds or creates the label called name.
 func (b *LinearBackend) labelID(ctx context.Context, ticketID, name string) (string, error) {
 	labelID, teamID, err := b.findLabel(ctx, ticketID, name)
 	if err != nil || labelID != "" {
@@ -106,16 +99,14 @@ func (b *LinearBackend) labelID(ctx context.Context, ticketID, name string) (str
 	if createErr == nil {
 		return created, nil
 	}
-	// Another run may have created the label since the lookup, in which case
-	// Linear refuses a duplicate. Use that label rather than fail.
+	// Another run may have just created it.
 	if labelID, _, err := b.findLabel(ctx, ticketID, name); err == nil && labelID != "" {
 		return labelID, nil
 	}
 	return "", createErr
 }
 
-// findLabel returns the ID of a team or workspace label called name, or ""
-// if there is none, together with the issue's team ID.
+// findLabel returns the label's ID ("" if none) and the issue's team ID.
 func (b *LinearBackend) findLabel(ctx context.Context, ticketID, name string) (labelID, teamID string, err error) {
 	data, err := b.doGraphQL(ctx, labelLookupQuery, map[string]any{"id": ticketID, "name": name})
 	if err != nil {

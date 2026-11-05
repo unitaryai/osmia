@@ -20,12 +20,8 @@ type Reader struct {
 	maxLineBytes int
 }
 
-// defaultMaxLineBytes caps one stream line. Agent events carry whole tool
-// results, such as a file read or a diff, so lines beyond 64 KiB are normal.
-// A longer line is skipped with a warning, not fatal. The cap is kept at
-// 1 MiB because several buffers hold whole events (the forwarder queue, PRM
-// and diagnosis), and together they must stay inside the controller's
-// memory limit.
+// defaultMaxLineBytes caps one stream line. Tool results often pass 64 KiB;
+// a line over the cap is skipped with a warning.
 const defaultMaxLineBytes = 1 << 20
 
 // maxLoggedLineBytes bounds how much of an unparseable line is logged.
@@ -65,9 +61,7 @@ func NewReader(logger *slog.Logger, opts ...ReaderOption) *Reader {
 func (r *Reader) ReadStream(ctx context.Context, stream io.ReadCloser, eventCh chan<- *StreamEvent) error {
 	defer stream.Close()
 
-	// Not bufio.Scanner: it stops for good at the first line longer than its
-	// buffer, which ended the stream, and with it the run's result event and
-	// telemetry, at the first large tool result.
+	// Not bufio.Scanner, which stops for good at the first line over its limit.
 	br := bufio.NewReader(stream)
 	for {
 		line, tooLong, readErr := readLine(br, r.maxLineBytes)
@@ -88,8 +82,7 @@ func (r *Reader) ReadStream(ctx context.Context, stream io.ReadCloser, eventCh c
 	}
 }
 
-// handleLine translates one line and sends its events. Malformed lines are
-// logged and skipped.
+// handleLine translates one line and sends its events.
 func (r *Reader) handleLine(ctx context.Context, line []byte, eventCh chan<- *StreamEvent) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -122,10 +115,9 @@ func (r *Reader) handleLine(ctx context.Context, line []byte, eventCh chan<- *St
 	return nil
 }
 
-// readLine returns the next line without its line ending. A line whose
-// content (excluding the line ending) is longer than maxBytes is read to its
-// end and discarded, and tooLong is set. At the end of the stream it returns
-// any final unterminated line with io.EOF.
+// readLine returns the next line without its ending. A line whose content is
+// over maxBytes is discarded and tooLong is set. At EOF it may return a final
+// unterminated line together with io.EOF.
 func readLine(br *bufio.Reader, maxBytes int) (line []byte, tooLong bool, err error) {
 	for {
 		chunk, err := br.ReadSlice('\n')

@@ -2312,9 +2312,7 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	r.mu.Unlock()
 
 	go func() {
-		// Each queued event can hold a stream line of up to 1 MiB, so the
-		// queue is kept short. When it is full the reader simply waits on the
-		// pod log stream.
+		// Short queue: each event can hold a 1 MiB line.
 		eventCh := make(chan *agentstream.StreamEvent, 16)
 
 		reader := agentstream.NewReader(

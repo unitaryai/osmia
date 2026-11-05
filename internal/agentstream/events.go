@@ -27,9 +27,7 @@ const (
 )
 
 // StreamEvent is the top-level envelope for every NDJSON line in the agent
-// stream. The original line is not kept: lines can be up to 1 MiB, several
-// buffers hold whole events, and the typed Parsed field carries what callers
-// use.
+// stream. The raw line is not kept, as it can be up to 1 MiB.
 type StreamEvent struct {
 	Type      EventType `json:"type"`
 	Timestamp time.Time `json:"timestamp"`

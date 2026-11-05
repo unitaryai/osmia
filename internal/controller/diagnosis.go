@@ -15,9 +15,7 @@ import (
 // what matters, and the bound keeps memory flat for long runs.
 const maxDiagnosisEvents = 500
 
-// maxDiagnosisBytes bounds the approximate memory of the events kept for one
-// task run. Events hold whole tool results and tool arguments, and a single
-// stream line may be megabytes, so the event count alone does not bound it.
+// maxDiagnosisBytes bounds the approximate memory of the events kept for one run.
 const maxDiagnosisBytes = 8 << 20
 
 // diagnosisEnabled reports whether failed task runs are diagnosed.
@@ -51,10 +49,7 @@ func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamE
 	r.runEvents[taskRunID] = events
 }
 
-// eventSize estimates the memory an event holds from its type and every
-// variable-size parsed field. The type comes from the agent and is kept even
-// for unknown events, so it counts too. Fixed-size fields (cost, for example)
-// count as zero; the event-count bound covers them.
+// eventSize estimates the bytes an event holds (type and variable-size fields).
 func eventSize(ev *agentstream.StreamEvent) int {
 	size := len(ev.Type)
 	switch p := ev.Parsed.(type) {

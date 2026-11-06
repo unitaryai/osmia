@@ -3190,6 +3190,12 @@ func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) 
 		return
 	}
 
+	// Route on the reason: a late approval may already have moved the run on.
+	if wdReason.ReasonCode == watchdog.ReasonUnansweredHuman && action != watchdog.ActionWarn {
+		r.failUnansweredApproval(ctx, tr, wdReason.Message)
+		return
+	}
+
 	r.logger.WarnContext(ctx, "watchdog anomaly: terminating task run",
 		"task_run_id", tr.ID,
 		"reason_code", wdReason.ReasonCode,

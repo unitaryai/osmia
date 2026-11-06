@@ -61,7 +61,7 @@ func NewReader(logger *slog.Logger, opts ...ReaderOption) *Reader {
 func (r *Reader) ReadStream(ctx context.Context, stream io.ReadCloser, eventCh chan<- *StreamEvent) error {
 	defer stream.Close()
 
-	// Not bufio.Scanner, which stops for good at the first line over its limit.
+	// bufio.Reader lets readLine skip a line over the limit and carry on.
 	br := bufio.NewReader(stream)
 	for {
 		line, tooLong, readErr := readLine(br, r.maxLineBytes)

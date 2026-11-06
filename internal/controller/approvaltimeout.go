@@ -8,12 +8,12 @@ import (
 	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
-// failUnansweredApproval fails the task run when its approval gate times out.
+// failUnansweredApproval fails the task run when its approval request times out.
 // It uses up the retry budget so there is no retry, and frees the concurrency slot.
 func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.TaskRun, reason string) {
 	r.mu.Lock()
 	if tr.State != taskrun.StateNeedsHuman {
-		// The gate was resolved after the watchdog check; keep that result.
+		// The approval was resolved after the watchdog check; keep that result.
 		r.mu.Unlock()
 		return
 	}
@@ -48,7 +48,7 @@ func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.Tas
 	r.updateNotificationStatus(ctx, threadRef,
 		fmt.Sprintf("\u274C *Osmia failed:* %s", tr.TicketID))
 
-	r.logger.WarnContext(ctx, "approval gate not answered in time; task run failed without retry",
+	r.logger.WarnContext(ctx, "approval not answered in time; task run failed without retry",
 		"task_run_id", tr.ID,
 		"gate_type", gateType,
 	)

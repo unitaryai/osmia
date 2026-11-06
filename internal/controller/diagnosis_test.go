@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -104,12 +106,33 @@ func TestHandleJobFailed_DiagnosisUsesStreamEvents(t *testing.T) {
 func TestRecordRunEvent_KeepsMostRecent(t *testing.T) {
 	r := &Reconciler{}
 	for i := 0; i < maxDiagnosisEvents+10; i++ {
-		r.recordRunEvent("tr-1", &agentstream.StreamEvent{Raw: []byte{byte(i % 256)}})
+		r.recordRunEvent("tr-1", &agentstream.StreamEvent{Parsed: &agentstream.ContentDeltaEvent{Content: fmt.Sprint(i)}})
 	}
 	events := r.takeRunEvents("tr-1")
 	require.Len(t, events, maxDiagnosisEvents)
-	assert.Equal(t, []byte{10}, []byte(events[0].Raw), "the oldest events are dropped")
+	assert.Equal(t, "10", events[0].Parsed.(*agentstream.ContentDeltaEvent).Content, "the oldest events are dropped")
 	assert.Empty(t, r.takeRunEvents("tr-1"))
+}
+
+// Given an agent that emits very large events (whole files in tool results),
+// when they are kept for diagnosis,
+// then the memory held stays within the byte budget and the newest is kept.
+func TestRecordRunEvent_BoundsBytes(t *testing.T) {
+	r := &Reconciler{}
+	for i := 0; i < 10; i++ {
+		content := fmt.Sprint(i) + strings.Repeat("x", 3<<20)
+		r.recordRunEvent("tr-1", &agentstream.StreamEvent{Parsed: &agentstream.ContentDeltaEvent{Content: content}})
+	}
+
+	events := r.takeRunEvents("tr-1")
+	total := 0
+	for _, ev := range events {
+		total += eventSize(ev)
+	}
+	assert.LessOrEqual(t, total, maxDiagnosisBytes)
+	require.Len(t, events, 2, "only as many old events are dropped as the budget needs")
+	assert.Equal(t, "8", events[0].Parsed.(*agentstream.ContentDeltaEvent).Content[:1])
+	assert.Equal(t, "9", events[1].Parsed.(*agentstream.ContentDeltaEvent).Content[:1], "the newest event is kept")
 }
 
 func TestSuggestEngine(t *testing.T) {

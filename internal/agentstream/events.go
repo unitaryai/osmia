@@ -27,12 +27,10 @@ const (
 )
 
 // StreamEvent is the top-level envelope for every NDJSON line in the agent
-// stream. The Raw field holds the original JSON so callers can decode into
-// the appropriate typed event via the helper methods.
+// stream.
 type StreamEvent struct {
-	Type      EventType       `json:"type"`
-	Timestamp time.Time       `json:"timestamp"`
-	Raw       json.RawMessage `json:"-"`
+	Type      EventType `json:"type"`
+	Timestamp time.Time `json:"timestamp"`
 
 	// Parsed holds the decoded typed event (one of *ToolCallEvent,
 	// *ContentDeltaEvent, *CostEvent, *ResultEvent) or nil for unknown types.
@@ -136,7 +134,6 @@ func ParseEvent(line []byte) (*StreamEvent, error) {
 	ev := &StreamEvent{
 		Type:      env.Type,
 		Timestamp: env.Timestamp,
-		Raw:       json.RawMessage(line),
 	}
 
 	switch env.Type {

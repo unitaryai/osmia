@@ -1,1 +1,1 @@
-An approval gate that nobody answered launched the agent anyway, because the watchdog timeout retried the run. An unanswered gate now fails the run with no retry or fallback, marks the ticket failed and cancels the approval request.
+Approval gates that timed out started the agent, because the watchdog timeout retried the run. A timed-out gate now fails the run without retry or fallback, marks the ticket failed and cancels the approval request.

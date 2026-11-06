@@ -25,7 +25,7 @@ const (
 	ActionWarn Action = "warn"
 )
 
-// ReasonUnansweredHuman marks a run that waited in NeedsHuman too long.
+// ReasonUnansweredHuman is the reason code for a NeedsHuman timeout.
 const ReasonUnansweredHuman = "unanswered_human"
 
 // Heartbeat represents enriched telemetry data pushed from an agent container.

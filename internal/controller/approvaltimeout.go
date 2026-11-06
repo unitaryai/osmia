@@ -8,13 +8,12 @@ import (
 	"github.com/unitaryai/osmia/internal/taskrun"
 )
 
-// failUnansweredApproval fails a run whose approval gate timed out, without
-// retry: a retry would launch a job nobody approved. Using up its retry budget
-// makes the run terminal, which frees its MaxConcurrentJobs slot.
+// failUnansweredApproval fails the task run when its approval gate times out.
+// It uses up the retry budget so there is no retry, and frees the concurrency slot.
 func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.TaskRun, reason string) {
 	r.mu.Lock()
 	if tr.State != taskrun.StateNeedsHuman {
-		// Answered since the watchdog check: the approval wins.
+		// The gate was resolved after the watchdog check; keep that result.
 		r.mu.Unlock()
 		return
 	}

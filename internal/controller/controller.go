@@ -3190,8 +3190,8 @@ func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) 
 		return
 	}
 
-	// An unanswered gate fails for good. Route on the reason, not the state,
-	// which an approval may have just changed.
+	// Route on the reason, not the state: a late approval may already have
+	// moved the run to Running.
 	if wdReason.ReasonCode == watchdog.ReasonUnansweredHuman && action != watchdog.ActionWarn {
 		r.failUnansweredApproval(ctx, tr, wdReason.Message)
 		return

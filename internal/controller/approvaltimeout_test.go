@@ -19,8 +19,8 @@ import (
 )
 
 // Given a task held at the pre_start approval gate,
-// when nobody answers before the watchdog's unanswered-human timeout,
-// then the run fails for good and no agent job is launched.
+// when the watchdog's unanswered-human timeout passes,
+// then the run fails without retry and no agent job is created.
 func TestUnansweredPreStartApprovalFailsClosed(t *testing.T) {
 	cfg := &config.Config{
 		Engines: config.EnginesConfig{Default: "claude-code"},
@@ -66,7 +66,7 @@ func TestUnansweredPreStartApprovalFailsClosed(t *testing.T) {
 	assert.Empty(t, jobs.Items, "no job may run without approval")
 }
 
-// Given a run held at the pre_merge gate, which still counts as an active job,
+// Given a task run at the pre_merge gate, counted as an active job,
 // when the gate times out,
 // then the ActiveJobs gauge is released exactly once.
 func TestUnansweredPreMergeApprovalReleasesActiveJob(t *testing.T) {

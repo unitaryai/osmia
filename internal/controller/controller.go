@@ -3190,8 +3190,7 @@ func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) 
 		return
 	}
 
-	// Route on the reason, not the state: a late approval may already have
-	// moved the run to Running.
+	// Route on the reason: a late approval may already have moved the run on.
 	if wdReason.ReasonCode == watchdog.ReasonUnansweredHuman && action != watchdog.ActionWarn {
 		r.failUnansweredApproval(ctx, tr, wdReason.Message)
 		return

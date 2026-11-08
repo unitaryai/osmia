@@ -268,7 +268,10 @@ config:
       exclude_labels:
         - "in-progress"
         - "osmia-failed"
+      completed_state_name: "In Review"           # optional
 ```
+
+`completed_state_name` is the state `MarkComplete` moves issues to, such as "In Review". The default is the team's first "completed" state in board order. If the team has no state with that name, `MarkComplete` fails and leaves the issue unchanged.
 
 ### Behaviour
 
@@ -276,7 +279,7 @@ config:
 |---|---|
 | `PollReadyTickets` | GraphQL `issues` query filtered by team, state name, and labels |
 | `MarkInProgress` | Adds the `in-progress` label to the issue |
-| `MarkComplete` | Posts a comment with the PR link and summary; transitions the issue to the completed state |
+| `MarkComplete` | Moves the issue to `completed_state_name` (default: the first completed state), then comments with the PR link and summary |
 | `MarkFailed` | Adds the `osmia-failed` label; posts a comment with the failure reason |
 | `AddComment` | `commentCreate` GraphQL mutation |
 

@@ -1330,6 +1330,12 @@ func initLinearBackend(cfg *config.Config, k8sClient kubernetes.Interface, names
 		opts = append(opts, linearticket.WithExcludeLabels(excludeLabels))
 	}
 
+	if completedName, ok, err := configStringOptional(m, "completed_state_name"); err != nil {
+		return nil, err
+	} else if ok {
+		opts = append(opts, linearticket.WithCompletedStateName(completedName))
+	}
+
 	return linearticket.NewLinearBackend(token, teamID, logger, opts...), nil
 }
 

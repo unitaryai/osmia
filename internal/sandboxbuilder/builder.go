@@ -13,6 +13,7 @@ import (
 
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/k8sname"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -104,10 +105,7 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 		Type: corev1.SeccompProfileTypeRuntimeDefault,
 	}
 
-	jobName := fmt.Sprintf("osmia-%s", taskRunID)
-	if len(jobName) > 63 {
-		jobName = jobName[:63]
-	}
+	jobName := k8sname.Label("osmia-", taskRunID)
 
 	// Build pod annotations.
 	podAnnotations := map[string]string{

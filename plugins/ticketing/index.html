@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -2963,7 +2963,9 @@
 <a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">      </span><span class="nt">exclude_labels</span><span class="p">:</span>
 <a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"in-progress"</span>
 <a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"osmia-failed"</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">      </span><span class="nt">completed_state_name</span><span class="p">:</span><span class="w"> </span><span class="s">"In</span><span class="nv"> </span><span class="s">Review"</span><span class="w">           </span><span class="c1"># optional</span>
 </code></pre></div>
+<p><code>completed_state_name</code> is the state <code>MarkComplete</code> moves issues to, such as "In Review". The default is the team's first "completed" state in board order. If the team has no state with that name, <code>MarkComplete</code> fails and leaves the issue unchanged.</p>
 <h3 id="behaviour_2">Behaviour<a class="headerlink" href="#behaviour_2" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2983,7 +2985,7 @@
 </tr>
 <tr>
 <td><code>MarkComplete</code></td>
-<td>Posts a comment with the PR link and summary; transitions the issue to the completed state</td>
+<td>Moves the issue to <code>completed_state_name</code> (default: the first completed state), then comments with the PR link and summary</td>
 </tr>
 <tr>
 <td><code>MarkFailed</code></td>
@@ -3195,7 +3197,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
     
   </body>

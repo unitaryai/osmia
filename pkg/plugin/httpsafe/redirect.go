@@ -23,7 +23,12 @@ const maxRedirects = 10
 //
 // The client passed in is not modified, so it is safe to pass
 // http.DefaultClient or a client shared with other code. Any CheckRedirect it
-// already has still runs, after the headers have been removed.
+// already has still runs, before the checks here, so it cannot undo them.
+//
+// This covers headers set on the request. A Transport that adds credentials
+// itself, such as an OAuth transport, adds them to every request it sends,
+// redirects included, and is outside what a redirect policy can see. A client
+// built on such a transport must handle redirects in the transport.
 func CredentialSafeRedirects(client *http.Client, credentialHeaders ...string) *http.Client {
 	if client == nil {
 		client = http.DefaultClient
@@ -34,6 +39,14 @@ func CredentialSafeRedirects(client *http.Client, credentialHeaders ...string) *
 		if len(via) >= maxRedirects {
 			return errors.New("stopped after 10 redirects")
 		}
+		// The client's own policy runs first, so that nothing it does to the
+		// request, such as copying a header back from the original, can undo
+		// the checks below.
+		if next != nil {
+			if err := next(req, via); err != nil {
+				return err
+			}
+		}
 		first := via[0].URL
 		if first.Scheme == "https" && req.URL.Scheme != "https" {
 			return errors.New("refusing redirect from https to http")
@@ -43,9 +56,6 @@ func CredentialSafeRedirects(client *http.Client, credentialHeaders ...string) *
 				req.Header.Del(h)
 			}
 			req.Header.Del("Authorization")
-		}
-		if next != nil {
-			return next(req, via)
 		}
 		return nil
 	}

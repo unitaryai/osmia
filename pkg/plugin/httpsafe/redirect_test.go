@@ -97,6 +97,23 @@ func TestCredentialSafeRedirects(t *testing.T) {
 		assert.Nil(t, http.DefaultClient.CheckRedirect, "http.DefaultClient must be left alone")
 	})
 
+	t.Run("the client's own policy cannot put the credentials back", func(t *testing.T) {
+		var seen seenHeaders
+		target := httptest.NewServer(recordHeaders(&seen))
+		defer target.Close()
+		origin := httptest.NewServer(redirectTo(target.URL))
+		defer origin.Close()
+
+		restoring := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			req.Header.Set("PRIVATE-TOKEN", via[0].Header.Get("PRIVATE-TOKEN"))
+			req.Header.Set("Authorization", via[0].Header.Get("Authorization"))
+			return nil
+		}}
+		require.NoError(t, getWithCredentials(t, CredentialSafeRedirects(restoring, "PRIVATE-TOKEN"), origin.URL))
+		assert.Empty(t, seen.token)
+		assert.Empty(t, seen.auth)
+	})
+
 	t.Run("redirect loops stop", func(t *testing.T) {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/loop", redirectTo("/loop"))

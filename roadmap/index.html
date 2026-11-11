@@ -1964,6 +1964,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#35-vault-token-on-redirects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        35. Vault Token on Redirects
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2504,6 +2515,17 @@
     <span class="md-ellipsis">
       
         34. Ticket Readiness Check
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-vault-token-on-redirects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        35. Vault Token on Redirects
       
     </span>
   </a>
@@ -3232,6 +3254,25 @@ comments on it with what is missing, instead of starting a job.</p>
   accurate but slower and costlier.
 - For build stages (Application Build Pilot), is the input a ticket at all,
   or a stage specification that needs its own checks?</p>
+<h3 id="35-vault-token-on-redirects">35. Vault Token on Redirects<a class="headerlink" href="#35-vault-token-on-redirects" title="Permanent link">&para;</a></h3>
+<p><strong>Priority:</strong> Medium
+<strong>Scope:</strong> Small
+<strong>Dependencies:</strong> None</p>
+<p><code>httpsafe.CredentialSafeRedirects</code> keeps API tokens off redirects to another
+host for every plugin that sends one, except the Vault secrets backend. Vault
+sends its token in <code>X-Vault-Token</code>, a custom header that Go's HTTP client
+copies onto a redirect to any host. Vault cannot simply use the same policy:
+an HA standby node answers with a redirect to the active node, which needs
+the token, so stripping it would break clusters reached without a load
+balancer.</p>
+<ul>
+<li>[ ] Follow a redirect with the token only when the target is a configured
+  Vault node (the configured address, plus an optional list of cluster
+  addresses), and strip it otherwise</li>
+<li>[ ] Refuse a redirect from https to http</li>
+<li>[ ] Test the standby-to-active redirect and a redirect to an unrelated host</li>
+</ul>
+<hr />
 <hr />
 <h2 id="3-design-first-adr-required-before-implementation">3. Design-First — ADR Required Before Implementation<a class="headerlink" href="#3-design-first-adr-required-before-implementation" title="Permanent link">&para;</a></h2>
 <p>These items have a clear problem and rough direction but need a design document or ADR
@@ -3827,6 +3868,12 @@ live controller and <code>main.go</code>:</p>
 <td>34</td>
 <td>Ticket Readiness Check</td>
 <td>High</td>
+<td>Not started</td>
+</tr>
+<tr>
+<td>35</td>
+<td>Vault Token on Redirects</td>
+<td>Medium</td>
 <td>Not started</td>
 </tr>
 <tr>

@@ -2850,9 +2850,12 @@ never recovers — requiring manual intervention to reset the Shortcut story
 state and restart the controller.</p>
 <p>Recovery should be automatic:</p>
 <ul>
-<li>[ ] On startup, load all <code>Running</code> task runs from the store and reconcile
-  them against live K8s Jobs — transition to <code>Failed</code> any task run whose job
-  no longer exists</li>
+<li>[x] On startup, load all <code>Running</code> task runs from the store and re-adopt
+  those whose Job still exists, re-reading the agent's log so the result is
+  collected and the ticket completed as normal</li>
+<li>[ ] On startup, transition to <code>Failed</code> any recent task run whose job no
+  longer exists (skipping long-stale rows, so old tickets are not sent a
+  failure)</li>
 <li>[ ] Add a periodic background reconciliation loop (e.g. every 5 minutes)
   that detects and recovers task runs whose jobs have disappeared</li>
 <li>[ ] When a task run transitions to <code>Failed</code> due to a missing job, reset the
@@ -3884,7 +3887,7 @@ live controller and <code>main.go</code>:</p>
 <td>—</td>
 <td>Orphaned TaskRun Recovery</td>
 <td>High</td>
-<td>🚧 Not started</td>
+<td>🚧 Running jobs re-adopted on startup; missing-job handling remaining</td>
 </tr>
 <tr>
 <td>—</td>

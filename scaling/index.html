@@ -2133,7 +2133,7 @@
 <p class="admonition-title">Planned feature</p>
 <p>Leader election (multiple controller replicas with automatic failover) is not yet implemented. The controller currently runs as a single replica. HA support via controller-runtime Kubernetes Lease objects is on the roadmap.</p>
 </div>
-<p>For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and are unaffected by a controller restart. In-flight jobs complete normally.</p>
+<p>For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and keep running through a controller restart. With a persistent <code>taskrun_store</code> (for example <code>backend: sqlite</code>), the restarted controller picks them up again and collects their results; with the default in-memory store it cannot, and their tickets are left in progress.</p>
 <h2 id="karpenter-integration">Karpenter integration<a class="headerlink" href="#karpenter-integration" title="Permanent link">&para;</a></h2>
 <p>Osmia agent jobs are ephemeral, CPU-bound workloads. Karpenter provisions dedicated nodes on demand when jobs are created and scales down when they complete.</p>
 <h3 id="recommended-nodepool">Recommended NodePool<a class="headerlink" href="#recommended-nodepool" title="Permanent link">&para;</a></h3>

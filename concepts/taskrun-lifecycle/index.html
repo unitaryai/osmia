@@ -2332,7 +2332,12 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/data/taskruns.db</span><span class="w">  </span><span class="c1"># defaults to /data/taskruns.db if omitted</span>
 </code></pre></div>
 <p>This requires a mounted, writable path. The Helm chart's <code>persistence.enabled: true</code> mounts a PVC at <code>/data</code> for this purpose (see <code>charts/osmia/values.yaml</code>).</p>
-<p>Today this only persists state for post-mortem inspection and debugging (querying the SQLite file directly after a crash). The controller does not yet read the store back on startup, so in-flight TaskRuns are still forgotten across a restart. Recovering and rehydrating them is separate follow-up work. See <a href="../../adr/0001-taskrun-store-sqlite-not-crd/">ADR 0001</a> for the reasoning behind choosing SQLite over a <code>TaskRun</code> CRD.</p>
+<p>On startup the controller reads the store back for two things:</p>
+<ul>
+<li><strong>Running jobs.</strong> Every <code>Running</code> TaskRun whose Kubernetes Job still exists is tracked again. The controller re-reads the agent's log from the start, so the result, including the merge request URL, is collected and the ticket completed as if there had been no restart. A <code>Running</code> TaskRun whose Job no longer exists is left unchanged. Tournament runs are not restored, because tournament progress is held in memory.</li>
+<li><strong>Watched PRs and MRs</strong> (see <a href="../../getting-started/configuration/#review-response">Review response</a>).</li>
+</ul>
+<p>TaskRuns waiting for an approval, and queued or retrying runs that had not started a Job, are not restored yet. With the in-memory store there is nothing to read back, so a restart forgets every in-flight TaskRun. See <a href="../../adr/0001-taskrun-store-sqlite-not-crd/">ADR 0001</a> for the reasoning behind choosing SQLite over a <code>TaskRun</code> CRD.</p>
 <h2 id="real-time-monitoring">Real-time monitoring<a class="headerlink" href="#real-time-monitoring" title="Permanent link">&para;</a></h2>
 <p>While a TaskRun is in the Running state, two monitoring systems run in parallel:</p>
 <ul>

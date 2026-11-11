@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -255,102 +256,239 @@ func TestLinearBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 	}
 }
 
-func TestLinearBackend_MarkInProgress(t *testing.T) {
-	srv := httptest.NewServer(graphqlHandler(t, "",
-		func(t *testing.T, gqlReq graphqlRequest) {
-			t.Helper()
-			assert.Contains(t, gqlReq.Query, "issueAddLabel")
-			assert.Equal(t, "ENG-123", gqlReq.Variables["id"])
-			assert.Equal(t, "in-progress", gqlReq.Variables["labelName"])
-		},
-		map[string]any{"issueAddLabel": map[string]any{"success": true}},
-	))
-	defer srv.Close()
+// labelServer fakes Linear's label calls for an issue on team-1.
+type labelServer struct {
+	teamLabels      []string
+	workspaceLabels []string
+	createConflict  bool
 
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-	err := b.MarkInProgress(context.Background(), "ENG-123")
-	require.NoError(t, err)
+	created   map[string]any
+	addedID   string
+	commented string
+}
+
+// labelNodesOf builds a label connection; an ID starting with "group-" is a
+// label group.
+func labelNodesOf(ids []string) map[string]any {
+	nodes := []map[string]any{}
+	for _, id := range ids {
+		nodes = append(nodes, map[string]any{"id": id, "isGroup": strings.HasPrefix(id, "group-")})
+	}
+	return map[string]any{"nodes": nodes}
+}
+
+func (ls *labelServer) start(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req graphqlRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+
+		resp := graphqlResponse{}
+		var data any
+		switch {
+		case strings.Contains(req.Query, "issueLabelCreate"):
+			ls.created = req.Variables
+			if ls.createConflict {
+				// The other run's label now exists; Linear refuses a duplicate.
+				ls.teamLabels = []string{"lbl-other-run"}
+				resp.Errors = []graphqlError{{Message: "duplicate label name"}}
+				break
+			}
+			data = map[string]any{"issueLabelCreate": map[string]any{"success": true, "issueLabel": map[string]any{"id": "lbl-new"}}}
+		case strings.Contains(req.Query, "issueAddLabel"):
+			ls.addedID, _ = req.Variables["labelId"].(string)
+			data = map[string]any{"issueAddLabel": map[string]any{"success": true}}
+		case strings.Contains(req.Query, "commentCreate"):
+			ls.commented, _ = req.Variables["body"].(string)
+			data = map[string]any{"commentCreate": map[string]any{"success": true}}
+		default:
+			data = map[string]any{
+				"issue":       map[string]any{"team": map[string]any{"id": "team-1", "labels": labelNodesOf(ls.teamLabels)}},
+				"issueLabels": labelNodesOf(ls.workspaceLabels),
+			}
+		}
+		if data != nil {
+			resp.Data, _ = json.Marshal(data)
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// Linear's issueAddLabel takes a label ID, so the label is looked up by name
+// on the issue's team and the workspace, and created on the team if missing.
+func TestLinearBackend_MarkInProgress(t *testing.T) {
+	tests := []struct {
+		name        string
+		server      labelServer
+		wantAdded   string
+		wantCreated bool
+	}{
+		{
+			name:      "uses an existing workspace label",
+			server:    labelServer{workspaceLabels: []string{"lbl-workspace"}},
+			wantAdded: "lbl-workspace",
+		},
+		{
+			name:        "skips a label group of the same name",
+			server:      labelServer{teamLabels: []string{"group-in-progress"}},
+			wantAdded:   "lbl-new",
+			wantCreated: true,
+		},
+		{
+			name:        "creates the label on the issue's team when there is none",
+			wantAdded:   "lbl-new",
+			wantCreated: true,
+		},
+		{
+			name:        "uses the label another run created first",
+			server:      labelServer{createConflict: true},
+			wantAdded:   "lbl-other-run",
+			wantCreated: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ls := tt.server
+			b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
+
+			require.NoError(t, b.MarkInProgress(context.Background(), "ENG-123"))
+
+			assert.Equal(t, tt.wantAdded, ls.addedID)
+			if tt.wantCreated {
+				assert.Equal(t, map[string]any{"teamId": "team-1", "name": "in-progress"}, ls.created)
+			} else {
+				assert.Nil(t, ls.created, "an existing label must not be duplicated")
+			}
+		})
+	}
+}
+
+// statesPage builds a team-states response; a non-empty cursor means more pages follow.
+func statesPage(cursor string, nodes ...map[string]any) map[string]any {
+	return map[string]any{"issue": map[string]any{"team": map[string]any{"states": map[string]any{
+		"nodes":    nodes,
+		"pageInfo": map[string]any{"hasNextPage": cursor != "", "endCursor": cursor},
+	}}}}
 }
 
 func TestLinearBackend_MarkComplete(t *testing.T) {
-	var calls []graphqlRequest
+	done := map[string]any{"id": "state-done", "name": "Done", "position": 3.0}
+	released := map[string]any{"id": "state-released", "name": "Released", "position": 5.0}
+	review := map[string]any{"id": "state-review", "name": "In Review", "position": 2.0}
+	completedType := map[string]any{"type": map[string]any{"eq": "completed"}}
+	inReviewName := map[string]any{"name": map[string]any{"eq": "In Review"}}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var gqlReq graphqlRequest
-		_ = json.NewDecoder(r.Body).Decode(&gqlReq)
-		calls = append(calls, gqlReq)
-
-		resp := graphqlResponse{}
-		data, _ := json.Marshal(map[string]any{
-			"commentCreate": map[string]any{"success": true},
-			"issueUpdate":   map[string]any{"success": true},
-		})
-		resp.Data = data
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-
-	result := engine.TaskResult{
-		Success:         true,
-		Summary:         "Fixed the bug",
-		MergeRequestURL: "https://github.com/owner/repo/pull/10",
+	tests := []struct {
+		name         string
+		stateName    string
+		pages        []map[string]any
+		rejectUpdate bool
+		wantFilter   map[string]any
+		wantMovedTo  string
+		wantErr      string
+	}{
+		{
+			name:        "default picks the lowest-position completed state across pages",
+			pages:       []map[string]any{statesPage("c1", released), statesPage("", done)},
+			wantFilter:  completedType,
+			wantMovedTo: "state-done",
+		},
+		{
+			name:        "configured state name is used",
+			stateName:   "In Review",
+			pages:       []map[string]any{statesPage("", review)},
+			wantFilter:  inReviewName,
+			wantMovedTo: "state-review",
+		},
+		{
+			name:       "configured state name that does not exist is an error",
+			stateName:  "In Review",
+			pages:      []map[string]any{statesPage("")},
+			wantFilter: inReviewName,
+			wantErr:    `no workflow state named "In Review"`,
+		},
+		{
+			name:         "update rejected by Linear is an error",
+			pages:        []map[string]any{statesPage("", done)},
+			rejectUpdate: true,
+			wantFilter:   completedType,
+			wantMovedTo:  "state-done",
+			wantErr:      "did not update ticket ENG-123",
+		},
+		{
+			name:       "repeated cursor is an error, not an endless loop",
+			pages:      []map[string]any{statesPage("c1", done), statesPage("c1", done)},
+			wantFilter: completedType,
+			wantErr:    "did not advance",
+		},
 	}
-	err := b.MarkComplete(context.Background(), "ENG-123", result)
-	require.NoError(t, err)
-	require.Len(t, calls, 2)
 
-	// First call: comment creation.
-	assert.Contains(t, calls[0].Query, "commentCreate")
-	assert.Equal(t, "ENG-123", calls[0].Variables["issueId"])
-	body, ok := calls[0].Variables["body"].(string)
-	require.True(t, ok)
-	assert.Contains(t, body, "Fixed the bug")
-	assert.Contains(t, body, "https://github.com/owner/repo/pull/10")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var (
+				filter    any
+				movedTo   string
+				commented bool
+				page      int
+			)
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req graphqlRequest
+				_ = json.NewDecoder(r.Body).Decode(&req)
 
-	// Second call: state update.
-	assert.Contains(t, calls[1].Query, "issueUpdate")
-	assert.Equal(t, "ENG-123", calls[1].Variables["id"])
-	assert.Equal(t, "completed", calls[1].Variables["stateId"])
+				var data any
+				switch {
+				case strings.Contains(req.Query, "issueUpdate"):
+					movedTo, _ = req.Variables["stateId"].(string)
+					data = map[string]any{"issueUpdate": map[string]any{"success": !tt.rejectUpdate}}
+				case strings.Contains(req.Query, "commentCreate"):
+					commented = true
+					data = map[string]any{"commentCreate": map[string]any{"success": true}}
+				default:
+					if page >= len(tt.pages) {
+						t.Errorf("unexpected states query %d", page+1)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					// Only pages after the first carry a cursor.
+					assert.Equal(t, page > 0, req.Variables["after"] != nil, "states query %d: after = %v", page+1, req.Variables["after"])
+					filter = req.Variables["filter"]
+					data = tt.pages[page]
+					page++
+				}
+				raw, _ := json.Marshal(data)
+				_ = json.NewEncoder(w).Encode(graphqlResponse{Data: raw})
+			}))
+			defer srv.Close()
+
+			opts := []Option{WithAPIURL(srv.URL)}
+			if tt.stateName != "" {
+				opts = append(opts, WithCompletedStateName(tt.stateName))
+			}
+			b := NewLinearBackend("tok", "team-1", testLogger(), opts...)
+			err := b.MarkComplete(context.Background(), "ENG-123", engine.TaskResult{Summary: "Fixed the bug"})
+
+			assert.Equal(t, tt.wantFilter, filter)
+			assert.Equal(t, tt.wantMovedTo, movedTo)
+			assert.Equal(t, tt.wantErr == "", commented, "comment is posted only after a successful update")
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestLinearBackend_MarkFailed(t *testing.T) {
-	var calls []graphqlRequest
+	ls := &labelServer{teamLabels: []string{"lbl-failed"}}
+	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(ls.start(t).URL))
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var gqlReq graphqlRequest
-		_ = json.NewDecoder(r.Body).Decode(&gqlReq)
-		calls = append(calls, gqlReq)
+	require.NoError(t, b.MarkFailed(context.Background(), "ENG-7", "timeout exceeded"))
 
-		resp := graphqlResponse{}
-		data, _ := json.Marshal(map[string]any{
-			"issueAddLabel": map[string]any{"success": true},
-			"commentCreate": map[string]any{"success": true},
-		})
-		resp.Data = data
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	b := NewLinearBackend("tok", "team-1", testLogger(), WithAPIURL(srv.URL))
-	err := b.MarkFailed(context.Background(), "ENG-7", "timeout exceeded")
-	require.NoError(t, err)
-	require.Len(t, calls, 2)
-
-	// First call: add failed label.
-	assert.Contains(t, calls[0].Query, "issueAddLabel")
-	assert.Equal(t, "osmia-failed", calls[0].Variables["labelName"])
-
-	// Second call: failure comment.
-	assert.Contains(t, calls[1].Query, "commentCreate")
-	body, ok := calls[1].Variables["body"].(string)
-	require.True(t, ok)
-	assert.Contains(t, body, "timeout exceeded")
+	assert.Equal(t, "lbl-failed", ls.addedID)
+	assert.Contains(t, ls.commented, "timeout exceeded")
 }
 
 func TestLinearBackend_AddComment(t *testing.T) {

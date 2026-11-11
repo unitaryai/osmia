@@ -51,6 +51,18 @@ func TestReadStream(t *testing.T) {
 			wantLastType:  EventCost,
 		},
 		{
+			// A large tool result easily passes bufio.Scanner's 64 KiB limit,
+			// which used to end the stream there.
+			name: "line longer than 64 KiB is read, and so are the lines after it",
+			input: strings.Join([]string{
+				`{"type":"content","content":"` + strings.Repeat("x", 200<<10) + `","role":"assistant","timestamp":"2026-01-01T00:00:00Z"}`,
+				`{"type":"result","success":true,"summary":"done","timestamp":"2026-01-01T00:00:01Z"}`,
+			}, "\n"),
+			wantEvents:    2,
+			wantFirstType: EventContentDelta,
+			wantLastType:  EventResult,
+		},
+		{
 			name:       "empty input produces no events",
 			input:      "",
 			wantEvents: 0,
@@ -93,6 +105,33 @@ func TestReadStream(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Given one line a byte over the reader's size limit and one exactly at it,
+// both ending in CRLF,
+// when the stream is read,
+// then only the over-limit line is skipped: the line ending does not count.
+func TestReadStream_SkipsLineOverLimit(t *testing.T) {
+	result := `{"type":"result","success":true,"summary":"done","timestamp":"2026-01-01T00:00:01Z"}`
+	content := func(pad int) string {
+		return `{"type":"content","content":"` + strings.Repeat("x", pad) + `","timestamp":"2026-01-01T00:00:00Z"}`
+	}
+	over := content(len(result) + 1 - len(content(0)))
+	require.Len(t, over, len(result)+1)
+
+	reader := NewReader(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	reader.maxLineBytes = len(result)
+	eventCh := make(chan *StreamEvent, 10)
+
+	input := over + "\r\n" + result + "\r\n"
+	require.NoError(t, reader.ReadStream(context.Background(), nopCloser{strings.NewReader(input)}, eventCh))
+	close(eventCh)
+
+	var types []EventType
+	for ev := range eventCh {
+		types = append(types, ev.Type)
+	}
+	assert.Equal(t, []EventType{EventResult}, types)
 }
 
 // stubTranslator is a test Translator that lets each line be mapped to an

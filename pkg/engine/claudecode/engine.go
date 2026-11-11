@@ -4,9 +4,11 @@
 package claudecode
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/google/uuid"
 
@@ -72,11 +74,18 @@ func WithFallbackModel(model string) Option {
 	}
 }
 
-// WithToolWhitelist sets the list of tools the agent is allowed to use.
-// When set, only these tools will be available via --allowedTools.
+// WithToolWhitelist sets the built-in tools the agent may use (--tools).
 func WithToolWhitelist(tools []string) Option {
 	return func(e *ClaudeCodeEngine) {
 		e.toolWhitelist = tools
+	}
+}
+
+// WithToolBlacklist sets tools the agent must never use (--disallowedTools).
+// A per-task blacklist adds to it.
+func WithToolBlacklist(tools []string) Option {
+	return func(e *ClaudeCodeEngine) {
+		e.toolBlacklist = tools
 	}
 }
 
@@ -147,6 +156,7 @@ type ClaudeCodeEngine struct {
 	fallbackModel string
 	maxTurns      int
 	toolWhitelist []string
+	toolBlacklist []string
 	jsonSchema    string
 	teamsConfig   TeamsConfig
 	skills        []Skill
@@ -293,11 +303,15 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		toolWhitelist = e.toolWhitelist
 	}
 	if len(toolWhitelist) > 0 {
-		command = append(command, "--allowedTools", strings.Join(toolWhitelist, ","))
+		if err := ValidateToolWhitelist(toolWhitelist); err != nil {
+			return nil, err
+		}
+		// --allowedTools only pre-approves tools; --tools removes the others.
+		command = append(command, "--tools", strings.Join(toolWhitelist, ","))
 	}
 
-	if len(config.ToolBlacklist) > 0 {
-		command = append(command, "--disallowedTools", strings.Join(config.ToolBlacklist, ","))
+	if toolBlacklist := mergeToolLists(e.toolBlacklist, config.ToolBlacklist); len(toolBlacklist) > 0 {
+		command = append(command, "--disallowedTools", strings.Join(toolBlacklist, ","))
 	}
 
 	// Append agent teams flags when teams are enabled.
@@ -647,4 +661,38 @@ func writeMRURLPlaceholder(b *strings.Builder, task engine.Task, stepNum string)
 	b.WriteString("<MR URL from step ")
 	b.WriteString(stepNum)
 	b.WriteString(">")
+}
+
+// mergeToolLists returns the union of the lists, without duplicates.
+func mergeToolLists(lists ...[]string) []string {
+	seen := make(map[string]struct{})
+	var merged []string
+	for _, list := range lists {
+		for _, tool := range list {
+			if _, ok := seen[tool]; ok {
+				continue
+			}
+			seen[tool] = struct{}{}
+			merged = append(merged, tool)
+		}
+	}
+	return merged
+}
+
+// ValidateToolWhitelist rejects entries that --tools would silently drop:
+// permission patterns such as "Bash(git *)" and MCP tool names.
+func ValidateToolWhitelist(tools []string) error {
+	for _, tool := range tools {
+		switch {
+		case strings.TrimSpace(tool) == "":
+			return errors.New("tool whitelist contains an empty entry")
+		case strings.ContainsAny(tool, "(),"):
+			return fmt.Errorf("tool whitelist entry %q is not a plain tool name: permission patterns are not supported", tool)
+		case strings.IndexFunc(tool, unicode.IsSpace) >= 0:
+			return fmt.Errorf("tool whitelist entry %q is not a plain tool name: whitespace is not supported", tool)
+		case strings.HasPrefix(tool, "mcp__"):
+			return fmt.Errorf("tool whitelist entry %q is an MCP tool: the whitelist applies to built-in tools only", tool)
+		}
+	}
+	return nil
 }

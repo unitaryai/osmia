@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/unitaryai/osmia/internal/jobbuilder"
+	"github.com/unitaryai/osmia/internal/k8sname"
 	"github.com/unitaryai/osmia/internal/secretresolver"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
@@ -205,11 +206,7 @@ func checkEnvCollision(spec *engine.ExecutionSpec, envName string) error {
 // taskSecretName returns the name of the ephemeral Secret holding a
 // TaskRun's resolved secret values.
 func taskSecretName(taskRunID string) string {
-	name := taskSecretNamePrefix + taskRunID
-	if len(name) > 253 {
-		name = name[:253]
-	}
-	return name
+	return k8sname.Subdomain(taskSecretNamePrefix, taskRunID)
 }
 
 // createTaskSecret writes the plan's resolved values to an ephemeral

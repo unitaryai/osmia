@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/unitaryai/osmia/internal/k8sname"
 	"github.com/unitaryai/osmia/pkg/engine"
 )
 
@@ -171,10 +172,5 @@ func (s *PerTaskRunPVCStore) Cleanup(ctx context.Context, taskRunID string) erro
 
 // pvcNameForTaskRun returns the deterministic PVC name for a TaskRun.
 func pvcNameForTaskRun(taskRunID string) string {
-	name := fmt.Sprintf("osmia-session-%s", taskRunID)
-	// Kubernetes names must not exceed 253 characters.
-	if len(name) > 253 {
-		name = name[:253]
-	}
-	return name
+	return k8sname.Subdomain("osmia-session-", taskRunID)
 }

@@ -15,13 +15,17 @@ import (
 // what matters, and the bound keeps memory flat for long runs.
 const maxDiagnosisEvents = 500
 
+// maxDiagnosisBytes bounds the approximate memory of the events kept for one run.
+const maxDiagnosisBytes = 8 << 20
+
 // diagnosisEnabled reports whether failed task runs are diagnosed.
 func (r *Reconciler) diagnosisEnabled() bool {
 	return r.analyser != nil && r.config != nil && r.config.Diagnosis.Enabled
 }
 
 // recordRunEvent keeps a stream event for a later failure diagnosis,
-// dropping the oldest once maxDiagnosisEvents is reached.
+// dropping the oldest once maxDiagnosisEvents or maxDiagnosisBytes is
+// reached. The newest event is always kept.
 func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -29,10 +33,37 @@ func (r *Reconciler) recordRunEvent(taskRunID string, event *agentstream.StreamE
 		r.runEvents = make(map[string][]*agentstream.StreamEvent)
 	}
 	events := append(r.runEvents[taskRunID], event)
-	if len(events) > maxDiagnosisEvents {
-		events = slices.Clone(events[len(events)-maxDiagnosisEvents:])
+
+	total := 0
+	for _, ev := range events {
+		total += eventSize(ev)
+	}
+	drop := 0
+	for drop < len(events)-1 && (len(events)-drop > maxDiagnosisEvents || total > maxDiagnosisBytes) {
+		total -= eventSize(events[drop])
+		drop++
+	}
+	if drop > 0 {
+		events = slices.Clone(events[drop:])
 	}
 	r.runEvents[taskRunID] = events
+}
+
+// eventSize estimates the bytes an event holds (type and variable-size fields).
+func eventSize(ev *agentstream.StreamEvent) int {
+	size := len(ev.Type)
+	switch p := ev.Parsed.(type) {
+	case *agentstream.ToolCallEvent:
+		size += len(p.Tool) + len(p.Args)
+	case *agentstream.ContentDeltaEvent:
+		size += len(p.Content) + len(p.Role)
+	case *agentstream.ResultEvent:
+		size += len(p.Summary) + len(p.MergeRequestURL) + len(p.BranchName) +
+			len(p.RawResult) + len(p.RawStructured)
+	case *agentstream.SystemEvent:
+		size += len(p.SessionID) + len(p.Subtype)
+	}
+	return size
 }
 
 // takeRunEvents returns and forgets the stream events kept for a task run.

@@ -158,7 +158,12 @@ taskrun_store:
 
 This requires a mounted, writable path. The Helm chart's `persistence.enabled: true` mounts a PVC at `/data` for this purpose (see `charts/osmia/values.yaml`).
 
-Today this only persists state for post-mortem inspection and debugging (querying the SQLite file directly after a crash). The controller does not yet read the store back on startup, so in-flight TaskRuns are still forgotten across a restart. Recovering and rehydrating them is separate follow-up work. See [ADR 0001](../adr/0001-taskrun-store-sqlite-not-crd.md) for the reasoning behind choosing SQLite over a `TaskRun` CRD.
+On startup the controller reads the store back for two things:
+
+- **Running jobs.** Every `Running` TaskRun whose Kubernetes Job still exists is tracked again. The controller re-reads the agent's log from the start, so the result, including the merge request URL, is collected and the ticket completed as if there had been no restart. A `Running` TaskRun whose Job no longer exists is left unchanged. Tournament runs are not restored, because tournament progress is held in memory.
+- **Watched PRs and MRs** (see [Review response](../getting-started/configuration.md#review-response)).
+
+TaskRuns waiting for an approval, and queued or retrying runs that had not started a Job, are not restored yet. With the in-memory store there is nothing to read back, so a restart forgets every in-flight TaskRun. See [ADR 0001](../adr/0001-taskrun-store-sqlite-not-crd.md) for the reasoning behind choosing SQLite over a `TaskRun` CRD.
 
 ## Real-time monitoring
 

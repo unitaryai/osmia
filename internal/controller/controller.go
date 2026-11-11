@@ -19,6 +19,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -29,7 +30,6 @@ import (
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/diagnosis"
 	"github.com/unitaryai/osmia/internal/estimator"
-	"github.com/unitaryai/osmia/internal/jobbuilder"
 	"github.com/unitaryai/osmia/internal/memory"
 	"github.com/unitaryai/osmia/internal/metrics"
 	"github.com/unitaryai/osmia/internal/prm"
@@ -89,6 +89,10 @@ type Reconciler struct {
 	// stream reader has forwarded every event it read. handleJobComplete
 	// waits on it so the agent's final result event is not lost.
 	streamDone map[string]chan struct{}
+
+	// podLookupBackoff is the first wait between attempts to find a Job's
+	// agent pod. Zero means defaultPodLookupBackoff; tests shorten it.
+	podLookupBackoff time.Duration
 
 	// runEvents keeps the most recent stream events of each running task,
 	// keyed by task run ID, for failure diagnosis. Only populated when
@@ -523,6 +527,11 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 	// process started; that list is otherwise held only in memory.
 	r.restoreReviewTracking(ctx)
 
+	// Re-adopt agent Jobs that were still running when the previous process
+	// stopped, so their results are collected. Retried on later ticks if a
+	// store or API error stopped it finishing.
+	jobsRecovered := r.restoreRunningJobs(ctx)
+
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
@@ -532,11 +541,28 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 			r.logger.InfoContext(ctx, "reconciliation loop stopped")
 			return ctx.Err()
 		case <-ticker.C:
-			if err := r.reconcileOnce(ctx); err != nil {
-				r.logger.ErrorContext(ctx, "reconciliation error", "error", err)
-			}
+			jobsRecovered = r.tick(ctx, jobsRecovered)
 		}
 	}
+}
+
+// tick runs one pass of the reconciliation loop and reports whether job
+// recovery is now complete. While it is not, running Jobs may not all be
+// tracked, so the concurrency limit would undercount them: the Jobs that are
+// tracked keep moving, but no new work is taken on.
+func (r *Reconciler) tick(ctx context.Context, jobsRecovered bool) bool {
+	if !jobsRecovered {
+		jobsRecovered = r.restoreRunningJobs(ctx)
+	}
+	if !jobsRecovered {
+		r.checkRunningJobs(ctx)
+		r.sweepOrphanedTaskSecrets(ctx)
+		return false
+	}
+	if err := r.reconcileOnce(ctx); err != nil {
+		r.logger.ErrorContext(ctx, "reconciliation error", "error", err)
+	}
+	return true
 }
 
 // reconcileOnce performs a single reconciliation cycle: poll for tickets,
@@ -738,6 +764,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		r.mu.Lock()
 		r.taskRuns[idempotencyKey] = tr
 		r.engineChains[idempotencyKey] = engineChain
+		tr.EngineChain = engineChain
 		r.mu.Unlock()
 
 		if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -1371,6 +1398,7 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	r.mu.Lock()
 	r.taskRuns[idempotencyKey] = tr
 	r.engineChains[idempotencyKey] = engineChain
+	tr.EngineChain = engineChain
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -1706,6 +1734,11 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	tr.JobName = job.Name
 	r.mu.Unlock()
 
+	// Persist the new state and Job name. Without this the store kept the
+	// Retrying state and the previous Job, so a controller restart could not
+	// find the fallback Job to re-adopt.
+	r.saveTaskRunOrLog(ctx, tr)
+
 	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
 		fmt.Sprintf("\U0001F504 *Switching engine:* %s", engineName))
 
@@ -1866,6 +1899,15 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		Labels:        cachedTicket.Labels,
 		MemoryContext: memoryContext,
 	}
+
+	// Record the ticket on the TaskRun, as launchTaskRun does, so a run
+	// re-adopted after a restart or followed up for review still has it when
+	// the ticket cache is empty.
+	r.mu.Lock()
+	tr.TicketTitle = task.Title
+	tr.TicketDescription = task.Description
+	tr.RepoURL = task.RepoURL
+	r.mu.Unlock()
 
 	engineCfg := r.baseEngineConfig(ctx, engineName)
 
@@ -2320,6 +2362,13 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		return
 	}
 
+	// The pod is found through its Job, not the TaskRun ID: continuation,
+	// retry and fallback Jobs are built with a suffixed ID, so a lookup by
+	// TaskRun ID would miss their pod, or find an earlier attempt's.
+	r.mu.RLock()
+	jobName := tr.JobName
+	r.mu.RUnlock()
+
 	streamCtx, cancel := context.WithCancel(r.backgroundContext())
 	done := make(chan struct{})
 
@@ -2458,7 +2507,7 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 
 			// Resolve the actual pod name. K8s Job pods are named
 			// <jobname>-<random-suffix>, so we cannot use tr.JobName directly.
-			podName, err := r.resolvePodName(streamCtx, tr.ID)
+			podName, err := r.resolvePodName(streamCtx, jobName)
 			if err != nil {
 				if streamCtx.Err() == nil {
 					r.logger.Warn("failed to resolve pod name for stream reader",
@@ -2521,30 +2570,43 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	)
 }
 
-// resolvePodName looks up the name of the pod created by the K8s Job for the
-// given task run ID. It polls until the agent container has started (i.e., is
-// Running or Terminated) or the context is cancelled, using exponential backoff
+// resolvePodName looks up the name of the pod created by the named K8s Job.
+// It polls until the agent container has started (i.e., is Running or
+// Terminated) or the context is cancelled, using exponential backoff
 // starting at 2 s and capped at 30 s. Waiting for the container to start
-// avoids a "ContainerCreating" error when the log stream is opened.
-func (r *Reconciler) resolvePodName(ctx context.Context, taskRunID string) (string, error) {
-	labelSelector := fmt.Sprintf("%s=%s", jobbuilder.LabelTaskRunID, taskRunID)
-	backoff := 2 * time.Second
+// avoids a "ContainerCreating" error when the log stream is opened. A failed
+// pod list is retried the same way; only cancellation ends the wait.
+func (r *Reconciler) resolvePodName(ctx context.Context, jobName string) (string, error) {
+	// Kubernetes limits Job names to 63 characters because the Job controller
+	// copies the name into this pod label, so a name that is not a valid
+	// label value cannot belong to a real Job.
+	selector, err := labels.ValidatedSelectorFromSet(labels.Set{batchv1.JobNameLabel: jobName})
+	if err != nil {
+		return "", fmt.Errorf("job name %q cannot select pods: %w", jobName, err)
+	}
+	labelSelector := selector.String()
+	backoff := r.podLookupBackoff
+	if backoff <= 0 {
+		backoff = defaultPodLookupBackoff
+	}
 	const maxBackoff = 30 * time.Second
 
 	for {
 		pods, err := r.k8sClient.CoreV1().Pods(r.namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
-		if err != nil {
-			return "", fmt.Errorf("listing pods for task run %q: %w", taskRunID, err)
-		}
-
-		for i := range pods.Items {
-			pod := &pods.Items[i]
-			for _, cs := range pod.Status.ContainerStatuses {
-				if cs.Name == "agent" && (cs.State.Running != nil || cs.State.Terminated != nil) {
-					return pod.Name, nil
-				}
+		switch {
+		case err != nil && ctx.Err() == nil:
+			// Usually a passing API error. Returning would end the stream
+			// reader for good, and nothing starts another, so the Job's
+			// result would never be read. Keep backing off instead.
+			r.logger.WarnContext(ctx, "listing pods for job failed; will try again",
+				"job", jobName,
+				"error", err,
+			)
+		case err == nil:
+			if name := startedAgentPod(pods.Items); name != "" {
+				return name, nil
 			}
 		}
 
@@ -2558,6 +2620,23 @@ func (r *Reconciler) resolvePodName(ctx context.Context, taskRunID string) (stri
 		}
 	}
 }
+
+// startedAgentPod returns the name of the first pod whose agent container is
+// running or has finished, or "" if there is none yet.
+func startedAgentPod(pods []corev1.Pod) string {
+	for i := range pods {
+		for _, cs := range pods[i].Status.ContainerStatuses {
+			if cs.Name == "agent" && (cs.State.Running != nil || cs.State.Terminated != nil) {
+				return pods[i].Name
+			}
+		}
+	}
+	return ""
+}
+
+// defaultPodLookupBackoff is the first wait between attempts to find a Job's
+// agent pod.
+const defaultPodLookupBackoff = 2 * time.Second
 
 // streamDrainTimeout bounds how long handleJobComplete waits for a stream
 // reader to finish. The pod's log stream ends when the agent container
@@ -3595,8 +3674,10 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 	for _, tr := range createdTaskRuns {
 		r.taskRuns[tr.IdempotencyKey] = tr
 		r.engineChains[tr.IdempotencyKey] = []string{tr.CurrentEngine}
+		tr.EngineChain = []string{tr.CurrentEngine}
 		r.taskRunRole[tr.ID] = "candidate"
 		r.taskRunToTournament[tr.ID] = tournamentID
+		tr.TournamentID = tournamentID
 	}
 	r.mu.Unlock()
 
@@ -3856,8 +3937,10 @@ func (r *Reconciler) launchJudge(ctx context.Context, tournamentID string) {
 	r.mu.Lock()
 	r.taskRuns[judgeTR.IdempotencyKey] = judgeTR
 	r.engineChains[judgeTR.IdempotencyKey] = []string{judgeEngineName}
+	judgeTR.EngineChain = []string{judgeEngineName}
 	r.taskRunRole[judgeTR.ID] = "judge"
 	r.taskRunToTournament[judgeTR.ID] = tournamentID
+	judgeTR.TournamentID = tournamentID
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, judgeTR); err != nil {

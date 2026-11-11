@@ -9,7 +9,7 @@ Osmia runs on Kubernetes. The controller is a single replica, while agent jobs s
 !!! note "Planned feature"
     Leader election (multiple controller replicas with automatic failover) is not yet implemented. The controller currently runs as a single replica. HA support via controller-runtime Kubernetes Lease objects is on the roadmap.
 
-For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and are unaffected by a controller restart. In-flight jobs complete normally.
+For now, run a single controller replica. Agent jobs are independent Kubernetes Jobs and keep running through a controller restart. With a persistent `taskrun_store` (for example `backend: sqlite`), the restarted controller picks them up again and collects their results; with the default in-memory store it cannot, and their tickets are left in progress.
 
 ## Karpenter integration
 

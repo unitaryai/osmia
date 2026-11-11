@@ -2986,28 +2986,31 @@ keyword-based <code>RuleBasedClassifier</code>, and batches actionable ones into
 carries only <code>State</code> (open/closed/merged); no SCM backend exposes pipeline
 status.</p>
 <ul>
-<li>[ ] SCM interface: a pipeline-status method returning the latest pipeline's
-  state and its failed jobs, with protobuf definition to match</li>
-<li>[ ] GitLab (<code>/merge_requests/:iid/pipelines</code>, job traces) and GitHub (check
+<li>[x] SCM interface: a pipeline-status method returning the latest pipeline's
+  state and its failed jobs. It is an optional capability
+  (<code>scm.PipelineStatusProvider</code>), like <code>scm.IdentityProvider</code>, so the plugin
+  protobuf does not change and gRPC plugin backends keep working</li>
+<li>[ ] Expose pipeline status to gRPC plugin backends through the protobuf</li>
+<li>[x] GitLab (<code>/merge_requests/:iid/pipelines</code>, job traces) and GitHub (check
   runs) implementations</li>
-<li>[ ] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
+<li>[x] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
   carrying the failing job names and a bounded tail of each job's log</li>
-<li>[ ] Count CI-triggered follow-ups against the same <code>max_follow_up_jobs</code>
+<li>[x] Count CI-triggered follow-ups against the same <code>max_follow_up_jobs</code>
   budget as comment-triggered ones, so a pipeline that fails for reasons the
   agent cannot fix (missing credentials, external access, flaky runners) does
   not loop</li>
-<li>[ ] Do not react to a pipeline that is still running, or one already
+<li>[x] Do not react to a pipeline that is still running, or one already
   superseded by a newer commit</li>
-<li>[ ] Config switch, off by default, so existing deployments do not start
-  spawning jobs on upgrade</li>
+<li>[x] Config switch, off by default (<code>review_response.fix_failed_pipelines</code>),
+  so existing deployments do not start spawning jobs on upgrade</li>
 </ul>
 <p><strong>Open questions:</strong>
 - Failures outside the agent's control, like the external-access failure on
   the same MR, look identical to a lint failure from the pipeline API. Is the
   follow-up budget enough of a guard, or does it need a way to classify a
   failure as not fixable before spending a job on it?
-- Tracked MRs live in memory and are lost on controller restart; this inherits
-  that limitation, and makes it more costly.</p>
+- Resolved: tracked MRs are now restored after a controller restart, and a
+  failed pipeline from before the restart point is not acted on again.</p>
 <hr />
 <h3 id="application-build-pilot">Application Build Pilot<a class="headerlink" href="#application-build-pilot" title="Permanent link">&para;</a></h3>
 <p>Items 27 to 30 below, plus items 10 and 26 and Orphaned TaskRun Recovery, are what

@@ -982,6 +982,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#failed-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failed pipelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osmias-own-comments" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2662,6 +2673,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#failed-pipelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failed pipelines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#osmias-own-comments" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3494,8 +3516,9 @@ the collision check would catch it.</p>
 <a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">  </span><span class="nt">max_follow_up_jobs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># Max batched follow-ups per PR</span>
 <a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="w">  </span><span class="nt">reply_to_comments</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">         </span><span class="c1"># Post acknowledgement replies</span>
 <a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="w">  </span><span class="nt">resolve_threads</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">           </span><span class="c1"># Resolve threads on completion (GitLab only)</span>
-<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a><span class="w">  </span><span class="nt">ignore_summary_authors</span><span class="p">:</span><span class="w">         </span><span class="c1"># Regex patterns for bot summary filtering</span>
-<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"^group_\\d+_bot_"</span><span class="w">          </span><span class="c1"># GitLab group bot tokens</span>
+<a id="__codelineno-28-9" name="__codelineno-28-9" href="#__codelineno-28-9"></a><span class="w">  </span><span class="nt">fix_failed_pipelines</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">      </span><span class="c1"># Start a follow-up when the MR's pipeline fails</span>
+<a id="__codelineno-28-10" name="__codelineno-28-10" href="#__codelineno-28-10"></a><span class="w">  </span><span class="nt">ignore_summary_authors</span><span class="p">:</span><span class="w">         </span><span class="c1"># Regex patterns for bot summary filtering</span>
+<a id="__codelineno-28-11" name="__codelineno-28-11" href="#__codelineno-28-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"^group_\\d+_bot_"</span><span class="w">          </span><span class="c1"># GitLab group bot tokens</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3561,6 +3584,12 @@ the collision check would catch it.</p>
 <td><code>[]</code></td>
 <td>Regex patterns for author usernames whose non-inline comments (summaries, coverage reports) are ignored. Inline diff comments from these authors are still processed. Merged with built-in defaults (<code>osmia</code>, <code>dependabot</code>, <code>github-actions[bot]</code>, <code>copilot</code>, <code>gemini-code-assist</code>, <code>coderabbit-ai</code>)</td>
 </tr>
+<tr>
+<td><code>fix_failed_pipelines</code></td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Start a follow-up job when the CI pipeline on a PR Osmia opened fails. See <a href="#failed-pipelines">Failed pipelines</a></td>
+</tr>
 </tbody>
 </table>
 <h3 id="settling-period">Settling period<a class="headerlink" href="#settling-period" title="Permanent link">&para;</a></h3>
@@ -3573,6 +3602,16 @@ the collision check would catch it.</p>
 <h3 id="restarts">Restarts<a class="headerlink" href="#restarts" title="Permanent link">&para;</a></h3>
 <p>The list of PRs/MRs Osmia is watching is rebuilt from the TaskRun store when the controller starts, so a restart, or the cluster autoscaler moving the controller to another node, does not stop it following up on PRs it opened. Comments posted before the restart that were already handled are not acted on again, and each PR's follow-up budget carries over. PRs opened more than 30 days ago are not restored.</p>
 <p>This needs a persistent <code>taskrun_store</code> (for example <code>backend: sqlite</code>). With the default in-memory store there is nothing to rebuild from, and a restart forgets every watched PR.</p>
+<h3 id="failed-pipelines">Failed pipelines<a class="headerlink" href="#failed-pipelines" title="Permanent link">&para;</a></h3>
+<p>With <code>fix_failed_pipelines: true</code>, Osmia also checks the CI pipeline on each MR it is watching. When the latest pipeline on the MR's current commit has failed, Osmia starts a follow-up job on the same branch. The job is given the name and stage of each failed job, up to five, and the last 8 KiB of each job's log.</p>
+<ul>
+<li><strong>Once per failure.</strong> Each failed pipeline is acted on at most once. A push that fails again, or failed jobs that are retried and fail again, count as a new failure. On GitLab this uses the MR's head pipeline, so merged-results pipelines work too.</li>
+<li><strong>Shared budget.</strong> These follow-ups count against <code>max_follow_up_jobs</code>, the same as comment follow-ups. A pipeline that fails for a reason the agent cannot fix, such as missing credentials, blocked network access or a broken runner, therefore stops being retried. The job is also told to report such a failure rather than work around it.</li>
+<li><strong>No reacting too early.</strong> A pipeline that is still running is left alone, and so is one on an older commit. A pipeline that failed before the MR's last follow-up is passed over too, since that follow-up will push a new commit and run CI again. After a restart, the last follow-up is read from the TaskRun store, so a failure nobody acted on before the restart is still picked up.</li>
+<li><strong>One job per poll.</strong> If new review comments and a failed pipeline turn up in the same poll, they go into one follow-up job.</li>
+<li><strong>Logs are data.</strong> Job logs can contain output from the code under review, so they are passed to the agent fenced and labelled as data.</li>
+</ul>
+<p>This works with the GitHub and GitLab backends. On GitHub the pipeline is the set of check runs on the PR's head commit; full logs are read for GitHub Actions jobs, and other checks contribute their summary text. The token needs read access to pipelines and job logs (GitLab: <code>read_api</code>; GitHub: checks and actions read access).</p>
 <h3 id="osmias-own-comments">Osmia's own comments<a class="headerlink" href="#osmias-own-comments" title="Permanent link">&para;</a></h3>
 <p>Osmia never acts on a comment its own SCM account posted, inline or not. At startup it asks GitHub or GitLab which account its token belongs to (<code>GET /user</code>) and ignores that account's comments. This matters because a follow-up job ends by posting a summary such as "Addressed. Fixed the 2 pyright errors", which is full of words the classifier treats as actionable; without the check, each follow-up would trigger the next until <code>max_follow_up_jobs</code> ran out.</p>
 <p>You do not need to list Osmia's own account in <code>ignore_summary_authors</code>. If the lookup fails, for example because a GitHub App installation token cannot call <code>GET /user</code>, Osmia logs a warning and falls back to recognising itself by name: only an account whose username contains <code>osmia</code> is caught by the built-in list. In that case add your account to <code>ignore_summary_authors</code>, anchored, such as <code>"^my_bot_account$"</code>.</p>

@@ -13,6 +13,136 @@ to add one.
 
 <!-- towncrier release notes start -->
 
+## [0.5.2] - 2026-11-11
+
+### Added
+
+- **Agent pods and the controller pod can now carry operator-set
+  annotations.** `execution.pod_annotations` adds annotations to every agent
+  pod on the `job` and `sandbox` backends, and the Helm chart's new
+  `podAnnotations` value does the same for the controller. The motivating use
+  is stopping a cluster autoscaler from evicting running work: node
+  consolidation had evicted the controller, which forgot every PR it was
+  watching, and killed a running review follow-up job part-way through.
+  Setting `karpenter.sh/do-not-disrupt: "true"` on both prevents that kind of
+  voluntary eviction; it does not protect against spot interruption or node
+  failure.
+  Annotations Osmia sets itself, such as the sandbox claim marker, take
+  precedence over configured ones, and malformed keys are rejected at startup
+  rather than surfacing as every agent Job failing to create.
+- **Claude Code agents can load plugins from a git repository.** Set
+  `engines.claude-code.plugins` to name one or more plugin marketplace
+  repositories, each pinned to a commit SHA or tag, and the plugins every task
+  loads. A ticket labelled `osmia-plugins:<profile>` also loads that profile's
+  plugins, so different tasks can get different skills, sub-agents, hooks and MCP
+  servers. Each agent pod fetches its sources when it starts; a token for a
+  private repository is read from a Kubernetes Secret and removed from the
+  environment before Claude Code starts. An unknown profile, plugin or ref
+  stops the job instead of running it without the plugins it asked for. See
+  [Plugins](https://github.com/unitaryai/osmia/blob/main/docs/plugins/engines.md#plugins).
+- **Osmia can fix a failed CI pipeline on a merge request it opened.** With
+  `review_response.fix_failed_pipelines: true`, when the latest pipeline on a
+  watched MR fails, Osmia starts a follow-up job on the same branch and gives it
+  the failed jobs and the end of each job's log. Each failed run is acted on
+  once, and these follow-ups count against `max_follow_up_jobs`, so a pipeline
+  that fails for a reason the agent cannot fix stops being retried. Works with
+  the GitHub and GitLab backends; off by default. See
+  [Failed pipelines](https://github.com/unitaryai/osmia/blob/main/docs/getting-started/configuration.md#failed-pipelines).
+
+### Fixed
+
+- **A controller restart no longer abandons agent jobs that are still
+  running, when TaskRuns are kept in a persistent store.** The controller
+  tracked running task runs in memory only, so after a restart (an eviction, a
+  rollout, the autoscaler moving the pod) it never checked those jobs again:
+  the agent finished, but its result was never collected, the ticket was never
+  completed, and the job no longer counted towards
+  `guardrails.max_concurrent_jobs`. With a persistent `taskrun_store` (for
+  example `backend: sqlite`), the controller now re-adopts on startup every
+  `Running` task run whose Job still exists and re-reads the agent's log, so
+  the result, including the merge request URL, is collected as normal, and the
+  run can still fall back to the next engine if it fails. With the default
+  in-memory store there is nothing to re-adopt. Task runs whose Job no longer
+  exists are left unchanged for now. Two related fixes: the agent's log is now
+  read from the pod of the run's current Job, which continuation, retry and
+  fallback Jobs previously missed, and a fallback launch is now saved to the
+  store. See
+  [Orphaned TaskRun Recovery](https://github.com/unitaryai/osmia/blob/main/docs/roadmap.md#orphaned-taskrun-recovery).
+- **A controller restart silently stopped Osmia following up on its PRs.** The
+  review poller held its list of watched PRs/MRs only in memory, so any
+  restart, including the cluster autoscaler moving the controller to a cheaper
+  node, made Osmia forget every PR it had opened; review comments posted
+  afterwards were never acted on. In one case the controller was moved twenty
+  minutes after opening an MR, with five review comments waiting on it. The
+  list is now rebuilt from the TaskRun store at startup.
+  Comments that were already handled before the restart are not replayed, and
+  each PR's follow-up budget carries over. TaskRuns now also record the
+  ticket's title, description and repository, which fixes a related gap: a job
+  that finished after a restart had its PR silently left unwatched, because
+  registration depended on a ticket cache the restart had emptied. Requires a
+  persistent `taskrun_store`; PRs opened more than 30 days ago are not
+  restored.
+- **Agent jobs could run an outdated engine image depending on which node they
+  landed on.** Osmia never set a pull policy on agent containers, so Kubernetes
+  applied its default, which for any tag other than `latest` is to download
+  the image only if the node does not already have it. Engine images are
+  usually referenced by a tag that moves, such as
+  `main`, which is rewritten on every build and by the weekly rebuild. A node
+  that had downloaded an earlier `main` kept running it indefinitely. In one
+  deployment this meant the per-taskrun-pvc fix shipped in v0.5.1 reached the registry
+  while jobs on one node kept failing with the bug it fixed, and jobs on other
+  nodes worked. Agent containers now re-check the registry on every start
+  unless the image is pinned by digest, in which case the cached copy is used.
+  This applies to standard jobs, sandboxed jobs and local Docker jobs. A job
+  on a tagged image now cannot start while the registry is unreachable.
+  Pinning by digest lets a node reuse its cached copy, but only a node that
+  already has that digest; to survive an outage the image must be pre-pulled
+  onto every node that can run agent jobs.
+  `docs/getting-started/configuration.md` explains both.
+- **Osmia could reply to its own comments in a loop.** The review poller
+  ignored Osmia's own comments only when its SCM account's username contained
+  `osmia`. A deployment whose bot account was named anything else — such as one
+  created before the project was renamed — had its own comments treated as
+  review feedback. A follow-up job ends by posting a summary like "Addressed.
+  Fixed the 2 pyright errors", and those words are exactly what the classifier
+  treats as actionable, so each follow-up spawned the next until
+  `max_follow_up_jobs` ran out, wasting agent runs and the MR's follow-up budget.
+  The GitHub and GitLab backends now report which account their token belongs
+  to (`GET /user`), and the poller ignores every comment from that account,
+  inline or not, whatever it is called. If the lookup fails, as it does for a
+  GitHub App installation token, the poller logs a warning and falls back to the
+  name-based check.
+- A task's result is no longer lost when the controller notices its Job has finished before reading the agent's last output line. Osmia now waits (up to 20 seconds) for the stream reader to finish before handling completion. Previously the reader was stopped at once, and if the final result event had not been read yet, the run fell back to a generic "task completed successfully" result with no merge request URL, so the merge request the agent opened was never watched for review comments.
+- An infrastructure failure (out of memory, timeout, network) no longer moves a task to the next engine in its fallback chain. Diagnosis now runs before the fallback is chosen, and an infrastructure failure ends the run, since another engine would meet the same infrastructure.
+- Failure diagnosis now sees what the agent did. The controller keeps the last 500 stream events of each run and passes them to the analyser; previously it received none, so checks based on tool calls and agent output, such as detecting an agent oscillating between edits, never matched.
+- Linear tickets never started a Job: uppercase IDs such as `ENG-123` gave invalid Kubernetes names. Job, task Secret and session PVC names are now lowercased and sanitised.
+- One stream line over 64 KiB, such as a large tool result, ended the agent's event stream. Lines up to 1 MiB are now read, and a longer line is skipped with a warning. Failure diagnosis keeps about 8 MiB of events per run, so it may drop old events before the 500-event limit.
+- Review follow-ups now see every comment on a pull or merge request. The GitLab and GitHub backends read only the first page of comments (20 notes on GitLab, counting system notes; 30 on GitHub), so on a busy merge request a reviewer's newer feedback was never seen and no follow-up job started. Both now request 100 per page and follow the `Link` header to the end, only to the same host as the API.
+- Runs started by a webhook lost their agent stream as soon as the webhook returned, and with it the result and merge request URL. Stream readers, and memory extraction after a Slack approval, now run until the controller stops.
+- The Linear backend now works against the real Linear API; polling, labels and `MarkComplete` all failed before. New option `completed_state_name` sets the state `MarkComplete` moves issues to (default: the team's first completed state).
+- The PRM evaluator now applies its documented defaults to any setting left out of `prm:`. Previously only the values in the config file were used, so enabling PRM without `evaluation_interval` crashed the controller with a divide by zero on the first tool call.
+- The Python plugin SDK can be installed from source again. Its `pyproject.toml` named a build backend that does not exist (`setuptools.backends.legacy:build`), so `pip install` failed; it now uses `setuptools.build_meta`.
+- The Shortcut backend now takes a story's repository from the first external link that points at a GitHub or GitLab repository, instead of the first external link of any kind. A story with a design document or other page linked ahead of its repository no longer sends the agent to clone that page. Links to a merge request, pull request, branch or file are reduced to their repository. Repositories on self-hosted SCM hosts are not recognised from external links; give them in the story description instead.
+- `diagnosis.enable_engine_switch` now works. For an engine-specific failure (currently `model_confusion`), the retry moves to the first configured engine the task has not yet tried. Previously nothing suggested an engine, so the setting had no effect.
+
+### Security
+
+- **API tokens no longer follow a redirect to another host.** The SCM backends
+  (GitHub, GitLab), the ticketing backends (Shortcut, GitHub, Linear), the Slack
+  plugins and the CodeRabbit review backend send a token on every request. Go's
+  HTTP client copies custom headers such as GitLab's `PRIVATE-TOKEN` and
+  Shortcut's `Shortcut-Token` onto a redirect to any host, and keeps
+  `Authorization` for the same host on another port, so an API that answered
+  with a redirect could hand the token to another server. These backends now
+  remove their credential headers whenever a redirect leaves the original scheme
+  and host, and refuse a redirect from https to http. The Vault secrets backend
+  is not yet covered; see
+  [roadmap item 35](https://github.com/unitaryai/osmia/blob/main/docs/roadmap.md).
+- A repository URL supplied through the Slack repo-URL prompt is now checked against `guard_rails.allowed_repos` before the job starts. Previously a ticket that arrived without a repository could be pointed at any repository by replying in Slack. With an allow-list configured, a ticket whose repository cannot be determined is now rejected instead of passed.
+- `engines.claude-code.tool_blacklist` had no effect. It is now passed as `--disallowedTools`, and a per-task blacklist adds to it.
+- `engines.claude-code.tool_whitelist` restricted nothing. It is now passed as `--tools`, so only the listed built-in tools are available. Osmia refuses to start if an entry is a permission pattern or an MCP tool name; add `Skill` or `Task` if you use skills or sub-agents. MCP tools are not affected; restrict them with `tool_blacklist`.
+
+
 ## [0.5.1] - 2026-10-19
 
 ### Fixed

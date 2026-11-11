@@ -1,1 +1,0 @@
-One stream line over 64 KiB, such as a large tool result, ended the agent's event stream. Lines up to 1 MiB are now read, and a longer line is skipped with a warning. Failure diagnosis keeps about 8 MiB of events per run, so it may drop old events before the 500-event limit.

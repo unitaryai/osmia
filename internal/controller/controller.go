@@ -2312,7 +2312,8 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	r.mu.Unlock()
 
 	go func() {
-		eventCh := make(chan *agentstream.StreamEvent, 100)
+		// Short queue: each event can hold a 1 MiB line.
+		eventCh := make(chan *agentstream.StreamEvent, 16)
 
 		reader := agentstream.NewReader(
 			r.logger.With("component", "stream-reader", "task_run_id", tr.ID),

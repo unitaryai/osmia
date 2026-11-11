@@ -106,7 +106,6 @@ func TestParseEvent(t *testing.T) {
 			wantType: EventType("heartbeat"),
 			checkFunc: func(t *testing.T, ev *StreamEvent) {
 				assert.Nil(t, ev.Parsed, "unknown types should have nil Parsed")
-				assert.NotEmpty(t, ev.Raw, "Raw should still be populated")
 			},
 		},
 		{

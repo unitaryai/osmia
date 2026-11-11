@@ -229,6 +229,19 @@ func main() {
 		claudeOpts = append(claudeOpts, claudecode.WithSubAgents(subAgents))
 		logger.Info("claude-code sub-agents configured", "count", len(subAgents))
 	}
+	if pc := cfg.Engines.ClaudeCode; pc != nil && (len(pc.Plugins.Sources) > 0 || len(pc.Plugins.Default) > 0 || len(pc.Plugins.Profiles) > 0) {
+		plugins, err := claudePluginConfig(cfg.Engines.ClaudeCode.Plugins)
+		if err != nil {
+			logger.Error("invalid engines.claude-code.plugins", "error", err)
+			os.Exit(1)
+		}
+		claudeOpts = append(claudeOpts, claudecode.WithPlugins(plugins))
+		logger.Info("claude-code plugins configured",
+			"sources", len(plugins.Sources),
+			"default", len(plugins.Default),
+			"profiles", len(plugins.Profiles),
+		)
+	}
 	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.MaxTurns > 0 {
 		claudeOpts = append(claudeOpts, claudecode.WithMaxTurns(cfg.Engines.ClaudeCode.MaxTurns))
 		logger.Info("claude-code max turns configured", "max_turns", cfg.Engines.ClaudeCode.MaxTurns)

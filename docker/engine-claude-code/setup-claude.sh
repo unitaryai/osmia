@@ -8,6 +8,8 @@
 #   2. /workspace/.mcp.json     — registers the osmia-slack MCP server
 #      (project-scope file that Claude Code auto-loads from the cwd)
 #   3. ~/.claude/skills/*.md    — custom skills injected via env vars (optional)
+#   4. ~/.osmia-plugins/        — plugin sources fetched at a pinned ref and
+#                                 passed to claude as --plugin-dir (optional)
 #
 # The main claude invocation also passes --mcp-config /workspace/.mcp.json
 # as an explicit belt-and-suspenders load path.
@@ -186,6 +188,100 @@ if env | grep -q '^CLAUDE_SUBAGENT_PATH_'; then
         name=$(printf '%s' "$var" | sed 's/^CLAUDE_SUBAGENT_PATH_//' | tr '[:upper:]' '[:lower:]' | tr '_' '-')
         path=$(printenv "$var")
         [ -f "$path" ] && cp "$path" "${AGENTS_DIR}/${name}.md"
+    done
+fi
+
+# Fetch plugin sources and load the chosen plugins.
+#
+# OSMIA_PLUGINS (set by the Osmia controller) is a JSON array with one entry
+# per source:
+#   {"source": "<name>", "repo_url": "https://...", "ref": "<sha or tag>",
+#    "token_env": "<env var holding a read token>",  (private repos only)
+#    "token_username": "<https username>",           (private repos only)
+#    "plugins": ["<plugin>", ...]}
+#
+# Each source is fetched at its pinned ref, so a push to the plugin repository
+# cannot change what agents run. Each plugin is looked up by name in the
+# source's .claude-plugin/marketplace.json and passed to Claude Code as
+# --plugin-dir. Any failure stops the job: an agent that silently runs without
+# the plugins its task asked for is harder to diagnose than one that fails.
+#
+# The token is handed to git through GIT_CONFIG_* variables for that one
+# command, so it never appears in a URL, in .git/config or in the process
+# arguments, and every token variable is unset before claude starts.
+plugin_fail() {
+    echo "setup-claude.sh: plugins: $*" >&2
+    exit 1
+}
+
+fetch_plugin_source() {
+    dest=$1 repo=$2 ref=$3 token_env=$4 token_user=$5
+
+    git -c init.defaultBranch=main init -q "$dest"
+    if [ -n "$token_env" ]; then
+        token=$(printenv "$token_env") || plugin_fail "token variable ${token_env} is not set"
+        auth=$(printf '%s:%s' "$token_user" "$token" | base64 | tr -d '\n')
+        GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0=http.extraHeader \
+            GIT_CONFIG_VALUE_0="Authorization: Basic ${auth}" \
+            git -C "$dest" fetch -q --depth 1 "$repo" "$ref" ||
+            plugin_fail "cannot fetch ${repo} at ${ref}"
+        unset token auth
+    else
+        git -C "$dest" fetch -q --depth 1 "$repo" "$ref" ||
+            plugin_fail "cannot fetch ${repo} at ${ref}"
+    fi
+    git -C "$dest" checkout -q FETCH_HEAD
+}
+
+# Prints the directory of plugin $2 in the marketplace checked out at $1.
+plugin_dir() {
+    root=$1 plugin=$2
+    marketplace="${root}/.claude-plugin/marketplace.json"
+    [ -f "$marketplace" ] || plugin_fail "no .claude-plugin/marketplace.json in source checkout ${root}"
+
+    count=$(jq --arg n "$plugin" '[.plugins[] | select(.name == $n)] | length' "$marketplace")
+    [ "$count" = "1" ] || plugin_fail "plugin '${plugin}' is listed ${count} times in ${marketplace}, expected once"
+
+    # Only plugins stored in the repository itself are supported. A source
+    # that points at another repository would bypass the pinned ref.
+    src=$(jq -r --arg n "$plugin" '.plugins[] | select(.name == $n) | .source | if type == "string" then . else "" end' "$marketplace")
+    case "$src" in
+        "" | /* | *..*) plugin_fail "plugin '${plugin}' must have a relative path source inside the repository" ;;
+    esac
+    dir="${root}/${src#./}"
+    [ -d "$dir" ] || plugin_fail "plugin '${plugin}' directory ${src} does not exist"
+    printf '%s' "$dir"
+}
+
+if [ -n "${OSMIA_PLUGINS:-}" ]; then
+    PLUGINS_ROOT="${HOME}/.osmia-plugins"
+    rm -rf "${PLUGINS_ROOT}"
+    mkdir -p "${PLUGINS_ROOT}"
+
+    count=$(printf '%s' "$OSMIA_PLUGINS" | jq 'length') || plugin_fail "OSMIA_PLUGINS is not valid JSON"
+    i=0
+    while [ "$i" -lt "$count" ]; do
+        entry=$(printf '%s' "$OSMIA_PLUGINS" | jq -c ".[$i]")
+        source_name=$(printf '%s' "$entry" | jq -r '.source')
+        dest="${PLUGINS_ROOT}/${source_name}"
+
+        fetch_plugin_source "$dest" \
+            "$(printf '%s' "$entry" | jq -r '.repo_url')" \
+            "$(printf '%s' "$entry" | jq -r '.ref')" \
+            "$(printf '%s' "$entry" | jq -r '.token_env // ""')" \
+            "$(printf '%s' "$entry" | jq -r '.token_username // ""')"
+
+        for plugin in $(printf '%s' "$entry" | jq -r '.plugins[]'); do
+            dir=$(plugin_dir "$dest" "$plugin")
+            set -- "$@" --plugin-dir "$dir"
+            echo "setup-claude.sh: loading plugin ${source_name}/${plugin}"
+        done
+        i=$((i + 1))
+    done
+
+    for var in $(env | grep '^OSMIA_PLUGIN_TOKEN_' | sed 's/=.*//'); do
+        unset "$var"
     done
 fi
 

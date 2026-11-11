@@ -187,6 +187,15 @@ engines:
       - name: architect
         description: "Architecture review"
         configmap: architect-agent       # load prompt from ConfigMap
+    plugins:                             # Claude Code plugins from a git repo
+      sources:
+        - name: team
+          repo_url: https://gitlab.example.com/team/claude-plugins.git
+          ref: 3f2c1e0a9b8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e   # pinned commit
+          token_secret: osmia-plugin-token                 # private repos only
+      default: [team/engineer]           # every task
+      profiles:                          # ticket label osmia-plugins:build
+        build: [team/implementations]
   codex:
     auth:
       method: api_key

@@ -274,28 +274,31 @@ keyword-based `RuleBasedClassifier`, and batches actionable ones into a
 carries only `State` (open/closed/merged); no SCM backend exposes pipeline
 status.
 
-- [ ] SCM interface: a pipeline-status method returning the latest pipeline's
-  state and its failed jobs, with protobuf definition to match
-- [ ] GitLab (`/merge_requests/:iid/pipelines`, job traces) and GitHub (check
+- [x] SCM interface: a pipeline-status method returning the latest pipeline's
+  state and its failed jobs. It is an optional capability
+  (`scm.PipelineStatusProvider`), like `scm.IdentityProvider`, so the plugin
+  protobuf does not change and gRPC plugin backends keep working
+- [ ] Expose pipeline status to gRPC plugin backends through the protobuf
+- [x] GitLab (`/merge_requests/:iid/pipelines`, job traces) and GitHub (check
   runs) implementations
-- [ ] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
+- [x] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
   carrying the failing job names and a bounded tail of each job's log
-- [ ] Count CI-triggered follow-ups against the same `max_follow_up_jobs`
+- [x] Count CI-triggered follow-ups against the same `max_follow_up_jobs`
   budget as comment-triggered ones, so a pipeline that fails for reasons the
   agent cannot fix (missing credentials, external access, flaky runners) does
   not loop
-- [ ] Do not react to a pipeline that is still running, or one already
+- [x] Do not react to a pipeline that is still running, or one already
   superseded by a newer commit
-- [ ] Config switch, off by default, so existing deployments do not start
-  spawning jobs on upgrade
+- [x] Config switch, off by default (`review_response.fix_failed_pipelines`),
+  so existing deployments do not start spawning jobs on upgrade
 
 **Open questions:**
 - Failures outside the agent's control, like the external-access failure on
   the same MR, look identical to a lint failure from the pipeline API. Is the
   follow-up budget enough of a guard, or does it need a way to classify a
   failure as not fixable before spending a job on it?
-- Tracked MRs live in memory and are lost on controller restart; this inherits
-  that limitation, and makes it more costly.
+- Resolved: tracked MRs are now restored after a controller restart, and a
+  failed pipeline from before the restart point is not acted on again.
 
 ---
 

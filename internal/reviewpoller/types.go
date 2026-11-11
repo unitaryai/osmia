@@ -57,6 +57,13 @@ type TrackedPR struct {
 	// without this every comment on the PR would be classified afresh and
 	// ones already addressed would spawn duplicate follow-up jobs.
 	IgnoreBefore time.Time
+	// LastFollowUpAt is when the most recent follow-up for this PR was
+	// emitted. A pipeline that started before it is not acted on: the
+	// follow-up will push a new commit, which runs CI again.
+	LastFollowUpAt time.Time
+	// HandledPipelineID is the ID of the last failed pipeline that was acted
+	// on or deliberately passed over, so each failed run is handled once.
+	HandledPipelineID string
 }
 
 // RestoredPR describes a pull/merge request to resume monitoring after a
@@ -81,10 +88,15 @@ type RestoredPR struct {
 	// creation of its most recent follow-up job. Comments created before it
 	// are not acted on again.
 	HandledUntil time.Time
+	// LastFollowUpAt is when the most recent follow-up job for this PR was
+	// created, or zero when there has been none. A failed pipeline from
+	// before it is not acted on again.
+	LastFollowUpAt time.Time
 }
 
-// FollowUpRequest is emitted when an actionable comment is found on a
-// tracked PR. The controller drains these and submits new K8s Jobs.
+// FollowUpRequest is emitted when an actionable comment, or a failed CI
+// pipeline, is found on a tracked PR. The controller drains these and
+// submits new K8s Jobs.
 type FollowUpRequest struct {
 	// PRURL is the HTML URL of the pull/merge request.
 	PRURL string
@@ -108,4 +120,7 @@ type FollowUpRequest struct {
 	// ThreadIDs are the discussion thread IDs to resolve on completion.
 	// May be empty.
 	ThreadIDs []string
+	// FailedPipeline is the failed CI pipeline that triggered this
+	// follow-up, or nil when only review comments did.
+	FailedPipeline *scm.Pipeline
 }

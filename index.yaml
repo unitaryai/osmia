@@ -233,10 +233,10 @@ entries:
     - https://github.com/unitaryai/osmia/releases/download/osmia-0.2.0/osmia-0.2.0.tgz
     version: 0.2.0
   - apiVersion: v2
-    appVersion: a4742401be8b5076476578eab1b3fc01d34c479f
-    created: "2026-11-11T18:22:55.252085436Z"
+    appVersion: b4381e2e5c4fb56fa69112c916d3bb8debb755d9
+    created: "2026-11-11T18:33:47.646561122Z"
     description: A Kubernetes-native AI coding agent harness
-    digest: de3f38b091a8b2e5769e8231410f8d481270617c774c0d1f2c018cef6a67dac3
+    digest: 0184578043ff8a57d30cf4c97e3b1c8dc04411ea35f6a4040a7c5fa09208e17c
     home: https://github.com/unitaryai/osmia
     keywords:
     - ai
@@ -296,4 +296,4 @@ entries:
     urls:
     - https://github.com/unitaryai/RoboDev/releases/download/robodev-0.1.0/robodev-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-11T18:22:55.251049384Z"
+generated: "2026-11-11T18:33:47.645546086Z"

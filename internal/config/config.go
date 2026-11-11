@@ -452,6 +452,37 @@ type SubAgentConfig struct {
 	Key string `yaml:"key,omitempty"`
 }
 
+// PluginsConfig chooses which Claude Code plugins agents load. Plugins are
+// named "<source>/<plugin>", where the plugin name is the one listed in the
+// source repository's .claude-plugin/marketplace.json.
+type PluginsConfig struct {
+	// Sources lists the plugin marketplace repositories.
+	Sources []PluginSourceConfig `yaml:"sources,omitempty"`
+	// Default lists plugins loaded on every task.
+	Default []string `yaml:"default,omitempty"`
+	// Profiles maps a profile name to extra plugins. A ticket labelled
+	// "osmia-plugins:<profile>" loads that profile's plugins as well.
+	Profiles map[string][]string `yaml:"profiles,omitempty"`
+}
+
+// PluginSourceConfig is a git repository holding a plugin marketplace.
+type PluginSourceConfig struct {
+	// Name identifies the source in plugin references.
+	Name string `yaml:"name"`
+	// RepoURL is the HTTPS clone URL.
+	RepoURL string `yaml:"repo_url"`
+	// Ref is the commit SHA (preferred) or tag to fetch.
+	Ref string `yaml:"ref"`
+	// TokenSecret names a Kubernetes Secret with a read token, for a
+	// private repository.
+	TokenSecret string `yaml:"token_secret,omitempty"`
+	// TokenKey is the key within TokenSecret. Defaults to "token".
+	TokenKey string `yaml:"token_key,omitempty"`
+	// TokenUsername is the HTTPS username sent with the token. Defaults to
+	// "x-access-token"; a GitLab deploy token needs its own username.
+	TokenUsername string `yaml:"token_username,omitempty"`
+}
+
 // SessionPersistenceConfig configures session-state persistence between retries.
 // When enabled, Claude Code's ~/.claude directory (and optionally the workspace)
 // is stored in a durable backend so that retry pods can resume the exact
@@ -507,6 +538,9 @@ type ClaudeCodeEngineConfig struct {
 	// to during task execution. Sub-agents are lightweight helpers within a
 	// single session — distinct from agent teams, which spawn independent instances.
 	SubAgents []SubAgentConfig `yaml:"sub_agents,omitempty"`
+	// Plugins loads Claude Code plugins from git repositories, fetched at a
+	// pinned ref when each agent pod starts, and chooses them per task.
+	Plugins PluginsConfig `yaml:"plugins,omitempty"`
 	// ContinuationPrompt enables user-prompted continuation when the agent
 	// exhausts --max-turns. Requires session persistence and an approval backend.
 	// When true, the controller sends an approval request (e.g. Slack buttons)

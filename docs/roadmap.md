@@ -352,15 +352,20 @@ task gets the same set. Only incident triage overrides them per flow.
 workspace MCP config. A build needs a different set of skills, sub-agents, MCP
 servers and hooks per task, and per stage within a task.
 
-- [ ] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
-  packaged together, in the layout Claude Code's `--plugin-dir` expects
-- [ ] Select bundles per task, from the ticket (label or field) or the task
-  profile, merged on top of the engine defaults
-- [ ] Deliver bundles to the pod from a ConfigMap or object storage, not as
-  environment variables, so size is not bounded by the env var limit
+- [x] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
+  packaged together, in the layout Claude Code's `--plugin-dir` expects. A
+  bundle is a standard Claude Code plugin, listed in a marketplace repository
+- [x] Select bundles per task from a ticket label (`osmia-plugins:<profile>`),
+  merged on top of the engine defaults
+- [ ] Select bundles from the task profile as well as the ticket label
+- [x] Deliver bundles to the pod from a git repository fetched at a pinned
+  ref, not as environment variables, so size is not bounded by the env var
+  limit
 - [ ] Wire `TaskProfileConfig.MCPServers` through the same path
-- [ ] Validate bundle contents at load time and fail the launch on an unknown
-  bundle name, rather than starting the agent without it
+- [x] Fail the launch on an unknown profile, and refuse to start the
+  controller on a plugin that names an unknown source
+- [ ] Check that each configured plugin exists in its source at controller
+  start, not only when the pod fetches it
 
 ---
 

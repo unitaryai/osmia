@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/review"
 )
 
@@ -64,6 +65,8 @@ func NewCodeRabbitBackend(apiKey string, logger *slog.Logger, opts ...Option) *C
 	for _, opt := range opts {
 		opt(b)
 	}
+	// The API token goes on every request; keep it off redirects to other hosts.
+	b.client = httpsafe.CredentialSafeRedirects(b.client)
 	return b
 }
 

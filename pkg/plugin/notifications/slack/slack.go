@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/notifications"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
@@ -43,7 +44,7 @@ func NewSlackChannel(channelID, token string, logger *slog.Logger) *SlackChannel
 		channelID:  channelID,
 		token:      token,
 		apiURL:     defaultAPIURL,
-		httpClient: http.DefaultClient,
+		httpClient: httpsafe.CredentialSafeRedirects(nil), // keep the token off redirects to other hosts
 		logger:     logger,
 	}
 }

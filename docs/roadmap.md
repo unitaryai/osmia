@@ -551,6 +551,28 @@ comments on it with what is missing, instead of starting a job.
 - For build stages (Application Build Pilot), is the input a ticket at all,
   or a stage specification that needs its own checks?
 
+### 35. Vault Token on Redirects
+
+**Priority:** Medium
+**Scope:** Small
+**Dependencies:** None
+
+`httpsafe.CredentialSafeRedirects` keeps API tokens off redirects to another
+host for every plugin that sends one, except the Vault secrets backend. Vault
+sends its token in `X-Vault-Token`, a custom header that Go's HTTP client
+copies onto a redirect to any host. Vault cannot simply use the same policy:
+an HA standby node answers with a redirect to the active node, which needs
+the token, so stripping it would break clusters reached without a load
+balancer.
+
+- [ ] Follow a redirect with the token only when the target is a configured
+  Vault node (the configured address, plus an optional list of cluster
+  addresses), and strip it otherwise
+- [ ] Refuse a redirect from https to http
+- [ ] Test the standby-to-active redirect and a redirect to an unrelated host
+
+---
+
 ---
 
 ## 3. Design-First — ADR Required Before Implementation
@@ -947,6 +969,7 @@ live controller and `main.go`:
 | 30 | Remote Transcript and Artifact Storage | High | Not started |
 | 31 | Regional Deployments and Data Residency Routing | High | Not started |
 | 34 | Ticket Readiness Check | High | Not started |
+| 35 | Vault Token on Redirects | Medium | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 32 | Customer Context and Repository Lookup | High | Design doc required |

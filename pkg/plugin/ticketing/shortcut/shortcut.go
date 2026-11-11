@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -204,6 +205,9 @@ func NewShortcutBackend(token string, workflowStateID int64, logger *slog.Logger
 	for _, opt := range opts {
 		opt(b)
 	}
+	// Every request carries the API token in a custom header, which Go's
+	// client would copy onto a redirect to any host.
+	b.httpClient = httpsafe.CredentialSafeRedirects(b.httpClient, "Shortcut-Token")
 	if len(b.excludeLabels) == 0 {
 		b.logger.Warn("exclude_labels is empty; in-progress and failed stories will not be filtered out automatically")
 	}

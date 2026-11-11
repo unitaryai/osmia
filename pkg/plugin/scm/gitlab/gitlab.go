@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
@@ -74,6 +75,9 @@ func NewGitLabSCMBackend(token string, logger *slog.Logger, opts ...Option) *Git
 	for _, opt := range opts {
 		opt(b)
 	}
+	// Every request carries the API token, so a redirect must never take it
+	// to another host. See httpsafe.CredentialSafeRedirects.
+	b.client = httpsafe.CredentialSafeRedirects(b.client, "PRIVATE-TOKEN")
 	return b
 }
 

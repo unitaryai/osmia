@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 )
 
 // repoURLPattern matches GitHub and GitLab repository URLs.
@@ -53,7 +55,7 @@ func New(token, channelID string, cfg Config) *Poller {
 		token:        token,
 		channelID:    channelID,
 		apiURL:       "https://slack.com/api",
-		httpClient:   http.DefaultClient,
+		httpClient:   httpsafe.CredentialSafeRedirects(nil), // keep the token off redirects to other hosts
 		timeout:      timeout,
 		pollInterval: interval,
 	}

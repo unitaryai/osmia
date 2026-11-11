@@ -556,3 +556,25 @@ func TestGitLabSCMBackend_ReplyToComment_SearchesPagesReadBeforeAnError(t *testi
 	require.NoError(t, err)
 	assert.Contains(t, postedPath, "/discussions/disc-1/notes")
 }
+
+// TestAPIRedirectDropsToken checks the backend's client end to end: an API
+// call answered with a redirect to another host must not take the token
+// there. GitLab sends it in PRIVATE-TOKEN, a custom header Go's client would
+// otherwise copy to any host.
+func TestAPIRedirectDropsToken(t *testing.T) {
+	var leaked string
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		leaked = r.Header.Get("PRIVATE-TOKEN")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"username":"bot"}`))
+	}))
+	defer elsewhere.Close()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, elsewhere.URL+"/user", http.StatusFound)
+	}))
+	defer api.Close()
+
+	b := NewGitLabSCMBackend("secret-token", testLogger(), WithBaseURL(api.URL))
+	_, _ = b.AuthenticatedUser(context.Background())
+	assert.Empty(t, leaked, "the token must not reach the redirect target")
+}

@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/unitaryai/osmia/pkg/plugin/approval"
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -45,7 +46,7 @@ func NewSlackApprovalBackend(channelID, token string, logger *slog.Logger) *Slac
 		channelID:  channelID,
 		token:      token,
 		apiURL:     defaultAPIURL,
-		httpClient: http.DefaultClient,
+		httpClient: httpsafe.CredentialSafeRedirects(nil), // keep the token off redirects to other hosts
 		logger:     logger,
 	}
 }

@@ -41,5 +41,16 @@
       depNameTemplate: "gitlab-org/cli",
       versioningTemplate: "semver",
     },
+    {
+      // The build-tools image installs each tool from an ARG, marked with a
+      // "# renovate: datasource=... depName=..." comment on the line above.
+      // GitHub tags may carry a "v" prefix that the ARG leaves off.
+      customType: "regex",
+      managerFilePatterns: ["/(^|/)docker/engine-claude-code-build/Dockerfile$/"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\nARG [A-Z_]+="(?<currentValue>[^"]+)"',
+      ],
+      extractVersionTemplate: "^v?(?<version>.+)$",
+    },
   ],
 }

@@ -34,6 +34,7 @@ env:
   REGISTRY: ghcr.io
   CONTROLLER_IMAGE: ghcr.io/${{ github.repository }}/controller
   ENGINE_CLAUDE_CODE_IMAGE: ghcr.io/${{ github.repository }}/engine-claude-code
+  ENGINE_CLAUDE_CODE_BUILD_IMAGE: ghcr.io/${{ github.repository }}/engine-claude-code-build
   ENGINE_CODEX_IMAGE: ghcr.io/${{ github.repository }}/engine-codex
   ENGINE_OPENCODE_IMAGE: ghcr.io/${{ github.repository }}/engine-opencode
   ENGINE_CLINE_IMAGE: ghcr.io/${{ github.repository }}/engine-cline
@@ -107,6 +108,50 @@ jobs:
           push: true
           # Without this the runner may reuse a cached base image and the
           # weekly rebuild republishes the same bits it already had.
+          pull: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # The build-tools variant is built on the engine image from this same run,
+  # by its commit tag, so the two always match and a concurrent push to main
+  # cannot slip a different base in between.
+  engine-claude-code-build:
+    runs-on: ubuntu-latest
+    needs: engine-claude-code
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ENGINE_CLAUDE_CODE_BUILD_IMAGE }}
+          tags: |
+            type=raw,value=main
+            type=sha
+
+      - name: Work out the base image tag
+        id: base
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push build-tools engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/engine-claude-code-build
+          file: docker/engine-claude-code-build/Dockerfile
+          build-args: |
+            BASE_IMAGE=${{ env.ENGINE_CLAUDE_CODE_IMAGE }}:${{ steps.base.outputs.tag }}
+          push: true
           pull: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

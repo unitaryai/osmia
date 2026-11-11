@@ -3056,15 +3056,20 @@ task gets the same set. Only incident triage overrides them per flow.
 workspace MCP config. A build needs a different set of skills, sub-agents, MCP
 servers and hooks per task, and per stage within a task.</p>
 <ul>
-<li>[ ] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
-  packaged together, in the layout Claude Code's <code>--plugin-dir</code> expects</li>
-<li>[ ] Select bundles per task, from the ticket (label or field) or the task
-  profile, merged on top of the engine defaults</li>
-<li>[ ] Deliver bundles to the pod from a ConfigMap or object storage, not as
-  environment variables, so size is not bounded by the env var limit</li>
+<li>[x] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
+  packaged together, in the layout Claude Code's <code>--plugin-dir</code> expects. A
+  bundle is a standard Claude Code plugin, listed in a marketplace repository</li>
+<li>[x] Select bundles per task from a ticket label (<code>osmia-plugins:&lt;profile&gt;</code>),
+  merged on top of the engine defaults</li>
+<li>[ ] Select bundles from the task profile as well as the ticket label</li>
+<li>[x] Deliver bundles to the pod from a git repository fetched at a pinned
+  ref, not as environment variables, so size is not bounded by the env var
+  limit</li>
 <li>[ ] Wire <code>TaskProfileConfig.MCPServers</code> through the same path</li>
-<li>[ ] Validate bundle contents at load time and fail the launch on an unknown
-  bundle name, rather than starting the agent without it</li>
+<li>[x] Fail the launch on an unknown profile, and refuse to start the
+  controller on a plugin that names an unknown source</li>
+<li>[ ] Check that each configured plugin exists in its source at controller
+  start, not only when the pod fetches it</li>
 </ul>
 <hr />
 <h3 id="28-build-tools-engine-image">28. Build-Tools Engine Image<a class="headerlink" href="#28-build-tools-engine-image" title="Permanent link">&para;</a></h3>

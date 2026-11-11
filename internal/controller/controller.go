@@ -90,6 +90,10 @@ type Reconciler struct {
 	// waits on it so the agent's final result event is not lost.
 	streamDone map[string]chan struct{}
 
+	// podLookupBackoff is the first wait between attempts to find a Job's
+	// agent pod. Zero means defaultPodLookupBackoff; tests shorten it.
+	podLookupBackoff time.Duration
+
 	// runEvents keeps the most recent stream events of each running task,
 	// keyed by task run ID, for failure diagnosis. Only populated when
 	// diagnosis is enabled; see recordRunEvent.
@@ -2567,7 +2571,8 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 // It polls until the agent container has started (i.e., is Running or
 // Terminated) or the context is cancelled, using exponential backoff
 // starting at 2 s and capped at 30 s. Waiting for the container to start
-// avoids a "ContainerCreating" error when the log stream is opened.
+// avoids a "ContainerCreating" error when the log stream is opened. A failed
+// pod list is retried the same way; only cancellation ends the wait.
 func (r *Reconciler) resolvePodName(ctx context.Context, jobName string) (string, error) {
 	// Kubernetes limits Job names to 63 characters because the Job controller
 	// copies the name into this pod label, so a name that is not a valid
@@ -2577,23 +2582,28 @@ func (r *Reconciler) resolvePodName(ctx context.Context, jobName string) (string
 		return "", fmt.Errorf("job name %q cannot select pods: %w", jobName, err)
 	}
 	labelSelector := selector.String()
-	backoff := 2 * time.Second
+	backoff := r.podLookupBackoff
+	if backoff <= 0 {
+		backoff = defaultPodLookupBackoff
+	}
 	const maxBackoff = 30 * time.Second
 
 	for {
 		pods, err := r.k8sClient.CoreV1().Pods(r.namespace).List(ctx, metav1.ListOptions{
 			LabelSelector: labelSelector,
 		})
-		if err != nil {
-			return "", fmt.Errorf("listing pods for job %q: %w", jobName, err)
-		}
-
-		for i := range pods.Items {
-			pod := &pods.Items[i]
-			for _, cs := range pod.Status.ContainerStatuses {
-				if cs.Name == "agent" && (cs.State.Running != nil || cs.State.Terminated != nil) {
-					return pod.Name, nil
-				}
+		switch {
+		case err != nil && ctx.Err() == nil:
+			// Usually a passing API error. Returning would end the stream
+			// reader for good, and nothing starts another, so the Job's
+			// result would never be read. Keep backing off instead.
+			r.logger.WarnContext(ctx, "listing pods for job failed; will try again",
+				"job", jobName,
+				"error", err,
+			)
+		case err == nil:
+			if name := startedAgentPod(pods.Items); name != "" {
+				return name, nil
 			}
 		}
 
@@ -2607,6 +2617,23 @@ func (r *Reconciler) resolvePodName(ctx context.Context, jobName string) (string
 		}
 	}
 }
+
+// startedAgentPod returns the name of the first pod whose agent container is
+// running or has finished, or "" if there is none yet.
+func startedAgentPod(pods []corev1.Pod) string {
+	for i := range pods {
+		for _, cs := range pods[i].Status.ContainerStatuses {
+			if cs.Name == "agent" && (cs.State.Running != nil || cs.State.Terminated != nil) {
+				return pods[i].Name
+			}
+		}
+	}
+	return ""
+}
+
+// defaultPodLookupBackoff is the first wait between attempts to find a Job's
+// agent pod.
+const defaultPodLookupBackoff = 2 * time.Second
 
 // streamDrainTimeout bounds how long handleJobComplete waits for a stream
 // reader to finish. The pod's log stream ends when the agent container

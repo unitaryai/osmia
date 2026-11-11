@@ -406,3 +406,39 @@ func TestResolvePreStartApproval_RecordsTicket(t *testing.T) {
 	assert.Equal(t, "Needs approval", stored.TicketDescription)
 	assert.Equal(t, "https://github.com/org/repo", stored.RepoURL)
 }
+
+// TestResolvePodName_RetriesListErrors checks a passing API error while
+// listing pods does not end the stream reader: the lookup backs off and tries
+// again. Before, the reader exited and nothing restarted it, so the Job's
+// result was never read.
+func TestResolvePodName_RetriesListErrors(t *testing.T) {
+	client := fake.NewSimpleClientset(&corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "agent-pod",
+			Namespace: recoveryNamespace,
+			Labels:    map[string]string{batchv1.JobNameLabel: "osmia-tr-1"},
+		},
+		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			Name:  "agent",
+			State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+		}}},
+	})
+	failures := 2
+	client.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		if failures == 0 {
+			return false, nil, nil
+		}
+		failures--
+		return true, nil, errors.New("api server unavailable")
+	})
+	r := NewReconciler(&config.Config{}, testLogger(), WithK8sClient(client), WithNamespace(recoveryNamespace))
+	r.podLookupBackoff = time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	got, err := r.resolvePodName(ctx, "osmia-tr-1")
+
+	require.NoError(t, err)
+	assert.Equal(t, "agent-pod", got)
+	assert.Zero(t, failures, "both failed lists were retried")
+}

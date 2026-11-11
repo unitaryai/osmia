@@ -617,6 +617,7 @@ review_response:
   max_follow_up_jobs: 3           # Max batched follow-ups per PR
   reply_to_comments: true         # Post acknowledgement replies
   resolve_threads: true           # Resolve threads on completion (GitLab only)
+  fix_failed_pipelines: true      # Start a follow-up when the MR's pipeline fails
   ignore_summary_authors:         # Regex patterns for bot summary filtering
     - "^group_\\d+_bot_"          # GitLab group bot tokens
 ```
@@ -632,6 +633,7 @@ review_response:
 | `resolve_threads` | bool | `false` | Resolve discussion threads on follow-up completion. Only supported on GitLab |
 | `llm_classifier` | bool | `false` | Use LLM-backed classification with rule-based fallback |
 | `ignore_summary_authors` | list | `[]` | Regex patterns for author usernames whose non-inline comments (summaries, coverage reports) are ignored. Inline diff comments from these authors are still processed. Merged with built-in defaults (`osmia`, `dependabot`, `github-actions[bot]`, `copilot`, `gemini-code-assist`, `coderabbit-ai`) |
+| `fix_failed_pipelines` | bool | `false` | Start a follow-up job when the CI pipeline on a PR Osmia opened fails. See [Failed pipelines](#failed-pipelines) |
 
 ### Settling period
 
@@ -652,6 +654,18 @@ For GitLab, group bot tokens use usernames like `group_123456_bot_abcdef...`. Ad
 The list of PRs/MRs Osmia is watching is rebuilt from the TaskRun store when the controller starts, so a restart, or the cluster autoscaler moving the controller to another node, does not stop it following up on PRs it opened. Comments posted before the restart that were already handled are not acted on again, and each PR's follow-up budget carries over. PRs opened more than 30 days ago are not restored.
 
 This needs a persistent `taskrun_store` (for example `backend: sqlite`). With the default in-memory store there is nothing to rebuild from, and a restart forgets every watched PR.
+
+### Failed pipelines
+
+With `fix_failed_pipelines: true`, Osmia also checks the CI pipeline on each MR it is watching. When the latest pipeline on the MR's current commit has failed, Osmia starts a follow-up job on the same branch. The job is given the name and stage of each failed job, up to five, and the last 8 KiB of each job's log.
+
+- **Once per failed run.** Each failed pipeline is acted on at most once. Re-running CI, or a push that fails again, counts as a new run.
+- **Shared budget.** These follow-ups count against `max_follow_up_jobs`, the same as comment follow-ups. A pipeline that fails for a reason the agent cannot fix, such as missing credentials, blocked network access or a broken runner, therefore stops being retried. The job is also told to report such a failure rather than work around it.
+- **No reacting too early.** A pipeline that is still running is left alone, and so is one on an older commit. A failed pipeline that started before the MR's last follow-up is passed over too, since that follow-up will push a new commit and run CI again.
+- **One job per poll.** If new review comments and a failed pipeline turn up in the same poll, they go into one follow-up job.
+- **Logs are data.** Job logs can contain output from the code under review, so they are passed to the agent fenced and labelled as data.
+
+This works with the GitHub and GitLab backends. On GitHub the pipeline is the set of check runs on the PR's head commit; full logs are read for GitHub Actions jobs, and other checks contribute their summary text. The token needs read access to pipelines and job logs (GitLab: `read_api`; GitHub: checks and actions read access).
 
 ### Osmia's own comments
 

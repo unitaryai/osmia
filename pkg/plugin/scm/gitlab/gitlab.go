@@ -97,6 +97,7 @@ type glMR struct {
 	State        string `json:"state"` // "opened", "closed", "merged"
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
+	SHA          string `json:"sha"`
 }
 
 // CreateBranch creates a new branch in the repository from the specified

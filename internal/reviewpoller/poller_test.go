@@ -476,7 +476,7 @@ func TestPoller_Start_StopsOnContextCancelled(t *testing.T) {
 // for zero, one (with and without file position), and multiple comments.
 func TestBuildEnrichedDescription(t *testing.T) {
 	t.Run("no comments", func(t *testing.T) {
-		got := buildEnrichedDescription("Original description.", nil)
+		got := buildEnrichedDescription("Original description.", nil, nil)
 		assert.Contains(t, got, "Original description.")
 		assert.Contains(t, got, "# Review Comments")
 		assert.Contains(t, got, "Please address all of the above review comments.")
@@ -488,7 +488,7 @@ func TestBuildEnrichedDescription(t *testing.T) {
 				ReviewComment: scm.ReviewComment{Author: "alice", Body: "fix this", FilePath: "main.go", Line: 42},
 			},
 		}
-		got := buildEnrichedDescription("Original description.", comments)
+		got := buildEnrichedDescription("Original description.", comments, nil)
 		assert.Contains(t, got, "Comment from @alice")
 		assert.Contains(t, got, "> fix this")
 		assert.Contains(t, got, "main.go:42")
@@ -498,7 +498,7 @@ func TestBuildEnrichedDescription(t *testing.T) {
 		comments := []ClassifiedComment{
 			{ReviewComment: scm.ReviewComment{Author: "bob", Body: "please improve this"}},
 		}
-		got := buildEnrichedDescription("Original description.", comments)
+		got := buildEnrichedDescription("Original description.", comments, nil)
 		assert.Contains(t, got, "Comment from @bob")
 		assert.NotContains(t, got, ".go:")
 	})
@@ -508,7 +508,7 @@ func TestBuildEnrichedDescription(t *testing.T) {
 			{ReviewComment: scm.ReviewComment{Author: "alice", Body: "first comment"}},
 			{ReviewComment: scm.ReviewComment{Author: "bob", Body: "second comment"}},
 		}
-		got := buildEnrichedDescription("Original description.", comments)
+		got := buildEnrichedDescription("Original description.", comments, nil)
 		assert.Contains(t, got, "Comment from @alice")
 		assert.Contains(t, got, "Comment from @bob")
 		assert.Contains(t, got, "\n---\n")

@@ -97,6 +97,7 @@ type ghPR struct {
 // ghHead is the head/base branch info from a PR response.
 type ghHead struct {
 	Ref string `json:"ref"`
+	SHA string `json:"sha"`
 }
 
 // CreateBranch creates a new branch in the repository from the specified

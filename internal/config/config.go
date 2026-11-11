@@ -74,6 +74,13 @@ type ReviewResponseConfig struct {
 	// so that actionable review feedback is not lost. Merged with built-in
 	// defaults (e.g. "osmia", "dependabot"). Case-insensitive.
 	IgnoreSummaryAuthors []string `yaml:"ignore_summary_authors,omitempty"`
+	// FixFailedPipelines makes Osmia start a follow-up job when the CI
+	// pipeline on a pull request it opened fails, passing the failed jobs and
+	// the end of their logs. These follow-ups count against MaxFollowUpJobs,
+	// so a pipeline that fails for reasons the agent cannot fix stops being
+	// retried. Needs an SCM backend that reports pipeline status (GitHub and
+	// GitLab do). Default: false.
+	FixFailedPipelines bool `yaml:"fix_failed_pipelines"`
 }
 
 // CompetitiveExecutionConfig configures competitive execution with tournament selection.

@@ -163,7 +163,8 @@ engines:
       api_key_secret: "osmia-anthropic-key"
     fallback_model: haiku
     append_system_prompt: "Always run the test suite before committing."
-    tool_whitelist: [Bash, Read, Write, Edit, Grep, Glob]
+    # Built-in tools only; Skill and Task are needed for skills and sub-agents.
+    tool_whitelist: [Bash, Edit, Glob, Grep, Read, Skill, Task, Write]
     # Optional: enable session persistence so retry pods resume via --resume
     # instead of starting fresh. Disabled by default; requires a shared PVC.
     session_persistence:

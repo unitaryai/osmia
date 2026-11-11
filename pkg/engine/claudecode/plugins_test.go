@@ -107,6 +107,16 @@ func TestPluginConfigValidate(t *testing.T) {
 			wantErr: "commit SHA or tag",
 		},
 		{
+			name:    "HEAD as the ref",
+			mutate:  func(c *PluginConfig) { c.Sources[0].Ref = "HEAD" },
+			wantErr: "names a branch",
+		},
+		{
+			name:    "fully qualified branch ref",
+			mutate:  func(c *PluginConfig) { c.Sources[0].Ref = "refs/heads/main" },
+			wantErr: "names a branch",
+		},
+		{
 			name:    "token key without a secret",
 			mutate:  func(c *PluginConfig) { c.Sources[1].TokenKey = "token" },
 			wantErr: "need token_secret",

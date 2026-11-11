@@ -401,10 +401,10 @@ engines:
 ```
 
 - **Plugin names** are `<source>/<plugin>`, where `<plugin>` is the name listed in the source's `marketplace.json`.
-- **Pinned ref.** Each source is fetched at `ref` when the agent pod starts, so a push to the plugin repository changes nothing until you move the ref. Prefer a commit SHA: a tag can be moved.
-- **Profiles.** A ticket labelled `osmia-plugins:build` loads the default plugins plus those in the `build` profile. A ticket can carry several profile labels. A label naming a profile that does not exist fails the task, rather than running it without the plugins it asked for.
+- **Pinned ref.** Each source is fetched at `ref` when the agent pod starts, so a push to the plugin repository changes nothing until you move the ref. `ref` must be a full commit SHA or a tag; anything that is not a SHA is fetched as a tag, so a branch name never works. Prefer a commit SHA: a tag can be moved.
+- **Profiles.** A ticket labelled `osmia-plugins:build` loads the default plugins plus those in the `build` profile. Review follow-ups on that ticket's MR load the same profiles, as long as the controller has not restarted since the ticket was picked up. A ticket can carry several profile labels. A label naming a profile that does not exist fails the task, rather than running it without the plugins it asked for.
 - **Private repositories.** `token_secret` names a Kubernetes Secret holding a read-only token. Only the pods whose task uses that source get the token, and `setup-claude.sh` unsets it before Claude Code starts, so the agent never sees it. The token is sent as an HTTPS Basic `Authorization` header, never in a URL. Use the narrowest token your SCM offers: a GitLab deploy token or project access token with `read_repository`, or a GitHub fine-grained token with read access to contents.
-- **Only plugins stored in the repository** are supported. A marketplace entry whose `source` points at another repository is rejected, because it would bypass the pinned ref.
+- **Only plugins stored in the repository** are supported. A marketplace entry whose `source` points at another repository is rejected, because it would bypass the pinned ref. So is a plugin directory that is, or sits under, a symlink leading outside the repository.
 - **Failures stop the job.** An unreachable repository, an unknown ref, or a plugin missing from `marketplace.json` makes the pod exit before Claude Code starts, with the reason in the pod log.
 
 Plugins run code inside the agent pod: hooks run shell commands and plugin MCP servers start processes. Review a plugin before you load it, and check that its hooks and MCP servers work without a person's own login, since the pod has none.

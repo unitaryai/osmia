@@ -1294,6 +1294,9 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	r.mu.RUnlock()
 	if parentOK {
 		task.TicketURL = parentTicket.ExternalURL
+		// Labels choose the engine's plugin profiles; without them a
+		// follow-up would run without the plugins the original task had.
+		task.Labels = parentTicket.Labels
 	}
 
 	engineCfg := r.baseEngineConfig(ctx, engineName)

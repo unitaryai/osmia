@@ -217,6 +217,15 @@ plugin_fail() {
 fetch_plugin_source() {
     dest=$1 repo=$2 ref=$3 token_env=$4 token_user=$5
 
+    # A full commit SHA is fetched as it is. Anything else is fetched only as
+    # a tag, never as a branch: a branch moves on every push, which would undo
+    # the pin. The controller has already rejected HEAD and refs/ names.
+    if printf '%s' "$ref" | grep -Eqx '[0-9a-f]{40}|[0-9a-f]{64}'; then
+        refspec=$ref
+    else
+        refspec="refs/tags/${ref}"
+    fi
+
     git -c init.defaultBranch=main init -q "$dest"
     if [ -n "$token_env" ]; then
         token=$(printenv "$token_env") || plugin_fail "token variable ${token_env} is not set"
@@ -224,11 +233,11 @@ fetch_plugin_source() {
         GIT_CONFIG_COUNT=1 \
             GIT_CONFIG_KEY_0=http.extraHeader \
             GIT_CONFIG_VALUE_0="Authorization: Basic ${auth}" \
-            git -C "$dest" fetch -q --depth 1 "$repo" "$ref" ||
+            git -C "$dest" fetch -q --depth 1 --end-of-options "$repo" "$refspec" ||
             plugin_fail "cannot fetch ${repo} at ${ref}"
         unset token auth
     else
-        git -C "$dest" fetch -q --depth 1 "$repo" "$ref" ||
+        git -C "$dest" fetch -q --depth 1 --end-of-options "$repo" "$refspec" ||
             plugin_fail "cannot fetch ${repo} at ${ref}"
     fi
     git -C "$dest" checkout -q FETCH_HEAD
@@ -251,7 +260,18 @@ plugin_dir() {
     esac
     dir="${root}/${src#./}"
     [ -d "$dir" ] || plugin_fail "plugin '${plugin}' directory ${src} does not exist"
-    printf '%s' "$dir"
+
+    # The textual check above cannot see symlinks: a plugin directory that is
+    # a symlink, or sits under one, could point outside the checkout and load
+    # files that are not part of the pinned commit. Resolve both paths and
+    # require the plugin to stay inside the checkout.
+    root_real=$(cd "$root" && pwd -P)
+    dir_real=$(cd "$dir" && pwd -P)
+    case "$dir_real" in
+        "${root_real}"/*) ;;
+        *) plugin_fail "plugin '${plugin}' directory ${src} resolves outside the repository" ;;
+    esac
+    printf '%s' "$dir_real"
 }
 
 if [ -n "${OSMIA_PLUGINS:-}" ]; then

@@ -131,8 +131,8 @@ func (c PluginConfig) validateSources() (map[string]PluginSource, error) {
 		if err := validatePluginRepoURL(s.RepoURL); err != nil {
 			return nil, fmt.Errorf("plugin source %q: %w", s.Name, err)
 		}
-		if !pluginRefRe.MatchString(s.Ref) || strings.Contains(s.Ref, "..") {
-			return nil, fmt.Errorf("plugin source %q: ref must be a commit SHA or tag, got %q", s.Name, s.Ref)
+		if err := validatePluginRef(s.Ref); err != nil {
+			return nil, fmt.Errorf("plugin source %q: %w", s.Name, err)
 		}
 		if s.TokenSecret == "" && (s.TokenKey != "" || s.TokenUsername != "") {
 			return nil, fmt.Errorf("plugin source %q: token_key and token_username need token_secret", s.Name)
@@ -140,6 +140,20 @@ func (c PluginConfig) validateSources() (map[string]PluginSource, error) {
 		sources[s.Name] = s
 	}
 	return sources, nil
+}
+
+// validatePluginRef checks that a ref is a commit SHA or a tag name. The pod
+// fetches anything that is not a full SHA as refs/tags/<ref>, so a branch
+// name only works if a tag of that name exists; HEAD and fully qualified
+// refs are rejected outright, since they would name a branch.
+func validatePluginRef(ref string) error {
+	switch {
+	case !pluginRefRe.MatchString(ref) || strings.Contains(ref, ".."):
+		return fmt.Errorf("ref must be a commit SHA or tag, got %q", ref)
+	case ref == "HEAD" || strings.HasPrefix(ref, "refs/"):
+		return fmt.Errorf("ref %q names a branch; use a commit SHA or tag", ref)
+	}
+	return nil
 }
 
 // validatePluginRepoURL checks that a source URL is an https:// URL with a

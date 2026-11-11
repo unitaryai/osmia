@@ -37,9 +37,9 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 FAILURES=0
 
-# build_marketplace creates the fixture repository and prints the SHA of its
-# first commit. The second commit renames a file, so a checkout of the wrong
-# commit is detectable.
+# build_marketplace creates the fixture repository, tags its first commit v1
+# and prints that commit's SHA. The second commit, on branch main, changes a
+# file, so a checkout of the wrong commit is detectable.
 build_marketplace() {
   local repo="${WORK}/marketplace"
   mkdir -p "${repo}/.claude-plugin" "${repo}/plugins/alpha/skills/hello" "${repo}/plugins/beta"
@@ -50,15 +50,19 @@ build_marketplace() {
     {"name": "alpha", "source": "./plugins/alpha"},
     {"name": "beta", "source": "plugins/beta"},
     {"name": "remote", "source": {"source": "github", "repo": "example/remote"}},
-    {"name": "escape", "source": "./plugins/../../outside"}
+    {"name": "escape", "source": "./plugins/../../outside"},
+    {"name": "linked", "source": "./plugins/linked"}
   ]
 }
 JSON
   echo "first" >"${repo}/plugins/alpha/skills/hello/SKILL.md"
   echo "beta" >"${repo}/plugins/beta/README.md"
+  # A plugin directory that is a symlink out of the repository.
+  ln -s /etc "${repo}/plugins/linked"
   git -C "${repo}" init -q -b main
   git -C "${repo}" -c user.name=t -c user.email=t@t add -A
   git -C "${repo}" -c user.name=t -c user.email=t@t commit -q -m first
+  git -C "${repo}" tag v1
   git -C "${repo}" rev-parse HEAD
   echo "second" >"${repo}/plugins/alpha/skills/hello/SKILL.md"
   git -C "${repo}" -c user.name=t -c user.email=t@t commit -q -am second
@@ -140,6 +144,17 @@ expect "a source outside the repository stops the job" "${out}" "must have a rel
 
 out="$(run_setup "$(spec "${FIRST_SHA}" '["escape"]')")"
 expect "a path climbing out of the repository stops the job" "${out}" "must have a relative path source"
+
+out="$(run_setup "$(spec "${FIRST_SHA}" '["linked"]')")"
+expect "a plugin directory symlinked out of the repository stops the job" "${out}" "resolves outside the repository"
+expect_not "claude does not start after a symlink escape" "${out}" "ARG -p"
+
+out="$(run_setup "$(spec "v1" '["alpha"]')")"
+expect "a tag loads the tagged commit" "${out}" "SKILL first"
+
+out="$(run_setup "$(spec "main" '["alpha"]')")"
+expect "a branch name is not fetched as a branch" "${out}" "cannot fetch"
+expect_not "the branch tip is never loaded" "${out}" "SKILL second"
 
 out="$(run_setup "$(spec "0000000000000000000000000000000000000000" '["alpha"]')")"
 expect "a ref that does not exist stops the job" "${out}" "cannot fetch"

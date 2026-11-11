@@ -38,8 +38,9 @@ const maxLogReadBytes = 32 << 20
 
 // Pipeline is the latest CI run on a pull request's current head commit.
 type Pipeline struct {
-	// ID identifies the run. It changes whenever CI runs again, so callers
-	// use it to act on each failed run once.
+	// ID identifies the run. It changes whenever CI runs again, including
+	// when failed jobs are retried in the same pipeline, so callers use it to
+	// act on each failure once.
 	ID string
 	// SHA is the commit the run tested.
 	SHA string
@@ -49,6 +50,11 @@ type Pipeline struct {
 	URL string
 	// CreatedAt is when the run started.
 	CreatedAt time.Time
+	// FailedAt is when the most recent failed job finished. Set only when
+	// Status is PipelineFailed, and zero when the provider did not report
+	// it. Re-running failed jobs keeps a run's CreatedAt but moves FailedAt,
+	// so callers judge how recent a failure is by this.
+	FailedAt time.Time
 	// FailedJobs lists up to MaxFailedJobs failed jobs. Set only when
 	// Status is PipelineFailed.
 	FailedJobs []FailedJob

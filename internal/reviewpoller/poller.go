@@ -108,8 +108,9 @@ func (p *Poller) Restore(r RestoredPR) {
 		// Settling exists to let review bots finish posting after a PR is
 		// opened. That happened before the restart, so measure it from then
 		// rather than delaying a restored PR by a fresh settling period.
-		RegisteredAt: r.HandledUntil,
-		IgnoreBefore: r.HandledUntil,
+		RegisteredAt:   r.HandledUntil,
+		IgnoreBefore:   r.HandledUntil,
+		LastFollowUpAt: r.LastFollowUpAt,
 	}
 
 	p.logger.Info("restored PR for review monitoring after restart",
@@ -344,9 +345,11 @@ func (p *Poller) actionableComments(ctx context.Context, backend scm.Backend, pr
 // is switched off or the backend cannot report them.
 //
 // A failed pipeline is passed over, and remembered as handled, when it
-// started before the PR's last follow-up (that follow-up pushes a new
-// commit, which runs CI again) or, for a PR restored after a restart, before
-// the point the PR was last handled.
+// failed before the PR's last follow-up: that follow-up pushes a new commit,
+// which runs CI again. For a PR restored after a restart the last follow-up
+// time comes from the persisted follow-up task runs. The comment watermark
+// (IgnoreBefore) is deliberately not used: it includes the original task's
+// completion, and a pipeline that failed before then was never acted on.
 func (p *Poller) failedPipeline(ctx context.Context, backend scm.Backend, prURL string, pr *TrackedPR) *scm.Pipeline {
 	if !p.cfg.FixFailedPipelines {
 		return nil
@@ -370,7 +373,7 @@ func (p *Poller) failedPipeline(ctx context.Context, backend scm.Backend, prURL 
 	if pipeline.ID == pr.HandledPipelineID {
 		return nil
 	}
-	if startedBefore(pipeline, pr.LastFollowUpAt) || startedBefore(pipeline, pr.IgnoreBefore) {
+	if failedBefore(pipeline, pr.LastFollowUpAt) {
 		pr.HandledPipelineID = pipeline.ID
 		return nil
 	}
@@ -434,10 +437,16 @@ func (p *Poller) markProcessed(pr *TrackedPR, commentID string) {
 	p.mu.Unlock()
 }
 
-// startedBefore reports whether the pipeline started before t. A zero t, or
-// a pipeline with no start time, never counts as before.
-func startedBefore(pipeline *scm.Pipeline, t time.Time) bool {
-	return !t.IsZero() && !pipeline.CreatedAt.IsZero() && pipeline.CreatedAt.Before(t)
+// failedBefore reports whether the pipeline's failure happened before t. It
+// goes by when the last failed job finished, falling back to when the run
+// started, so retrying failed jobs in an old run counts as a new failure. A
+// zero t, or a pipeline with neither time, never counts as before.
+func failedBefore(pipeline *scm.Pipeline, t time.Time) bool {
+	failed := pipeline.FailedAt
+	if failed.IsZero() {
+		failed = pipeline.CreatedAt
+	}
+	return !t.IsZero() && !failed.IsZero() && failed.Before(t)
 }
 
 // selfUser returns the username backend's credentials authenticate as, or

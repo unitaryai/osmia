@@ -98,6 +98,10 @@ type glMR struct {
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
 	SHA          string `json:"sha"`
+	// HeadPipeline is the pipeline GitLab shows for the MR's current head:
+	// a branch pipeline, or a merged-results pipeline whose SHA is the
+	// temporary merge commit rather than the source branch head.
+	HeadPipeline *glPipeline `json:"head_pipeline"`
 }
 
 // CreateBranch creates a new branch in the repository from the specified

@@ -134,13 +134,40 @@ func TestPollPRFailedPipeline(t *testing.T) {
 		assert.Nil(t, p.DrainFollowUps(), "the earlier follow-up will push a commit and run CI again")
 	})
 
-	t.Run("a restored PR ignores pipelines from before the restart point", func(t *testing.T) {
+	t.Run("a restored PR acts on a pipeline that failed before the restart when no follow-up ran", func(t *testing.T) {
+		// The original task finished after its pipeline started; nothing
+		// was ever done about the failure, so a restart must not hide it.
 		backend := &pipelineBackend{fakeSCMBackend: &fakeSCMBackend{}, pipeline: failedPipelineFixture("p1", time.Now().Add(-2*time.Hour))}
 		p := New(pipelineCfg(), requiresActionClassifier(), testLogger()).WithSCMBackend(backend)
 		p.Restore(RestoredPR{PRURL: pipelinePR, TicketID: "T-1", RepoURL: "https://example.com/repo", HandledUntil: time.Now().Add(-time.Hour)})
 
 		p.pollPR(ctx, pipelinePR, p.tracked[pipelinePR])
+		assert.Len(t, p.DrainFollowUps(), 1)
+	})
+
+	t.Run("a restored PR passes over a pipeline that failed before its last follow-up", func(t *testing.T) {
+		backend := &pipelineBackend{fakeSCMBackend: &fakeSCMBackend{}, pipeline: failedPipelineFixture("p1", time.Now().Add(-2*time.Hour))}
+		p := New(pipelineCfg(), requiresActionClassifier(), testLogger()).WithSCMBackend(backend)
+		p.Restore(RestoredPR{
+			PRURL: pipelinePR, TicketID: "T-1", RepoURL: "https://example.com/repo",
+			FollowUpCount: 1, HandledUntil: time.Now().Add(-time.Hour), LastFollowUpAt: time.Now().Add(-time.Hour),
+		})
+
+		p.pollPR(ctx, pipelinePR, p.tracked[pipelinePR])
 		assert.Nil(t, p.DrainFollowUps())
+	})
+
+	t.Run("retried jobs that fail again after the last follow-up are acted on", func(t *testing.T) {
+		// Same run, started long ago, but its retried jobs failed after the
+		// last follow-up: the failure time, not the start time, decides.
+		retried := failedPipelineFixture("p1:99", time.Now().Add(-2*time.Hour))
+		retried.FailedAt = time.Now()
+		backend := &pipelineBackend{fakeSCMBackend: &fakeSCMBackend{}, pipeline: retried}
+		p, pr := newPipelinePoller(pipelineCfg(), backend)
+		pr.LastFollowUpAt = time.Now().Add(-time.Hour)
+
+		p.pollPR(ctx, pipelinePR, pr)
+		assert.Len(t, p.DrainFollowUps(), 1)
 	})
 
 	t.Run("a pipeline still running is not acted on", func(t *testing.T) {

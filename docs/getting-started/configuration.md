@@ -659,9 +659,9 @@ This needs a persistent `taskrun_store` (for example `backend: sqlite`). With th
 
 With `fix_failed_pipelines: true`, Osmia also checks the CI pipeline on each MR it is watching. When the latest pipeline on the MR's current commit has failed, Osmia starts a follow-up job on the same branch. The job is given the name and stage of each failed job, up to five, and the last 8 KiB of each job's log.
 
-- **Once per failed run.** Each failed pipeline is acted on at most once. Re-running CI, or a push that fails again, counts as a new run.
+- **Once per failure.** Each failed pipeline is acted on at most once. A push that fails again, or failed jobs that are retried and fail again, count as a new failure. On GitLab this uses the MR's head pipeline, so merged-results pipelines work too.
 - **Shared budget.** These follow-ups count against `max_follow_up_jobs`, the same as comment follow-ups. A pipeline that fails for a reason the agent cannot fix, such as missing credentials, blocked network access or a broken runner, therefore stops being retried. The job is also told to report such a failure rather than work around it.
-- **No reacting too early.** A pipeline that is still running is left alone, and so is one on an older commit. A failed pipeline that started before the MR's last follow-up is passed over too, since that follow-up will push a new commit and run CI again.
+- **No reacting too early.** A pipeline that is still running is left alone, and so is one on an older commit. A pipeline that failed before the MR's last follow-up is passed over too, since that follow-up will push a new commit and run CI again. After a restart, the last follow-up is read from the TaskRun store, so a failure nobody acted on before the restart is still picked up.
 - **One job per poll.** If new review comments and a failed pipeline turn up in the same poll, they go into one follow-up job.
 - **Logs are data.** Job logs can contain output from the code under review, so they are passed to the agent fenced and labelled as data.
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,13 +23,15 @@ const githubActionsApp = "github-actions"
 
 // ghCheckRun is the subset of a GitHub check run we parse.
 type ghCheckRun struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Conclusion string `json:"conclusion"`
-	HTMLURL    string `json:"html_url"`
-	StartedAt  string `json:"started_at"`
-	App        struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
+	Conclusion  string `json:"conclusion"`
+	HTMLURL     string `json:"html_url"`
+	DetailsURL  string `json:"details_url"`
+	StartedAt   string `json:"started_at"`
+	CompletedAt string `json:"completed_at"`
+	App         struct {
 		Slug string `json:"slug"`
 	} `json:"app"`
 	Output struct {
@@ -73,6 +76,7 @@ func (b *GitHubSCMBackend) LatestPipeline(ctx context.Context, prURL string) (*s
 	}
 	if status == scm.PipelineFailed {
 		pipeline.FailedJobs = b.failedCheckRuns(ctx, owner, repo, runs)
+		pipeline.FailedAt = latestFailure(runs)
 	}
 	return pipeline, nil
 }
@@ -140,7 +144,7 @@ func (b *GitHubSCMBackend) failedCheckRuns(ctx context.Context, owner, repo stri
 // the download fails, it falls back to the check run's own output text.
 func (b *GitHubSCMBackend) checkRunLogTail(ctx context.Context, owner, repo string, run ghCheckRun) string {
 	if run.App.Slug == githubActionsApp {
-		if tail, ok := b.actionsJobLogTail(ctx, owner, repo, run.ID); ok {
+		if tail, ok := b.actionsJobLogTail(ctx, owner, repo, actionsJobID(run)); ok {
 			return tail
 		}
 	}
@@ -270,6 +274,37 @@ func newestCheckRunID(runs []ghCheckRun) int64 {
 		newest = max(newest, run.ID)
 	}
 	return newest
+}
+
+// actionsJobPattern matches the job ID at the end of a GitHub Actions check
+// run's details URL (.../actions/runs/<run>/job/<job>).
+var actionsJobPattern = regexp.MustCompile(`/actions/runs/\d+/job/(\d+)`)
+
+// actionsJobID returns the Actions job ID behind a check run. GitHub does not
+// promise that the job ID and the check run ID are the same, so the job ID is
+// read from the details URL, falling back to the check run ID.
+func actionsJobID(run ghCheckRun) int64 {
+	if m := actionsJobPattern.FindStringSubmatch(run.DetailsURL); m != nil {
+		if id, err := strconv.ParseInt(m[1], 10, 64); err == nil {
+			return id
+		}
+	}
+	return run.ID
+}
+
+// latestFailure returns when the most recently finished failed check run
+// completed, or the zero time.
+func latestFailure(runs []ghCheckRun) time.Time {
+	var latest time.Time
+	for _, run := range runs {
+		if !isFailedConclusion(run.Conclusion) {
+			continue
+		}
+		if t, err := time.Parse(time.RFC3339, run.CompletedAt); err == nil && t.After(latest) {
+			latest = t
+		}
+	}
+	return latest
 }
 
 // earliestStart returns when the first check run started, or the zero time.

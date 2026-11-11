@@ -16,14 +16,15 @@ import (
 )
 
 const (
-	testMRURL  = "https://gitlab.com/acme/widgets/-/merge_requests/7"
-	testAPI    = "/api/v4/projects/acme%2Fwidgets"
-	headSHA    = "1111111111111111111111111111111111111111"
-	oldHeadSHA = "2222222222222222222222222222222222222222"
+	testMRURL = "https://gitlab.com/acme/widgets/-/merge_requests/7"
+	testAPI   = "/api/v4/projects/acme%2Fwidgets"
+	headSHA   = "1111111111111111111111111111111111111111"
+	mergeSHA  = "3333333333333333333333333333333333333333"
 )
 
-// pipelineServer serves a merge request, its pipelines and their failed jobs.
-func pipelineServer(t *testing.T, pipelines []glPipeline, jobs []glJob, traces map[int]string) *httptest.Server {
+// pipelineServer serves a merge request with the given head pipeline, and
+// that pipeline's failed jobs.
+func pipelineServer(t *testing.T, head *glPipeline, jobs []glJob, traces map[int]string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.EscapedPath()
@@ -33,9 +34,7 @@ func pipelineServer(t *testing.T, pipelines []glPipeline, jobs []glJob, traces m
 		}
 		switch {
 		case path == testAPI+"/merge_requests/7":
-			writeJSON(glMR{IID: 7, SHA: headSHA})
-		case path == testAPI+"/merge_requests/7/pipelines":
-			writeJSON(pipelines)
+			writeJSON(glMR{IID: 7, SHA: headSHA, HeadPipeline: head})
 		case path == testAPI+"/pipelines/42/jobs":
 			assert.Equal(t, "failed", r.URL.Query().Get("scope[]"))
 			writeJSON(jobs)
@@ -58,14 +57,13 @@ func pipelineServer(t *testing.T, pipelines []glPipeline, jobs []glJob, traces m
 
 func TestLatestPipelineFailed(t *testing.T) {
 	srv := pipelineServer(t,
-		[]glPipeline{
-			{ID: 42, SHA: headSHA, Status: "failed", WebURL: "https://gitlab.com/acme/widgets/-/pipelines/42", CreatedAt: "2026-11-11T10:00:00Z"},
-			{ID: 41, SHA: oldHeadSHA, Status: "failed"},
-		},
+		// A merged-results pipeline: its SHA is the merge commit, not the
+		// source branch head, and it must still be found.
+		&glPipeline{ID: 42, SHA: mergeSHA, Status: "failed", WebURL: "https://gitlab.com/acme/widgets/-/pipelines/42", CreatedAt: "2026-11-11T10:00:00Z"},
 		[]glJob{
-			{ID: 1, Name: "lint", Stage: "test", WebURL: "https://gitlab.com/acme/widgets/-/jobs/1"},
-			{ID: 2, Name: "flaky", Stage: "test", AllowFailure: true},
-			{ID: 3, Name: "unit", Stage: "test"},
+			{ID: 1, Name: "lint", Stage: "test", WebURL: "https://gitlab.com/acme/widgets/-/jobs/1", FinishedAt: "2026-11-11T10:05:00Z"},
+			{ID: 9, Name: "flaky", Stage: "test", AllowFailure: true, FinishedAt: "2026-11-11T11:00:00Z"},
+			{ID: 3, Name: "unit", Stage: "test", FinishedAt: "2026-11-11T10:07:00Z"},
 		},
 		map[int]string{1: "\x1b[31mERROR\x1b[0m gofmt: main.go is not formatted\n"},
 	)
@@ -76,10 +74,11 @@ func TestLatestPipelineFailed(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
-	assert.Equal(t, "42", got.ID)
-	assert.Equal(t, headSHA, got.SHA)
+	assert.Equal(t, "42:3", got.ID, "the newest required failed job is part of the ID, so a retry is a new failure")
+	assert.Equal(t, mergeSHA, got.SHA)
 	assert.Equal(t, scm.PipelineFailed, got.Status)
 	assert.Equal(t, 2026, got.CreatedAt.Year())
+	assert.Equal(t, 7, got.FailedAt.Minute(), "the latest required failed job sets FailedAt; allowed failures do not")
 	require.Len(t, got.FailedJobs, 2, "a job allowed to fail is not reported")
 	assert.Equal(t, "lint", got.FailedJobs[0].Name)
 	assert.Equal(t, "ERROR gofmt: main.go is not formatted\n", got.FailedJobs[0].LogTail, "colour codes are stripped")
@@ -89,20 +88,20 @@ func TestLatestPipelineFailed(t *testing.T) {
 
 func TestLatestPipelineStatuses(t *testing.T) {
 	tests := []struct {
-		name      string
-		pipelines []glPipeline
-		want      *scm.PipelineStatus
-		wantErr   string
+		name    string
+		head    *glPipeline
+		want    *scm.PipelineStatus
+		wantErr string
 	}{
-		{name: "no pipeline for the head commit", pipelines: []glPipeline{{ID: 41, SHA: oldHeadSHA, Status: "failed"}}},
-		{name: "running", pipelines: []glPipeline{{ID: 42, SHA: headSHA, Status: "running"}}, want: ptr(scm.PipelineRunning)},
-		{name: "passed", pipelines: []glPipeline{{ID: 42, SHA: headSHA, Status: "success"}}, want: ptr(scm.PipelineSucceeded)},
-		{name: "cancelled", pipelines: []glPipeline{{ID: 42, SHA: headSHA, Status: "canceled"}}, want: ptr(scm.PipelineOther)},
-		{name: "unknown status", pipelines: []glPipeline{{ID: 42, SHA: headSHA, Status: "exploded"}}, wantErr: `unknown GitLab pipeline status "exploded"`},
+		{name: "no head pipeline"},
+		{name: "running", head: &glPipeline{ID: 42, SHA: headSHA, Status: "running"}, want: ptr(scm.PipelineRunning)},
+		{name: "passed", head: &glPipeline{ID: 42, SHA: headSHA, Status: "success"}, want: ptr(scm.PipelineSucceeded)},
+		{name: "cancelled", head: &glPipeline{ID: 42, SHA: headSHA, Status: "canceled"}, want: ptr(scm.PipelineOther)},
+		{name: "unknown status", head: &glPipeline{ID: 42, SHA: headSHA, Status: "exploded"}, wantErr: `unknown GitLab pipeline status "exploded"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := pipelineServer(t, tt.pipelines, nil, nil)
+			srv := pipelineServer(t, tt.head, nil, nil)
 			defer srv.Close()
 
 			got, err := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL)).LatestPipeline(context.Background(), testMRURL)
@@ -118,6 +117,7 @@ func TestLatestPipelineStatuses(t *testing.T) {
 			require.NotNil(t, got)
 			assert.Equal(t, *tt.want, got.Status)
 			assert.Empty(t, got.FailedJobs)
+			assert.Equal(t, "42", got.ID)
 		})
 	}
 }
@@ -127,7 +127,7 @@ func TestLatestPipelineCapsFailedJobs(t *testing.T) {
 	for i := 1; i <= scm.MaxFailedJobs+3; i++ {
 		jobs = append(jobs, glJob{ID: i, Name: fmt.Sprintf("job-%d", i)})
 	}
-	srv := pipelineServer(t, []glPipeline{{ID: 42, SHA: headSHA, Status: "failed"}}, jobs, nil)
+	srv := pipelineServer(t, &glPipeline{ID: 42, SHA: headSHA, Status: "failed"}, jobs, nil)
 	defer srv.Close()
 
 	got, err := NewGitLabSCMBackend("tok", testLogger(), WithBaseURL(srv.URL)).LatestPipeline(context.Background(), testMRURL)

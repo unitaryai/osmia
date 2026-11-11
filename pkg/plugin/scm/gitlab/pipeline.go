@@ -32,11 +32,16 @@ type glJob struct {
 	Stage        string `json:"stage"`
 	WebURL       string `json:"web_url"`
 	AllowFailure bool   `json:"allow_failure"`
+	FinishedAt   string `json:"finished_at"`
 }
 
-// LatestPipeline returns the newest pipeline for the merge request's current
-// head commit, with its failed jobs and the tail of each job's log when it
-// failed. It returns nil when the head commit has no pipeline yet.
+// LatestPipeline returns the merge request's head pipeline, with its failed
+// jobs and the tail of each job's log when it failed. It returns nil when the
+// head commit has no pipeline yet.
+//
+// The head pipeline is read from the merge request itself rather than by
+// matching pipelines to the head SHA: a merged-results pipeline tests a
+// temporary merge commit, so its SHA never equals the source branch head.
 func (b *GitLabSCMBackend) LatestPipeline(ctx context.Context, prURL string) (*scm.Pipeline, error) {
 	projectPath, mrIID, err := parseMRURL(prURL)
 	if err != nil {
@@ -44,77 +49,52 @@ func (b *GitLabSCMBackend) LatestPipeline(ctx context.Context, prURL string) (*s
 	}
 	project := fmt.Sprintf("%s/projects/%s", b.baseURL, url.PathEscape(projectPath))
 
-	head, err := b.mergeRequestHead(ctx, project, mrIID)
-	if err != nil {
-		return nil, err
-	}
-	latest, err := b.latestPipelineFor(ctx, project, mrIID, head)
-	if err != nil || latest == nil {
+	head, err := b.headPipeline(ctx, project, mrIID)
+	if err != nil || head == nil {
 		return nil, err
 	}
 
-	status, err := pipelineStatus(latest.Status)
+	status, err := pipelineStatus(head.Status)
 	if err != nil {
 		return nil, err
 	}
 	pipeline := &scm.Pipeline{
-		ID:        strconv.Itoa(latest.ID),
-		SHA:       latest.SHA,
+		ID:        strconv.Itoa(head.ID),
+		SHA:       head.SHA,
 		Status:    status,
-		URL:       latest.WebURL,
-		CreatedAt: parseGitLabTime(latest.CreatedAt),
+		URL:       head.WebURL,
+		CreatedAt: parseGitLabTime(head.CreatedAt),
 	}
 	if pipeline.Status == scm.PipelineFailed {
-		if pipeline.FailedJobs, err = b.failedJobs(ctx, project, latest.ID); err != nil {
+		if err := b.addFailedJobs(ctx, project, head.ID, pipeline); err != nil {
 			return nil, err
 		}
 	}
 	return pipeline, nil
 }
 
-// mergeRequestHead returns the SHA of the merge request's head commit.
-func (b *GitLabSCMBackend) mergeRequestHead(ctx context.Context, project string, mrIID int) (string, error) {
+// headPipeline returns the merge request's head pipeline, or nil when it
+// has none.
+func (b *GitLabSCMBackend) headPipeline(ctx context.Context, project string, mrIID int) (*glPipeline, error) {
 	body, err := b.doGet(ctx, fmt.Sprintf("%s/merge_requests/%d", project, mrIID))
 	if err != nil {
-		return "", fmt.Errorf("fetching merge request: %w", err)
+		return nil, fmt.Errorf("fetching merge request: %w", err)
 	}
 	defer func() { _ = body.Close() }()
 
 	var mr glMR
 	if err := json.NewDecoder(body).Decode(&mr); err != nil {
-		return "", fmt.Errorf("decoding merge request: %w", err)
+		return nil, fmt.Errorf("decoding merge request: %w", err)
 	}
-	if mr.SHA == "" {
-		return "", fmt.Errorf("merge request has no head commit")
-	}
-	return mr.SHA, nil
+	return mr.HeadPipeline, nil
 }
 
-// latestPipelineFor returns the newest of the merge request's pipelines that
-// ran on head, or nil when none has. GitLab lists them newest first, so only
-// the first page is read.
-func (b *GitLabSCMBackend) latestPipelineFor(ctx context.Context, project string, mrIID int, head string) (*glPipeline, error) {
-	body, err := b.doGet(ctx, fmt.Sprintf("%s/merge_requests/%d/pipelines?per_page=20", project, mrIID))
-	if err != nil {
-		return nil, fmt.Errorf("listing merge request pipelines: %w", err)
-	}
-	defer func() { _ = body.Close() }()
-
-	var pipelines []glPipeline
-	if err := json.NewDecoder(body).Decode(&pipelines); err != nil {
-		return nil, fmt.Errorf("decoding merge request pipelines: %w", err)
-	}
-	for i := range pipelines {
-		if pipelines[i].SHA == head {
-			return &pipelines[i], nil
-		}
-	}
-	return nil, nil
-}
-
-// failedJobs lists the pipeline's failed jobs that are not allowed to fail,
-// up to scm.MaxFailedJobs, each with the tail of its log.
-func (b *GitLabSCMBackend) failedJobs(ctx context.Context, project string, pipelineID int) ([]scm.FailedJob, error) {
+// addFailedJobs fills in the pipeline's failed jobs that are not allowed to
+// fail, up to scm.MaxFailedJobs, each with the tail of its log. It also sets
+// FailedAt, and extends the ID with the newest failed job's ID: retrying
+// failed jobs keeps the pipeline ID but gives the retried jobs new IDs, so
+// each round of failures gets its own identity.
+func (b *GitLabSCMBackend) addFailedJobs(ctx context.Context, project string, pipelineID int, pipeline *scm.Pipeline) error {
 	var jobs []glJob
 	err := b.getAllPages(ctx, fmt.Sprintf("%s/pipelines/%d/jobs?scope[]=failed&per_page=100", project, pipelineID),
 		func(r io.Reader) error {
@@ -126,25 +106,32 @@ func (b *GitLabSCMBackend) failedJobs(ctx context.Context, project string, pipel
 			return nil
 		})
 	if err != nil {
-		return nil, fmt.Errorf("listing failed pipeline jobs: %w", err)
+		return fmt.Errorf("listing failed pipeline jobs: %w", err)
 	}
 
-	var failed []scm.FailedJob
+	newestJobID := 0
 	for _, j := range jobs {
 		if j.AllowFailure {
 			continue
 		}
-		if len(failed) == scm.MaxFailedJobs {
-			break
+		newestJobID = max(newestJobID, j.ID)
+		if finished := parseGitLabTime(j.FinishedAt); finished.After(pipeline.FailedAt) {
+			pipeline.FailedAt = finished
 		}
-		failed = append(failed, scm.FailedJob{
+		if len(pipeline.FailedJobs) == scm.MaxFailedJobs {
+			continue
+		}
+		pipeline.FailedJobs = append(pipeline.FailedJobs, scm.FailedJob{
 			Name:    j.Name,
 			Stage:   j.Stage,
 			URL:     j.WebURL,
 			LogTail: b.jobLogTail(ctx, project, j.ID),
 		})
 	}
-	return failed, nil
+	if newestJobID > 0 {
+		pipeline.ID += ":" + strconv.Itoa(newestJobID)
+	}
+	return nil
 }
 
 // jobLogTail returns the end of a job's log, or "" when it cannot be read.

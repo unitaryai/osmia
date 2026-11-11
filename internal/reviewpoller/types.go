@@ -88,6 +88,10 @@ type RestoredPR struct {
 	// creation of its most recent follow-up job. Comments created before it
 	// are not acted on again.
 	HandledUntil time.Time
+	// LastFollowUpAt is when the most recent follow-up job for this PR was
+	// created, or zero when there has been none. A failed pipeline from
+	// before it is not acted on again.
+	LastFollowUpAt time.Time
 }
 
 // FollowUpRequest is emitted when an actionable comment, or a failed CI

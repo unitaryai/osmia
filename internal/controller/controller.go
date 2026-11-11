@@ -520,14 +520,28 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 			r.logger.InfoContext(ctx, "reconciliation loop stopped")
 			return ctx.Err()
 		case <-ticker.C:
-			if !jobsRecovered {
-				jobsRecovered = r.restoreRunningJobs(ctx)
-			}
-			if err := r.reconcileOnce(ctx); err != nil {
-				r.logger.ErrorContext(ctx, "reconciliation error", "error", err)
-			}
+			jobsRecovered = r.tick(ctx, jobsRecovered)
 		}
 	}
+}
+
+// tick runs one pass of the reconciliation loop and reports whether job
+// recovery is now complete. While it is not, running Jobs may not all be
+// tracked, so the concurrency limit would undercount them: the Jobs that are
+// tracked keep moving, but no new work is taken on.
+func (r *Reconciler) tick(ctx context.Context, jobsRecovered bool) bool {
+	if !jobsRecovered {
+		jobsRecovered = r.restoreRunningJobs(ctx)
+	}
+	if !jobsRecovered {
+		r.checkRunningJobs(ctx)
+		r.sweepOrphanedTaskSecrets(ctx)
+		return false
+	}
+	if err := r.reconcileOnce(ctx); err != nil {
+		r.logger.ErrorContext(ctx, "reconciliation error", "error", err)
+	}
+	return true
 }
 
 // reconcileOnce performs a single reconciliation cycle: poll for tickets,
@@ -1861,6 +1875,15 @@ func (r *Reconciler) resolvePreStartApproval(ctx context.Context, tr *taskrun.Ta
 		Labels:        cachedTicket.Labels,
 		MemoryContext: memoryContext,
 	}
+
+	// Record the ticket on the TaskRun, as launchTaskRun does, so a run
+	// re-adopted after a restart or followed up for review still has it when
+	// the ticket cache is empty.
+	r.mu.Lock()
+	tr.TicketTitle = task.Title
+	tr.TicketDescription = task.Description
+	tr.RepoURL = task.RepoURL
+	r.mu.Unlock()
 
 	engineCfg := r.baseEngineConfig(ctx, engineName)
 
@@ -3606,6 +3629,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 		tr.EngineChain = []string{tr.CurrentEngine}
 		r.taskRunRole[tr.ID] = "candidate"
 		r.taskRunToTournament[tr.ID] = tournamentID
+		tr.TournamentID = tournamentID
 	}
 	r.mu.Unlock()
 
@@ -3868,6 +3892,7 @@ func (r *Reconciler) launchJudge(ctx context.Context, tournamentID string) {
 	judgeTR.EngineChain = []string{judgeEngineName}
 	r.taskRunRole[judgeTR.ID] = "judge"
 	r.taskRunToTournament[judgeTR.ID] = tournamentID
+	judgeTR.TournamentID = tournamentID
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, judgeTR); err != nil {

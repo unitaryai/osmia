@@ -38,7 +38,7 @@ type jobRecoveryCounts struct {
 //
 // It reports whether recovery is complete. It is not when the store or a Job
 // lookup failed, which is usually a passing API error; Run then calls it
-// again on later ticks until it completes. Runs already adopted are skipped
+// again on later ticks until it completes, and starts no new work meanwhile. Runs already adopted are skipped
 // on those passes, because adoption never replaces a tracked key.
 func (r *Reconciler) restoreRunningJobs(ctx context.Context) bool {
 	if r.taskRunStore == nil || r.k8sClient == nil {
@@ -146,15 +146,14 @@ func (r *Reconciler) adoptTaskRun(tr *taskrun.TaskRun) bool {
 }
 
 // runningTaskRunsToRestore picks the persisted runs that may still have a
-// live Job: those in Running with a Job name. When several share an
-// idempotency key, only the most recently updated is kept, because the
-// controller tracks one run per key.
+// live Job. The controller tracks one run per idempotency key, so the most
+// recently updated run for each key is chosen first, whatever its state, and
+// only then checked: it must be Running with a Job name. Choosing among
+// Running runs alone could bring back a run left Running by an earlier crash
+// in place of the newer run that has since finished.
 func runningTaskRunsToRestore(runs []*taskrun.TaskRun) []*taskrun.TaskRun {
 	latest := make(map[string]*taskrun.TaskRun)
 	for _, tr := range runs {
-		if tr.State != taskrun.StateRunning || tr.JobName == "" {
-			continue
-		}
 		if prev, ok := latest[tr.IdempotencyKey]; ok && !tr.UpdatedAt.After(prev.UpdatedAt) {
 			continue
 		}
@@ -163,7 +162,9 @@ func runningTaskRunsToRestore(runs []*taskrun.TaskRun) []*taskrun.TaskRun {
 
 	out := make([]*taskrun.TaskRun, 0, len(latest))
 	for _, tr := range latest {
-		out = append(out, tr)
+		if tr.State == taskrun.StateRunning && tr.JobName != "" {
+			out = append(out, tr)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
 	return out

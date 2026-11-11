@@ -1,1 +1,0 @@
-Runs started by a webhook lost their agent stream as soon as the webhook returned, and with it the result and merge request URL. Stream readers, and memory extraction after a Slack approval, now run until the controller stops.

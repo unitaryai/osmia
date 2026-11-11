@@ -75,6 +75,16 @@ func TestPluginConfigValidate(t *testing.T) {
 			wantErr: "https://",
 		},
 		{
+			name:    "https scheme with no host",
+			mutate:  func(c *PluginConfig) { c.Sources[0].RepoURL = "https://" },
+			wantErr: "with a host",
+		},
+		{
+			name:    "credentials in the URL",
+			mutate:  func(c *PluginConfig) { c.Sources[0].RepoURL = "https://bot:secret@gitlab.example.com/team/plugins.git" },
+			wantErr: "must not contain credentials",
+		},
+		{
 			name:    "missing ref",
 			mutate:  func(c *PluginConfig) { c.Sources[0].Ref = "" },
 			wantErr: "commit SHA or tag",

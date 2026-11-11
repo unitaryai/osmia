@@ -2,7 +2,9 @@ package claudecode
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"slices"
 	"strings"
@@ -126,8 +128,8 @@ func (c PluginConfig) validateSources() (map[string]PluginSource, error) {
 		if _, dup := sources[s.Name]; dup {
 			return nil, fmt.Errorf("plugin source %q is defined more than once", s.Name)
 		}
-		if !strings.HasPrefix(s.RepoURL, "https://") {
-			return nil, fmt.Errorf("plugin source %q: repo_url must be an https:// URL", s.Name)
+		if err := validatePluginRepoURL(s.RepoURL); err != nil {
+			return nil, fmt.Errorf("plugin source %q: %w", s.Name, err)
 		}
 		if !pluginRefRe.MatchString(s.Ref) || strings.Contains(s.Ref, "..") {
 			return nil, fmt.Errorf("plugin source %q: ref must be a commit SHA or tag, got %q", s.Name, s.Ref)
@@ -138,6 +140,23 @@ func (c PluginConfig) validateSources() (map[string]PluginSource, error) {
 		sources[s.Name] = s
 	}
 	return sources, nil
+}
+
+// validatePluginRepoURL checks that a source URL is an https:// URL with a
+// host and no credentials. A token belongs in token_secret: a URL is copied
+// into the pod environment and the logs, so credentials in it would leak.
+func validatePluginRepoURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("repo_url is not a valid URL: %w", err)
+	}
+	if u.Scheme != "https" || u.Host == "" {
+		return errors.New("repo_url must be an https:// URL with a host")
+	}
+	if u.User != nil {
+		return errors.New("repo_url must not contain credentials; use token_secret")
+	}
+	return nil
 }
 
 // validatePluginRefs checks that each reference is well formed and names a

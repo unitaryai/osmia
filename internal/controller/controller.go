@@ -506,6 +506,10 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 	// process started; that list is otherwise held only in memory.
 	r.restoreReviewTracking(ctx)
 
+	// Re-adopt agent Jobs that were still running when the previous process
+	// stopped, so their results are collected.
+	r.restoreRunningJobs(ctx)
+
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 

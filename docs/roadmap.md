@@ -104,9 +104,12 @@ state and restart the controller.
 
 Recovery should be automatic:
 
-- [ ] On startup, load all `Running` task runs from the store and reconcile
-  them against live K8s Jobs — transition to `Failed` any task run whose job
-  no longer exists
+- [x] On startup, load all `Running` task runs from the store and re-adopt
+  those whose Job still exists, re-reading the agent's log so the result is
+  collected and the ticket completed as normal
+- [ ] On startup, transition to `Failed` any recent task run whose job no
+  longer exists (skipping long-stale rows, so old tickets are not sent a
+  failure)
 - [ ] Add a periodic background reconciliation loop (e.g. every 5 minutes)
   that detects and recovers task runs whose jobs have disappeared
 - [ ] When a task run transitions to `Failed` due to a missing job, reset the
@@ -945,7 +948,7 @@ live controller and `main.go`:
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
 | — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
 | — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
-| — | Orphaned TaskRun Recovery | High | 🚧 Not started |
+| — | Orphaned TaskRun Recovery | High | 🚧 Running jobs re-adopted on startup; missing-job handling remaining |
 | — | Leader Election (Controller HA) | Low | 🚧 Not started |
 | — | Built-in AWS Secrets Manager Backend | Medium | 🚧 Core complete; IRSA Helm annotation + localstack tests remaining |
 | — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |

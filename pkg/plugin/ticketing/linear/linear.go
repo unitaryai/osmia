@@ -5,12 +5,15 @@ package linear
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/unitaryai/osmia/pkg/engine"
@@ -77,6 +80,9 @@ type LinearBackend struct {
 	labels        []string
 	excludeLabels []string
 	stateFilter   string
+	// completedStateName is the state MarkComplete uses; empty means the first
+	// completed state.
+	completedStateName string
 }
 
 // Option is a functional option for configuring a LinearBackend.
@@ -126,6 +132,14 @@ func WithStateFilter(state string) Option {
 	}
 }
 
+// WithCompletedStateName sets the state MarkComplete moves issues to, such as
+// "In Review". The default is the team's first "completed" state.
+func WithCompletedStateName(name string) Option {
+	return func(b *LinearBackend) {
+		b.completedStateName = name
+	}
+}
+
 // NewLinearBackend creates a new Linear ticketing backend.
 func NewLinearBackend(token string, teamID string, logger *slog.Logger, opts ...Option) *LinearBackend {
 	b := &LinearBackend{
@@ -145,7 +159,7 @@ func NewLinearBackend(token string, teamID string, logger *slog.Logger, opts ...
 	return b
 }
 
-const pollQuery = `query($teamId: String!, $stateFilter: String, $labels: [String!]) {
+const pollQuery = `query($teamId: ID!, $stateFilter: String, $labels: [String!]) {
   issues(filter: {
     team: { id: { eq: $teamId } }
     state: { name: { eq: $stateFilter } }
@@ -227,19 +241,10 @@ func hasExcludedLabel(issueLabels []linearLabel, excludeSet map[string]struct{})
 	return false
 }
 
-const markInProgressMutation = `mutation($id: String!, $labelName: String!) {
-  issueAddLabel(id: $id, labelName: $labelName) {
-    success
-  }
-}`
-
-// MarkInProgress adds an "in-progress" label to the issue.
+// MarkInProgress adds an "in-progress" label to the issue, which the default
+// exclude list uses to stop the issue being picked up again.
 func (b *LinearBackend) MarkInProgress(ctx context.Context, ticketID string) error {
-	_, err := b.doGraphQL(ctx, markInProgressMutation, map[string]any{
-		"id":        ticketID,
-		"labelName": "in-progress",
-	})
-	if err != nil {
+	if err := b.addLabel(ctx, ticketID, "in-progress"); err != nil {
 		return fmt.Errorf("marking ticket %s in progress: %w", ticketID, err)
 	}
 	return nil
@@ -251,45 +256,153 @@ const commentCreateMutation = `mutation($issueId: String!, $body: String!) {
   }
 }`
 
-// MarkComplete posts a summary comment and updates the issue state to completed.
+// MarkComplete moves the issue to completed_state_name (default: the first
+// completed state), then comments.
 func (b *LinearBackend) MarkComplete(ctx context.Context, ticketID string, result engine.TaskResult) error {
 	comment := fmt.Sprintf("Task completed successfully.\n\n**Summary:** %s", result.Summary)
 	if result.MergeRequestURL != "" {
 		comment += fmt.Sprintf("\n**Merge Request:** %s", result.MergeRequestURL)
 	}
-	if err := b.AddComment(ctx, ticketID, comment); err != nil {
-		return fmt.Errorf("adding completion comment: %w", err)
+	stateID, err := b.targetStateID(ctx, ticketID)
+	if err != nil {
+		return fmt.Errorf("resolving completed state for ticket %s: %w", ticketID, err)
 	}
 
-	// Update issue state to completed.
-	const mutation = `mutation($id: String!, $stateId: String!) {
-  issueUpdate(id: $id, input: { stateId: $stateId }) {
-    success
-  }
-}`
-	_, err := b.doGraphQL(ctx, mutation, map[string]any{
+	data, err := b.doGraphQL(ctx, issueUpdateStateMutation, map[string]any{
 		"id":      ticketID,
-		"stateId": "completed",
+		"stateId": stateID,
 	})
 	if err != nil {
 		return fmt.Errorf("updating ticket %s to completed state: %w", ticketID, err)
 	}
+
+	// Linear can fail with success: false and no GraphQL error.
+	var update issueUpdateResponse
+	if err := json.Unmarshal(data, &update); err != nil {
+		return fmt.Errorf("decoding issue update response for ticket %s: %w", ticketID, err)
+	}
+	if !update.IssueUpdate.Success {
+		return fmt.Errorf("linear did not update ticket %s to completed state", ticketID)
+	}
+
+	// Comment only once the state has changed.
+	if err := b.AddComment(ctx, ticketID, comment); err != nil {
+		return fmt.Errorf("adding completion comment: %w", err)
+	}
 	return nil
+}
+
+const issueUpdateStateMutation = `mutation($id: String!, $stateId: String!) {
+  issueUpdate(id: $id, input: { stateId: $stateId }) {
+    success
+  }
+}`
+
+// issueUpdateResponse maps the data portion of issueUpdateStateMutation.
+type issueUpdateResponse struct {
+	IssueUpdate struct {
+		Success bool `json:"success"`
+	} `json:"issueUpdate"`
+}
+
+// teamStatesQuery lists one page of the issue team's states matching $filter.
+const teamStatesQuery = `query($id: String!, $filter: WorkflowStateFilter, $after: String) {
+  issue(id: $id) {
+    team {
+      states(filter: $filter, after: $after) {
+        nodes { id name position }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}`
+
+// teamStatesResponse maps the data portion of teamStatesQuery.
+type teamStatesResponse struct {
+	Issue struct {
+		Team struct {
+			States struct {
+				Nodes    []linearWorkflowState `json:"nodes"`
+				PageInfo struct {
+					HasNextPage bool   `json:"hasNextPage"`
+					EndCursor   string `json:"endCursor"`
+				} `json:"pageInfo"`
+			} `json:"states"`
+		} `json:"team"`
+	} `json:"issue"`
+}
+
+// linearWorkflowState is the subset of a Linear workflow state we parse.
+type linearWorkflowState struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Position float64 `json:"position"`
+}
+
+// targetStateID returns the configured state, or else the team's first
+// "completed" state in board order.
+func (b *LinearBackend) targetStateID(ctx context.Context, ticketID string) (string, error) {
+	filter := map[string]any{"type": map[string]any{"eq": "completed"}}
+	if b.completedStateName != "" {
+		filter = map[string]any{"name": map[string]any{"eq": b.completedStateName}}
+	}
+
+	states, err := b.teamStates(ctx, ticketID, filter)
+	if err != nil {
+		return "", err
+	}
+	if len(states) == 0 {
+		if b.completedStateName != "" {
+			return "", fmt.Errorf("team has no workflow state named %q", b.completedStateName)
+		}
+		return "", errors.New("team has no workflow state of type completed")
+	}
+
+	first := slices.MinFunc(states, func(a, b linearWorkflowState) int {
+		return cmp.Compare(a.Position, b.Position)
+	})
+	return first.ID, nil
+}
+
+// teamStates reads every page and fails on a repeated cursor, since a partial
+// list could pick the wrong state.
+func (b *LinearBackend) teamStates(ctx context.Context, ticketID string, filter map[string]any) ([]linearWorkflowState, error) {
+	var states []linearWorkflowState
+	variables := map[string]any{"id": ticketID, "filter": filter}
+	seenCursors := make(map[string]struct{})
+	for {
+		data, err := b.doGraphQL(ctx, teamStatesQuery, variables)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp teamStatesResponse
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return nil, fmt.Errorf("decoding workflow states response: %w", err)
+		}
+
+		conn := resp.Issue.Team.States
+		states = append(states, conn.Nodes...)
+		if !conn.PageInfo.HasNextPage {
+			return states, nil
+		}
+
+		cursor := conn.PageInfo.EndCursor
+		if cursor == "" {
+			return nil, errors.New("workflow states response has a next page but no end cursor")
+		}
+		if _, seen := seenCursors[cursor]; seen {
+			return nil, fmt.Errorf("workflow states cursor %q did not advance", cursor)
+		}
+		seenCursors[cursor] = struct{}{}
+		variables["after"] = cursor
+	}
 }
 
 // MarkFailed adds a "osmia-failed" label and posts the failure reason
 // as a comment.
 func (b *LinearBackend) MarkFailed(ctx context.Context, ticketID string, reason string) error {
-	const addLabelMutation = `mutation($id: String!, $labelName: String!) {
-  issueAddLabel(id: $id, labelName: $labelName) {
-    success
-  }
-}`
-	_, err := b.doGraphQL(ctx, addLabelMutation, map[string]any{
-		"id":        ticketID,
-		"labelName": "osmia-failed",
-	})
-	if err != nil {
+	if err := b.addLabel(ctx, ticketID, "osmia-failed"); err != nil {
 		return fmt.Errorf("adding failed label to ticket %s: %w", ticketID, err)
 	}
 

@@ -159,7 +159,7 @@ func TestEnhancedEngineFallbackModel(t *testing.T) {
 	}
 }
 
-// TestEnhancedEngineToolControl verifies that --allowedTools and
+// TestEnhancedEngineToolControl verifies that --tools and
 // --disallowedTools flags are correctly constructed from whitelist and
 // blacklist configurations.
 func TestEnhancedEngineToolControl(t *testing.T) {
@@ -178,7 +178,7 @@ func TestEnhancedEngineToolControl(t *testing.T) {
 				TimeoutSeconds: 3600,
 				ToolWhitelist:  []string{"Read", "Write", "Bash"},
 			},
-			wantFlags: []string{"--allowedTools", "Read,Write,Bash"},
+			wantFlags: []string{"--tools", "Read,Write,Bash"},
 		},
 		{
 			name: "tool whitelist from engine option",
@@ -186,7 +186,7 @@ func TestEnhancedEngineToolControl(t *testing.T) {
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			wantFlags: []string{"--allowedTools", "Read,Grep"},
+			wantFlags: []string{"--tools", "Read,Grep"},
 		},
 		{
 			name: "config whitelist overrides engine option",
@@ -195,7 +195,7 @@ func TestEnhancedEngineToolControl(t *testing.T) {
 				TimeoutSeconds: 3600,
 				ToolWhitelist:  []string{"Bash", "Write"},
 			},
-			wantFlags: []string{"--allowedTools", "Bash,Write"},
+			wantFlags: []string{"--tools", "Bash,Write"},
 			denyFlags: []string{"Read,Grep"},
 		},
 		{
@@ -211,7 +211,7 @@ func TestEnhancedEngineToolControl(t *testing.T) {
 			config: engine.EngineConfig{
 				TimeoutSeconds: 3600,
 			},
-			denyFlags: []string{"--allowedTools", "--disallowedTools"},
+			denyFlags: []string{"--tools", "--allowedTools", "--disallowedTools"},
 		},
 	}
 
@@ -281,7 +281,7 @@ func TestEnhancedEngineCombinedFlags(t *testing.T) {
 	assert.Contains(t, spec.Command, "Be careful with production data.")
 
 	// Tool control: config overrides engine option.
-	assert.Contains(t, spec.Command, "--allowedTools")
+	assert.Contains(t, spec.Command, "--tools")
 	assert.Contains(t, spec.Command, "Read,Write,Bash")
 	assert.Contains(t, spec.Command, "--disallowedTools")
 	assert.Contains(t, spec.Command, "NotebookEdit")

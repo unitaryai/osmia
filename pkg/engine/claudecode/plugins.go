@@ -143,18 +143,23 @@ func (c PluginConfig) validateSources() (map[string]PluginSource, error) {
 }
 
 // validatePluginRepoURL checks that a source URL is an https:// URL with a
-// host and no credentials. A token belongs in token_secret: a URL is copied
-// into the pod environment and the logs, so credentials in it would leak.
+// host, no credentials, and no query or fragment. A token belongs in
+// token_secret: a URL is copied into the pod environment and the logs, so a
+// credential in its userinfo or query would leak. For the same reason no
+// error here quotes the URL; url.Parse's error does, so it is not wrapped.
 func validatePluginRepoURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("repo_url is not a valid URL: %w", err)
+		return errors.New("repo_url is not a valid URL")
 	}
 	if u.Scheme != "https" || u.Host == "" {
 		return errors.New("repo_url must be an https:// URL with a host")
 	}
 	if u.User != nil {
 		return errors.New("repo_url must not contain credentials; use token_secret")
+	}
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return errors.New("repo_url must not have a query or fragment; use token_secret for credentials")
 	}
 	return nil
 }

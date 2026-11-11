@@ -85,6 +85,18 @@ func TestPluginConfigValidate(t *testing.T) {
 			wantErr: "must not contain credentials",
 		},
 		{
+			name: "token in the query string",
+			mutate: func(c *PluginConfig) {
+				c.Sources[0].RepoURL = "https://gitlab.example.com/team/plugins.git?access_token=secret"
+			},
+			wantErr: "must not have a query",
+		},
+		{
+			name:    "fragment",
+			mutate:  func(c *PluginConfig) { c.Sources[0].RepoURL = "https://gitlab.example.com/team/plugins.git#main" },
+			wantErr: "must not have a query",
+		},
+		{
 			name:    "missing ref",
 			mutate:  func(c *PluginConfig) { c.Sources[0].Ref = "" },
 			wantErr: "commit SHA or tag",
@@ -131,6 +143,20 @@ func TestPluginConfigValidate(t *testing.T) {
 			}
 			require.ErrorContains(t, err, tt.wantErr)
 		})
+	}
+}
+
+// TestValidatePluginRepoURLDoesNotLeak checks that no validation error quotes
+// a URL, since the controller logs the error at startup.
+func TestValidatePluginRepoURLDoesNotLeak(t *testing.T) {
+	for _, raw := range []string{
+		"https://bot:hunter2@gitlab.example.com/repo%ZZ",
+		"https://bot:hunter2@gitlab.example.com/repo.git",
+		"https://gitlab.example.com/repo.git?access_token=hunter2",
+	} {
+		err := validatePluginRepoURL(raw)
+		require.Error(t, err, raw)
+		assert.NotContains(t, err.Error(), "hunter2", raw)
 	}
 }
 

@@ -54,12 +54,16 @@ type DiagnosisRecord struct {
 // TaskRun represents a single execution of a task, tracking its lifecycle
 // from creation through completion.
 type TaskRun struct {
-	ID                        string             `json:"id"`
-	IdempotencyKey            string             `json:"idempotency_key"`
-	TicketID                  string             `json:"ticket_id"`
-	Engine                    string             `json:"engine"`
-	CurrentEngine             string             `json:"current_engine"`
-	EngineAttempts            []string           `json:"engine_attempts,omitempty"`
+	ID             string   `json:"id"`
+	IdempotencyKey string   `json:"idempotency_key"`
+	TicketID       string   `json:"ticket_id"`
+	Engine         string   `json:"engine"`
+	CurrentEngine  string   `json:"current_engine"`
+	EngineAttempts []string `json:"engine_attempts,omitempty"`
+	// EngineChain is the ordered list of engines this run may fall back
+	// through, chosen when the ticket was processed. It is persisted so that
+	// a run re-adopted after a controller restart can still fall back.
+	EngineChain               []string           `json:"engine_chain,omitempty"`
 	State                     State              `json:"state"`
 	JobName                   string             `json:"job_name,omitempty"`
 	CreatedAt                 time.Time          `json:"created_at"`

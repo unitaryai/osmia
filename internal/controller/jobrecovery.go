@@ -7,6 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/unitaryai/osmia/internal/metrics"
 	"github.com/unitaryai/osmia/internal/taskrun"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
@@ -34,17 +35,22 @@ type jobRecoveryCounts struct {
 // A run whose Job no longer exists is left as it is. The store can hold
 // Running rows from long-past crashes, and failing them here would post a
 // failure on tickets that were dealt with long ago.
-func (r *Reconciler) restoreRunningJobs(ctx context.Context) {
+//
+// It reports whether recovery is complete. It is not when the store or a Job
+// lookup failed, which is usually a passing API error; Run then calls it
+// again on later ticks until it completes. Runs already adopted are skipped
+// on those passes, because adoption never replaces a tracked key.
+func (r *Reconciler) restoreRunningJobs(ctx context.Context) bool {
 	if r.taskRunStore == nil || r.k8sClient == nil {
-		return
+		return true
 	}
 
 	runs, err := r.taskRunStore.List(ctx)
 	if err != nil {
-		r.logger.WarnContext(ctx, "could not restore running jobs; jobs started before this restart will not be completed",
+		r.logger.WarnContext(ctx, "could not read task runs to restore running jobs; will try again",
 			"error", err,
 		)
-		return
+		return false
 	}
 
 	counts := r.adoptRunningJobs(ctx, runs)
@@ -55,6 +61,7 @@ func (r *Reconciler) restoreRunningJobs(ctx context.Context) {
 		"skipped_tournament", counts.tournament,
 		"lookup_failed", counts.failed,
 	)
+	return counts.failed == 0
 }
 
 // adoptRunningJobs re-adopts each restorable run whose Job still exists and
@@ -89,6 +96,9 @@ func (r *Reconciler) adoptRunningJobs(ctx context.Context, runs []*taskrun.TaskR
 		}
 
 		if r.adoptTaskRun(tr) {
+			// The gauge starts at zero in a new process; the adopted Job is
+			// decremented when it finishes, like any other.
+			metrics.ActiveJobs.Inc()
 			r.startStreamReader(ctx, tr)
 			counts.restored++
 		}
@@ -106,7 +116,8 @@ func (r *Reconciler) jobExists(ctx context.Context, jobName string) (bool, error
 }
 
 // adoptTaskRun puts a persisted TaskRun back under tracking, together with
-// the ticket details completion handling reads from the ticket cache. It
+// its engine fallback chain and the ticket details completion handling reads
+// from the ticket cache. It
 // returns false when the idempotency key is already tracked, so a run this
 // process has started since is never replaced by a stale copy.
 func (r *Reconciler) adoptTaskRun(tr *taskrun.TaskRun) bool {
@@ -117,6 +128,11 @@ func (r *Reconciler) adoptTaskRun(tr *taskrun.TaskRun) bool {
 		return false
 	}
 	r.taskRuns[tr.IdempotencyKey] = tr
+	if len(tr.EngineChain) > 0 {
+		// Runs persisted before the chain was recorded have none, and so
+		// cannot fall back to another engine if they fail.
+		r.engineChains[tr.IdempotencyKey] = tr.EngineChain
+	}
 
 	if _, cached := r.ticketCache[tr.TicketID]; !cached {
 		r.ticketCache[tr.TicketID] = ticketing.Ticket{

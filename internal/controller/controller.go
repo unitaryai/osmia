@@ -18,6 +18,7 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -28,7 +29,6 @@ import (
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/diagnosis"
 	"github.com/unitaryai/osmia/internal/estimator"
-	"github.com/unitaryai/osmia/internal/jobbuilder"
 	"github.com/unitaryai/osmia/internal/memory"
 	"github.com/unitaryai/osmia/internal/metrics"
 	"github.com/unitaryai/osmia/internal/prm"
@@ -507,8 +507,9 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 	r.restoreReviewTracking(ctx)
 
 	// Re-adopt agent Jobs that were still running when the previous process
-	// stopped, so their results are collected.
-	r.restoreRunningJobs(ctx)
+	// stopped, so their results are collected. Retried on later ticks if a
+	// store or API error stopped it finishing.
+	jobsRecovered := r.restoreRunningJobs(ctx)
 
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -519,6 +520,9 @@ func (r *Reconciler) Run(ctx context.Context, pollInterval time.Duration) error 
 			r.logger.InfoContext(ctx, "reconciliation loop stopped")
 			return ctx.Err()
 		case <-ticker.C:
+			if !jobsRecovered {
+				jobsRecovered = r.restoreRunningJobs(ctx)
+			}
 			if err := r.reconcileOnce(ctx); err != nil {
 				r.logger.ErrorContext(ctx, "reconciliation error", "error", err)
 			}
@@ -725,6 +729,7 @@ func (r *Reconciler) ProcessTicket(ctx context.Context, ticket ticketing.Ticket)
 		r.mu.Lock()
 		r.taskRuns[idempotencyKey] = tr
 		r.engineChains[idempotencyKey] = engineChain
+		tr.EngineChain = engineChain
 		r.mu.Unlock()
 
 		if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -1355,6 +1360,7 @@ func (r *Reconciler) processFollowUpTask(ctx context.Context, req reviewpoller.F
 	r.mu.Lock()
 	r.taskRuns[idempotencyKey] = tr
 	r.engineChains[idempotencyKey] = engineChain
+	tr.EngineChain = engineChain
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -1689,6 +1695,11 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	}
 	tr.JobName = job.Name
 	r.mu.Unlock()
+
+	// Persist the new state and Job name. Without this the store kept the
+	// Retrying state and the previous Job, so a controller restart could not
+	// find the fallback Job to re-adopt.
+	r.saveTaskRunOrLog(ctx, tr)
 
 	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,
 		fmt.Sprintf("\U0001F504 *Switching engine:* %s", engineName))
@@ -2304,6 +2315,13 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 		return
 	}
 
+	// The pod is found through its Job, not the TaskRun ID: continuation,
+	// retry and fallback Jobs are built with a suffixed ID, so a lookup by
+	// TaskRun ID would miss their pod, or find an earlier attempt's.
+	r.mu.RLock()
+	jobName := tr.JobName
+	r.mu.RUnlock()
+
 	streamCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 
@@ -2441,7 +2459,7 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 
 			// Resolve the actual pod name. K8s Job pods are named
 			// <jobname>-<random-suffix>, so we cannot use tr.JobName directly.
-			podName, err := r.resolvePodName(streamCtx, tr.ID)
+			podName, err := r.resolvePodName(streamCtx, jobName)
 			if err != nil {
 				if streamCtx.Err() == nil {
 					r.logger.Warn("failed to resolve pod name for stream reader",
@@ -2504,13 +2522,20 @@ func (r *Reconciler) startStreamReader(ctx context.Context, tr *taskrun.TaskRun)
 	)
 }
 
-// resolvePodName looks up the name of the pod created by the K8s Job for the
-// given task run ID. It polls until the agent container has started (i.e., is
-// Running or Terminated) or the context is cancelled, using exponential backoff
+// resolvePodName looks up the name of the pod created by the named K8s Job.
+// It polls until the agent container has started (i.e., is Running or
+// Terminated) or the context is cancelled, using exponential backoff
 // starting at 2 s and capped at 30 s. Waiting for the container to start
 // avoids a "ContainerCreating" error when the log stream is opened.
-func (r *Reconciler) resolvePodName(ctx context.Context, taskRunID string) (string, error) {
-	labelSelector := fmt.Sprintf("%s=%s", jobbuilder.LabelTaskRunID, taskRunID)
+func (r *Reconciler) resolvePodName(ctx context.Context, jobName string) (string, error) {
+	// Kubernetes limits Job names to 63 characters because the Job controller
+	// copies the name into this pod label, so a name that is not a valid
+	// label value cannot belong to a real Job.
+	selector, err := labels.ValidatedSelectorFromSet(labels.Set{batchv1.JobNameLabel: jobName})
+	if err != nil {
+		return "", fmt.Errorf("job name %q cannot select pods: %w", jobName, err)
+	}
+	labelSelector := selector.String()
 	backoff := 2 * time.Second
 	const maxBackoff = 30 * time.Second
 
@@ -2519,7 +2544,7 @@ func (r *Reconciler) resolvePodName(ctx context.Context, taskRunID string) (stri
 			LabelSelector: labelSelector,
 		})
 		if err != nil {
-			return "", fmt.Errorf("listing pods for task run %q: %w", taskRunID, err)
+			return "", fmt.Errorf("listing pods for job %q: %w", jobName, err)
 		}
 
 		for i := range pods.Items {
@@ -3578,6 +3603,7 @@ func (r *Reconciler) launchTournament(ctx context.Context, ticket ticketing.Tick
 	for _, tr := range createdTaskRuns {
 		r.taskRuns[tr.IdempotencyKey] = tr
 		r.engineChains[tr.IdempotencyKey] = []string{tr.CurrentEngine}
+		tr.EngineChain = []string{tr.CurrentEngine}
 		r.taskRunRole[tr.ID] = "candidate"
 		r.taskRunToTournament[tr.ID] = tournamentID
 	}
@@ -3839,6 +3865,7 @@ func (r *Reconciler) launchJudge(ctx context.Context, tournamentID string) {
 	r.mu.Lock()
 	r.taskRuns[judgeTR.IdempotencyKey] = judgeTR
 	r.engineChains[judgeTR.IdempotencyKey] = []string{judgeEngineName}
+	judgeTR.EngineChain = []string{judgeEngineName}
 	r.taskRunRole[judgeTR.ID] = "judge"
 	r.taskRunToTournament[judgeTR.ID] = tournamentID
 	r.mu.Unlock()

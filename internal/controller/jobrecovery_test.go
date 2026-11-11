@@ -2,14 +2,19 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/unitaryai/osmia/internal/config"
 	"github.com/unitaryai/osmia/internal/taskrun"
@@ -167,4 +172,117 @@ func TestAdoptRunningJobs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAdoptTaskRun_RestoresEngineChain checks that a re-adopted run can still
+// fall back to the next engine if its Job fails.
+func TestAdoptTaskRun_RestoresEngineChain(t *testing.T) {
+	r := NewReconciler(&config.Config{}, testLogger())
+	tr := runningRun("tr-1", "k1", "job-1", time.Now())
+	tr.EngineChain = []string{"claude-code", "codex"}
+
+	require.True(t, r.adoptTaskRun(tr))
+
+	assert.Equal(t, []string{"claude-code", "codex"}, r.engineChains["k1"])
+}
+
+// TestRestoreRunningJobs_RetriesAfterLookupFailure checks that a passing API
+// error does not leave a live Job unwatched until the next restart: recovery
+// reports itself incomplete, and the next pass adopts the run.
+func TestRestoreRunningJobs_RetriesAfterLookupFailure(t *testing.T) {
+	ctx := context.Background()
+	store := taskrun.NewMemoryStore()
+	require.NoError(t, store.Save(ctx, runningRun("tr-1", "k1", "job-1", time.Now())))
+
+	client := fake.NewSimpleClientset(agentJob("job-1"))
+	failures := 1
+	client.PrependReactor("get", "jobs", func(k8stesting.Action) (bool, runtime.Object, error) {
+		if failures == 0 {
+			return false, nil, nil
+		}
+		failures--
+		return true, nil, errors.New("api server unavailable")
+	})
+	r := NewReconciler(&config.Config{}, testLogger(),
+		WithTaskRunStore(store),
+		WithK8sClient(client),
+		WithNamespace(recoveryNamespace),
+	)
+
+	assert.False(t, r.restoreRunningJobs(ctx), "a failed lookup leaves recovery incomplete")
+	_, tracked := r.GetTaskRun("k1")
+	assert.False(t, tracked)
+
+	assert.True(t, r.restoreRunningJobs(ctx))
+	_, tracked = r.GetTaskRun("k1")
+	assert.True(t, tracked)
+}
+
+// TestResolvePodName_UsesJobName checks the stream reader finds the pod of
+// the run's current Job. Continuation, retry and fallback Jobs carry a
+// suffixed TaskRun ID label, so a lookup by TaskRun ID found the first
+// attempt's pod instead.
+func TestResolvePodName_UsesJobName(t *testing.T) {
+	pod := func(name, job string) *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: recoveryNamespace,
+				Labels:    map[string]string{batchv1.JobNameLabel: job},
+			},
+			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+				Name:  "agent",
+				State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{}},
+			}}},
+		}
+	}
+	client := fake.NewSimpleClientset(
+		pod("first-attempt", "osmia-tr-1"),
+		pod("fallback-attempt", "osmia-tr-1-fb2"),
+	)
+	r := NewReconciler(&config.Config{}, testLogger(), WithK8sClient(client), WithNamespace(recoveryNamespace))
+
+	got, err := r.resolvePodName(context.Background(), "osmia-tr-1-fb2")
+
+	require.NoError(t, err)
+	assert.Equal(t, "fallback-attempt", got)
+}
+
+// TestLaunchFallbackJob_PersistsNewJob checks the fallback launch is saved,
+// so a restart finds the fallback Job rather than a Retrying run pointing at
+// the previous engine's Job.
+func TestLaunchFallbackJob_PersistsNewJob(t *testing.T) {
+	tr := runningTaskRun()
+	tr.JobName = "job-tr-1"
+	r, _ := diagnosisReconciler(tr, []string{"claude-code", "codex"}, false)
+	r.taskRunStore = &snapshotStore{MemoryStore: taskrun.NewMemoryStore()}
+	r.jobBuilder = &mockJobBuilder{}
+	r.k8sClient = fake.NewSimpleClientset()
+	r.namespace = "test-ns"
+
+	r.handleJobFailed(context.Background(), tr, "tests did not pass")
+
+	stored, err := r.taskRunStore.Get(context.Background(), tr.ID)
+	require.NoError(t, err)
+	assert.Equal(t, taskrun.StateRunning, stored.State)
+	assert.Equal(t, "job-tr-1-fb2", stored.JobName)
+}
+
+// snapshotStore saves a copy of each TaskRun, as the SQLite store does. The
+// memory store keeps the pointer, so it would show later in-memory changes
+// that were never saved.
+type snapshotStore struct {
+	*taskrun.MemoryStore
+}
+
+func (s *snapshotStore) Save(ctx context.Context, tr *taskrun.TaskRun) error {
+	data, err := json.Marshal(tr)
+	if err != nil {
+		return err
+	}
+	var saved taskrun.TaskRun
+	if err := json.Unmarshal(data, &saved); err != nil {
+		return err
+	}
+	return s.MemoryStore.Save(ctx, &saved)
 }

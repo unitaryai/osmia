@@ -10,7 +10,8 @@ import (
 )
 
 // defaultApprovalCleanupTimeout bounds each call to an external system made
-// while failing an unanswered approval. failUnansweredApproval runs inside the
+// while failing an unanswered approval: cancelling the approval request,
+// marking the ticket failed and updating the notification. failUnansweredApproval runs inside the
 // watchdog check, so without a bound one slow Slack or ticketing request would
 // hold up the checks of every other task run until the controller stops.
 const defaultApprovalCleanupTimeout = 30 * time.Second
@@ -44,7 +45,9 @@ func (r *Reconciler) failUnansweredApproval(ctx context.Context, tr *taskrun.Tas
 
 	r.cancelPendingApproval(ctx, tr.ID)
 	r.markTicketFailed(ctx, tr.TicketID, "approval not given: "+reason)
-	r.updateNotificationStatus(ctx, threadRef,
+	notifyCtx, cancel := context.WithTimeout(ctx, r.approvalCleanupTimeoutOrDefault())
+	defer cancel()
+	r.updateNotificationStatus(notifyCtx, threadRef,
 		fmt.Sprintf("\u274C *Osmia failed:* %s", tr.TicketID))
 
 	r.logger.WarnContext(ctx, "approval not answered in time; task run failed without retry",

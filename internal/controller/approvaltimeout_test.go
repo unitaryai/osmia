@@ -15,6 +15,7 @@ import (
 	"github.com/unitaryai/osmia/internal/metrics"
 	"github.com/unitaryai/osmia/internal/taskrun"
 	"github.com/unitaryai/osmia/internal/watchdog"
+	"github.com/unitaryai/osmia/pkg/plugin/notifications"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -126,4 +127,44 @@ func TestUnansweredApprovalDoesNotWaitForeverOnCancel(t *testing.T) {
 	}
 	assert.Equal(t, taskrun.StateFailed, tr.State)
 	assert.Contains(t, tb.markedFailed, "TICKET-HANG")
+}
+
+// hangingNotifier never finishes updating a message, like a Slack request
+// that never gets a response, until its context ends.
+type hangingNotifier struct {
+	spyNotifier
+}
+
+func (h *hangingNotifier) UpdateMessage(ctx context.Context, _ string, _ string) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// Given a notification channel that never answers,
+// when an unanswered approval is failed,
+// then the notification update gives up after the cleanup timeout, so one
+// stuck request cannot stall the watchdog.
+func TestUnansweredApprovalDoesNotWaitForeverOnNotification(t *testing.T) {
+	tr := taskrun.New("tr-notify", "key-notify", "TICKET-NOTIFY", "claude-code")
+	require.NoError(t, tr.Transition(taskrun.StateNeedsHuman))
+	tr.NotificationThreadRef = "thread-ref"
+	r := &Reconciler{
+		logger:                 testLogger(),
+		taskRunStore:           taskrun.NewMemoryStore(),
+		notifiers:              []notifications.Channel{&hangingNotifier{}},
+		approvalCleanupTimeout: 50 * time.Millisecond,
+	}
+
+	done := make(chan struct{})
+	go func() {
+		r.failUnansweredApproval(context.Background(), tr, "timed out")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("failing an unanswered approval waited on the notification channel without a limit")
+	}
+	assert.Equal(t, taskrun.StateFailed, tr.State)
 }

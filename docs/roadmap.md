@@ -318,6 +318,20 @@ both the agent pod and the controller (via the agent stream and transcripts)
 handle data pulled from the systems being built against. That is tracked as
 item 31.
 
+**Slices.** A build is delivered in slices. A slice is a short segment of the
+build that can be demonstrated to the customer on its own. For example, a
+build might have three slices:
+
+1. The virtual agent logs in to the customer's system and collects a task
+   that needs processing.
+2. An AI decision process runs on the collected data.
+3. The agent acts in the customer's system, depending on the outcome of that
+   decision.
+
+Each slice ends in something a person can review and the customer can see
+working, so a slice is the unit Osmia schedules and stops after. The pilot
+builds one slice.
+
 The pilot is deliberately a single build stage. Passing work from one stage to
 the next is a later piece of work, so it is not part of these criteria.
 
@@ -459,6 +473,11 @@ receives that data through the agent stream, transcripts and episodic memory.
 The whole of Osmia has to run in the region, so the plan is one independent
 deployment per region, with no central coordinator. Instances share only the
 ticketing and SCM systems.
+
+**Decided (November 2026):** Osmia will run in every region that has
+residency-bound work, as one full deployment per region (controller, agent
+pods, stores and model access), rather than one central deployment with
+regional model routing.
 
 Routing a ticket to the right instance and keeping it out of the wrong one are
 separate concerns, and need separate mechanisms. A per-ticket tag or owner is

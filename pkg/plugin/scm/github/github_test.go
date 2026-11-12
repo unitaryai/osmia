@@ -426,3 +426,24 @@ func TestGitHubSCMBackend_ListReviewComments_ReadsEveryPage(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []string{"101", "102", "201", "202"}, ids)
 }
+
+// TestAPIRedirectDropsToken checks that an API call answered with a redirect
+// to another port or host does not take the bearer token there. Go's own
+// check treats the same host on another port as the same domain.
+func TestAPIRedirectDropsToken(t *testing.T) {
+	var leaked string
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		leaked = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"login":"bot"}`))
+	}))
+	defer elsewhere.Close()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, elsewhere.URL+"/user", http.StatusFound)
+	}))
+	defer api.Close()
+
+	b := NewGitHubSCMBackend("secret-token", testLogger(), WithBaseURL(api.URL))
+	_, _ = b.AuthenticatedUser(context.Background())
+	assert.Empty(t, leaked, "the token must not reach the redirect target")
+}

@@ -84,6 +84,7 @@ func (r *Reconciler) startRepoURLPoll(ctx context.Context, ticket ticketing.Tick
 	r.mu.Lock()
 	r.taskRuns[idempotencyKey] = tr
 	r.engineChains[idempotencyKey] = engineChain
+	tr.EngineChain = engineChain
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {

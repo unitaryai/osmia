@@ -206,6 +206,7 @@ func (r *Reconciler) launchTaskRun(ctx context.Context, spec launchSpec) (*taskr
 	r.mu.Lock()
 	r.taskRuns[spec.IdempotencyKey] = tr
 	r.engineChains[spec.IdempotencyKey] = spec.EngineChain
+	tr.EngineChain = spec.EngineChain
 	r.mu.Unlock()
 
 	r.saveTaskRunOrLog(ctx, tr)

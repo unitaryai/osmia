@@ -77,6 +77,7 @@ func TestReviewTrackingFromTaskRuns(t *testing.T) {
 		require.Len(t, got, 1)
 		assert.Equal(t, 2, got[0].FollowUpCount)
 		assert.Equal(t, second, got[0].HandledUntil)
+		assert.Equal(t, second, got[0].LastFollowUpAt, "failed pipelines are judged against the last real follow-up")
 	})
 
 	t.Run("a follow-up run is never itself treated as opening a PR", func(t *testing.T) {

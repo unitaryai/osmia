@@ -1,1 +1,0 @@
-`engines.claude-code.tool_whitelist` restricted nothing. It is now passed as `--tools`, so only the listed built-in tools are available. Osmia refuses to start if an entry is a permission pattern or an MCP tool name; add `Skill` or `Task` if you use skills or sub-agents. MCP tools are not affected; restrict them with `tool_blacklist`.

@@ -161,6 +161,7 @@ type ClaudeCodeEngine struct {
 	teamsConfig   TeamsConfig
 	skills        []Skill
 	subAgents     []SubAgent
+	plugins       PluginConfig
 	sessionStore  engine.SessionStore
 }
 
@@ -348,6 +349,16 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		env[k] = v
 	}
 
+	// Choose the task's plugins. setup-claude.sh fetches each source at its
+	// pinned ref and passes every plugin to Claude Code as --plugin-dir.
+	plugins, err := e.plugins.pluginExecutionForTask(task.Labels)
+	if err != nil {
+		return nil, fmt.Errorf("choosing plugins: %w", err)
+	}
+	for k, v := range plugins.env {
+		env[k] = v
+	}
+
 	// Merge any extra environment variables from the engine config.
 	for k, v := range config.Env {
 		env[k] = v
@@ -366,6 +377,9 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	}
 	// Merge any additional secret refs from the engine config (e.g. SCM tokens).
 	for k, v := range config.SecretKeyRefs {
+		secretKeyRefs[k] = v
+	}
+	for k, v := range plugins.secretKeyRefs {
 		secretKeyRefs[k] = v
 	}
 

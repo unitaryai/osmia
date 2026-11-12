@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
@@ -68,6 +69,9 @@ func NewGitHubSCMBackend(token string, logger *slog.Logger, opts ...Option) *Git
 	for _, opt := range opts {
 		opt(b)
 	}
+	// Every request carries the API token, so a redirect must never take it
+	// to another host. See httpsafe.CredentialSafeRedirects.
+	b.client = httpsafe.CredentialSafeRedirects(b.client)
 	return b
 }
 
@@ -97,6 +101,7 @@ type ghPR struct {
 // ghHead is the head/base branch info from a PR response.
 type ghHead struct {
 	Ref string `json:"ref"`
+	SHA string `json:"sha"`
 }
 
 // CreateBranch creates a new branch in the repository from the specified

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/scm"
 )
 
@@ -74,6 +75,9 @@ func NewGitLabSCMBackend(token string, logger *slog.Logger, opts ...Option) *Git
 	for _, opt := range opts {
 		opt(b)
 	}
+	// Every request carries the API token, so a redirect must never take it
+	// to another host. See httpsafe.CredentialSafeRedirects.
+	b.client = httpsafe.CredentialSafeRedirects(b.client, "PRIVATE-TOKEN")
 	return b
 }
 
@@ -97,6 +101,11 @@ type glMR struct {
 	State        string `json:"state"` // "opened", "closed", "merged"
 	SourceBranch string `json:"source_branch"`
 	TargetBranch string `json:"target_branch"`
+	SHA          string `json:"sha"`
+	// HeadPipeline is the pipeline GitLab shows for the MR's current head:
+	// a branch pipeline, or a merged-results pipeline whose SHA is the
+	// temporary merge commit rather than the source branch head.
+	HeadPipeline *glPipeline `json:"head_pipeline"`
 }
 
 // CreateBranch creates a new branch in the repository from the specified

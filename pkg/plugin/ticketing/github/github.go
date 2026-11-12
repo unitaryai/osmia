@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/unitaryai/osmia/pkg/engine"
+	"github.com/unitaryai/osmia/pkg/plugin/httpsafe"
 	"github.com/unitaryai/osmia/pkg/plugin/ticketing"
 )
 
@@ -123,6 +124,8 @@ func NewGitHubBackend(owner, repo string, labels []string, token string, logger 
 	for _, opt := range opts {
 		opt(b)
 	}
+	// The API token goes on every request; keep it off redirects to other hosts.
+	b.client = httpsafe.CredentialSafeRedirects(b.client)
 	if len(b.excludeLabels) == 0 {
 		b.logger.Warn("exclude_labels is empty; in-progress and failed issues will not be filtered out automatically")
 	}

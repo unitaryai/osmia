@@ -192,6 +192,7 @@ config:
 | `tool_blacklist` | []string | (none) | Block these Claude Code tools (via `--disallowedTools`) |
 | `json_schema` | string | built-in TaskResult schema | JSON schema for structured output (via `--json-schema`) |
 | `skills` | []SkillConfig | (none) | Custom skill files loaded into the agent (see [Skills](#skills)) |
+| `plugins` | PluginsConfig | (none) | Claude Code plugins loaded from pinned git repositories, chosen per task (see [Plugins](#plugins)) |
 | `sub_agents` | []SubAgentConfig | (none) | Sub-agent definitions (see [Sub-agents](#sub-agents)) |
 | `agent_teams` | AgentTeamsConfig | disabled | Experimental multi-instance collaboration (see [Agent teams](#agent-teams)) |
 
@@ -263,6 +264,8 @@ The `PostToolUse` hook writes heartbeat telemetry to `/workspace/heartbeat.json`
 | `CLAUDE_SKILL_INLINE_<NAME>` | Engine | Base64-encoded inline skill content (see [Skills](#skills)) |
 | `CLAUDE_SKILL_PATH_<NAME>` | Engine | Path to a skill file on the image or ConfigMap mount (see [Skills](#skills)) |
 | `CLAUDE_SUBAGENT_PATH_<NAME>` | Engine | Path to a ConfigMap-backed sub-agent file (see [Sub-Agents](#sub-agents)) |
+| `OSMIA_PLUGINS` | Engine | JSON list of plugin sources and the plugins to load from each (see [Plugins](#plugins)) |
+| `OSMIA_PLUGIN_TOKEN_<SOURCE>` | K8s Secret | Read token for a private plugin source. Unset before Claude Code starts (see [Plugins](#plugins)) |
 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` | Engine | Set to `1` when agent teams are enabled |
 | `CLAUDE_CODE_MAX_TEAMMATES` | Engine | Maximum teammate agents (agent teams) |
 
@@ -372,6 +375,72 @@ To bundle skills into the container image, add them to your custom Dockerfile:
 FROM ghcr.io/unitaryai/engine-claude-code:latest
 COPY skills/ /opt/osmia/skills/
 ```
+
+#### Plugins
+
+A plugin is a Claude Code plugin directory: skills, sub-agents, commands, hooks and MCP servers packed together. Osmia loads plugins from git repositories that hold a plugin marketplace, the same `.claude-plugin/marketplace.json` layout that `claude plugin marketplace add` reads. Use this to give agents the plugins your team already uses, and to give different tasks different plugins.
+
+Agents do not receive the skills and plugins that an organisation uploads in the Claude app. Those only reach Claude Code sessions signed in with a Claude Team or Enterprise account, and agents authenticate with an API key or a cloud provider. Point a plugin source at the repository you upload from instead.
+
+```yaml
+engines:
+  claude-code:
+    plugins:
+      sources:
+        - name: team
+          repo_url: https://gitlab.example.com/team/claude-plugins.git
+          ref: 3f2c1e0a9b8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e   # commit SHA (or tag)
+          token_secret: osmia-plugin-token                 # private repos only
+          # token_key: token                               # key in the Secret (default "token")
+          # token_username: gitlab+deploy-token-123        # needed for a GitLab deploy token
+      default:                       # loaded on every task
+        - team/engineer
+      profiles:                      # added when the ticket has the label osmia-plugins:<profile>
+        build:
+          - team/implementations
+        sre:
+          - team/sre
+```
+
+- **Plugin names** are `<source>/<plugin>`, where `<plugin>` is the name listed in the source's `marketplace.json`.
+- **Pinned ref.** Each source is fetched at `ref` when the agent pod starts, so a push to the plugin repository changes nothing until you move the ref. `ref` must be a full commit SHA or a tag; anything that is not a SHA is fetched as a tag, so a branch name never works. Prefer a commit SHA: a tag can be moved.
+- **Profiles.** A ticket labelled `osmia-plugins:build` loads the default plugins plus those in the `build` profile. Review follow-ups on that ticket's MR load the same profiles, as long as the controller has not restarted since the ticket was picked up. A ticket can carry several profile labels. A label naming a profile that does not exist fails the task, rather than running it without the plugins it asked for.
+- **Private repositories.** `token_secret` names a Kubernetes Secret holding a read-only token. Only the pods whose task uses that source get the token, and `setup-claude.sh` unsets it before Claude Code starts, so the agent never sees it. The token is sent as an HTTPS Basic `Authorization` header, never in a URL. Use the narrowest token your SCM offers: a GitLab deploy token or project access token with `read_repository`, or a GitHub fine-grained token with read access to contents.
+- **Only plugins stored in the repository** are supported. A marketplace entry whose `source` points at another repository is rejected, because it would bypass the pinned ref. So is a plugin directory that is, or sits under, a symlink leading outside the repository.
+- **Failures stop the job.** An unreachable repository, an unknown ref, or a plugin missing from `marketplace.json` makes the pod exit before Claude Code starts, with the reason in the pod log.
+
+Plugins run code inside the agent pod: hooks run shell commands and plugin MCP servers start processes. Review a plugin before you load it, and check that its hooks and MCP servers work without a person's own login, since the pod has none.
+
+Osmia checks the configuration when the controller starts and refuses to start if a plugin names an unknown source, a source has no `ref`, or a `repo_url` is not `https://`. Whether each plugin exists is only known once the repository is fetched, in the pod.
+
+#### Build-tools image
+
+`ghcr.io/unitaryai/osmia/engine-claude-code-build` is the Claude Code engine image plus the tools that application build work needs. It is a separate image so that ordinary tasks do not pull a larger image with more installed.
+
+| Tool | Used for |
+|---|---|
+| `uv` and Python 3.13 | Python projects and tools |
+| `copier` | Project templates |
+| `temporal` | Reading workflow state from a development Temporal server |
+| `kubectl` | Inspecting workloads on a development cluster |
+| Playwright, Chromium and `@playwright/mcp` | Driving web applications, headless or headed |
+| `ffmpeg`, Xvfb, `xauth`, `xdpyinfo` | Cutting frames from recordings, and running a headed browser without a display |
+
+Use it by setting the engine image:
+
+```yaml
+engines:
+  claude-code:
+    image: ghcr.io/unitaryai/osmia/engine-claude-code-build:main
+```
+
+- Every tool is pinned and checksum-verified, and Renovate keeps the pins current.
+- It is rebuilt with the engine image on every push to `main`, weekly, and on each release, always on the engine image from the same commit.
+- Chromium runs under the agent pod's normal security settings: non-root, read-only root filesystem and all capabilities dropped. The browser is installed at build time under `/opt/ms-playwright`. Playwright needs a writable home and `/tmp`, which the pod already has.
+- Playwright browsers are tied to the Playwright version. An image built on this one that uses another Playwright version must run `playwright install chromium` with `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` at build time.
+- Docker inside the agent pod is not supported. Build work tests against a development cluster instead.
+
+To add private tools, build your own image `FROM` this one.
 
 #### Sub-agents
 

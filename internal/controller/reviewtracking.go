@@ -131,6 +131,7 @@ func reviewTrackingFromTaskRuns(runs []*taskrun.TaskRun, now time.Time) []review
 			RepoURL:             repoURL,
 			FollowUpCount:       followUps[prURL],
 			HandledUntil:        handledUntil,
+			LastFollowUpAt:      lastFollowUp[prURL],
 		})
 	}
 	return restored

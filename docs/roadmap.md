@@ -104,9 +104,12 @@ state and restart the controller.
 
 Recovery should be automatic:
 
-- [ ] On startup, load all `Running` task runs from the store and reconcile
-  them against live K8s Jobs — transition to `Failed` any task run whose job
-  no longer exists
+- [x] On startup, load all `Running` task runs from the store and re-adopt
+  those whose Job still exists, re-reading the agent's log so the result is
+  collected and the ticket completed as normal
+- [ ] On startup, transition to `Failed` any recent task run whose job no
+  longer exists (skipping long-stale rows, so old tickets are not sent a
+  failure)
 - [ ] Add a periodic background reconciliation loop (e.g. every 5 minutes)
   that detects and recovers task runs whose jobs have disappeared
 - [ ] When a task run transitions to `Failed` due to a missing job, reset the
@@ -271,28 +274,31 @@ keyword-based `RuleBasedClassifier`, and batches actionable ones into a
 carries only `State` (open/closed/merged); no SCM backend exposes pipeline
 status.
 
-- [ ] SCM interface: a pipeline-status method returning the latest pipeline's
-  state and its failed jobs, with protobuf definition to match
-- [ ] GitLab (`/merge_requests/:iid/pipelines`, job traces) and GitHub (check
+- [x] SCM interface: a pipeline-status method returning the latest pipeline's
+  state and its failed jobs. It is an optional capability
+  (`scm.PipelineStatusProvider`), like `scm.IdentityProvider`, so the plugin
+  protobuf does not change and gRPC plugin backends keep working
+- [ ] Expose pipeline status to gRPC plugin backends through the protobuf
+- [x] GitLab (`/merge_requests/:iid/pipelines`, job traces) and GitHub (check
   runs) implementations
-- [ ] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
+- [x] Poller: on a newly failed pipeline for a tracked MR, emit a follow-up
   carrying the failing job names and a bounded tail of each job's log
-- [ ] Count CI-triggered follow-ups against the same `max_follow_up_jobs`
+- [x] Count CI-triggered follow-ups against the same `max_follow_up_jobs`
   budget as comment-triggered ones, so a pipeline that fails for reasons the
   agent cannot fix (missing credentials, external access, flaky runners) does
   not loop
-- [ ] Do not react to a pipeline that is still running, or one already
+- [x] Do not react to a pipeline that is still running, or one already
   superseded by a newer commit
-- [ ] Config switch, off by default, so existing deployments do not start
-  spawning jobs on upgrade
+- [x] Config switch, off by default (`review_response.fix_failed_pipelines`),
+  so existing deployments do not start spawning jobs on upgrade
 
 **Open questions:**
 - Failures outside the agent's control, like the external-access failure on
   the same MR, look identical to a lint failure from the pipeline API. Is the
   follow-up budget enough of a guard, or does it need a way to classify a
   failure as not fixable before spending a job on it?
-- Tracked MRs live in memory and are lost on controller restart; this inherits
-  that limitation, and makes it more costly.
+- Resolved: tracked MRs are now restored after a controller restart, and a
+  failed pipeline from before the restart point is not acted on again.
 
 ---
 
@@ -311,6 +317,20 @@ deployment of the whole of Osmia, not only regional model routing, because
 both the agent pod and the controller (via the agent stream and transcripts)
 handle data pulled from the systems being built against. That is tracked as
 item 31.
+
+**Slices.** A build is delivered in slices. A slice is a short segment of the
+build that can be demonstrated to the customer on its own. For example, a
+build might have three slices:
+
+1. The virtual agent logs in to the customer's system and collects a task
+   that needs processing.
+2. An AI decision process runs on the collected data.
+3. The agent acts in the customer's system, depending on the outcome of that
+   decision.
+
+Each slice ends in something a person can review and the customer can see
+working, so a slice is the unit Osmia schedules and stops after. The pilot
+builds one slice.
 
 The pilot is deliberately a single build stage. Passing work from one stage to
 the next is a later piece of work, so it is not part of these criteria.
@@ -349,15 +369,20 @@ task gets the same set. Only incident triage overrides them per flow.
 workspace MCP config. A build needs a different set of skills, sub-agents, MCP
 servers and hooks per task, and per stage within a task.
 
-- [ ] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
-  packaged together, in the layout Claude Code's `--plugin-dir` expects
-- [ ] Select bundles per task, from the ticket (label or field) or the task
-  profile, merged on top of the engine defaults
-- [ ] Deliver bundles to the pod from a ConfigMap or object storage, not as
-  environment variables, so size is not bounded by the env var limit
+- [x] Define a plugin bundle: skills, sub-agents, MCP servers and hooks
+  packaged together, in the layout Claude Code's `--plugin-dir` expects. A
+  bundle is a standard Claude Code plugin, listed in a marketplace repository
+- [x] Select bundles per task from a ticket label (`osmia-plugins:<profile>`),
+  merged on top of the engine defaults
+- [ ] Select bundles from the task profile as well as the ticket label
+- [x] Deliver bundles to the pod from a git repository fetched at a pinned
+  ref, not as environment variables, so size is not bounded by the env var
+  limit
 - [ ] Wire `TaskProfileConfig.MCPServers` through the same path
-- [ ] Validate bundle contents at load time and fail the launch on an unknown
-  bundle name, rather than starting the agent without it
+- [x] Fail the launch on an unknown profile, and refuse to start the
+  controller on a plugin that names an unknown source
+- [ ] Check that each configured plugin exists in its source at controller
+  start, not only when the pod fetches it
 
 ---
 
@@ -372,13 +397,13 @@ also needs Python tooling (`uv`), a headless browser (Playwright and Chromium),
 `ffmpeg`, `copier`, `kubectl` and a workflow-engine CLI. Adding all of these to
 the default image would grow it and its attack surface for every task.
 
-- [ ] Publish a separate `engine-claude-code-build` image variant built on the
+- [x] Publish a separate `engine-claude-code-build` image variant built on the
   default one, with its own weekly rebuild and Renovate coverage
 - [ ] Select the image per task profile, so only build tasks pull it
-- [ ] Confirm Chromium runs under the existing securityContext
+- [x] Confirm Chromium runs under the existing securityContext
   (non-root, read-only root filesystem, all capabilities dropped), with a
   writable `emptyDir` for its profile and cache
-- [ ] Document that Docker inside the agent pod is not supported; builds
+- [x] Document that Docker inside the agent pod is not supported; builds
   test against a development cluster instead
 
 ---
@@ -448,6 +473,11 @@ receives that data through the agent stream, transcripts and episodic memory.
 The whole of Osmia has to run in the region, so the plan is one independent
 deployment per region, with no central coordinator. Instances share only the
 ticketing and SCM systems.
+
+**Decided (November 2026):** Osmia will run in every region that has
+residency-bound work, as one full deployment per region (controller, agent
+pods, stores and model access), rather than one central deployment with
+regional model routing.
 
 Routing a ticket to the right instance and keeping it out of the wrong one are
 separate concerns, and need separate mechanisms. A per-ticket tag or owner is
@@ -539,6 +569,28 @@ comments on it with what is missing, instead of starting a job.
   accurate but slower and costlier.
 - For build stages (Application Build Pilot), is the input a ticket at all,
   or a stage specification that needs its own checks?
+
+### 35. Vault Token on Redirects
+
+**Priority:** Medium
+**Scope:** Small
+**Dependencies:** None
+
+`httpsafe.CredentialSafeRedirects` keeps API tokens off redirects to another
+host for every plugin that sends one, except the Vault secrets backend. Vault
+sends its token in `X-Vault-Token`, a custom header that Go's HTTP client
+copies onto a redirect to any host. Vault cannot simply use the same policy:
+an HA standby node answers with a redirect to the active node, which needs
+the token, so stripping it would break clusters reached without a load
+balancer.
+
+- [ ] Follow a redirect with the token only when the target is a configured
+  Vault node (the configured address, plus an optional list of cluster
+  addresses), and strip it otherwise
+- [ ] Refuse a redirect from https to http
+- [ ] Test the standby-to-active redirect and a redirect to an unrelated host
+
+---
 
 ---
 
@@ -936,6 +988,7 @@ live controller and `main.go`:
 | 30 | Remote Transcript and Artifact Storage | High | Not started |
 | 31 | Regional Deployments and Data Residency Routing | High | Not started |
 | 34 | Ticket Readiness Check | High | Not started |
+| 35 | Vault Token on Redirects | Medium | Not started |
 | 24 | Non-Standard Task Types | Medium | [Design doc](designs/use-case-abstraction.md) available |
 | 25 | Supervisor Agent / PRM V2 | Medium | Design doc required |
 | 32 | Customer Context and Repository Lookup | High | Design doc required |
@@ -945,7 +998,7 @@ live controller and `main.go`:
 | — | E2E live-backend extended coverage (50+ tasks) | High | In progress |
 | — | Guardrails.md Prompt Injection | Medium | 🚧 Not wired |
 | — | Task-Profile File Pattern Enforcement | Medium | 🚧 Not wired |
-| — | Orphaned TaskRun Recovery | High | 🚧 Not started |
+| — | Orphaned TaskRun Recovery | High | 🚧 Running jobs re-adopted on startup; missing-job handling remaining |
 | — | Leader Election (Controller HA) | Low | 🚧 Not started |
 | — | Built-in AWS Secrets Manager Backend | Medium | 🚧 Core complete; IRSA Helm annotation + localstack tests remaining |
 | — | Namespace-Per-Tenant Isolation | Low | 🚧 Not started |

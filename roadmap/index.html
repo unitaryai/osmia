@@ -3119,13 +3119,13 @@ also needs Python tooling (<code>uv</code>), a headless browser (Playwright and 
 <code>ffmpeg</code>, <code>copier</code>, <code>kubectl</code> and a workflow-engine CLI. Adding all of these to
 the default image would grow it and its attack surface for every task.</p>
 <ul>
-<li>[ ] Publish a separate <code>engine-claude-code-build</code> image variant built on the
+<li>[x] Publish a separate <code>engine-claude-code-build</code> image variant built on the
   default one, with its own weekly rebuild and Renovate coverage</li>
 <li>[ ] Select the image per task profile, so only build tasks pull it</li>
-<li>[ ] Confirm Chromium runs under the existing securityContext
+<li>[x] Confirm Chromium runs under the existing securityContext
   (non-root, read-only root filesystem, all capabilities dropped), with a
   writable <code>emptyDir</code> for its profile and cache</li>
-<li>[ ] Document that Docker inside the agent pod is not supported; builds
+<li>[x] Document that Docker inside the agent pod is not supported; builds
   test against a development cluster instead</li>
 </ul>
 <hr />

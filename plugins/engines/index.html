@@ -1397,6 +1397,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#build-tools-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-tools image
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sub-agents" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2584,6 +2595,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#build-tools-image" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build-tools image
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#sub-agents" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3559,40 +3581,89 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </ul>
 <p>Plugins run code inside the agent pod: hooks run shell commands and plugin MCP servers start processes. Review a plugin before you load it, and check that its hooks and MCP servers work without a person's own login, since the pod has none.</p>
 <p>Osmia checks the configuration when the controller starts and refuses to start if a plugin names an unknown source, a source has no <code>ref</code>, or a <code>repo_url</code> is not <code>https://</code>. Whether each plugin exists is only known once the repository is fetched, in the pod.</p>
+<h4 id="build-tools-image">Build-tools image<a class="headerlink" href="#build-tools-image" title="Permanent link">&para;</a></h4>
+<p><code>ghcr.io/unitaryai/osmia/engine-claude-code-build</code> is the Claude Code engine image plus the tools that application build work needs. It is a separate image so that ordinary tasks do not pull a larger image with more installed.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv</code> and Python 3.13</td>
+<td>Python projects and tools</td>
+</tr>
+<tr>
+<td><code>copier</code></td>
+<td>Project templates</td>
+</tr>
+<tr>
+<td><code>temporal</code></td>
+<td>Reading workflow state from a development Temporal server</td>
+</tr>
+<tr>
+<td><code>kubectl</code></td>
+<td>Inspecting workloads on a development cluster</td>
+</tr>
+<tr>
+<td>Playwright, Chromium and <code>@playwright/mcp</code></td>
+<td>Driving web applications, headless or headed</td>
+</tr>
+<tr>
+<td><code>ffmpeg</code>, Xvfb, <code>xauth</code>, <code>xdpyinfo</code></td>
+<td>Cutting frames from recordings, and running a headed browser without a display</td>
+</tr>
+</tbody>
+</table>
+<p>Use it by setting the engine image:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/osmia/engine-claude-code-build:main</span>
+</code></pre></div>
+<ul>
+<li>Every tool is pinned and checksum-verified, and Renovate keeps the pins current.</li>
+<li>It is rebuilt with the engine image on every push to <code>main</code>, weekly, and on each release, always on the engine image from the same commit.</li>
+<li>Chromium runs under the agent pod's normal security settings: non-root, read-only root filesystem and all capabilities dropped. The browser is installed at build time under <code>/opt/ms-playwright</code>. Playwright needs a writable home and <code>/tmp</code>, which the pod already has.</li>
+<li>Playwright browsers are tied to the Playwright version. An image built on this one that uses another Playwright version must run <code>playwright install chromium</code> with <code>PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright</code> at build time.</li>
+<li>Docker inside the agent pod is not supported. Build work tests against a development cluster instead.</li>
+</ul>
+<p>To add private tools, build your own image <code>FROM</code> this one.</p>
 <h4 id="sub-agents">Sub-agents<a class="headerlink" href="#sub-agents" title="Permanent link">&para;</a></h4>
 <p>Sub-agents let the main Claude Code agent hand specialised subtasks to other agents during execution. Each sub-agent has its own system prompt, model, tool restrictions and permission mode. Sub-agents use Claude Code's official <code>--agents</code> flag and <code>~/.claude/agents/</code> directory.</p>
 <p>Sub-agents can be defined inline (prompt in the config) or loaded from a Kubernetes ConfigMap (for large prompts or independent management).</p>
 <p>Configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span><span class="nt">sub_agents</span><span class="p">:</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">      </span><span class="c1"># Inline sub-agent: prompt is in the config.</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reviewer</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Reviews</span><span class="nv"> </span><span class="s">code</span><span class="nv"> </span><span class="s">changes</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">correctness</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">style"</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">        </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">          </span><span class="no">You are a code reviewer. Check for:</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="w">          </span><span class="no">- Bugs and logic errors</span>
-<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">          </span><span class="no">- Security vulnerabilities</span>
-<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">          </span><span class="no">- Style and convention violations</span>
-<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">        </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haiku</span>
-<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">        </span><span class="nt">tools</span><span class="p">:</span>
-<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Read</span>
-<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Grep</span>
-<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Glob</span>
-<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="w">        </span><span class="nt">max_turns</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
-<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>
-<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a><span class="w">      </span><span class="c1"># ConfigMap-backed sub-agent: prompt loaded from a volume.</span>
-<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect</span>
-<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Reviews</span><span class="nv"> </span><span class="s">system</span><span class="nv"> </span><span class="s">architecture</span><span class="nv"> </span><span class="s">decisions"</span>
-<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a><span class="w">        </span><span class="nt">configmap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect-agent</span><span class="w">    </span><span class="c1"># K8s ConfigMap name</span>
-<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect.md</span><span class="w">             </span><span class="c1"># optional, defaults to &lt;name&gt;.md</span>
-<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a><span class="w">        </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">opus</span>
-<a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a>
-<a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="w">      </span><span class="c1"># Background sub-agent.</span>
-<a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linter</span>
-<a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Runs</span><span class="nv"> </span><span class="s">linting</span><span class="nv"> </span><span class="s">in</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">background"</span>
-<a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a><span class="w">        </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Run</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">project</span><span class="nv"> </span><span class="s">linter</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">report</span><span class="nv"> </span><span class="s">issues."</span>
-<a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a><span class="w">        </span><span class="nt">background</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="nt">sub_agents</span><span class="p">:</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">      </span><span class="c1"># Inline sub-agent: prompt is in the config.</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reviewer</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Reviews</span><span class="nv"> </span><span class="s">code</span><span class="nv"> </span><span class="s">changes</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">correctness</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">style"</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">        </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">          </span><span class="no">You are a code reviewer. Check for:</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">          </span><span class="no">- Bugs and logic errors</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="w">          </span><span class="no">- Security vulnerabilities</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="w">          </span><span class="no">- Style and convention violations</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="w">        </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">haiku</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="w">        </span><span class="nt">tools</span><span class="p">:</span>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Read</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Grep</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Glob</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="w">        </span><span class="nt">max_turns</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>
+<a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a><span class="w">      </span><span class="c1"># ConfigMap-backed sub-agent: prompt loaded from a volume.</span>
+<a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect</span>
+<a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Reviews</span><span class="nv"> </span><span class="s">system</span><span class="nv"> </span><span class="s">architecture</span><span class="nv"> </span><span class="s">decisions"</span>
+<a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a><span class="w">        </span><span class="nt">configmap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect-agent</span><span class="w">    </span><span class="c1"># K8s ConfigMap name</span>
+<a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a><span class="w">        </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">architect.md</span><span class="w">             </span><span class="c1"># optional, defaults to &lt;name&gt;.md</span>
+<a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a><span class="w">        </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">opus</span>
+<a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a>
+<a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a><span class="w">      </span><span class="c1"># Background sub-agent.</span>
+<a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linter</span>
+<a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a><span class="w">        </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">"Runs</span><span class="nv"> </span><span class="s">linting</span><span class="nv"> </span><span class="s">in</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">background"</span>
+<a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a><span class="w">        </span><span class="nt">prompt</span><span class="p">:</span><span class="w"> </span><span class="s">"Run</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">project</span><span class="nv"> </span><span class="s">linter</span><span class="nv"> </span><span class="s">and</span><span class="nv"> </span><span class="s">report</span><span class="nv"> </span><span class="s">issues."</span>
+<a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a><span class="w">        </span><span class="nt">background</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3684,8 +3755,8 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 <li>ConfigMap sub-agents are volume-mounted at <code>/subagents/&lt;name&gt;.md</code> and copied to <code>~/.claude/agents/&lt;name&gt;.md</code> by <code>setup-claude.sh</code> at container startup. Claude Code discovers agent files in this directory on its own.</li>
 </ul>
 <p>Creating a ConfigMap for a sub-agent:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>configmap<span class="w"> </span>architect-agent<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span>--from-file<span class="o">=</span>architect.md<span class="o">=</span>./agents/architect.md
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>configmap<span class="w"> </span>architect-agent<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span>--from-file<span class="o">=</span>architect.md<span class="o">=</span>./agents/architect.md
 </code></pre></div>
 <p>The Markdown file can include YAML frontmatter for metadata (model, tools, etc.) following the <a href="https://code.claude.com/docs/en/sub-agents">Claude Code sub-agents specification</a>.</p>
 <h4 id="agent-teams">Agent teams<a class="headerlink" href="#agent-teams" title="Permanent link">&para;</a></h4>
@@ -3696,12 +3767,12 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 <p>Agent teams start several independent Claude Code instances that collaborate through shared task lists and messages between agents, coordinated by a team lead. The team lead creates teammates as the task needs them, so you do not define agents in advance.</p>
 <p>This differs from <a href="#sub-agents">sub-agents</a>, which are lightweight helpers inside a single Claude Code session. You can use both at the same time.</p>
 <p>Configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="nt">agent_teams</span><span class="p">:</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">      </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span><span class="w">        </span><span class="c1"># required for headless K8s containers (no tmux)</span>
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">      </span><span class="nt">max_teammates</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="nt">agent_teams</span><span class="p">:</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">      </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">in-process</span><span class="w">        </span><span class="c1"># required for headless K8s containers (no tmux)</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">      </span><span class="nt">max_teammates</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3746,12 +3817,12 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 <p>Note: session persistence is opt-in. Git-based continuation (<code>PriorBranchName</code>) remains the default fallback.</p>
 </blockquote>
 <p>Configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span><span class="nt">session_persistence</span><span class="p">:</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">      </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">shared-pvc</span><span class="w">          </span><span class="c1"># shared-pvc | per-taskrun-pvc | s3</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">      </span><span class="nt">pvc_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osmia-agent-sessions</span><span class="w">  </span><span class="c1"># for shared-pvc backend</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">    </span><span class="nt">session_persistence</span><span class="p">:</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">      </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">      </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">shared-pvc</span><span class="w">          </span><span class="c1"># shared-pvc | per-taskrun-pvc | s3</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">      </span><span class="nt">pvc_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osmia-agent-sessions</span><span class="w">  </span><span class="c1"># for shared-pvc backend</span>
 </code></pre></div>
 <table>
 <thead>
@@ -3865,15 +3936,15 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </ul>
 <p>Tuning the TTL:</p>
 <p>Set <code>sessionPersistence.ttlMinutes</code> in <code>values.yaml</code>. A shorter TTL reduces storage usage but risks deleting session data before a long-running retry completes. A longer TTL is safer but accumulates more data. The default of 24 hours is conservative: most tasks finish their retries within minutes.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nt">sessionPersistence</span><span class="p">:</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">per-taskrun-pvc</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">ttlMinutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">720</span><span class="w">   </span><span class="c1"># 12 hours, more aggressive cleanup</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nt">sessionPersistence</span><span class="p">:</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">per-taskrun-pvc</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">ttlMinutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">720</span><span class="w">   </span><span class="c1"># 12 hours, more aggressive cleanup</span>
 </code></pre></div>
 <p>What happens if cleanup fails?</p>
 <p>The cleaner logs warnings and continues to the next item. Failed deletions are retried on the next sweep (1 hour later). No session data is critical. In the worst case, stale PVCs occupy storage until manually removed. You can monitor cleanup via the controller's structured logs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>level=INFO msg="per-taskrun-pvc cleaner: deleted stale session PVC" pvc=osmia-session-tr-abc123
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-session-tr-xyz error="..."
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>level=INFO msg="per-taskrun-pvc cleaner: deleted stale session PVC" pvc=osmia-session-tr-abc123
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>level=WARN msg="per-taskrun-pvc cleaner: failed to delete stale PVC" pvc=osmia-session-tr-xyz error="..."
 </code></pre></div>
 <p>Helm chart: set <code>sessionPersistence.enabled: true</code> and configure the chosen backend in <code>values.yaml</code>. The chart will create the shared PVC when <code>backend: shared-pvc</code> is selected.</p>
 <h4 id="continuation-prompts">Continuation prompts<a class="headerlink" href="#continuation-prompts" title="Permanent link">&para;</a></h4>
@@ -3892,25 +3963,25 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 <li>If the operator clicks Stop (or the message times out), the TaskRun transitions to <code>Failed</code> with a reason that includes the operator's name and any progress summary.</li>
 </ol>
 <p>Configuration:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span><span class="nt">claude-code</span><span class="p">:</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">      </span><span class="nt">continuation_prompt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">      </span><span class="c1"># enable user-prompted continuation</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">      </span><span class="nt">max_continuations</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># maximum times the operator can approve (default 3)</span>
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">      </span><span class="nt">session_persistence</span><span class="p">:</span>
-<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">per-taskrun-pvc</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">    </span><span class="nt">claude-code</span><span class="p">:</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">      </span><span class="nt">continuation_prompt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">      </span><span class="c1"># enable user-prompted continuation</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">      </span><span class="nt">max_continuations</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">           </span><span class="c1"># maximum times the operator can approve (default 3)</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">      </span><span class="nt">session_persistence</span><span class="p">:</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="w">        </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">per-taskrun-pvc</span>
 </code></pre></div>
 <p>Interaction with retries:</p>
 <p><code>ContinuationCount</code> and <code>RetryCount</code> are independent. A continuation resumes the existing session from where it paused. It does not count as a retry and does not use a retry slot. If a resumed session then fails for a different reason (e.g. a tool error), the normal retry mechanism applies separately.</p>
 <p>Operator experience:</p>
 <p>The Slack message sent to the approval channel looks like:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>Task tr-abc123 has exhausted its turn limit (50 turns, $0.42).
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>Progress: "Implemented the feature, tests passing, PR not yet raised."
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>Continuation 1 of 3. Approve to resume the session where it left off.
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>[Continue]  [Stop]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>Task tr-abc123 has exhausted its turn limit (50 turns, $0.42).
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>Progress: "Implemented the feature, tests passing, PR not yet raised."
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>Continuation 1 of 3. Approve to resume the session where it left off.
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>[Continue]  [Stop]
 </code></pre></div>
 <p>Clicking Continue resumes immediately. Clicking Stop marks the TaskRun as failed and records the operator's username in the failure reason.</p>
 <blockquote>
@@ -3954,29 +4025,29 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </tbody>
 </table>
 <h4 id="configuration_1">Configuration<a class="headerlink" href="#configuration_1" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">codex</span>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">    </span><span class="nt">codex</span><span class="p">:</span>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/unitaryai/engine-codex:v1.0.0"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">codex</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">    </span><span class="nt">codex</span><span class="p">:</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/unitaryai/engine-codex:v1.0.0"</span>
 </code></pre></div>
 <h4 id="command_1">Command<a class="headerlink" href="#command_1" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>codex<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span>--quiet<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span>--approval-mode<span class="w"> </span>full-auto<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span>--full-stdout<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span><span class="s2">"&lt;prompt&gt;"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>codex<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span>--quiet<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span>--approval-mode<span class="w"> </span>full-auto<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span>--full-stdout<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span><span class="s2">"&lt;prompt&gt;"</span>
 </code></pre></div>
 <h4 id="guard-rails-prompt-embedded">Guard rails (prompt-embedded)<a class="headerlink" href="#guard-rails-prompt-embedded" title="Permanent link">&para;</a></h4>
 <p>Codex does not support a hooks system. Guard rails are appended directly to the task prompt:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>## Guard Rails
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>You MUST follow these rules strictly:
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>- Do NOT execute destructive commands (e.g. rm -rf /, drop database, etc.)
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>- Do NOT modify or read files matching sensitive patterns (*.env, **/secrets/**, *.key, *.pem)
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>- Do NOT make network requests to external services other than the repository remote
-<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>- Do NOT install packages or dependencies without explicit instructions to do so
-<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>- Do NOT push commits directly; stage and commit changes locally only
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>## Guard Rails
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>You MUST follow these rules strictly:
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>- Do NOT execute destructive commands (e.g. rm -rf /, drop database, etc.)
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>- Do NOT modify or read files matching sensitive patterns (*.env, **/secrets/**, *.key, *.pem)
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>- Do NOT make network requests to external services other than the repository remote
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>- Do NOT install packages or dependencies without explicit instructions to do so
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a>- Do NOT push commits directly; stage and commit changes locally only
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Prompt-based guard rails are advisory</p>
@@ -4054,18 +4125,18 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </tbody>
 </table>
 <h4 id="configuration_2">Configuration<a class="headerlink" href="#configuration_2" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="nt">config</span><span class="p">:</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aider</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="nt">aider</span><span class="p">:</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/unitaryai/engine-aider:v1.0.0"</span>
-<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="w">      </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"anthropic"</span><span class="w">   </span><span class="c1"># or "openai"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="nt">config</span><span class="p">:</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aider</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="nt">aider</span><span class="p">:</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="w">      </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="s">"ghcr.io/unitaryai/engine-aider:v1.0.0"</span>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="w">      </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">"anthropic"</span><span class="w">   </span><span class="c1"># or "openai"</span>
 </code></pre></div>
 <h4 id="command_2">Command<a class="headerlink" href="#command_2" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>aider<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span>--yes<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span>--no-git<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">  </span>--message<span class="w"> </span><span class="s2">"&lt;prompt&gt;"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>aider<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span>--yes<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">  </span>--no-git<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">  </span>--message<span class="w"> </span><span class="s2">"&lt;prompt&gt;"</span>
 </code></pre></div>
 <p>The <code>--no-git</code> flag is used because Osmia manages git operations via the SCM backend, not via Aider's built-in git support.</p>
 <h4 id="model-provider">Model provider<a class="headerlink" href="#model-provider" title="Permanent link">&para;</a></h4>
@@ -4125,14 +4196,14 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </tbody>
 </table>
 <h4 id="configuration_3">Configuration<a class="headerlink" href="#configuration_3" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">opencode</span>
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">  </span><span class="nt">opencode</span><span class="p">:</span>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/engine-opencode:v1.0.0</span><span class="w">  </span><span class="c1"># optional override</span>
-<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="w">    </span><span class="nt">auth</span><span class="p">:</span>
-<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="w">      </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api_key</span>
-<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="w">      </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic-credentials</span>
-<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic</span><span class="w">  </span><span class="c1"># or "openai", "google"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">opencode</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">  </span><span class="nt">opencode</span><span class="p">:</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/engine-opencode:v1.0.0</span><span class="w">  </span><span class="c1"># optional override</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">    </span><span class="nt">auth</span><span class="p">:</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="w">      </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api_key</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="w">      </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic-credentials</span>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic</span><span class="w">  </span><span class="c1"># or "openai", "google"</span>
 </code></pre></div>
 <h4 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h4>
 <table>
@@ -4199,15 +4270,15 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 </tbody>
 </table>
 <h4 id="configuration_4">Configuration<a class="headerlink" href="#configuration_4" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nt">engines</span><span class="p">:</span>
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cline</span>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="w">  </span><span class="nt">cline</span><span class="p">:</span>
-<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/engine-cline:v1.0.0</span><span class="w">  </span><span class="c1"># optional override</span>
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="w">    </span><span class="nt">auth</span><span class="p">:</span>
-<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="w">      </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api_key</span>
-<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="w">      </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic-credentials</span>
-<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic</span><span class="w">  </span><span class="c1"># or "openai", "google", "bedrock"</span>
-<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="w">    </span><span class="nt">mcp_enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">    </span><span class="c1"># append --mcp flag</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="nt">engines</span><span class="p">:</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="w">  </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cline</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="w">  </span><span class="nt">cline</span><span class="p">:</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/unitaryai/engine-cline:v1.0.0</span><span class="w">  </span><span class="c1"># optional override</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="w">    </span><span class="nt">auth</span><span class="p">:</span>
+<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a><span class="w">      </span><span class="nt">method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api_key</span>
+<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="w">      </span><span class="nt">api_key_secret</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic-credentials</span>
+<a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic</span><span class="w">  </span><span class="c1"># or "openai", "google", "bedrock"</span>
+<a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a><span class="w">    </span><span class="nt">mcp_enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">    </span><span class="c1"># append --mcp flag</span>
 </code></pre></div>
 <h4 id="providers_1">Providers<a class="headerlink" href="#providers_1" title="Permanent link">&para;</a></h4>
 <table>
@@ -4336,137 +4407,137 @@ memory requests and limits for agent pods cannot be configured yet.</p>
 <p>Recommendation: use Claude Code as the default engine, because it enforces guard rails through hooks and has built-in heartbeat telemetry. Use Codex or Aider when you need OpenAI models or have specific tool preferences. OpenCode supports Google models. Cline is a community template without a published image.</p>
 <h2 id="writing-a-custom-engine">Writing a custom engine<a class="headerlink" href="#writing-a-custom-engine" title="Permanent link">&para;</a></h2>
 <p>To add a new engine, create a new package under <code>pkg/engine/</code> and implement the <code>ExecutionEngine</code> interface:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="kn">package</span><span class="w"> </span><span class="nx">myengine</span>
-<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>
-<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
-<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="w">    </span><span class="s">"fmt"</span>
-<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="w">    </span><span class="s">"strings"</span>
-<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
-<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="w">    </span><span class="s">"github.com/unitaryai/osmia/pkg/engine"</span>
-<a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a><span class="p">)</span>
-<a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a>
-<a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
-<a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a><span class="w">    </span><span class="nx">engineName</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"my-engine"</span>
-<a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a><span class="w">    </span><span class="nx">interfaceVersion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
-<a id="__codelineno-31-13" name="__codelineno-31-13" href="#__codelineno-31-13"></a><span class="w">    </span><span class="nx">defaultImage</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s">"ghcr.io/myorg/my-engine:latest"</span>
-<a id="__codelineno-31-14" name="__codelineno-31-14" href="#__codelineno-31-14"></a><span class="p">)</span>
-<a id="__codelineno-31-15" name="__codelineno-31-15" href="#__codelineno-31-15"></a>
-<a id="__codelineno-31-16" name="__codelineno-31-16" href="#__codelineno-31-16"></a><span class="c1">// MyEngine implements engine.ExecutionEngine.</span>
-<a id="__codelineno-31-17" name="__codelineno-31-17" href="#__codelineno-31-17"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MyEngine</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
-<a id="__codelineno-31-18" name="__codelineno-31-18" href="#__codelineno-31-18"></a>
-<a id="__codelineno-31-19" name="__codelineno-31-19" href="#__codelineno-31-19"></a><span class="kd">func</span><span class="w"> </span><span class="nx">New</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">MyEngine</span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-31-20" name="__codelineno-31-20" href="#__codelineno-31-20"></a>
-<a id="__codelineno-31-21" name="__codelineno-31-21" href="#__codelineno-31-21"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">engineName</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-31-22" name="__codelineno-31-22" href="#__codelineno-31-22"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">InterfaceVersion</span><span class="p">()</span><span class="w"> </span><span class="kt">int</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">interfaceVersion</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-31-23" name="__codelineno-31-23" href="#__codelineno-31-23"></a>
-<a id="__codelineno-31-24" name="__codelineno-31-24" href="#__codelineno-31-24"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">BuildExecutionSpec</span><span class="p">(</span><span class="nx">task</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">,</span><span class="w"> </span><span class="nx">config</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">engine</span><span class="p">.</span><span class="nx">ExecutionSpec</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-25" name="__codelineno-31-25" href="#__codelineno-31-25"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-26" name="__codelineno-31-26" href="#__codelineno-31-26"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"task ID must not be empty"</span><span class="p">)</span>
-<a id="__codelineno-31-27" name="__codelineno-31-27" href="#__codelineno-31-27"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-31-28" name="__codelineno-31-28" href="#__codelineno-31-28"></a>
-<a id="__codelineno-31-29" name="__codelineno-31-29" href="#__codelineno-31-29"></a><span class="w">    </span><span class="nx">prompt</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">BuildPrompt</span><span class="p">(</span><span class="nx">task</span><span class="p">)</span>
-<a id="__codelineno-31-30" name="__codelineno-31-30" href="#__codelineno-31-30"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-31" name="__codelineno-31-31" href="#__codelineno-31-31"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"building prompt: %w"</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
-<a id="__codelineno-31-32" name="__codelineno-31-32" href="#__codelineno-31-32"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-31-33" name="__codelineno-31-33" href="#__codelineno-31-33"></a>
-<a id="__codelineno-31-34" name="__codelineno-31-34" href="#__codelineno-31-34"></a><span class="w">    </span><span class="nx">image</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">config</span><span class="p">.</span><span class="nx">Image</span>
-<a id="__codelineno-31-35" name="__codelineno-31-35" href="#__codelineno-31-35"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">image</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-36" name="__codelineno-31-36" href="#__codelineno-31-36"></a><span class="w">        </span><span class="nx">image</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">defaultImage</span>
-<a id="__codelineno-31-37" name="__codelineno-31-37" href="#__codelineno-31-37"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-31-38" name="__codelineno-31-38" href="#__codelineno-31-38"></a>
-<a id="__codelineno-31-39" name="__codelineno-31-39" href="#__codelineno-31-39"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">engine</span><span class="p">.</span><span class="nx">ExecutionSpec</span><span class="p">{</span>
-<a id="__codelineno-31-40" name="__codelineno-31-40" href="#__codelineno-31-40"></a><span class="w">        </span><span class="nx">Image</span><span class="p">:</span><span class="w">   </span><span class="nx">image</span><span class="p">,</span>
-<a id="__codelineno-31-41" name="__codelineno-31-41" href="#__codelineno-31-41"></a><span class="w">        </span><span class="nx">Command</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">"my-cli"</span><span class="p">,</span><span class="w"> </span><span class="s">"--prompt"</span><span class="p">,</span><span class="w"> </span><span class="nx">prompt</span><span class="p">},</span>
-<a id="__codelineno-31-42" name="__codelineno-31-42" href="#__codelineno-31-42"></a><span class="w">        </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span>
-<a id="__codelineno-31-43" name="__codelineno-31-43" href="#__codelineno-31-43"></a><span class="w">            </span><span class="s">"OSMIA_TASK_ID"</span><span class="p">:</span><span class="w">   </span><span class="nx">task</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span>
-<a id="__codelineno-31-44" name="__codelineno-31-44" href="#__codelineno-31-44"></a><span class="w">            </span><span class="s">"OSMIA_TICKET_ID"</span><span class="p">:</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">TicketID</span><span class="p">,</span>
-<a id="__codelineno-31-45" name="__codelineno-31-45" href="#__codelineno-31-45"></a><span class="w">            </span><span class="s">"OSMIA_REPO_URL"</span><span class="p">:</span><span class="w">  </span><span class="nx">task</span><span class="p">.</span><span class="nx">RepoURL</span><span class="p">,</span>
-<a id="__codelineno-31-46" name="__codelineno-31-46" href="#__codelineno-31-46"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-31-47" name="__codelineno-31-47" href="#__codelineno-31-47"></a><span class="w">        </span><span class="nx">SecretEnv</span><span class="p">:</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span>
-<a id="__codelineno-31-48" name="__codelineno-31-48" href="#__codelineno-31-48"></a><span class="w">            </span><span class="s">"MY_API_KEY"</span><span class="p">:</span><span class="w"> </span><span class="s">"my-api-key-secret"</span><span class="p">,</span>
-<a id="__codelineno-31-49" name="__codelineno-31-49" href="#__codelineno-31-49"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-31-50" name="__codelineno-31-50" href="#__codelineno-31-50"></a><span class="w">        </span><span class="nx">Volumes</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">engine</span><span class="p">.</span><span class="nx">VolumeMount</span><span class="p">{</span>
-<a id="__codelineno-31-51" name="__codelineno-31-51" href="#__codelineno-31-51"></a><span class="w">            </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">"workspace"</span><span class="p">,</span><span class="w"> </span><span class="nx">MountPath</span><span class="p">:</span><span class="w"> </span><span class="s">"/workspace"</span><span class="p">},</span>
-<a id="__codelineno-31-52" name="__codelineno-31-52" href="#__codelineno-31-52"></a><span class="w">            </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">"config"</span><span class="p">,</span><span class="w"> </span><span class="nx">MountPath</span><span class="p">:</span><span class="w"> </span><span class="s">"/config"</span><span class="p">,</span><span class="w"> </span><span class="nx">ReadOnly</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">},</span>
-<a id="__codelineno-31-53" name="__codelineno-31-53" href="#__codelineno-31-53"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-31-54" name="__codelineno-31-54" href="#__codelineno-31-54"></a><span class="w">        </span><span class="nx">ActiveDeadlineSeconds</span><span class="p">:</span><span class="w"> </span><span class="nx">config</span><span class="p">.</span><span class="nx">TimeoutSeconds</span><span class="p">,</span>
-<a id="__codelineno-31-55" name="__codelineno-31-55" href="#__codelineno-31-55"></a><span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
-<a id="__codelineno-31-56" name="__codelineno-31-56" href="#__codelineno-31-56"></a><span class="p">}</span>
-<a id="__codelineno-31-57" name="__codelineno-31-57" href="#__codelineno-31-57"></a>
-<a id="__codelineno-31-58" name="__codelineno-31-58" href="#__codelineno-31-58"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">BuildPrompt</span><span class="p">(</span><span class="nx">task</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-59" name="__codelineno-31-59" href="#__codelineno-31-59"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">Title</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-60" name="__codelineno-31-60" href="#__codelineno-31-60"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">""</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"task title must not be empty"</span><span class="p">)</span>
-<a id="__codelineno-31-61" name="__codelineno-31-61" href="#__codelineno-31-61"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-31-62" name="__codelineno-31-62" href="#__codelineno-31-62"></a>
-<a id="__codelineno-31-63" name="__codelineno-31-63" href="#__codelineno-31-63"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">Builder</span>
-<a id="__codelineno-31-64" name="__codelineno-31-64" href="#__codelineno-31-64"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"# Task: "</span><span class="p">)</span>
-<a id="__codelineno-31-65" name="__codelineno-31-65" href="#__codelineno-31-65"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="nx">task</span><span class="p">.</span><span class="nx">Title</span><span class="p">)</span>
-<a id="__codelineno-31-66" name="__codelineno-31-66" href="#__codelineno-31-66"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"\n\n"</span><span class="p">)</span>
-<a id="__codelineno-31-67" name="__codelineno-31-67" href="#__codelineno-31-67"></a>
-<a id="__codelineno-31-68" name="__codelineno-31-68" href="#__codelineno-31-68"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">Description</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-31-69" name="__codelineno-31-69" href="#__codelineno-31-69"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"## Description\n\n"</span><span class="p">)</span>
-<a id="__codelineno-31-70" name="__codelineno-31-70" href="#__codelineno-31-70"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="nx">task</span><span class="p">.</span><span class="nx">Description</span><span class="p">)</span>
-<a id="__codelineno-31-71" name="__codelineno-31-71" href="#__codelineno-31-71"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"\n\n"</span><span class="p">)</span>
-<a id="__codelineno-31-72" name="__codelineno-31-72" href="#__codelineno-31-72"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-31-73" name="__codelineno-31-73" href="#__codelineno-31-73"></a>
-<a id="__codelineno-31-74" name="__codelineno-31-74" href="#__codelineno-31-74"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"## Instructions\n\n"</span><span class="p">)</span>
-<a id="__codelineno-31-75" name="__codelineno-31-75" href="#__codelineno-31-75"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"Complete the task above. Work in /workspace.\n"</span><span class="p">)</span>
-<a id="__codelineno-31-76" name="__codelineno-31-76" href="#__codelineno-31-76"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"Write result.json to /workspace/result.json when finished.\n"</span><span class="p">)</span>
-<a id="__codelineno-31-77" name="__codelineno-31-77" href="#__codelineno-31-77"></a>
-<a id="__codelineno-31-78" name="__codelineno-31-78" href="#__codelineno-31-78"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">String</span><span class="p">(),</span><span class="w"> </span><span class="kc">nil</span>
-<a id="__codelineno-31-79" name="__codelineno-31-79" href="#__codelineno-31-79"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="kn">package</span><span class="w"> </span><span class="nx">myengine</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="w">    </span><span class="s">"fmt"</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="w">    </span><span class="s">"strings"</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="w">    </span><span class="s">"github.com/unitaryai/osmia/pkg/engine"</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a><span class="p">)</span>
+<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a>
+<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a><span class="kd">const</span><span class="w"> </span><span class="p">(</span>
+<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a><span class="w">    </span><span class="nx">engineName</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"my-engine"</span>
+<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a><span class="w">    </span><span class="nx">interfaceVersion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a><span class="w">    </span><span class="nx">defaultImage</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="s">"ghcr.io/myorg/my-engine:latest"</span>
+<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a><span class="p">)</span>
+<a id="__codelineno-32-15" name="__codelineno-32-15" href="#__codelineno-32-15"></a>
+<a id="__codelineno-32-16" name="__codelineno-32-16" href="#__codelineno-32-16"></a><span class="c1">// MyEngine implements engine.ExecutionEngine.</span>
+<a id="__codelineno-32-17" name="__codelineno-32-17" href="#__codelineno-32-17"></a><span class="kd">type</span><span class="w"> </span><span class="nx">MyEngine</span><span class="w"> </span><span class="kd">struct</span><span class="p">{}</span>
+<a id="__codelineno-32-18" name="__codelineno-32-18" href="#__codelineno-32-18"></a>
+<a id="__codelineno-32-19" name="__codelineno-32-19" href="#__codelineno-32-19"></a><span class="kd">func</span><span class="w"> </span><span class="nx">New</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">MyEngine</span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-32-20" name="__codelineno-32-20" href="#__codelineno-32-20"></a>
+<a id="__codelineno-32-21" name="__codelineno-32-21" href="#__codelineno-32-21"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">Name</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">engineName</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-32-22" name="__codelineno-32-22" href="#__codelineno-32-22"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">InterfaceVersion</span><span class="p">()</span><span class="w"> </span><span class="kt">int</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">interfaceVersion</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-32-23" name="__codelineno-32-23" href="#__codelineno-32-23"></a>
+<a id="__codelineno-32-24" name="__codelineno-32-24" href="#__codelineno-32-24"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">BuildExecutionSpec</span><span class="p">(</span><span class="nx">task</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">,</span><span class="w"> </span><span class="nx">config</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">engine</span><span class="p">.</span><span class="nx">ExecutionSpec</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-25" name="__codelineno-32-25" href="#__codelineno-32-25"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">ID</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-26" name="__codelineno-32-26" href="#__codelineno-32-26"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"task ID must not be empty"</span><span class="p">)</span>
+<a id="__codelineno-32-27" name="__codelineno-32-27" href="#__codelineno-32-27"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-32-28" name="__codelineno-32-28" href="#__codelineno-32-28"></a>
+<a id="__codelineno-32-29" name="__codelineno-32-29" href="#__codelineno-32-29"></a><span class="w">    </span><span class="nx">prompt</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">BuildPrompt</span><span class="p">(</span><span class="nx">task</span><span class="p">)</span>
+<a id="__codelineno-32-30" name="__codelineno-32-30" href="#__codelineno-32-30"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-31" name="__codelineno-32-31" href="#__codelineno-32-31"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"building prompt: %w"</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<a id="__codelineno-32-32" name="__codelineno-32-32" href="#__codelineno-32-32"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-32-33" name="__codelineno-32-33" href="#__codelineno-32-33"></a>
+<a id="__codelineno-32-34" name="__codelineno-32-34" href="#__codelineno-32-34"></a><span class="w">    </span><span class="nx">image</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">config</span><span class="p">.</span><span class="nx">Image</span>
+<a id="__codelineno-32-35" name="__codelineno-32-35" href="#__codelineno-32-35"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">image</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-36" name="__codelineno-32-36" href="#__codelineno-32-36"></a><span class="w">        </span><span class="nx">image</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">defaultImage</span>
+<a id="__codelineno-32-37" name="__codelineno-32-37" href="#__codelineno-32-37"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-32-38" name="__codelineno-32-38" href="#__codelineno-32-38"></a>
+<a id="__codelineno-32-39" name="__codelineno-32-39" href="#__codelineno-32-39"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">engine</span><span class="p">.</span><span class="nx">ExecutionSpec</span><span class="p">{</span>
+<a id="__codelineno-32-40" name="__codelineno-32-40" href="#__codelineno-32-40"></a><span class="w">        </span><span class="nx">Image</span><span class="p">:</span><span class="w">   </span><span class="nx">image</span><span class="p">,</span>
+<a id="__codelineno-32-41" name="__codelineno-32-41" href="#__codelineno-32-41"></a><span class="w">        </span><span class="nx">Command</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="s">"my-cli"</span><span class="p">,</span><span class="w"> </span><span class="s">"--prompt"</span><span class="p">,</span><span class="w"> </span><span class="nx">prompt</span><span class="p">},</span>
+<a id="__codelineno-32-42" name="__codelineno-32-42" href="#__codelineno-32-42"></a><span class="w">        </span><span class="nx">Env</span><span class="p">:</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span>
+<a id="__codelineno-32-43" name="__codelineno-32-43" href="#__codelineno-32-43"></a><span class="w">            </span><span class="s">"OSMIA_TASK_ID"</span><span class="p">:</span><span class="w">   </span><span class="nx">task</span><span class="p">.</span><span class="nx">ID</span><span class="p">,</span>
+<a id="__codelineno-32-44" name="__codelineno-32-44" href="#__codelineno-32-44"></a><span class="w">            </span><span class="s">"OSMIA_TICKET_ID"</span><span class="p">:</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">TicketID</span><span class="p">,</span>
+<a id="__codelineno-32-45" name="__codelineno-32-45" href="#__codelineno-32-45"></a><span class="w">            </span><span class="s">"OSMIA_REPO_URL"</span><span class="p">:</span><span class="w">  </span><span class="nx">task</span><span class="p">.</span><span class="nx">RepoURL</span><span class="p">,</span>
+<a id="__codelineno-32-46" name="__codelineno-32-46" href="#__codelineno-32-46"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-32-47" name="__codelineno-32-47" href="#__codelineno-32-47"></a><span class="w">        </span><span class="nx">SecretEnv</span><span class="p">:</span><span class="w"> </span><span class="kt">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span>
+<a id="__codelineno-32-48" name="__codelineno-32-48" href="#__codelineno-32-48"></a><span class="w">            </span><span class="s">"MY_API_KEY"</span><span class="p">:</span><span class="w"> </span><span class="s">"my-api-key-secret"</span><span class="p">,</span>
+<a id="__codelineno-32-49" name="__codelineno-32-49" href="#__codelineno-32-49"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-32-50" name="__codelineno-32-50" href="#__codelineno-32-50"></a><span class="w">        </span><span class="nx">Volumes</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">engine</span><span class="p">.</span><span class="nx">VolumeMount</span><span class="p">{</span>
+<a id="__codelineno-32-51" name="__codelineno-32-51" href="#__codelineno-32-51"></a><span class="w">            </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">"workspace"</span><span class="p">,</span><span class="w"> </span><span class="nx">MountPath</span><span class="p">:</span><span class="w"> </span><span class="s">"/workspace"</span><span class="p">},</span>
+<a id="__codelineno-32-52" name="__codelineno-32-52" href="#__codelineno-32-52"></a><span class="w">            </span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">"config"</span><span class="p">,</span><span class="w"> </span><span class="nx">MountPath</span><span class="p">:</span><span class="w"> </span><span class="s">"/config"</span><span class="p">,</span><span class="w"> </span><span class="nx">ReadOnly</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">},</span>
+<a id="__codelineno-32-53" name="__codelineno-32-53" href="#__codelineno-32-53"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-32-54" name="__codelineno-32-54" href="#__codelineno-32-54"></a><span class="w">        </span><span class="nx">ActiveDeadlineSeconds</span><span class="p">:</span><span class="w"> </span><span class="nx">config</span><span class="p">.</span><span class="nx">TimeoutSeconds</span><span class="p">,</span>
+<a id="__codelineno-32-55" name="__codelineno-32-55" href="#__codelineno-32-55"></a><span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="kc">nil</span>
+<a id="__codelineno-32-56" name="__codelineno-32-56" href="#__codelineno-32-56"></a><span class="p">}</span>
+<a id="__codelineno-32-57" name="__codelineno-32-57" href="#__codelineno-32-57"></a>
+<a id="__codelineno-32-58" name="__codelineno-32-58" href="#__codelineno-32-58"></a><span class="kd">func</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="w"> </span><span class="o">*</span><span class="nx">MyEngine</span><span class="p">)</span><span class="w"> </span><span class="nx">BuildPrompt</span><span class="p">(</span><span class="nx">task</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">)</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-59" name="__codelineno-32-59" href="#__codelineno-32-59"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">Title</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-60" name="__codelineno-32-60" href="#__codelineno-32-60"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s">""</span><span class="p">,</span><span class="w"> </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Errorf</span><span class="p">(</span><span class="s">"task title must not be empty"</span><span class="p">)</span>
+<a id="__codelineno-32-61" name="__codelineno-32-61" href="#__codelineno-32-61"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-32-62" name="__codelineno-32-62" href="#__codelineno-32-62"></a>
+<a id="__codelineno-32-63" name="__codelineno-32-63" href="#__codelineno-32-63"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">b</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">Builder</span>
+<a id="__codelineno-32-64" name="__codelineno-32-64" href="#__codelineno-32-64"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"# Task: "</span><span class="p">)</span>
+<a id="__codelineno-32-65" name="__codelineno-32-65" href="#__codelineno-32-65"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="nx">task</span><span class="p">.</span><span class="nx">Title</span><span class="p">)</span>
+<a id="__codelineno-32-66" name="__codelineno-32-66" href="#__codelineno-32-66"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"\n\n"</span><span class="p">)</span>
+<a id="__codelineno-32-67" name="__codelineno-32-67" href="#__codelineno-32-67"></a>
+<a id="__codelineno-32-68" name="__codelineno-32-68" href="#__codelineno-32-68"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">task</span><span class="p">.</span><span class="nx">Description</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">""</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-32-69" name="__codelineno-32-69" href="#__codelineno-32-69"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"## Description\n\n"</span><span class="p">)</span>
+<a id="__codelineno-32-70" name="__codelineno-32-70" href="#__codelineno-32-70"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="nx">task</span><span class="p">.</span><span class="nx">Description</span><span class="p">)</span>
+<a id="__codelineno-32-71" name="__codelineno-32-71" href="#__codelineno-32-71"></a><span class="w">        </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"\n\n"</span><span class="p">)</span>
+<a id="__codelineno-32-72" name="__codelineno-32-72" href="#__codelineno-32-72"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-32-73" name="__codelineno-32-73" href="#__codelineno-32-73"></a>
+<a id="__codelineno-32-74" name="__codelineno-32-74" href="#__codelineno-32-74"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"## Instructions\n\n"</span><span class="p">)</span>
+<a id="__codelineno-32-75" name="__codelineno-32-75" href="#__codelineno-32-75"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"Complete the task above. Work in /workspace.\n"</span><span class="p">)</span>
+<a id="__codelineno-32-76" name="__codelineno-32-76" href="#__codelineno-32-76"></a><span class="w">    </span><span class="nx">b</span><span class="p">.</span><span class="nx">WriteString</span><span class="p">(</span><span class="s">"Write result.json to /workspace/result.json when finished.\n"</span><span class="p">)</span>
+<a id="__codelineno-32-77" name="__codelineno-32-77" href="#__codelineno-32-77"></a>
+<a id="__codelineno-32-78" name="__codelineno-32-78" href="#__codelineno-32-78"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">b</span><span class="p">.</span><span class="nx">String</span><span class="p">(),</span><span class="w"> </span><span class="kc">nil</span>
+<a id="__codelineno-32-79" name="__codelineno-32-79" href="#__codelineno-32-79"></a><span class="p">}</span>
 </code></pre></div>
 <p>Register the engine with the controller at startup:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="nx">reconciler</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">controller</span><span class="p">.</span><span class="nx">NewReconciler</span><span class="p">(</span><span class="nx">cfg</span><span class="p">,</span><span class="w"> </span><span class="nx">logger</span><span class="p">,</span>
-<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">claudecode</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
-<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">codex</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
-<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">aider</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
-<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">myengine</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
-<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="nx">reconciler</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">controller</span><span class="p">.</span><span class="nx">NewReconciler</span><span class="p">(</span><span class="nx">cfg</span><span class="p">,</span><span class="w"> </span><span class="nx">logger</span><span class="p">,</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">claudecode</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">codex</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">aider</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="w">    </span><span class="nx">controller</span><span class="p">.</span><span class="nx">WithEngine</span><span class="p">(</span><span class="nx">myengine</span><span class="p">.</span><span class="nx">New</span><span class="p">()),</span>
+<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="p">)</span>
 </code></pre></div>
 <h3 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h3>
 <p>Write table-driven tests for both <code>BuildExecutionSpec</code> and <code>BuildPrompt</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="kd">func</span><span class="w"> </span><span class="nx">TestMyEngine_BuildExecutionSpec</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="w">    </span><span class="nx">tests</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">        </span><span class="nx">name</span><span class="w">    </span><span class="kt">string</span>
-<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="w">        </span><span class="nx">task</span><span class="w">    </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span>
-<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="w">        </span><span class="nx">config</span><span class="w">  </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span>
-<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="w">        </span><span class="nx">wantErr</span><span class="w"> </span><span class="kt">bool</span>
-<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a><span class="w">    </span><span class="p">}{</span>
-<a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a><span class="w">        </span><span class="p">{</span>
-<a id="__codelineno-33-9" name="__codelineno-33-9" href="#__codelineno-33-9"></a><span class="w">            </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="s">"valid task produces spec"</span><span class="p">,</span>
-<a id="__codelineno-33-10" name="__codelineno-33-10" href="#__codelineno-33-10"></a><span class="w">            </span><span class="nx">task</span><span class="p">:</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span><span class="w"> </span><span class="s">"1"</span><span class="p">,</span><span class="w"> </span><span class="nx">Title</span><span class="p">:</span><span class="w"> </span><span class="s">"Fix bug"</span><span class="p">},</span>
-<a id="__codelineno-33-11" name="__codelineno-33-11" href="#__codelineno-33-11"></a><span class="w">            </span><span class="nx">config</span><span class="p">:</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span><span class="p">{</span><span class="nx">TimeoutSeconds</span><span class="p">:</span><span class="w"> </span><span class="mi">3600</span><span class="p">},</span>
-<a id="__codelineno-33-12" name="__codelineno-33-12" href="#__codelineno-33-12"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-33-13" name="__codelineno-33-13" href="#__codelineno-33-13"></a><span class="w">        </span><span class="p">{</span>
-<a id="__codelineno-33-14" name="__codelineno-33-14" href="#__codelineno-33-14"></a><span class="w">            </span><span class="nx">name</span><span class="p">:</span><span class="w">    </span><span class="s">"empty ID returns error"</span><span class="p">,</span>
-<a id="__codelineno-33-15" name="__codelineno-33-15" href="#__codelineno-33-15"></a><span class="w">            </span><span class="nx">task</span><span class="p">:</span><span class="w">    </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">{</span><span class="nx">Title</span><span class="p">:</span><span class="w"> </span><span class="s">"Fix bug"</span><span class="p">},</span>
-<a id="__codelineno-33-16" name="__codelineno-33-16" href="#__codelineno-33-16"></a><span class="w">            </span><span class="nx">wantErr</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-33-17" name="__codelineno-33-17" href="#__codelineno-33-17"></a><span class="w">        </span><span class="p">},</span>
-<a id="__codelineno-33-18" name="__codelineno-33-18" href="#__codelineno-33-18"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-33-19" name="__codelineno-33-19" href="#__codelineno-33-19"></a>
-<a id="__codelineno-33-20" name="__codelineno-33-20" href="#__codelineno-33-20"></a><span class="w">    </span><span class="nx">e</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">New</span><span class="p">()</span>
-<a id="__codelineno-33-21" name="__codelineno-33-21" href="#__codelineno-33-21"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">tt</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tests</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-33-22" name="__codelineno-33-22" href="#__codelineno-33-22"></a><span class="w">        </span><span class="nx">t</span><span class="p">.</span><span class="nx">Run</span><span class="p">(</span><span class="nx">tt</span><span class="p">.</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-33-23" name="__codelineno-33-23" href="#__codelineno-33-23"></a><span class="w">            </span><span class="nx">spec</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">BuildExecutionSpec</span><span class="p">(</span><span class="nx">tt</span><span class="p">.</span><span class="nx">task</span><span class="p">,</span><span class="w"> </span><span class="nx">tt</span><span class="p">.</span><span class="nx">config</span><span class="p">)</span>
-<a id="__codelineno-33-24" name="__codelineno-33-24" href="#__codelineno-33-24"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">tt</span><span class="p">.</span><span class="nx">wantErr</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-33-25" name="__codelineno-33-25" href="#__codelineno-33-25"></a><span class="w">                </span><span class="nx">require</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
-<a id="__codelineno-33-26" name="__codelineno-33-26" href="#__codelineno-33-26"></a><span class="w">                </span><span class="k">return</span>
-<a id="__codelineno-33-27" name="__codelineno-33-27" href="#__codelineno-33-27"></a><span class="w">            </span><span class="p">}</span>
-<a id="__codelineno-33-28" name="__codelineno-33-28" href="#__codelineno-33-28"></a><span class="w">            </span><span class="nx">require</span><span class="p">.</span><span class="nx">NoError</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
-<a id="__codelineno-33-29" name="__codelineno-33-29" href="#__codelineno-33-29"></a><span class="w">            </span><span class="nx">assert</span><span class="p">.</span><span class="nx">NotEmpty</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="p">.</span><span class="nx">Image</span><span class="p">)</span>
-<a id="__codelineno-33-30" name="__codelineno-33-30" href="#__codelineno-33-30"></a><span class="w">            </span><span class="nx">assert</span><span class="p">.</span><span class="nx">NotEmpty</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="p">.</span><span class="nx">Command</span><span class="p">)</span>
-<a id="__codelineno-33-31" name="__codelineno-33-31" href="#__codelineno-33-31"></a><span class="w">        </span><span class="p">})</span>
-<a id="__codelineno-33-32" name="__codelineno-33-32" href="#__codelineno-33-32"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-33-33" name="__codelineno-33-33" href="#__codelineno-33-33"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="kd">func</span><span class="w"> </span><span class="nx">TestMyEngine_BuildExecutionSpec</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="w">    </span><span class="nx">tests</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="p">[]</span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="w">        </span><span class="nx">name</span><span class="w">    </span><span class="kt">string</span>
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="w">        </span><span class="nx">task</span><span class="w">    </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span>
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="w">        </span><span class="nx">config</span><span class="w">  </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span>
+<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a><span class="w">        </span><span class="nx">wantErr</span><span class="w"> </span><span class="kt">bool</span>
+<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="w">    </span><span class="p">}{</span>
+<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a><span class="w">            </span><span class="nx">name</span><span class="p">:</span><span class="w"> </span><span class="s">"valid task produces spec"</span><span class="p">,</span>
+<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a><span class="w">            </span><span class="nx">task</span><span class="p">:</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">{</span><span class="nx">ID</span><span class="p">:</span><span class="w"> </span><span class="s">"1"</span><span class="p">,</span><span class="w"> </span><span class="nx">Title</span><span class="p">:</span><span class="w"> </span><span class="s">"Fix bug"</span><span class="p">},</span>
+<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="w">            </span><span class="nx">config</span><span class="p">:</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">EngineConfig</span><span class="p">{</span><span class="nx">TimeoutSeconds</span><span class="p">:</span><span class="w"> </span><span class="mi">3600</span><span class="p">},</span>
+<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a><span class="w">            </span><span class="nx">name</span><span class="p">:</span><span class="w">    </span><span class="s">"empty ID returns error"</span><span class="p">,</span>
+<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="w">            </span><span class="nx">task</span><span class="p">:</span><span class="w">    </span><span class="nx">engine</span><span class="p">.</span><span class="nx">Task</span><span class="p">{</span><span class="nx">Title</span><span class="p">:</span><span class="w"> </span><span class="s">"Fix bug"</span><span class="p">},</span>
+<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a><span class="w">            </span><span class="nx">wantErr</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-34-17" name="__codelineno-34-17" href="#__codelineno-34-17"></a><span class="w">        </span><span class="p">},</span>
+<a id="__codelineno-34-18" name="__codelineno-34-18" href="#__codelineno-34-18"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-34-19" name="__codelineno-34-19" href="#__codelineno-34-19"></a>
+<a id="__codelineno-34-20" name="__codelineno-34-20" href="#__codelineno-34-20"></a><span class="w">    </span><span class="nx">e</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">New</span><span class="p">()</span>
+<a id="__codelineno-34-21" name="__codelineno-34-21" href="#__codelineno-34-21"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">tt</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">tests</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-22" name="__codelineno-34-22" href="#__codelineno-34-22"></a><span class="w">        </span><span class="nx">t</span><span class="p">.</span><span class="nx">Run</span><span class="p">(</span><span class="nx">tt</span><span class="p">.</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="kd">func</span><span class="p">(</span><span class="nx">t</span><span class="w"> </span><span class="o">*</span><span class="nx">testing</span><span class="p">.</span><span class="nx">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-23" name="__codelineno-34-23" href="#__codelineno-34-23"></a><span class="w">            </span><span class="nx">spec</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">BuildExecutionSpec</span><span class="p">(</span><span class="nx">tt</span><span class="p">.</span><span class="nx">task</span><span class="p">,</span><span class="w"> </span><span class="nx">tt</span><span class="p">.</span><span class="nx">config</span><span class="p">)</span>
+<a id="__codelineno-34-24" name="__codelineno-34-24" href="#__codelineno-34-24"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="nx">tt</span><span class="p">.</span><span class="nx">wantErr</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-34-25" name="__codelineno-34-25" href="#__codelineno-34-25"></a><span class="w">                </span><span class="nx">require</span><span class="p">.</span><span class="nx">Error</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<a id="__codelineno-34-26" name="__codelineno-34-26" href="#__codelineno-34-26"></a><span class="w">                </span><span class="k">return</span>
+<a id="__codelineno-34-27" name="__codelineno-34-27" href="#__codelineno-34-27"></a><span class="w">            </span><span class="p">}</span>
+<a id="__codelineno-34-28" name="__codelineno-34-28" href="#__codelineno-34-28"></a><span class="w">            </span><span class="nx">require</span><span class="p">.</span><span class="nx">NoError</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<a id="__codelineno-34-29" name="__codelineno-34-29" href="#__codelineno-34-29"></a><span class="w">            </span><span class="nx">assert</span><span class="p">.</span><span class="nx">NotEmpty</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="p">.</span><span class="nx">Image</span><span class="p">)</span>
+<a id="__codelineno-34-30" name="__codelineno-34-30" href="#__codelineno-34-30"></a><span class="w">            </span><span class="nx">assert</span><span class="p">.</span><span class="nx">NotEmpty</span><span class="p">(</span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">spec</span><span class="p">.</span><span class="nx">Command</span><span class="p">)</span>
+<a id="__codelineno-34-31" name="__codelineno-34-31" href="#__codelineno-34-31"></a><span class="w">        </span><span class="p">})</span>
+<a id="__codelineno-34-32" name="__codelineno-34-32" href="#__codelineno-34-32"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-34-33" name="__codelineno-34-33" href="#__codelineno-34-33"></a><span class="p">}</span>
 </code></pre></div>
 <h2 id="protobuf-definition">Protobuf definition<a class="headerlink" href="#protobuf-definition" title="Permanent link">&para;</a></h2>
 <p>The complete protobuf service is defined in <code>proto/engine.proto</code>. Note that engines are currently built-in only (Go), but the protobuf definition exists for future support of third-party engines via gRPC.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="kd">service</span><span class="w"> </span><span class="n">ExecutionEngine</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">Handshake</span><span class="p">(</span><span class="n">HandshakeRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">HandshakeResponse</span><span class="p">);</span>
-<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">BuildExecutionSpec</span><span class="p">(</span><span class="n">BuildExecutionSpecRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">ExecutionSpec</span><span class="p">);</span>
-<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">BuildPrompt</span><span class="p">(</span><span class="n">BuildPromptRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">BuildPromptResponse</span><span class="p">);</span>
-<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="kd">service</span><span class="w"> </span><span class="n">ExecutionEngine</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">Handshake</span><span class="p">(</span><span class="n">HandshakeRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">HandshakeResponse</span><span class="p">);</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">BuildExecutionSpec</span><span class="p">(</span><span class="n">BuildExecutionSpecRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">ExecutionSpec</span><span class="p">);</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="w">    </span><span class="k">rpc</span><span class="w"> </span><span class="n">BuildPrompt</span><span class="p">(</span><span class="n">BuildPromptRequest</span><span class="p">)</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="p">(</span><span class="n">BuildPromptResponse</span><span class="p">);</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="p">}</span>
 </code></pre></div>
 
 

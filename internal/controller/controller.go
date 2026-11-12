@@ -77,6 +77,11 @@ type Reconciler struct {
 	mu       sync.RWMutex
 	taskRuns map[string]*taskrun.TaskRun // keyed by idempotency key
 
+	// approvalCleanupTimeout bounds each external call made while failing an
+	// unanswered approval. Zero means defaultApprovalCleanupTimeout; tests
+	// shorten it.
+	approvalCleanupTimeout time.Duration
+
 	// engineChains tracks the full ordered engine list per idempotency key,
 	// as determined at ticket processing time by the EngineSelector.
 	engineChains map[string][]string
@@ -3287,6 +3292,12 @@ func (r *Reconciler) runWatchdogCheck(ctx context.Context, tr *taskrun.TaskRun) 
 
 	wdReason, action, err := r.wd.Check(tr, current, previous)
 	if err != nil || wdReason == nil {
+		return
+	}
+
+	// Route on the reason: a late approval may already have moved the run on.
+	if wdReason.ReasonCode == watchdog.ReasonUnansweredHuman && action != watchdog.ActionWarn {
+		r.failUnansweredApproval(ctx, tr, wdReason.Message)
 		return
 	}
 

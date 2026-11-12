@@ -25,6 +25,9 @@ const (
 	ActionWarn Action = "warn"
 )
 
+// ReasonUnansweredHuman is the reason code for a NeedsHuman timeout.
+const ReasonUnansweredHuman = "unanswered_human"
+
 // Heartbeat represents enriched telemetry data pushed from an agent container.
 type Heartbeat struct {
 	Seq                       int64      `json:"seq"`
@@ -433,7 +436,7 @@ func (w *Watchdog) evaluateNeedsHumanRules(tr *taskrun.TaskRun) (*Reason, Action
 	timeout := time.Duration(rules.UnansweredHumanTimeoutMinutes) * time.Minute
 	if time.Since(tr.UpdatedAt) > timeout {
 		return &Reason{
-			ReasonCode: "unanswered_human",
+			ReasonCode: ReasonUnansweredHuman,
 			Message:    "human question has not been answered within the configured timeout",
 		}, rules.UnansweredHumanAction
 	}

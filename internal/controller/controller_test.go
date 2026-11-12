@@ -1106,7 +1106,8 @@ func TestLaunchRetryJob_NoPriorBranchOnFirstRun(t *testing.T) {
 
 // stubApprovalBackend records RequestApproval calls for assertion in tests.
 type stubApprovalBackend struct {
-	requests []stubApprovalRequest
+	requests  []stubApprovalRequest
+	cancelled []string
 }
 
 type stubApprovalRequest struct {
@@ -1120,9 +1121,12 @@ func (s *stubApprovalBackend) RequestApproval(_ context.Context, question string
 	return nil
 }
 
-func (s *stubApprovalBackend) CancelPending(_ context.Context, _ string) error { return nil }
-func (s *stubApprovalBackend) Name() string                                    { return "stub" }
-func (s *stubApprovalBackend) InterfaceVersion() int                           { return 1 }
+func (s *stubApprovalBackend) CancelPending(_ context.Context, taskRunID string) error {
+	s.cancelled = append(s.cancelled, taskRunID)
+	return nil
+}
+func (s *stubApprovalBackend) Name() string          { return "stub" }
+func (s *stubApprovalBackend) InterfaceVersion() int { return 1 }
 
 func TestShouldPromptContinuation(t *testing.T) {
 	// A base TaskRun with turns exhausted and all conditions met.

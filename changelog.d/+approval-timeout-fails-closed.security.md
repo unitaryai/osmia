@@ -1,0 +1,1 @@
+A timed-out approval request started the agent, because the watchdog timeout retried the task run. The task run now fails without retry or fallback, the ticket is marked failed and the approval request is cancelled.

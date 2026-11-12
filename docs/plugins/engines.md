@@ -413,6 +413,35 @@ Plugins run code inside the agent pod: hooks run shell commands and plugin MCP s
 
 Osmia checks the configuration when the controller starts and refuses to start if a plugin names an unknown source, a source has no `ref`, or a `repo_url` is not `https://`. Whether each plugin exists is only known once the repository is fetched, in the pod.
 
+#### Build-tools image
+
+`ghcr.io/unitaryai/osmia/engine-claude-code-build` is the Claude Code engine image plus the tools that application build work needs. It is a separate image so that ordinary tasks do not pull a larger image with more installed.
+
+| Tool | Used for |
+|---|---|
+| `uv` and Python 3.13 | Python projects and tools |
+| `copier` | Project templates |
+| `temporal` | Reading workflow state from a development Temporal server |
+| `kubectl` | Inspecting workloads on a development cluster |
+| Playwright, Chromium and `@playwright/mcp` | Driving web applications, headless or headed |
+| `ffmpeg`, Xvfb, `xauth`, `xdpyinfo` | Cutting frames from recordings, and running a headed browser without a display |
+
+Use it by setting the engine image:
+
+```yaml
+engines:
+  claude-code:
+    image: ghcr.io/unitaryai/osmia/engine-claude-code-build:main
+```
+
+- Every tool is pinned and checksum-verified, and Renovate keeps the pins current.
+- It is rebuilt with the engine image on every push to `main`, weekly, and on each release, always on the engine image from the same commit.
+- Chromium runs under the agent pod's normal security settings: non-root, read-only root filesystem and all capabilities dropped. The browser is installed at build time under `/opt/ms-playwright`. Playwright needs a writable home and `/tmp`, which the pod already has.
+- Playwright browsers are tied to the Playwright version. An image built on this one that uses another Playwright version must run `playwright install chromium` with `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` at build time.
+- Docker inside the agent pod is not supported. Build work tests against a development cluster instead.
+
+To add private tools, build your own image `FROM` this one.
+
 #### Sub-agents
 
 Sub-agents let the main Claude Code agent hand specialised subtasks to other agents during execution. Each sub-agent has its own system prompt, model, tool restrictions and permission mode. Sub-agents use Claude Code's official `--agents` flag and `~/.claude/agents/` directory.

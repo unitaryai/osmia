@@ -71,6 +71,11 @@ type Reconciler struct {
 	mu       sync.RWMutex
 	taskRuns map[string]*taskrun.TaskRun // keyed by idempotency key
 
+	// approvalCleanupTimeout bounds each external call made while failing an
+	// unanswered approval. Zero means defaultApprovalCleanupTimeout; tests
+	// shorten it.
+	approvalCleanupTimeout time.Duration
+
 	// engineChains tracks the full ordered engine list per idempotency key,
 	// as determined at ticket processing time by the EngineSelector.
 	engineChains map[string][]string

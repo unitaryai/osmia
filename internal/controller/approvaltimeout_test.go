@@ -76,9 +76,54 @@ func TestUnansweredPreMergeApprovalReleasesActiveJob(t *testing.T) {
 	tr.ApprovalGateType = "pre_merge"
 	r := &Reconciler{logger: testLogger(), taskRunStore: taskrun.NewMemoryStore()}
 
+	// Count the run as active first, as launching it would have, so the
+	// release below returns the shared gauge to where it started.
+	metrics.ActiveJobs.Inc()
 	before := testutil.ToFloat64(metrics.ActiveJobs)
 	r.failUnansweredApproval(context.Background(), tr, "timed out")
 
 	assert.Equal(t, taskrun.StateFailed, tr.State)
 	assert.InDelta(t, before-1, testutil.ToFloat64(metrics.ActiveJobs), 0)
+}
+
+// hangingApprovalBackend never finishes cancelling, like a Slack request that
+// never gets a response, until its context ends.
+type hangingApprovalBackend struct {
+	stubApprovalBackend
+}
+
+func (h *hangingApprovalBackend) CancelPending(ctx context.Context, _ string) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+// Given an approval backend that never answers,
+// when an unanswered approval is failed,
+// then the cancel call gives up after the cleanup timeout and the ticket is
+// still marked failed, so one stuck request cannot stall the watchdog.
+func TestUnansweredApprovalDoesNotWaitForeverOnCancel(t *testing.T) {
+	tr := taskrun.New("tr-hang", "key-hang", "TICKET-HANG", "claude-code")
+	require.NoError(t, tr.Transition(taskrun.StateNeedsHuman))
+	tb := newMockTicketing(nil)
+	r := &Reconciler{
+		logger:                 testLogger(),
+		taskRunStore:           taskrun.NewMemoryStore(),
+		approvalBackend:        &hangingApprovalBackend{},
+		ticketing:              tb,
+		approvalCleanupTimeout: 50 * time.Millisecond,
+	}
+
+	done := make(chan struct{})
+	go func() {
+		r.failUnansweredApproval(context.Background(), tr, "timed out")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("failing an unanswered approval waited on the approval backend without a limit")
+	}
+	assert.Equal(t, taskrun.StateFailed, tr.State)
+	assert.Contains(t, tb.markedFailed, "TICKET-HANG")
 }

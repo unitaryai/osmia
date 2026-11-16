@@ -229,10 +229,20 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		return nil, fmt.Errorf("task ID must not be empty")
 	}
 
+	// Choose the task's plugins first: a profile can also move the agent's
+	// working directory, which the prompt has to mention. setup-claude.sh
+	// fetches each source at its pinned ref and passes every plugin to
+	// Claude Code as --plugin-dir.
+	plugins, err := e.plugins.pluginExecutionForTask(task.Labels)
+	if err != nil {
+		return nil, fmt.Errorf("choosing plugins: %w", err)
+	}
+
 	prompt, err := e.BuildPrompt(task)
 	if err != nil {
 		return nil, fmt.Errorf("building prompt: %w", err)
 	}
+	prompt += workdirNote(plugins.workdir)
 
 	image := config.Image
 	if image == "" {
@@ -349,12 +359,6 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		env[k] = v
 	}
 
-	// Choose the task's plugins. setup-claude.sh fetches each source at its
-	// pinned ref and passes every plugin to Claude Code as --plugin-dir.
-	plugins, err := e.plugins.pluginExecutionForTask(task.Labels)
-	if err != nil {
-		return nil, fmt.Errorf("choosing plugins: %w", err)
-	}
 	for k, v := range plugins.env {
 		env[k] = v
 	}
@@ -713,4 +717,22 @@ func ValidateToolWhitelist(tools []string) error {
 		}
 	}
 	return nil
+}
+
+// workdirNote returns the prompt section for a task whose profile starts
+// Claude in workdir instead of /workspace, or "" when it does not. The rest
+// of the prompt names /workspace paths, so the agent is told both where it
+// starts and that /workspace is still where results go.
+func workdirNote(workdir string) string {
+	if workdir == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Working directory\n\n")
+	b.WriteString("You start in ")
+	b.WriteString(workdir)
+	b.WriteString(", which holds the tools and instructions for this kind of task. ")
+	b.WriteString("Read its CLAUDE.md before you begin, and follow it for how the work is done. ")
+	b.WriteString("Paths under /workspace in these instructions still apply.\n")
+	return b.String()
 }

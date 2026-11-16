@@ -35,7 +35,12 @@ func claudePluginConfig(cfg config.PluginsConfig) (claudecode.PluginConfig, erro
 		if err != nil {
 			return claudecode.PluginConfig{}, err
 		}
-		out.Profiles[name] = claudecode.PluginProfile{Plugins: refs, Image: profile.Image}
+		out.Profiles[name] = claudecode.PluginProfile{
+			Plugins: refs,
+			Image:   profile.Image,
+			Init:    profile.Init,
+			Workdir: profile.Workdir,
+		}
 	}
 
 	if err := out.Validate(); err != nil {

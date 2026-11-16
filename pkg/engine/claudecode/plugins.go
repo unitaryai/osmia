@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -91,6 +92,14 @@ type PluginProfile struct {
 	// profile can run on an image with build tools while other tasks keep the
 	// smaller default.
 	Image string
+	// Init, when set, is an executable in the image that setup-claude.sh runs
+	// before Claude starts, for set-up the image needs at runtime, such as
+	// creating writable folders under /workspace.
+	Init string
+	// Workdir, when set, is the directory in the image Claude starts in,
+	// instead of /workspace. A tool whose skills expect to run from its own
+	// checkout ships that checkout in its image and names it here.
+	Workdir string
 }
 
 // ParsePluginRef parses a "<source>/<plugin>" reference.
@@ -128,6 +137,12 @@ func (c PluginConfig) Validate() error {
 		}
 		if profile.Image != "" && strings.IndexFunc(profile.Image, unicode.IsSpace) >= 0 {
 			return fmt.Errorf("plugin profile %q: image %q contains whitespace", name, profile.Image)
+		}
+		if err := validateImagePath("init", profile.Init); err != nil {
+			return fmt.Errorf("plugin profile %q: %w", name, err)
+		}
+		if err := validateImagePath("workdir", profile.Workdir); err != nil {
+			return fmt.Errorf("plugin profile %q: %w", name, err)
 		}
 	}
 	return nil
@@ -193,6 +208,22 @@ func validatePluginRepoURL(raw string) error {
 	return nil
 }
 
+// validateImagePath checks a path inside the agent image: empty, or absolute
+// and clean, with no whitespace. It reaches setup-claude.sh through the
+// environment, so it is kept to what a shell can use unquoted by mistake
+// without harm.
+func validateImagePath(field, p string) error {
+	switch {
+	case p == "":
+		return nil
+	case !path.IsAbs(p) || path.Clean(p) != p:
+		return fmt.Errorf("%s %q must be a clean absolute path", field, p)
+	case strings.IndexFunc(p, unicode.IsSpace) >= 0:
+		return fmt.Errorf("%s %q contains whitespace", field, p)
+	}
+	return nil
+}
+
 // validatePluginRefs checks that each reference is well formed and names a
 // configured source.
 func validatePluginRefs(where string, refs []PluginRef, sources map[string]PluginSource) error {
@@ -215,23 +246,26 @@ func WithPlugins(cfg PluginConfig) Option {
 	}
 }
 
-// taskSelection is what a task's labels choose: its plugins and, when a
-// profile sets one, its engine image.
+// taskSelection is what a task's labels choose: its plugins and the
+// single-valued settings a profile can set.
 type taskSelection struct {
 	plugins []PluginRef
 	image   string
+	init    string
+	workdir string
 }
 
 // selectionForTask returns the plugins a task loads, the defaults then those
-// of each profile its labels select without duplicates, and the image a
-// selected profile sets, if any.
+// of each profile its labels select without duplicates, and the image, init
+// script and working directory the selected profiles set, if any.
 //
 // A label naming an unknown profile is an error, so a typo fails the task
 // instead of silently running it without what it asked for. So are two
-// selected profiles that set different images, since only one can apply.
+// selected profiles that set different values for the same setting, since
+// only one can apply.
 func (c PluginConfig) selectionForTask(labels []string) (taskSelection, error) {
 	sel := taskSelection{plugins: slices.Clone(c.Default)}
-	imageFrom := ""
+	image, init, workdir := singleSetting{field: "image"}, singleSetting{field: "init"}, singleSetting{field: "workdir"}
 	for _, label := range labels {
 		name, ok := strings.CutPrefix(label, PluginProfileLabelPrefix)
 		if !ok {
@@ -242,16 +276,39 @@ func (c PluginConfig) selectionForTask(labels []string) (taskSelection, error) {
 			return taskSelection{}, fmt.Errorf("label %q names unknown plugin profile %q", label, name)
 		}
 		sel.plugins = append(sel.plugins, profile.Plugins...)
-		if profile.Image == "" || profile.Image == sel.image {
-			continue
+		for _, set := range []struct {
+			setting *singleSetting
+			value   string
+		}{{&image, profile.Image}, {&init, profile.Init}, {&workdir, profile.Workdir}} {
+			if err := set.setting.take(name, set.value); err != nil {
+				return taskSelection{}, err
+			}
 		}
-		if sel.image != "" {
-			return taskSelection{}, fmt.Errorf("plugin profiles %q and %q set different images; a task can run on only one", imageFrom, name)
-		}
-		sel.image, imageFrom = profile.Image, name
 	}
 	sel.plugins = dedupePluginRefs(sel.plugins)
+	sel.image, sel.init, sel.workdir = image.value, init.value, workdir.value
 	return sel, nil
+}
+
+// singleSetting collects a setting that only one value can apply to, across
+// the profiles a task selects.
+type singleSetting struct {
+	field string
+	value string
+	from  string
+}
+
+// take records the value profile sets, failing when another profile set a
+// different one. An empty value sets nothing.
+func (s *singleSetting) take(profile, value string) error {
+	if value == "" || value == s.value {
+		return nil
+	}
+	if s.value != "" {
+		return fmt.Errorf("plugin profiles %q and %q set different %ss; a task can have only one", s.from, profile, s.field)
+	}
+	s.value, s.from = value, profile
+	return nil
 }
 
 // pluginSpec is the per-source entry in the OSMIA_PLUGINS JSON read by
@@ -266,12 +323,20 @@ type pluginSpec struct {
 }
 
 // pluginExecution is what a task needs in its pod to load its plugins, and
-// the engine image a profile chose for it, if any.
+// the engine image and working directory a profile chose for it, if any.
 type pluginExecution struct {
 	env           map[string]string
 	secretKeyRefs map[string]engine.SecretKeyRef
 	image         string
+	workdir       string
 }
+
+// Environment variables that tell setup-claude.sh to run an init script and
+// where to start Claude.
+const (
+	initScriptEnvVar = "OSMIA_INIT_SCRIPT"
+	workdirEnvVar    = "OSMIA_WORKDIR"
+)
 
 // pluginExecutionForTask works out the plugins a task loads and the
 // environment and secrets the pod needs to fetch them. Only the sources the
@@ -281,7 +346,13 @@ func (c PluginConfig) pluginExecutionForTask(labels []string) (pluginExecution, 
 	if err != nil {
 		return pluginExecution{}, err
 	}
-	exec := pluginExecution{image: sel.image}
+	exec := pluginExecution{image: sel.image, workdir: sel.workdir, env: map[string]string{}}
+	if sel.init != "" {
+		exec.env[initScriptEnvVar] = sel.init
+	}
+	if sel.workdir != "" {
+		exec.env[workdirEnvVar] = sel.workdir
+	}
 	if len(sel.plugins) == 0 {
 		return exec, nil
 	}
@@ -290,7 +361,7 @@ func (c PluginConfig) pluginExecutionForTask(labels []string) (pluginExecution, 
 	if err != nil {
 		return pluginExecution{}, fmt.Errorf("encoding plugin specs: %w", err)
 	}
-	exec.env = map[string]string{pluginsEnvVar: string(payload)}
+	exec.env[pluginsEnvVar] = string(payload)
 	exec.secretKeyRefs = secretKeyRefs
 	return exec, nil
 }

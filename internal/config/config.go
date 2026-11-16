@@ -479,6 +479,10 @@ type PluginProfileConfig struct {
 	// Image, when set, replaces engines.claude-code.image for tasks with this
 	// profile.
 	Image string `yaml:"image,omitempty"`
+	// Init, when set, is an executable in the image run before Claude starts.
+	Init string `yaml:"init,omitempty"`
+	// Workdir, when set, is the directory in the image Claude starts in.
+	Workdir string `yaml:"workdir,omitempty"`
 }
 
 // UnmarshalYAML accepts a profile written as a plain list of plugins, the

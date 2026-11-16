@@ -2,6 +2,7 @@ package claudecode
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,6 +148,21 @@ func TestPluginConfigValidate(t *testing.T) {
 			wantErr: "contains whitespace",
 		},
 		{
+			name:    "relative workdir",
+			mutate:  func(c *PluginConfig) { c.Profiles["sre"] = PluginProfile{Workdir: "opt/tool"} },
+			wantErr: "clean absolute path",
+		},
+		{
+			name:    "workdir that climbs",
+			mutate:  func(c *PluginConfig) { c.Profiles["sre"] = PluginProfile{Workdir: "/opt/tool/../../etc"} },
+			wantErr: "clean absolute path",
+		},
+		{
+			name:    "init with whitespace",
+			mutate:  func(c *PluginConfig) { c.Profiles["sre"] = PluginProfile{Init: "/opt/tool/init me"} },
+			wantErr: "contains whitespace",
+		},
+		{
 			name:    "profile name with a space",
 			mutate:  func(c *PluginConfig) { c.Profiles["my build"] = PluginProfile{} },
 			wantErr: "plugin profile name",
@@ -268,6 +284,26 @@ func TestSelectionForTaskImage(t *testing.T) {
 	}
 }
 
+func TestSelectionForTaskInitAndWorkdir(t *testing.T) {
+	cfg := testPluginConfig()
+	cfg.Profiles["build"] = PluginProfile{Init: "/opt/tool/init.sh", Workdir: "/opt/tool"}
+
+	exec, err := cfg.pluginExecutionForTask([]string{"osmia-plugins:build"})
+	require.NoError(t, err)
+	assert.Equal(t, "/opt/tool/init.sh", exec.env[initScriptEnvVar])
+	assert.Equal(t, "/opt/tool", exec.env[workdirEnvVar])
+	assert.Equal(t, "/opt/tool", exec.workdir)
+
+	exec, err = cfg.pluginExecutionForTask(nil)
+	require.NoError(t, err)
+	assert.NotContains(t, exec.env, initScriptEnvVar)
+	assert.NotContains(t, exec.env, workdirEnvVar)
+
+	cfg.Profiles["sre"] = PluginProfile{Workdir: "/opt/other"}
+	_, err = cfg.selectionForTask([]string{"osmia-plugins:build", "osmia-plugins:sre"})
+	require.ErrorContains(t, err, "set different workdirs")
+}
+
 func TestPluginExecutionForTask(t *testing.T) {
 	t.Run("only sources the task uses are fetched", func(t *testing.T) {
 		exec, err := testPluginConfig().pluginExecutionForTask(nil)
@@ -353,6 +389,23 @@ func TestBuildExecutionSpecPlugins(t *testing.T) {
 		spec, err = New(WithPlugins(testPluginConfig())).BuildExecutionSpec(task, withImage)
 		require.NoError(t, err)
 		assert.Equal(t, "registry.example.com/engine:default", spec.Image, "an unlabelled task keeps the engine image")
+	})
+
+	t.Run("a profile workdir is named in the prompt", func(t *testing.T) {
+		cfg := testPluginConfig()
+		cfg.Profiles["build"] = PluginProfile{Workdir: "/opt/tool"}
+		labelled := task
+		labelled.Labels = []string{"osmia-plugins:build"}
+
+		spec, err := New(WithPlugins(cfg)).BuildExecutionSpec(labelled, config)
+		require.NoError(t, err)
+		prompt := spec.Command[slices.Index(spec.Command, "-p")+1]
+		assert.Contains(t, prompt, "You start in /opt/tool")
+		assert.Equal(t, "/opt/tool", spec.Env[workdirEnvVar])
+
+		spec, err = New(WithPlugins(cfg)).BuildExecutionSpec(task, config)
+		require.NoError(t, err)
+		assert.NotContains(t, spec.Command[slices.Index(spec.Command, "-p")+1], "## Working directory")
 	})
 
 	t.Run("no plugin config leaves the pod unchanged", func(t *testing.T) {

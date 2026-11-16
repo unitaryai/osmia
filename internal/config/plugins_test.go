@@ -21,6 +21,8 @@ profiles:
   build:
     plugins: [team/builder]
     image: registry.example.com/engine-build:1.0
+    init: /opt/tool/init.sh
+    workdir: /opt/tool
 `
 	var got PluginsConfig
 	require.NoError(t, yaml.Unmarshal([]byte(doc), &got))
@@ -29,5 +31,7 @@ profiles:
 	assert.Equal(t, PluginProfileConfig{
 		Plugins: []string{"team/builder"},
 		Image:   "registry.example.com/engine-build:1.0",
+		Init:    "/opt/tool/init.sh",
+		Workdir: "/opt/tool",
 	}, got.Profiles["build"])
 }

@@ -28,12 +28,14 @@ func claudePluginConfig(cfg config.PluginsConfig) (claudecode.PluginConfig, erro
 		return claudecode.PluginConfig{}, err
 	}
 	if len(cfg.Profiles) > 0 {
-		out.Profiles = make(map[string][]claudecode.PluginRef, len(cfg.Profiles))
+		out.Profiles = make(map[string]claudecode.PluginProfile, len(cfg.Profiles))
 	}
-	for name, refs := range cfg.Profiles {
-		if out.Profiles[name], err = parsePluginRefs("profiles."+name, refs); err != nil {
+	for name, profile := range cfg.Profiles {
+		refs, err := parsePluginRefs("profiles."+name, profile.Plugins)
+		if err != nil {
 			return claudecode.PluginConfig{}, err
 		}
+		out.Profiles[name] = claudecode.PluginProfile{Plugins: refs, Image: profile.Image}
 	}
 
 	if err := out.Validate(); err != nil {

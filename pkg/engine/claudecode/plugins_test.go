@@ -19,9 +19,12 @@ func testPluginConfig() PluginConfig {
 			{Name: "public", RepoURL: "https://github.com/example/plugins.git", Ref: "v1.2.0"},
 		},
 		Default: []PluginRef{{Source: "team", Plugin: "engineer"}},
-		Profiles: map[string][]PluginRef{
-			"build": {{Source: "team", Plugin: "implementations"}, {Source: "public", Plugin: "browser"}},
-			"sre":   {{Source: "team", Plugin: "sre"}, {Source: "team", Plugin: "engineer"}},
+		Profiles: map[string]PluginProfile{
+			"build": {
+				Plugins: []PluginRef{{Source: "team", Plugin: "implementations"}, {Source: "public", Plugin: "browser"}},
+				Image:   "registry.example.com/engine-build:1.0",
+			},
+			"sre": {Plugins: []PluginRef{{Source: "team", Plugin: "sre"}, {Source: "team", Plugin: "engineer"}}},
 		},
 	}
 }
@@ -132,13 +135,20 @@ func TestPluginConfigValidate(t *testing.T) {
 			wantErr: "invalid plugin name",
 		},
 		{
-			name:    "profile names an unknown source",
-			mutate:  func(c *PluginConfig) { c.Profiles["build"] = []PluginRef{{Source: "other", Plugin: "x"}} },
+			name: "profile names an unknown source",
+			mutate: func(c *PluginConfig) {
+				c.Profiles["build"] = PluginProfile{Plugins: []PluginRef{{Source: "other", Plugin: "x"}}}
+			},
 			wantErr: "profile build",
 		},
 		{
+			name:    "profile image with whitespace",
+			mutate:  func(c *PluginConfig) { c.Profiles["sre"] = PluginProfile{Image: "registry.example.com/x :1"} },
+			wantErr: "contains whitespace",
+		},
+		{
 			name:    "profile name with a space",
-			mutate:  func(c *PluginConfig) { c.Profiles["my build"] = nil },
+			mutate:  func(c *PluginConfig) { c.Profiles["my build"] = PluginProfile{} },
 			wantErr: "plugin profile name",
 		},
 	}
@@ -170,7 +180,7 @@ func TestValidatePluginRepoURLDoesNotLeak(t *testing.T) {
 	}
 }
 
-func TestPluginsForTask(t *testing.T) {
+func TestSelectionForTaskPlugins(t *testing.T) {
 	tests := []struct {
 		name    string
 		labels  []string
@@ -193,17 +203,67 @@ func TestPluginsForTask(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			refs, err := testPluginConfig().pluginsForTask(tt.labels)
+			sel, err := testPluginConfig().selectionForTask(tt.labels)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
-			got := make([]string, 0, len(refs))
-			for _, r := range refs {
+			got := make([]string, 0, len(sel.plugins))
+			for _, r := range sel.plugins {
 				got = append(got, r.String())
 			}
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSelectionForTaskImage(t *testing.T) {
+	tests := []struct {
+		name    string
+		mutate  func(*PluginConfig)
+		labels  []string
+		want    string
+		wantErr string
+	}{
+		{name: "no profile keeps the engine image", want: ""},
+		{name: "a profile without an image keeps the engine image", labels: []string{"osmia-plugins:sre"}, want: ""},
+		{name: "a profile with an image sets it", labels: []string{"osmia-plugins:build"}, want: "registry.example.com/engine-build:1.0"},
+		{
+			name:   "a profile with an image combines with one without",
+			labels: []string{"osmia-plugins:sre", "osmia-plugins:build"},
+			want:   "registry.example.com/engine-build:1.0",
+		},
+		{
+			name: "two profiles with the same image agree",
+			mutate: func(c *PluginConfig) {
+				c.Profiles["sre"] = PluginProfile{Image: "registry.example.com/engine-build:1.0"}
+			},
+			labels: []string{"osmia-plugins:sre", "osmia-plugins:build"},
+			want:   "registry.example.com/engine-build:1.0",
+		},
+		{
+			name: "two profiles with different images are an error",
+			mutate: func(c *PluginConfig) {
+				c.Profiles["sre"] = PluginProfile{Image: "registry.example.com/engine-sre:1.0"}
+			},
+			labels:  []string{"osmia-plugins:sre", "osmia-plugins:build"},
+			wantErr: "set different images",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := testPluginConfig()
+			if tt.mutate != nil {
+				tt.mutate(&cfg)
+			}
+			sel, err := cfg.selectionForTask(tt.labels)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, sel.image)
 		})
 	}
 }
@@ -278,6 +338,21 @@ func TestBuildExecutionSpecPlugins(t *testing.T) {
 		labelled.Labels = []string{"osmia-plugins:missing"}
 		_, err := New(WithPlugins(testPluginConfig())).BuildExecutionSpec(labelled, config)
 		require.ErrorContains(t, err, "choosing plugins")
+	})
+
+	t.Run("a profile image replaces the engine image", func(t *testing.T) {
+		labelled := task
+		labelled.Labels = []string{"osmia-plugins:build"}
+		withImage := config
+		withImage.Image = "registry.example.com/engine:default"
+
+		spec, err := New(WithPlugins(testPluginConfig())).BuildExecutionSpec(labelled, withImage)
+		require.NoError(t, err)
+		assert.Equal(t, "registry.example.com/engine-build:1.0", spec.Image)
+
+		spec, err = New(WithPlugins(testPluginConfig())).BuildExecutionSpec(task, withImage)
+		require.NoError(t, err)
+		assert.Equal(t, "registry.example.com/engine:default", spec.Image, "an unlabelled task keeps the engine image")
 	})
 
 	t.Run("no plugin config leaves the pod unchanged", func(t *testing.T) {

@@ -27,9 +27,12 @@ func TestClaudePluginConfig(t *testing.T) {
 		{
 			name: "converts sources, defaults and profiles",
 			in: config.PluginsConfig{
-				Sources:  []config.PluginSourceConfig{source},
-				Default:  []string{"team/engineer"},
-				Profiles: map[string][]string{"build": {"team/implementations"}},
+				Sources: []config.PluginSourceConfig{source},
+				Default: []string{"team/engineer"},
+				Profiles: map[string]config.PluginProfileConfig{
+					"build":  {Plugins: []string{"team/implementations"}, Image: "registry.example.com/engine-build:1.0"},
+					"review": {Plugins: []string{"team/engineer"}},
+				},
 			},
 			want: claudecode.PluginConfig{
 				Sources: []claudecode.PluginSource{{
@@ -38,13 +41,19 @@ func TestClaudePluginConfig(t *testing.T) {
 					Ref:         "0123456789abcdef0123456789abcdef01234567",
 					TokenSecret: "plugin-token",
 				}},
-				Default:  []claudecode.PluginRef{{Source: "team", Plugin: "engineer"}},
-				Profiles: map[string][]claudecode.PluginRef{"build": {{Source: "team", Plugin: "implementations"}}},
+				Default: []claudecode.PluginRef{{Source: "team", Plugin: "engineer"}},
+				Profiles: map[string]claudecode.PluginProfile{
+					"build": {
+						Plugins: []claudecode.PluginRef{{Source: "team", Plugin: "implementations"}},
+						Image:   "registry.example.com/engine-build:1.0",
+					},
+					"review": {Plugins: []claudecode.PluginRef{{Source: "team", Plugin: "engineer"}}},
+				},
 			},
 		},
 		{
 			name:    "a malformed reference names its field",
-			in:      config.PluginsConfig{Sources: []config.PluginSourceConfig{source}, Profiles: map[string][]string{"build": {"implementations"}}},
+			in:      config.PluginsConfig{Sources: []config.PluginSourceConfig{source}, Profiles: map[string]config.PluginProfileConfig{"build": {Plugins: []string{"implementations"}}}},
 			wantErr: "engines.claude-code.plugins.profiles.build",
 		},
 		{

@@ -305,4 +305,28 @@ if [ -n "${OSMIA_PLUGINS:-}" ]; then
     done
 fi
 
+# Run the image's own set-up and move to its working directory, when the
+# task's plugin profile names them (OSMIA_INIT_SCRIPT, OSMIA_WORKDIR). Both
+# are paths inside the image, checked by the controller to be clean absolute
+# paths. A missing one stops the job: an agent started in the wrong place, or
+# without the set-up its tools need, fails in more confusing ways later.
+if [ -n "${OSMIA_INIT_SCRIPT:-}" ]; then
+    [ -x "${OSMIA_INIT_SCRIPT}" ] || {
+        echo "setup-claude.sh: init script ${OSMIA_INIT_SCRIPT} is not an executable file in this image" >&2
+        exit 1
+    }
+    echo "setup-claude.sh: running init script ${OSMIA_INIT_SCRIPT}"
+    "${OSMIA_INIT_SCRIPT}" || {
+        echo "setup-claude.sh: init script ${OSMIA_INIT_SCRIPT} failed" >&2
+        exit 1
+    }
+fi
+if [ -n "${OSMIA_WORKDIR:-}" ]; then
+    cd "${OSMIA_WORKDIR}" 2>/dev/null || {
+        echo "setup-claude.sh: working directory ${OSMIA_WORKDIR} does not exist in this image" >&2
+        exit 1
+    }
+    echo "setup-claude.sh: starting Claude in ${OSMIA_WORKDIR}"
+fi
+
 exec claude "$@"

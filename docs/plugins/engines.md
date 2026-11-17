@@ -408,6 +408,15 @@ engines:
 - **Pinned ref.** Each source is fetched at `ref` when the agent pod starts, so a push to the plugin repository changes nothing until you move the ref. `ref` must be a full commit SHA or a tag; anything that is not a SHA is fetched as a tag, so a branch name never works. Prefer a commit SHA: a tag can be moved.
 - **Profiles.** A ticket labelled `osmia-plugins:build` loads the default plugins plus those in the `build` profile. Review follow-ups on that ticket's MR load the same profiles, as long as the controller has not restarted since the ticket was picked up. A ticket can carry several profile labels. A label naming a profile that does not exist fails the task, rather than running it without the plugins it asked for.
 - **Profile images.** A profile written as a mapping can also set `image`, which replaces `engines.claude-code.image` for tasks with that profile. Build tasks can then run on a larger image with build tools while every other task keeps the default. Two profiles on one ticket that set different images fail the task, since only one image can apply.
+- **Tools that run from their own checkout.** Some tools ship skills that expect Claude to start inside the tool's own folder. A profile can name `workdir`, a directory in the image that Claude starts in instead of `/workspace`. It can also name `init`, an executable in the image that runs just before Claude starts, for set-up the image needs at runtime, such as creating writable folders under `/workspace` (the image's own folders are read-only in the pod). Both must be clean absolute paths. The prompt tells the agent where it starts and to read that folder's `CLAUDE.md`. A missing init script or folder stops the job. As with `image`, two profiles on one ticket that set different values fail the task.
+
+  ```yaml
+  profiles:
+    build:
+      image: registry.example.com/my-build-tool-engine:1.2.3
+      init: /opt/my-build-tool/osmia-init.sh
+      workdir: /opt/my-build-tool
+  ```
 - **Private repositories.** `token_secret` names a Kubernetes Secret holding a read-only token. Only the pods whose task uses that source get the token, and `setup-claude.sh` unsets it before Claude Code starts, so the agent never sees it. The token is sent as an HTTPS Basic `Authorization` header, never in a URL. Use the narrowest token your SCM offers: a GitLab deploy token or project access token with `read_repository`, or a GitHub fine-grained token with read access to contents.
 - **Only plugins stored in the repository** are supported. A marketplace entry whose `source` points at another repository is rejected, because it would bypass the pinned ref. So is a plugin directory that is, or sits under, a symlink leading outside the repository.
 - **Failures stop the job.** An unreachable repository, an unknown ref, or a plugin missing from `marketplace.json` makes the pod exit before Claude Code starts, with the reason in the pod log.

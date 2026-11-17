@@ -406,6 +406,15 @@ func TestBuildExecutionSpecPlugins(t *testing.T) {
 		spec, err = New(WithPlugins(cfg)).BuildExecutionSpec(task, config)
 		require.NoError(t, err)
 		assert.NotContains(t, spec.Command[slices.Index(spec.Command, "-p")+1], "## Working directory")
+
+		// Extra engine environment cannot move Claude away from the
+		// directory the prompt names, nor add a start-up step of its own.
+		overriding := config
+		overriding.Env = map[string]string{workdirEnvVar: "/opt/other", initScriptEnvVar: "/opt/other/init.sh"}
+		spec, err = New(WithPlugins(cfg)).BuildExecutionSpec(labelled, overriding)
+		require.NoError(t, err)
+		assert.Equal(t, "/opt/tool", spec.Env[workdirEnvVar])
+		assert.NotContains(t, spec.Env, initScriptEnvVar)
 	})
 
 	t.Run("no plugin config leaves the pod unchanged", func(t *testing.T) {

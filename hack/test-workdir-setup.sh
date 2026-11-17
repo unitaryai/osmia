@@ -26,7 +26,8 @@ fi
 FAILURES=0
 
 # run_setup runs setup-claude.sh with the given init script and working
-# directory (either may be empty) and prints its output. The image has a
+# directory (either may be empty) and prints its output, then "EXIT <status>"
+# with the container's exit status. The image has a
 # /opt/tool directory and an init script that writes /workspace/init-ran.
 # The claude stub prints where it started and whether the init script ran.
 run_setup() {
@@ -49,12 +50,14 @@ run_setup() {
       cat >/usr/local/bin/claude <<"STUB"
 #!/bin/sh
 echo "PWD $(pwd)"
-[ -f /workspace/init-ran ] && echo "INIT RAN"
+if [ -f /workspace/init-ran ]; then echo "INIT RAN"; fi
+exit 0
 STUB
       chmod +x /usr/local/bin/claude
       cd /workspace
       sh /usr/local/bin/setup-claude.sh -p prompt
-    ' 2>&1 || true
+    ' 2>&1
+  echo "EXIT $?"
 }
 
 expect() {
@@ -80,22 +83,27 @@ expect_not() {
 }
 
 out="$(run_setup "" "")"
+expect "without a profile setup succeeds" "${out}" "EXIT 0"
 expect "without a profile Claude starts in /workspace" "${out}" "PWD /workspace"
 expect_not "without a profile no init script runs" "${out}" "INIT RAN"
 
 out="$(run_setup /opt/tool/init.sh /opt/tool)"
+expect "with a profile setup succeeds" "${out}" "EXIT 0"
 expect "the init script runs before Claude starts" "${out}" "INIT RAN"
 expect "Claude starts in the working directory" "${out}" "PWD /opt/tool"
 
 out="$(run_setup /opt/tool/missing.sh "")"
 expect "a missing init script stops the job" "${out}" "is not an executable file"
+expect "a missing init script exits non-zero" "${out}" "EXIT 1"
 expect_not "Claude does not start after a missing init script" "${out}" "PWD "
 
 out="$(run_setup /opt/tool/plain.txt "")"
 expect "a non-executable init script stops the job" "${out}" "is not an executable file"
+expect "a non-executable init script exits non-zero" "${out}" "EXIT 1"
 
 out="$(run_setup "" /opt/missing)"
 expect "a missing working directory stops the job" "${out}" "does not exist in this image"
+expect "a missing working directory exits non-zero" "${out}" "EXIT 1"
 expect_not "Claude does not start after a missing working directory" "${out}" "PWD "
 
 if [ "${FAILURES}" -gt 0 ]; then

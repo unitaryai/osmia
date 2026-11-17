@@ -371,6 +371,14 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	for k, v := range config.Env {
 		env[k] = v
 	}
+	// The profile's start-up settings win over anything above, so the
+	// working directory the prompt names is the one Claude starts in.
+	for _, k := range []string{initScriptEnvVar, workdirEnvVar} {
+		delete(env, k)
+		if v, ok := plugins.env[k]; ok {
+			env[k] = v
+		}
+	}
 
 	apiSecretName := apiKeySecretName
 	if config.APIKeySecret != "" {

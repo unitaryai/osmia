@@ -460,9 +460,35 @@ type PluginsConfig struct {
 	Sources []PluginSourceConfig `yaml:"sources,omitempty"`
 	// Default lists plugins loaded on every task.
 	Default []string `yaml:"default,omitempty"`
-	// Profiles maps a profile name to extra plugins. A ticket labelled
-	// "osmia-plugins:<profile>" loads that profile's plugins as well.
-	Profiles map[string][]string `yaml:"profiles,omitempty"`
+	// Profiles maps a profile name to extra plugins, and optionally an engine
+	// image. A ticket labelled "osmia-plugins:<profile>" gets them as well.
+	Profiles map[string]PluginProfileConfig `yaml:"profiles,omitempty"`
+}
+
+// PluginProfileConfig is one plugin profile. In YAML it is either a list of
+// plugins, or a mapping with "plugins" and an optional "image":
+//
+//	profiles:
+//	  review: [team/reviewer]
+//	  build:
+//	    plugins: [team/builder]
+//	    image: registry.example.com/osmia-engine-build:1.2.3
+type PluginProfileConfig struct {
+	// Plugins are loaded on top of the defaults.
+	Plugins []string `yaml:"plugins,omitempty"`
+	// Image, when set, replaces engines.claude-code.image for tasks with this
+	// profile.
+	Image string `yaml:"image,omitempty"`
+}
+
+// UnmarshalYAML accepts a profile written as a plain list of plugins, the
+// original form, as well as the mapping form that can also set an image.
+func (p *PluginProfileConfig) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.SequenceNode {
+		return value.Decode(&p.Plugins)
+	}
+	type plain PluginProfileConfig
+	return value.Decode((*plain)(p))
 }
 
 // PluginSourceConfig is a git repository holding a plugin marketplace.

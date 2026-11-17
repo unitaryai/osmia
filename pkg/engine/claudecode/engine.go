@@ -358,6 +358,10 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 	for k, v := range plugins.env {
 		env[k] = v
 	}
+	// A profile's image wins over the engine's configured image.
+	if plugins.image != "" {
+		image = plugins.image
+	}
 
 	// Merge any extra environment variables from the engine config.
 	for k, v := range config.Env {

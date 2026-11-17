@@ -396,15 +396,18 @@ engines:
       default:                       # loaded on every task
         - team/engineer
       profiles:                      # added when the ticket has the label osmia-plugins:<profile>
-        build:
-          - team/implementations
-        sre:
+        sre:                         # a list: extra plugins only
           - team/sre
+        build:                       # a mapping: extra plugins and an engine image
+          plugins:
+            - team/implementations
+          image: ghcr.io/unitaryai/osmia/engine-claude-code-build:0.5.2
 ```
 
 - **Plugin names** are `<source>/<plugin>`, where `<plugin>` is the name listed in the source's `marketplace.json`.
 - **Pinned ref.** Each source is fetched at `ref` when the agent pod starts, so a push to the plugin repository changes nothing until you move the ref. `ref` must be a full commit SHA or a tag; anything that is not a SHA is fetched as a tag, so a branch name never works. Prefer a commit SHA: a tag can be moved.
 - **Profiles.** A ticket labelled `osmia-plugins:build` loads the default plugins plus those in the `build` profile. Review follow-ups on that ticket's MR load the same profiles, as long as the controller has not restarted since the ticket was picked up. A ticket can carry several profile labels. A label naming a profile that does not exist fails the task, rather than running it without the plugins it asked for.
+- **Profile images.** A profile written as a mapping can also set `image`, which replaces `engines.claude-code.image` for tasks with that profile. Build tasks can then run on a larger image with build tools while every other task keeps the default. Two profiles on one ticket that set different images fail the task, since only one image can apply.
 - **Private repositories.** `token_secret` names a Kubernetes Secret holding a read-only token. Only the pods whose task uses that source get the token, and `setup-claude.sh` unsets it before Claude Code starts, so the agent never sees it. The token is sent as an HTTPS Basic `Authorization` header, never in a URL. Use the narrowest token your SCM offers: a GitLab deploy token or project access token with `read_repository`, or a GitHub fine-grained token with read access to contents.
 - **Only plugins stored in the repository** are supported. A marketplace entry whose `source` points at another repository is rejected, because it would bypass the pinned ref. So is a plugin directory that is, or sits under, a symlink leading outside the repository.
 - **Failures stop the job.** An unreachable repository, an unknown ref, or a plugin missing from `marketplace.json` makes the pod exit before Claude Code starts, with the reason in the pod log.
@@ -426,12 +429,17 @@ Osmia checks the configuration when the controller starts and refuses to start i
 | Playwright, Chromium and `@playwright/mcp` | Driving web applications, headless or headed |
 | `ffmpeg`, Xvfb, `xauth`, `xdpyinfo` | Cutting frames from recordings, and running a headed browser without a display |
 
-Use it by setting the engine image:
+Use it for every task by setting the engine image, or only for some tasks through a plugin profile's `image` (see [Plugins](#plugins)):
 
 ```yaml
 engines:
   claude-code:
-    image: ghcr.io/unitaryai/osmia/engine-claude-code-build:main
+    image: ghcr.io/unitaryai/osmia/engine-claude-code-build:main      # every task
+    plugins:
+      profiles:
+        build:                                                         # tickets labelled osmia-plugins:build
+          plugins: [team/builder]
+          image: ghcr.io/unitaryai/osmia/engine-claude-code-build:main
 ```
 
 - Every tool is pinned and checksum-verified, and Renovate keeps the pins current.

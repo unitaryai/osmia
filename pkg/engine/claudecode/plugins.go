@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/unitaryai/osmia/pkg/engine"
 )
@@ -76,9 +77,20 @@ type PluginConfig struct {
 	Sources []PluginSource
 	// Default lists plugins loaded on every task.
 	Default []PluginRef
-	// Profiles maps a profile name to extra plugins. A task gets a profile's
-	// plugins when its ticket carries the label "osmia-plugins:<profile>".
-	Profiles map[string][]PluginRef
+	// Profiles maps a profile name to the extra plugins, and optionally the
+	// engine image, that a task gets when its ticket carries the label
+	// "osmia-plugins:<profile>".
+	Profiles map[string]PluginProfile
+}
+
+// PluginProfile is what a profile label adds to a task.
+type PluginProfile struct {
+	// Plugins are loaded on top of the defaults.
+	Plugins []PluginRef
+	// Image, when set, replaces the engine image for the task: a build
+	// profile can run on an image with build tools while other tasks keep the
+	// smaller default.
+	Image string
 }
 
 // ParsePluginRef parses a "<source>/<plugin>" reference.
@@ -107,12 +119,15 @@ func (c PluginConfig) Validate() error {
 	if err := validatePluginRefs("default", c.Default, sources); err != nil {
 		return err
 	}
-	for name, refs := range c.Profiles {
+	for name, profile := range c.Profiles {
 		if !pluginSourceNameRe.MatchString(name) {
 			return fmt.Errorf("plugin profile name %q must be lowercase letters, digits and hyphens", name)
 		}
-		if err := validatePluginRefs("profile "+name, refs, sources); err != nil {
+		if err := validatePluginRefs("profile "+name, profile.Plugins, sources); err != nil {
 			return err
+		}
+		if profile.Image != "" && strings.IndexFunc(profile.Image, unicode.IsSpace) >= 0 {
+			return fmt.Errorf("plugin profile %q: image %q contains whitespace", name, profile.Image)
 		}
 	}
 	return nil
@@ -200,24 +215,43 @@ func WithPlugins(cfg PluginConfig) Option {
 	}
 }
 
-// pluginsForTask returns the plugins a task loads: the defaults, then the
-// plugins of each profile its labels select, without duplicates. A label
-// naming an unknown profile is an error, so a typo fails the task instead of
-// silently running it without the plugins it asked for.
-func (c PluginConfig) pluginsForTask(labels []string) ([]PluginRef, error) {
-	refs := slices.Clone(c.Default)
+// taskSelection is what a task's labels choose: its plugins and, when a
+// profile sets one, its engine image.
+type taskSelection struct {
+	plugins []PluginRef
+	image   string
+}
+
+// selectionForTask returns the plugins a task loads, the defaults then those
+// of each profile its labels select without duplicates, and the image a
+// selected profile sets, if any.
+//
+// A label naming an unknown profile is an error, so a typo fails the task
+// instead of silently running it without what it asked for. So are two
+// selected profiles that set different images, since only one can apply.
+func (c PluginConfig) selectionForTask(labels []string) (taskSelection, error) {
+	sel := taskSelection{plugins: slices.Clone(c.Default)}
+	imageFrom := ""
 	for _, label := range labels {
-		profile, ok := strings.CutPrefix(label, PluginProfileLabelPrefix)
+		name, ok := strings.CutPrefix(label, PluginProfileLabelPrefix)
 		if !ok {
 			continue
 		}
-		profileRefs, known := c.Profiles[profile]
+		profile, known := c.Profiles[name]
 		if !known {
-			return nil, fmt.Errorf("label %q names unknown plugin profile %q", label, profile)
+			return taskSelection{}, fmt.Errorf("label %q names unknown plugin profile %q", label, name)
 		}
-		refs = append(refs, profileRefs...)
+		sel.plugins = append(sel.plugins, profile.Plugins...)
+		if profile.Image == "" || profile.Image == sel.image {
+			continue
+		}
+		if sel.image != "" {
+			return taskSelection{}, fmt.Errorf("plugin profiles %q and %q set different images; a task can run on only one", imageFrom, name)
+		}
+		sel.image, imageFrom = profile.Image, name
 	}
-	return dedupePluginRefs(refs), nil
+	sel.plugins = dedupePluginRefs(sel.plugins)
+	return sel, nil
 }
 
 // pluginSpec is the per-source entry in the OSMIA_PLUGINS JSON read by
@@ -231,29 +265,34 @@ type pluginSpec struct {
 	Plugins       []string `json:"plugins"`
 }
 
-// pluginExecution is what a task needs in its pod to load its plugins.
+// pluginExecution is what a task needs in its pod to load its plugins, and
+// the engine image a profile chose for it, if any.
 type pluginExecution struct {
 	env           map[string]string
 	secretKeyRefs map[string]engine.SecretKeyRef
+	image         string
 }
 
 // pluginExecutionForTask works out the plugins a task loads and the
 // environment and secrets the pod needs to fetch them. Only the sources the
 // task uses are fetched, and only their tokens are mounted.
 func (c PluginConfig) pluginExecutionForTask(labels []string) (pluginExecution, error) {
-	refs, err := c.pluginsForTask(labels)
-	if err != nil || len(refs) == 0 {
+	sel, err := c.selectionForTask(labels)
+	if err != nil {
 		return pluginExecution{}, err
 	}
-	specs, secretKeyRefs := c.pluginSpecs(refs)
+	exec := pluginExecution{image: sel.image}
+	if len(sel.plugins) == 0 {
+		return exec, nil
+	}
+	specs, secretKeyRefs := c.pluginSpecs(sel.plugins)
 	payload, err := json.Marshal(specs)
 	if err != nil {
 		return pluginExecution{}, fmt.Errorf("encoding plugin specs: %w", err)
 	}
-	return pluginExecution{
-		env:           map[string]string{pluginsEnvVar: string(payload)},
-		secretKeyRefs: secretKeyRefs,
-	}, nil
+	exec.env = map[string]string{pluginsEnvVar: string(payload)}
+	exec.secretKeyRefs = secretKeyRefs
+	return exec, nil
 }
 
 // pluginSpecs groups plugin references by source, in the order sources are

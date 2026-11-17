@@ -195,8 +195,11 @@ engines:
           ref: 3f2c1e0a9b8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e   # pinned commit
           token_secret: osmia-plugin-token                 # private repos only
       default: [team/engineer]           # every task
-      profiles:                          # ticket label osmia-plugins:build
-        build: [team/implementations]
+      profiles:                          # ticket label osmia-plugins:<name>
+        review: [team/reviewer]          # extra plugins
+        build:                           # extra plugins and an engine image
+          plugins: [team/implementations]
+          image: ghcr.io/unitaryai/osmia/engine-claude-code-build:0.5.2
   codex:
     auth:
       method: api_key

@@ -954,6 +954,16 @@ func (r *Reconciler) checkJobStatus(ctx context.Context, tr *taskrun.TaskRun) {
 // handleJobComplete processes a successfully completed job.
 func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun) {
 	r.drainStreamReader(ctx, tr.ID)
+
+	// A job that exits cleanly only means the agent stopped. When the agent
+	// says it could not do the task, the run has failed, and the ticket must
+	// not be moved to the completed state. Checked before the run events are
+	// taken, so that diagnosis can still see what the agent did.
+	if reason, failed := r.agentReportedFailure(tr); failed {
+		r.handleJobFailed(ctx, tr, reason)
+		return
+	}
+
 	r.takeRunEvents(tr.ID)
 	r.cleanupPRMEvaluator(tr.ID)
 	r.cleanupHintFile(ctx, tr.ID)
@@ -2074,6 +2084,28 @@ func (r *Reconciler) applyContinuationConfig(tr *taskrun.TaskRun) {
 		}
 		tr.MaxContinuations = maxConts
 	}
+}
+
+// agentReportedFailure reports whether a task run whose job exited cleanly
+// ended with the agent declaring that it failed, and the reason to record
+// on the ticket. Review follow-ups, tournament runs and runs that are due a
+// continuation prompt are left to their own completion handling.
+func (r *Reconciler) agentReportedFailure(tr *taskrun.TaskRun) (string, bool) {
+	r.mu.RLock()
+	result := tr.Result
+	role := r.taskRunRole[tr.ID]
+	r.mu.RUnlock()
+
+	if result == nil || result.Success {
+		return "", false
+	}
+	if tr.ParentTicketID != "" || role != "" || r.shouldPromptContinuation(tr) {
+		return "", false
+	}
+	if result.Summary == "" {
+		return "agent reported failure", true
+	}
+	return "agent reported failure: " + result.Summary, true
 }
 
 // shouldPromptContinuation returns true when all preconditions for a

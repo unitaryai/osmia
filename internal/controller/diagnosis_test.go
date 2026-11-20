@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/unitaryai/osmia/internal/agentstream"
 	"github.com/unitaryai/osmia/internal/config"
@@ -38,6 +39,11 @@ func diagnosisReconciler(tr *taskrun.TaskRun, chain []string, engineSwitch bool)
 		taskRunStore: taskrun.NewMemoryStore(),
 		analyser:     diagnosis.NewAnalyser(testLogger()),
 		retryBuilder: diagnosis.NewRetryBuilder(testLogger()),
+		// A working launch, so a retry or fallback reaches Running.
+		jobBuilder:    &mockJobBuilder{},
+		k8sClient:     fake.NewSimpleClientset(),
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
 	}
 	return r, tb
 }
@@ -63,6 +69,7 @@ func TestHandleJobFailed_InfraFailureSkipsFallback(t *testing.T) {
 	assert.Equal(t, "claude-code", tr.CurrentEngine, "must not move to the fallback engine")
 	assert.Equal(t, []string{"claude-code"}, tr.EngineAttempts)
 	assert.Contains(t, tb.markedFailed, "TICKET-1")
+	assert.True(t, tr.IsTerminal(), "a run that gets no further attempt must not block new triggers")
 }
 
 // TestHandleJobFailed_NonInfraFailureStillFallsBack checks the fallback
@@ -73,7 +80,7 @@ func TestHandleJobFailed_NonInfraFailureStillFallsBack(t *testing.T) {
 
 	r.handleJobFailed(context.Background(), tr, "tests did not pass")
 
-	assert.Equal(t, taskrun.StateRetrying, tr.State)
+	assert.Equal(t, taskrun.StateRunning, tr.State)
 	assert.Equal(t, "codex", tr.CurrentEngine)
 	assert.Empty(t, tb.markedFailed)
 }
@@ -98,7 +105,7 @@ func TestHandleJobFailed_DiagnosisUsesStreamEvents(t *testing.T) {
 
 	require.Len(t, tr.DiagnosisHistory, 1)
 	assert.Equal(t, string(diagnosis.ModelConfusion), string(tr.DiagnosisHistory[0].Mode))
-	assert.Equal(t, taskrun.StateRetrying, tr.State)
+	assert.Equal(t, taskrun.StateRunning, tr.State)
 	assert.Equal(t, "codex", tr.CurrentEngine, "engine-specific failure should switch engine")
 	assert.Empty(t, r.runEvents, "events are released once diagnosed")
 }

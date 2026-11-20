@@ -67,6 +67,7 @@ type mockTicketing struct {
 	markedProgress  []string
 	markedComplete  []string
 	markedFailed    []string
+	failReasons     []string
 	comments        map[string][]string
 }
 
@@ -94,8 +95,9 @@ func (m *mockTicketing) MarkComplete(_ context.Context, ticketID string, _ engin
 	return m.markCompleteErr
 }
 
-func (m *mockTicketing) MarkFailed(_ context.Context, ticketID string, _ string) error {
+func (m *mockTicketing) MarkFailed(_ context.Context, ticketID string, reason string) error {
 	m.markedFailed = append(m.markedFailed, ticketID)
+	m.failReasons = append(m.failReasons, reason)
 	return nil
 }
 
@@ -472,6 +474,85 @@ func TestHandleJobComplete(t *testing.T) {
 	assert.Contains(t, tb.markedComplete, "TICKET-1")
 }
 
+// TestHandleJobComplete_AgentReportedFailure reproduces a run seen on
+// sc-49526: the agent could not clone the repository, reported success
+// false and exited cleanly, and the ticket was moved to the completed state
+// as though the work were done.
+func TestHandleJobComplete_AgentReportedFailure(t *testing.T) {
+	tests := []struct {
+		name       string
+		summary    string
+		wantReason string
+	}{
+		{
+			name:       "with summary",
+			summary:    "GITLAB_TOKEN is expired; could not clone the repository",
+			wantReason: "agent reported failure: GITLAB_TOKEN is expired; could not clone the repository",
+		},
+		{
+			name:       "without summary",
+			wantReason: "agent reported failure",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tb := newMockTicketing(nil)
+			tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+			_ = tr.Transition(taskrun.StateRunning)
+			tr.MaxRetries = 0
+			tr.Result = &engine.TaskResult{Success: false, Summary: tt.summary}
+
+			r := &Reconciler{
+				config:       testConfig(),
+				logger:       testLogger(),
+				ticketing:    tb,
+				taskRuns:     map[string]*taskrun.TaskRun{"key-1": tr},
+				taskRunStore: taskrun.NewMemoryStore(),
+			}
+
+			r.handleJobComplete(context.Background(), tr)
+
+			assert.Equal(t, taskrun.StateFailed, tr.State)
+			assert.Empty(t, tb.markedComplete)
+			assert.Equal(t, []string{"TICKET-1"}, tb.markedFailed)
+			assert.Equal(t, []string{tt.wantReason}, tb.failReasons)
+		})
+	}
+}
+
+// TestHandleJobComplete_AgentReportedFailureRetries checks that an agent's
+// own failure goes through the same retry path as a job that exited with an
+// error, rather than straight to a failed ticket.
+func TestHandleJobComplete_AgentReportedFailureRetries(t *testing.T) {
+	tb := newMockTicketing(nil)
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	tr.CurrentEngine = "claude-code"
+	tr.Result = &engine.TaskResult{Success: false, Summary: "tests failed"}
+
+	r := &Reconciler{
+		config:        testConfig(),
+		logger:        testLogger(),
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		ticketCache:   map[string]ticketing.Ticket{"TICKET-1": {ID: "TICKET-1"}},
+		engines:       map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		jobBuilder:    &mockJobBuilder{},
+		k8sClient:     fake.NewSimpleClientset(),
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
+	}
+
+	r.handleJobComplete(context.Background(), tr)
+
+	assert.Equal(t, taskrun.StateRunning, tr.State)
+	assert.Equal(t, 1, tr.RetryCount)
+	assert.Empty(t, tb.markedComplete)
+	assert.Empty(t, tb.markedFailed)
+}
+
 // TestHandleJobComplete_WaitsForFinalResultEvent reproduces a job seen as
 // complete while its stream reader has not yet processed the agent's last
 // line, the result event carrying the merge request URL. Completion must
@@ -544,21 +625,27 @@ func TestHandleJobFailed_WithRetry(t *testing.T) {
 	tb := newMockTicketing(nil)
 
 	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	tr.CurrentEngine = "claude-code"
 	_ = tr.Transition(taskrun.StateRunning)
 
 	r := &Reconciler{
-		config:       testConfig(),
-		logger:       logger,
-		ticketing:    tb,
-		taskRuns:     map[string]*taskrun.TaskRun{"key-1": tr},
-		taskRunStore: taskrun.NewMemoryStore(),
+		config:        testConfig(),
+		logger:        logger,
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		engines:       map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		jobBuilder:    &mockJobBuilder{},
+		k8sClient:     fake.NewSimpleClientset(),
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
 	}
 
 	ctx := context.Background()
 	r.handleJobFailed(ctx, tr, "out of memory")
 
-	// Should be retrying, not terminal failed.
-	assert.Equal(t, taskrun.StateRetrying, tr.State)
+	// Should be running the retry, not terminal failed.
+	assert.Equal(t, taskrun.StateRunning, tr.State)
 	assert.Equal(t, 1, tr.RetryCount)
 	assert.Empty(t, tb.markedFailed)
 }

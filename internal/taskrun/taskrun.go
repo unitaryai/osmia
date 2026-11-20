@@ -35,7 +35,9 @@ var validTransitions = map[State][]State{
 	StateRunning:    {StateNeedsHuman, StateSucceeded, StateFailed, StateTimedOut},
 	StateNeedsHuman: {StateRunning, StateFailed},
 	StateFailed:     {StateRetrying},
-	StateRetrying:   {StateRunning},
+	// Retrying can also fail, when the retry or fallback Job cannot be
+	// started.
+	StateRetrying: {StateRunning, StateFailed},
 }
 
 // DiagnosisRecord stores the result of a causal failure diagnosis for a
@@ -63,27 +65,33 @@ type TaskRun struct {
 	// EngineChain is the ordered list of engines this run may fall back
 	// through, chosen when the ticket was processed. It is persisted so that
 	// a run re-adopted after a controller restart can still fall back.
-	EngineChain               []string           `json:"engine_chain,omitempty"`
-	State                     State              `json:"state"`
-	JobName                   string             `json:"job_name,omitempty"`
-	CreatedAt                 time.Time          `json:"created_at"`
-	UpdatedAt                 time.Time          `json:"updated_at"`
-	Result                    *engine.TaskResult `json:"result,omitempty"`
-	HumanQuestion             string             `json:"human_question,omitempty"`
-	RetryCount                int                `json:"retry_count"`
-	MaxRetries                int                `json:"max_retries"`
-	HeartbeatAt               *time.Time         `json:"heartbeat_at,omitempty"`
-	HeartbeatTTLSeconds       int                `json:"heartbeat_ttl_seconds"`
-	TokensConsumed            int                `json:"tokens_consumed"`
-	FilesChanged              int                `json:"files_changed"`
-	ToolCallsTotal            int                `json:"tool_calls_total"`
-	LastToolName              string             `json:"last_tool_name,omitempty"`
-	ConsecutiveIdenticalTools int                `json:"consecutive_identical_tools"`
-	CostUSD                   float64            `json:"cost_usd"`
-	DiagnosisHistory          []DiagnosisRecord  `json:"diagnosis_history,omitempty"`
-	TournamentID              string             `json:"tournament_id,omitempty"`
-	CandidateIndex            int                `json:"candidate_index,omitempty"`
-	TournamentState           string             `json:"tournament_state,omitempty"`
+	EngineChain []string           `json:"engine_chain,omitempty"`
+	State       State              `json:"state"`
+	JobName     string             `json:"job_name,omitempty"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+	Result      *engine.TaskResult `json:"result,omitempty"`
+	// PriorBranchName and PriorMergeRequestURL are the branch and merge
+	// request an earlier attempt of this run reported. Result is cleared
+	// whenever a new attempt starts, so these keep them for later attempts,
+	// which push to the same branch instead of opening a second request.
+	PriorBranchName           string            `json:"prior_branch_name,omitempty"`
+	PriorMergeRequestURL      string            `json:"prior_merge_request_url,omitempty"`
+	HumanQuestion             string            `json:"human_question,omitempty"`
+	RetryCount                int               `json:"retry_count"`
+	MaxRetries                int               `json:"max_retries"`
+	HeartbeatAt               *time.Time        `json:"heartbeat_at,omitempty"`
+	HeartbeatTTLSeconds       int               `json:"heartbeat_ttl_seconds"`
+	TokensConsumed            int               `json:"tokens_consumed"`
+	FilesChanged              int               `json:"files_changed"`
+	ToolCallsTotal            int               `json:"tool_calls_total"`
+	LastToolName              string            `json:"last_tool_name,omitempty"`
+	ConsecutiveIdenticalTools int               `json:"consecutive_identical_tools"`
+	CostUSD                   float64           `json:"cost_usd"`
+	DiagnosisHistory          []DiagnosisRecord `json:"diagnosis_history,omitempty"`
+	TournamentID              string            `json:"tournament_id,omitempty"`
+	CandidateIndex            int               `json:"candidate_index,omitempty"`
+	TournamentState           string            `json:"tournament_state,omitempty"`
 
 	// ApprovalGateType records which approval gate this TaskRun is held at
 	// ("pre_start", "pre_merge", or "continuation"), used by ResolveApproval

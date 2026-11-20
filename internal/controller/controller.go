@@ -1747,6 +1747,7 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 		return
 	}
 	tr.JobName = job.Name
+	clearPreviousAttemptResult(tr)
 	r.mu.Unlock()
 
 	// Persist the new state and Job name. Without this the store kept the
@@ -2108,6 +2109,18 @@ func (r *Reconciler) agentReportedFailure(tr *taskrun.TaskRun) (string, bool) {
 	return "agent reported failure: " + result.Summary, true
 }
 
+// clearPreviousAttemptResult drops the result of the attempt a new Job
+// replaces. A retry, fallback or continuation starts after a failed or
+// unfinished attempt, and a new Job does not always produce a result of its
+// own (fallback Jobs have no stream reader), so a kept result would be
+// mistaken for the new attempt's and fail it. Call it with r.mu held, only
+// once the new Job has been created, so a failed launch keeps the old result.
+// Anything a new attempt needs from the old result (its branch and merge
+// request) is read before this point.
+func clearPreviousAttemptResult(tr *taskrun.TaskRun) {
+	tr.Result = nil
+}
+
 // shouldPromptContinuation returns true when all preconditions for a
 // user-prompted continuation are met:
 //   - continuation_prompt is enabled in config
@@ -2336,6 +2349,7 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 
 	r.mu.Lock()
 	tr.JobName = job.Name
+	clearPreviousAttemptResult(tr)
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -3165,6 +3179,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 		return
 	}
 	tr.JobName = job.Name
+	clearPreviousAttemptResult(tr)
 	r.mu.Unlock()
 
 	r.updateNotificationStatus(ctx, tr.NotificationThreadRef,

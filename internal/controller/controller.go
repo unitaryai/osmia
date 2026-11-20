@@ -1106,6 +1106,13 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 		)
 		return
 	}
+	// Use the result captured by the stream reader processor; fall back to a
+	// generic success result if the stream reader did not capture one yet.
+	// It is set before the save so that a merge request restored from an
+	// earlier attempt is stored, and the review poller finds it after a
+	// restart.
+	result := completedResult(tr)
+	tr.Result = &result
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -1120,13 +1127,6 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 	metrics.TaskRunDurationSeconds.WithLabelValues(tr.Engine).Observe(
 		time.Since(tr.CreatedAt).Seconds(),
 	)
-
-	// Use the result captured by the stream reader processor; fall back to a
-	// generic success result if the stream reader did not capture one yet.
-	r.mu.RLock()
-	result := completedResult(tr)
-	r.mu.RUnlock()
-	tr.Result = &result
 
 	r.mu.RLock()
 	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
@@ -1638,6 +1638,10 @@ func (r *Reconciler) failIfRelaunchDidNotStart(ctx context.Context, tr *taskrun.
 		)
 		return
 	}
+	// No further attempt follows, so mark the retries spent. Otherwise the
+	// run is not terminal, and it would block new triggers for its ticket
+	// and count as an active job.
+	tr.RetryCount = tr.MaxRetries
 	r.mu.Unlock()
 
 	r.finishFailedRun(ctx, tr, attempt+" could not be started")
@@ -2027,6 +2031,10 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 		r.mu.Unlock()
 		return fmt.Errorf("transitioning task run to succeeded: %w", err)
 	}
+	// Set before the save, as in handleJobComplete, so a restored merge
+	// request is stored.
+	result := completedResult(tr)
+	tr.Result = &result
 	r.mu.Unlock()
 
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
@@ -2043,10 +2051,8 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 	)
 
 	r.mu.RLock()
-	result := completedResult(tr)
 	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
 	r.mu.RUnlock()
-	tr.Result = &result
 
 	if r.ticketing != nil {
 		if err := r.ticketing.MarkComplete(ctx, tr.TicketID, result); err != nil {

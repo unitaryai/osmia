@@ -113,6 +113,9 @@ func TestHandleJobFailedFailsRunWhenRetryCannotStart(t *testing.T) {
 	tb := newMockTicketing(nil)
 	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
 	tr.CurrentEngine = "claude-code"
+	// Retries remain after this one, so only marking them spent makes the
+	// failed run terminal.
+	tr.MaxRetries = 2
 	_ = tr.Transition(taskrun.StateRunning)
 	k8s := fake.NewSimpleClientset()
 	k8s.PrependReactor("create", "jobs", func(k8stesting.Action) (bool, runtime.Object, error) {
@@ -124,9 +127,45 @@ func TestHandleJobFailedFailsRunWhenRetryCannotStart(t *testing.T) {
 	r.handleJobFailed(context.Background(), tr, "tests did not pass")
 
 	assert.Equal(t, taskrun.StateFailed, tr.State)
-	assert.Equal(t, 1, tr.RetryCount)
 	assert.Equal(t, []string{"TICKET-1"}, tb.markedFailed)
 	assert.Equal(t, []string{"retry could not be started"}, tb.failReasons)
+	assert.True(t, tr.IsTerminal(), "a run whose retry never started must not block new triggers")
+}
+
+// TestHandleJobCompleteSavesPriorMergeRequest checks that a run which
+// succeeds without reporting a merge request is saved with the one an
+// earlier attempt opened. The review poller reads it from the store after a
+// restart.
+func TestHandleJobCompleteSavesPriorMergeRequest(t *testing.T) {
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	_ = tr.Transition(taskrun.StateRunning)
+	tr.PriorBranchName = priorBranch
+	tr.PriorMergeRequestURL = priorMR
+	store := &mergeRequestSaveRecorder{MemoryStore: taskrun.NewMemoryStore()}
+	r := relaunchReconciler(tr, fake.NewSimpleClientset())
+	r.taskRunStore = store
+
+	r.handleJobComplete(context.Background(), tr)
+
+	require.Equal(t, taskrun.StateSucceeded, tr.State)
+	require.NotEmpty(t, store.savedMRs)
+	assert.Equal(t, priorMR, store.savedMRs[0], "the first save after success must hold the merge request")
+}
+
+// mergeRequestSaveRecorder records the merge request URL each Save sees, since
+// MemoryStore keeps the pointer and later changes would show through.
+type mergeRequestSaveRecorder struct {
+	*taskrun.MemoryStore
+	savedMRs []string
+}
+
+func (s *mergeRequestSaveRecorder) Save(ctx context.Context, tr *taskrun.TaskRun) error {
+	mr := ""
+	if tr.Result != nil {
+		mr = tr.Result.MergeRequestURL
+	}
+	s.savedMRs = append(s.savedMRs, mr)
+	return s.MemoryStore.Save(ctx, tr)
 }
 
 // TestCompletedResultCarriesPriorWork checks that a run which succeeds

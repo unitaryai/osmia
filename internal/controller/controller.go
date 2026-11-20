@@ -1124,10 +1124,7 @@ func (r *Reconciler) handleJobComplete(ctx context.Context, tr *taskrun.TaskRun)
 	// Use the result captured by the stream reader processor; fall back to a
 	// generic success result if the stream reader did not capture one yet.
 	r.mu.RLock()
-	result := engine.TaskResult{Success: true, Summary: "task completed successfully"}
-	if tr.Result != nil {
-		result = *tr.Result
-	}
+	result := completedResult(tr)
 	r.mu.RUnlock()
 	tr.Result = &result
 
@@ -1551,6 +1548,7 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 		)
 
 		r.launchFallbackJob(ctx, tr, nextEngine)
+		r.failIfRelaunchDidNotStart(ctx, tr, "fallback to "+nextEngine)
 		return
 	}
 
@@ -1604,6 +1602,7 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 				"max_retries", tr.MaxRetries,
 			)
 			r.launchRetryJob(ctx, tr, retryPrompt)
+			r.failIfRelaunchDidNotStart(ctx, tr, "retry")
 			return
 		}
 		// Diagnosis advises against retry; fall through to terminal failure.
@@ -1618,6 +1617,36 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 	}
 	r.mu.Unlock()
 
+	r.finishFailedRun(ctx, tr, reason)
+}
+
+// failIfRelaunchDidNotStart fails a task run whose retry or fallback Job
+// never started. Each launch moves the run to Running only once its Job is
+// created; every earlier exit leaves it in Retrying, which nothing polls,
+// so without this the run and its ticket would wait there for ever.
+func (r *Reconciler) failIfRelaunchDidNotStart(ctx context.Context, tr *taskrun.TaskRun, attempt string) {
+	r.mu.Lock()
+	if tr.State != taskrun.StateRetrying {
+		r.mu.Unlock()
+		return
+	}
+	if err := tr.Transition(taskrun.StateFailed); err != nil {
+		r.mu.Unlock()
+		r.logger.ErrorContext(ctx, "failed to fail a task run whose relaunch did not start",
+			"task_run_id", tr.ID,
+			"error", err,
+		)
+		return
+	}
+	r.mu.Unlock()
+
+	r.finishFailedRun(ctx, tr, attempt+" could not be started")
+}
+
+// finishFailedRun records a task run that has reached the Failed state for
+// good: it saves the run, marks the ticket failed with the reason, updates
+// the notification, and records the outcome.
+func (r *Reconciler) finishFailedRun(ctx context.Context, tr *taskrun.TaskRun, reason string) {
 	if err := r.taskRunStore.Save(ctx, tr); err != nil {
 		r.logger.ErrorContext(ctx, "failed to save task run to store",
 			"task_run_id", tr.ID,
@@ -1681,9 +1710,7 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 	if fallbackOK {
 		task.TicketURL = fallbackCachedTicket.ExternalURL
 	}
-	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
-		task.PriorMergeRequestURL = mrURL
-	}
+	task.PriorMergeRequestURL = priorMergeRequestURL(tr)
 
 	engineCfg := r.baseEngineConfig(ctx, engineName)
 
@@ -2016,10 +2043,7 @@ func (r *Reconciler) resolvePreMergeApproval(ctx context.Context, tr *taskrun.Ta
 	)
 
 	r.mu.RLock()
-	result := engine.TaskResult{Success: true, Summary: "task completed successfully"}
-	if tr.Result != nil {
-		result = *tr.Result
-	}
+	result := completedResult(tr)
 	cachedTicket, hasTicket := r.ticketCache[tr.TicketID]
 	r.mu.RUnlock()
 	tr.Result = &result
@@ -2115,10 +2139,52 @@ func (r *Reconciler) agentReportedFailure(tr *taskrun.TaskRun) (string, bool) {
 // own (fallback Jobs have no stream reader), so a kept result would be
 // mistaken for the new attempt's and fail it. Call it with r.mu held, only
 // once the new Job has been created, so a failed launch keeps the old result.
-// Anything a new attempt needs from the old result (its branch and merge
-// request) is read before this point.
+// The old result's branch and merge request are kept on the run, so that
+// later attempts still push to them.
 func clearPreviousAttemptResult(tr *taskrun.TaskRun) {
+	if tr.Result != nil && tr.Result.BranchName != "" {
+		tr.PriorBranchName = tr.Result.BranchName
+	}
+	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
+		tr.PriorMergeRequestURL = mrURL
+	}
 	tr.Result = nil
+}
+
+// completedResult is the result to record for a run that succeeded: the
+// agent's own when the stream reader captured one, otherwise a generic
+// success. Either way it carries the branch and merge request of an earlier
+// attempt when this one reported none, so the merge request is still watched.
+func completedResult(tr *taskrun.TaskRun) engine.TaskResult {
+	result := engine.TaskResult{Success: true, Summary: "task completed successfully"}
+	if tr.Result != nil {
+		result = *tr.Result
+	}
+	if result.BranchName == "" {
+		result.BranchName = tr.PriorBranchName
+	}
+	if result.MergeRequestURL == "" {
+		result.MergeRequestURL = tr.PriorMergeRequestURL
+	}
+	return result
+}
+
+// priorBranchName returns the branch the latest attempt that reported one
+// pushed to, or "" when none has.
+func priorBranchName(tr *taskrun.TaskRun) string {
+	if tr.Result != nil && tr.Result.BranchName != "" {
+		return tr.Result.BranchName
+	}
+	return tr.PriorBranchName
+}
+
+// priorMergeRequestURL returns the merge request the latest attempt that
+// reported one opened, or "" when none has.
+func priorMergeRequestURL(tr *taskrun.TaskRun) string {
+	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
+		return mrURL
+	}
+	return tr.PriorMergeRequestURL
 }
 
 // shouldPromptContinuation returns true when all preconditions for a
@@ -2296,9 +2362,7 @@ func (r *Reconciler) launchContinuationJob(ctx context.Context, tr *taskrun.Task
 
 	// If a prior run already opened an MR, pass its URL so the continuation
 	// agent pushes to the existing branch rather than creating a duplicate MR.
-	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
-		task.PriorMergeRequestURL = mrURL
-	}
+	task.PriorMergeRequestURL = priorMergeRequestURL(tr)
 
 	engineCfg := r.baseEngineConfig(ctx, tr.CurrentEngine)
 
@@ -3105,8 +3169,8 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 
 	// If the previous attempt pushed to a branch, pass it so the retry
 	// agent can clone that branch and continue from the prior work.
-	if tr.Result != nil && tr.Result.BranchName != "" {
-		task.PriorBranchName = tr.Result.BranchName
+	if branch := priorBranchName(tr); branch != "" {
+		task.PriorBranchName = branch
 	} else if tr.RetryCount > 0 {
 		// Fall back to the predictable naming convention even if result.json
 		// was not written (e.g. pod killed before stop hook ran).
@@ -3115,9 +3179,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 
 	// If a prior run already opened an MR, pass its URL so the retry agent
 	// pushes to the existing branch rather than creating a duplicate MR.
-	if mrURL := validatedMergeRequestURL(tr.Result); mrURL != "" {
-		task.PriorMergeRequestURL = mrURL
-	}
+	task.PriorMergeRequestURL = priorMergeRequestURL(tr)
 
 	engineCfg := r.baseEngineConfig(ctx, tr.CurrentEngine)
 

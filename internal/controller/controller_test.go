@@ -528,19 +528,26 @@ func TestHandleJobComplete_AgentReportedFailureRetries(t *testing.T) {
 	tb := newMockTicketing(nil)
 	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
 	_ = tr.Transition(taskrun.StateRunning)
+	tr.CurrentEngine = "claude-code"
 	tr.Result = &engine.TaskResult{Success: false, Summary: "tests failed"}
 
 	r := &Reconciler{
-		config:       testConfig(),
-		logger:       testLogger(),
-		ticketing:    tb,
-		taskRuns:     map[string]*taskrun.TaskRun{"key-1": tr},
-		taskRunStore: taskrun.NewMemoryStore(),
-		ticketCache:  map[string]ticketing.Ticket{"TICKET-1": {ID: "TICKET-1"}},
+		config:        testConfig(),
+		logger:        testLogger(),
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		ticketCache:   map[string]ticketing.Ticket{"TICKET-1": {ID: "TICKET-1"}},
+		engines:       map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		jobBuilder:    &mockJobBuilder{},
+		k8sClient:     fake.NewSimpleClientset(),
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
 	}
 
 	r.handleJobComplete(context.Background(), tr)
 
+	assert.Equal(t, taskrun.StateRunning, tr.State)
 	assert.Equal(t, 1, tr.RetryCount)
 	assert.Empty(t, tb.markedComplete)
 	assert.Empty(t, tb.markedFailed)
@@ -618,21 +625,27 @@ func TestHandleJobFailed_WithRetry(t *testing.T) {
 	tb := newMockTicketing(nil)
 
 	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	tr.CurrentEngine = "claude-code"
 	_ = tr.Transition(taskrun.StateRunning)
 
 	r := &Reconciler{
-		config:       testConfig(),
-		logger:       logger,
-		ticketing:    tb,
-		taskRuns:     map[string]*taskrun.TaskRun{"key-1": tr},
-		taskRunStore: taskrun.NewMemoryStore(),
+		config:        testConfig(),
+		logger:        logger,
+		ticketing:     tb,
+		taskRuns:      map[string]*taskrun.TaskRun{"key-1": tr},
+		taskRunStore:  taskrun.NewMemoryStore(),
+		engines:       map[string]engine.ExecutionEngine{"claude-code": &mockEngine{name: "claude-code"}},
+		jobBuilder:    &mockJobBuilder{},
+		k8sClient:     fake.NewSimpleClientset(),
+		namespace:     "test-ns",
+		streamReaders: make(map[string]context.CancelFunc),
 	}
 
 	ctx := context.Background()
 	r.handleJobFailed(ctx, tr, "out of memory")
 
-	// Should be retrying, not terminal failed.
-	assert.Equal(t, taskrun.StateRetrying, tr.State)
+	// Should be running the retry, not terminal failed.
+	assert.Equal(t, taskrun.StateRunning, tr.State)
 	assert.Equal(t, 1, tr.RetryCount)
 	assert.Empty(t, tb.markedFailed)
 }

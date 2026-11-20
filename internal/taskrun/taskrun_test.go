@@ -39,6 +39,8 @@ func TestTransition(t *testing.T) {
 		{name: "needs human to running", from: StateNeedsHuman, to: StateRunning},
 		{name: "failed to retrying", from: StateFailed, to: StateRetrying},
 		{name: "retrying to running", from: StateRetrying, to: StateRunning},
+		{name: "retrying to failed", from: StateRetrying, to: StateFailed},
+		{name: "retrying to succeeded is invalid", from: StateRetrying, to: StateSucceeded, wantErr: true},
 		{name: "needs human to failed", from: StateNeedsHuman, to: StateFailed},
 		{name: "needs human to succeeded is invalid", from: StateNeedsHuman, to: StateSucceeded, wantErr: true},
 		{name: "queued to succeeded is invalid", from: StateQueued, to: StateSucceeded, wantErr: true},

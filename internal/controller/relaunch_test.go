@@ -55,6 +55,8 @@ func TestRelaunchClearsPreviousResult(t *testing.T) {
 
 			require.NotEmpty(t, tr.JobName, "the new Job was not launched")
 			assert.Nil(t, tr.Result)
+			assert.Equal(t, priorBranch, tr.PriorBranchName)
+			assert.Equal(t, priorMR, tr.PriorMergeRequestURL)
 		})
 	}
 }
@@ -76,6 +78,91 @@ func TestLaunchRetryJobKeepsResultWhenJobCreateFails(t *testing.T) {
 	assert.Same(t, previous, tr.Result)
 }
 
+const (
+	priorBranch = "sc-TICKET-1"
+	priorMR     = "https://gitlab.com/org/repo/-/merge_requests/7"
+)
+
+// TestSecondRetryKeepsPriorWork reproduces review on #111: the first retry
+// clears the result, ends without one of its own, and is retried again.
+// The second retry must still be told about the branch and merge request
+// the first attempt opened, or the agent can open a second request.
+func TestSecondRetryKeepsPriorWork(t *testing.T) {
+	tr := retryingTaskRunWithFailedResult()
+	tr.MaxRetries = 2
+	r := relaunchReconciler(tr, fake.NewSimpleClientset())
+	eng := &capturingEngine{mockEngine: mockEngine{name: "claude-code"}}
+	r.engines["claude-code"] = eng
+
+	r.launchRetryJob(context.Background(), tr, "")
+	require.Nil(t, tr.Result)
+	// The retry ends without a result and is retried again.
+	require.NoError(t, tr.Transition(taskrun.StateFailed))
+	require.NoError(t, tr.Transition(taskrun.StateRetrying))
+	tr.RetryCount++
+	r.launchRetryJob(context.Background(), tr, "")
+
+	assert.Equal(t, priorBranch, eng.lastTask.PriorBranchName)
+	assert.Equal(t, priorMR, eng.lastTask.PriorMergeRequestURL)
+}
+
+// TestHandleJobFailedFailsRunWhenRetryCannotStart checks that a retry whose
+// Job is never created fails the run and its ticket, rather than leaving it
+// in Retrying, a state nothing polls.
+func TestHandleJobFailedFailsRunWhenRetryCannotStart(t *testing.T) {
+	tb := newMockTicketing(nil)
+	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+	tr.CurrentEngine = "claude-code"
+	_ = tr.Transition(taskrun.StateRunning)
+	k8s := fake.NewSimpleClientset()
+	k8s.PrependReactor("create", "jobs", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("api server unavailable")
+	})
+	r := relaunchReconciler(tr, k8s)
+	r.ticketing = tb
+
+	r.handleJobFailed(context.Background(), tr, "tests did not pass")
+
+	assert.Equal(t, taskrun.StateFailed, tr.State)
+	assert.Equal(t, 1, tr.RetryCount)
+	assert.Equal(t, []string{"TICKET-1"}, tb.markedFailed)
+	assert.Equal(t, []string{"retry could not be started"}, tb.failReasons)
+}
+
+// TestCompletedResultCarriesPriorWork checks that a run which succeeds
+// without reporting a merge request is recorded with the one an earlier
+// attempt opened, so the review poller still watches it.
+func TestCompletedResultCarriesPriorWork(t *testing.T) {
+	tests := []struct {
+		name   string
+		result *engine.TaskResult
+		wantMR string
+	}{
+		{name: "no result", result: nil, wantMR: priorMR},
+		{name: "result without a merge request", result: &engine.TaskResult{Success: true}, wantMR: priorMR},
+		{
+			name:   "result with its own merge request",
+			result: &engine.TaskResult{Success: true, MergeRequestURL: "https://gitlab.com/org/repo/-/merge_requests/8"},
+			wantMR: "https://gitlab.com/org/repo/-/merge_requests/8",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
+			tr.PriorBranchName = priorBranch
+			tr.PriorMergeRequestURL = priorMR
+			tr.Result = tt.result
+
+			result := completedResult(tr)
+
+			assert.True(t, result.Success)
+			assert.Equal(t, tt.wantMR, result.MergeRequestURL)
+			assert.Equal(t, priorBranch, result.BranchName)
+		})
+	}
+}
+
 func retryingTaskRunWithFailedResult() *taskrun.TaskRun {
 	tr := taskrun.New("tr-1", "key-1", "TICKET-1", "claude-code")
 	tr.CurrentEngine = "claude-code"
@@ -83,7 +170,12 @@ func retryingTaskRunWithFailedResult() *taskrun.TaskRun {
 	_ = tr.Transition(taskrun.StateRunning)
 	_ = tr.Transition(taskrun.StateFailed)
 	_ = tr.Transition(taskrun.StateRetrying)
-	tr.Result = &engine.TaskResult{Success: false, Summary: "could not clone the repository"}
+	tr.Result = &engine.TaskResult{
+		Success:         false,
+		Summary:         "tests still fail",
+		BranchName:      priorBranch,
+		MergeRequestURL: priorMR,
+	}
 	return tr
 }
 

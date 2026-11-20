@@ -69,6 +69,7 @@ func TestHandleJobFailed_InfraFailureSkipsFallback(t *testing.T) {
 	assert.Equal(t, "claude-code", tr.CurrentEngine, "must not move to the fallback engine")
 	assert.Equal(t, []string{"claude-code"}, tr.EngineAttempts)
 	assert.Contains(t, tb.markedFailed, "TICKET-1")
+	assert.True(t, tr.IsTerminal(), "a run that gets no further attempt must not block new triggers")
 }
 
 // TestHandleJobFailed_NonInfraFailureStillFallsBack checks the fallback

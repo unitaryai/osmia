@@ -18,6 +18,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
@@ -1615,9 +1616,32 @@ func (r *Reconciler) handleJobFailed(ctx context.Context, tr *taskrun.TaskRun, r
 		r.mu.Unlock()
 		return
 	}
+	// This run gets no further attempt, even when diagnosis stopped it with
+	// retries left, so mark them spent and let it count as finished.
+	tr.RetryCount = tr.MaxRetries
 	r.mu.Unlock()
 
 	r.finishFailedRun(ctx, tr, reason)
+}
+
+// deleteUnrecordedJob removes a Job whose create call returned an error.
+// The API server may still have stored it, for example when the call timed
+// out. The run never records such a Job, so the controller could neither
+// track it nor stop it once the run has failed. A Job that does not exist
+// is fine. It uses a context of its own, since the create may have failed
+// because ctx was cancelled.
+func (r *Reconciler) deleteUnrecordedJob(ctx context.Context, tr *taskrun.TaskRun, jobName string) {
+	deleteCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
+	propagation := metav1.DeletePropagationBackground
+	err := r.k8sClient.BatchV1().Jobs(r.namespace).Delete(deleteCtx, jobName, metav1.DeleteOptions{PropagationPolicy: &propagation})
+	if err != nil && !apierrors.IsNotFound(err) {
+		r.logger.ErrorContext(ctx, "failed to delete a job whose create returned an error",
+			"task_run_id", tr.ID,
+			"job_name", jobName,
+			"error", err,
+		)
+	}
 }
 
 // failIfRelaunchDidNotStart fails a task run whose retry or fallback Job
@@ -1764,6 +1788,7 @@ func (r *Reconciler) launchFallbackJob(ctx context.Context, tr *taskrun.TaskRun,
 				"task_run", tr.ID,
 				"error", err,
 			)
+			r.deleteUnrecordedJob(ctx, tr, job.Name)
 			return
 		}
 	}
@@ -3233,6 +3258,7 @@ func (r *Reconciler) launchRetryJob(ctx context.Context, tr *taskrun.TaskRun, pr
 				"task_run_id", tr.ID,
 				"error", err,
 			)
+			r.deleteUnrecordedJob(ctx, tr, job.Name)
 			return
 		}
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -233,5 +234,38 @@ func relaunchReconciler(tr *taskrun.TaskRun, k8s *fake.Clientset) *Reconciler {
 		taskRunStore:  taskrun.NewMemoryStore(),
 		namespace:     "test-ns",
 		streamReaders: make(map[string]context.CancelFunc),
+	}
+}
+
+// TestFailedRelaunchDeletesStoredJob checks that when a create call errors
+// after the API server stored the Job, as a timed-out call can, that Job is
+// deleted. The run never records it, so nothing else would stop it once the
+// run has failed.
+func TestFailedRelaunchDeletesStoredJob(t *testing.T) {
+	tests := []struct {
+		name   string
+		launch func(r *Reconciler, tr *taskrun.TaskRun)
+	}{
+		{name: "retry", launch: func(r *Reconciler, tr *taskrun.TaskRun) { r.launchRetryJob(context.Background(), tr, "") }},
+		{name: "fallback", launch: func(r *Reconciler, tr *taskrun.TaskRun) { r.launchFallbackJob(context.Background(), tr, "codex") }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k8s := fake.NewSimpleClientset()
+			k8s.PrependReactor("create", "jobs", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				require.NoError(t, k8s.Tracker().Add(action.(k8stesting.CreateAction).GetObject()))
+				return true, nil, errors.New("context deadline exceeded")
+			})
+			tr := retryingTaskRunWithFailedResult()
+			r := relaunchReconciler(tr, k8s)
+
+			tt.launch(r, tr)
+
+			jobs, err := k8s.BatchV1().Jobs("test-ns").List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Empty(t, jobs.Items)
+			assert.Empty(t, tr.JobName)
+		})
 	}
 }

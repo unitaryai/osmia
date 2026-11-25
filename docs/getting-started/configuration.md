@@ -262,7 +262,8 @@ The agent's Job gets `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION` and
 `ANTHROPIC_DEFAULT_HAIKU_MODEL` set from `models`. These are set after every
 other source of environment, so nothing else in the configuration can replace
 them. The controller refuses to start when `bedrock_region` or any of the four
-models is missing, or when `api_key_secret` or `api_key_key` is also set.
+models is missing, or when `api_key_secret` or `api_key_key` is also set, and
+refuses `models` with any other method, where it would be ignored.
 Every model is required because Claude Code's own defaults on Bedrock are
 cross-region inference profiles, which would send calls outside the region
 without saying so.

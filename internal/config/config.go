@@ -550,7 +550,7 @@ type ClaudeCodeEngineConfig struct {
 	AgentTeams    AgentTeamsConfig `yaml:"agent_teams"`
 	FallbackModel string           `yaml:"fallback_model,omitempty"`
 	// Models pins the model IDs Claude Code uses. Required, in full, when
-	// Auth.Method is "bedrock".
+	// Auth.Method is "bedrock", and refused otherwise.
 	Models ClaudeCodeModels `yaml:"models,omitempty"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more

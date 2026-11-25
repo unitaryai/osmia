@@ -98,6 +98,11 @@ func TestValidate_ClaudeCodeBedrock(t *testing.T) {
 			name:   "api key method needs no models",
 			engine: ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}},
 		},
+		{
+			name:      "models without bedrock",
+			engine:    ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}, Models: models},
+			wantField: "engines.claude-code.models",
+		},
 	}
 
 	for _, tt := range tests {

@@ -48,9 +48,13 @@ func validateStorePath(name, path string) error {
 
 // validateClaudeCodeBedrock requires a Bedrock sign-in to name its region and
 // every model, since Claude Code's own Bedrock defaults are cross-region, and
-// refuses an API key alongside it.
+// refuses an API key alongside it. Models are refused without Bedrock, where
+// they would be ignored.
 func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
 	if cc.Auth.Method != "bedrock" {
+		if cc.Models != (ClaudeCodeModels{}) {
+			return fmt.Errorf("engines.claude-code.models is only used when engines.claude-code.auth.method is \"bedrock\"")
+		}
 		return nil
 	}
 	required := []struct{ field, value string }{

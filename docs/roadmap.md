@@ -504,7 +504,7 @@ it is not a safe boundary.
   repository URLs supplied later, review follow-ups and retries
 
 **Inside the region:**
-- [ ] Model calls through the region's provider endpoint: wire the existing
+- [x] Model calls through the region's provider endpoint: wire the existing
   but unused `auth.method: bedrock` and `bedrock_region` settings
 - [ ] Transcripts, artifacts, session data and the TaskRun store in regional
   storage

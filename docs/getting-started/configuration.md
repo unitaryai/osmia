@@ -233,10 +233,53 @@ A digest can only ever mean one image, so a node that already has it uses its ca
 | Method | Description |
 |---|---|
 | `api_key` | API key stored in a Kubernetes Secret |
-| `bedrock` | AWS Bedrock via IRSA (IAM Roles for Service Accounts) |
+| `bedrock` | Amazon Bedrock in one region, with the agent pod's AWS identity. Claude Code only; see below |
 | `vertex` | Google Vertex AI via Workload Identity Federation |
 | `credentials_file` | Credentials file mounted from a Kubernetes Secret |
 | `setup_token` | Setup token for initial authentication |
+
+### Claude Code on Amazon Bedrock
+
+With `auth.method: bedrock`, the Claude Code agent calls Amazon Bedrock in the
+region you name instead of the Anthropic API, and no API key is mounted:
+
+```yaml
+engines:
+  claude-code:
+    auth:
+      method: bedrock
+      bedrock_region: <region>
+    models:
+      main: <model id>     # the main session
+      opus: <model id>     # wherever "opus" is asked for
+      sonnet: <model id>   # wherever "sonnet" is asked for
+      haiku: <model id>    # wherever "haiku" is asked for, and background calls
+```
+
+The agent's Job gets `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION` and
+`AWS_DEFAULT_REGION` set to `bedrock_region`, and `ANTHROPIC_MODEL`,
+`ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` set from `models`. These are set after every
+other source of environment, so nothing else in the configuration can replace
+them. The controller refuses to start when `bedrock_region` or any of the four
+models is missing, or when `api_key_secret` or `api_key_key` is also set.
+Every model is required because Claude Code's own defaults on Bedrock are
+cross-region inference profiles, which would send calls outside the region
+without saying so.
+
+- **AWS identity.** The agent pod signs its Bedrock calls with its own AWS
+  identity, for example IRSA or EKS Pod Identity on its service account. That
+  identity must be allowed to invoke the four models in the region. Osmia
+  does not create it.
+- **Other places a model is named.** `agent_teams.teammate_model` and a
+  sub-agent's `model` are passed to Claude Code as given. If either names a
+  model ID rather than an alias, it must also be one that stays in the
+  region. Osmia does not check what kind of ID it is given.
+- **Other engines.** Only Claude Code uses Bedrock. Engines used as fallbacks
+  or in tournaments still call their own providers with their own keys.
+- **Task-scoped secrets.** A task may not set any variable named `ANTHROPIC_*`,
+  `AWS_*` or `CLAUDE_CODE_*` on an agent that calls Bedrock, so a ticket can
+  neither bring an API key back nor point the calls elsewhere.
 
 ## Guard rails
 

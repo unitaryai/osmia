@@ -27,16 +27,28 @@ func WithBedrock(region string, models BedrockModels) Option {
 	}
 }
 
-// apply sets the Bedrock variables over whatever env already holds and
-// removes the Anthropic API key from env and secretKeyRefs.
+// apply sets the Bedrock variables over whatever env already holds, removes
+// the Anthropic API key from env, and drops any secret reference named like
+// the API key or one of the Bedrock variables, since secret references are
+// added to the Job after plain variables and would win.
 func (b *bedrockSettings) apply(env map[string]string, secretKeyRefs map[string]engine.SecretKeyRef) {
 	delete(env, "ANTHROPIC_API_KEY")
 	delete(secretKeyRefs, "ANTHROPIC_API_KEY")
-	env["CLAUDE_CODE_USE_BEDROCK"] = "1"
-	env["AWS_REGION"] = b.region
-	env["AWS_DEFAULT_REGION"] = b.region
-	env["ANTHROPIC_MODEL"] = b.models.Main
-	env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = b.models.Opus
-	env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = b.models.Sonnet
-	env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = b.models.Haiku
+	for name, value := range b.env() {
+		env[name] = value
+		delete(secretKeyRefs, name)
+	}
+}
+
+// env returns every variable the Bedrock settings pin, with its value.
+func (b *bedrockSettings) env() map[string]string {
+	return map[string]string{
+		"ANTHROPIC_DEFAULT_HAIKU_MODEL":  b.models.Haiku,
+		"ANTHROPIC_DEFAULT_OPUS_MODEL":   b.models.Opus,
+		"ANTHROPIC_DEFAULT_SONNET_MODEL": b.models.Sonnet,
+		"ANTHROPIC_MODEL":                b.models.Main,
+		"AWS_DEFAULT_REGION":             b.region,
+		"AWS_REGION":                     b.region,
+		"CLAUDE_CODE_USE_BEDROCK":        "1",
+	}
 }

@@ -46,16 +46,14 @@ func validateStorePath(name, path string) error {
 	return nil
 }
 
-// validateClaudeCodeBedrock requires a Bedrock sign-in to name its region and
+// validateClaudeCodeBedrock requires the bedrock method to name its region and
 // every model, since Claude Code's own Bedrock defaults are cross-region, and
 // refuses an API key alongside it. Models are refused without Bedrock, where
-// they would be ignored.
+// they would be ignored, as is a method that is bedrock only once case and
+// surrounding whitespace are ignored.
 func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
-	if cc.Auth.Method != "bedrock" {
-		if cc.Models != (ClaudeCodeModels{}) {
-			return fmt.Errorf("engines.claude-code.models is only used when engines.claude-code.auth.method is \"bedrock\"")
-		}
-		return nil
+	if cc.Auth.Method != AuthMethodBedrock {
+		return validateClaudeCodeNotBedrock(cc)
 	}
 	required := []struct{ field, value string }{
 		{"engines.claude-code.auth.bedrock_region", cc.Auth.BedrockRegion},
@@ -65,8 +63,8 @@ func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
 		{"engines.claude-code.models.haiku", cc.Models.Haiku},
 	}
 	for _, r := range required {
-		if r.value == "" {
-			return fmt.Errorf("%s is required when engines.claude-code.auth.method is \"bedrock\"", r.field)
+		if strings.TrimSpace(r.value) == "" {
+			return fmt.Errorf("%s is required when engines.claude-code.auth.method is %q", r.field, AuthMethodBedrock)
 		}
 	}
 	forbidden := []struct{ field, value string }{
@@ -75,8 +73,20 @@ func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
 	}
 	for _, f := range forbidden {
 		if f.value != "" {
-			return fmt.Errorf("%s must not be set when engines.claude-code.auth.method is \"bedrock\"", f.field)
+			return fmt.Errorf("%s must not be set when engines.claude-code.auth.method is %q", f.field, AuthMethodBedrock)
 		}
+	}
+	return nil
+}
+
+// validateClaudeCodeNotBedrock refuses a method that differs from bedrock only
+// in case or surrounding whitespace, and models without the bedrock method.
+func validateClaudeCodeNotBedrock(cc *ClaudeCodeEngineConfig) error {
+	if strings.EqualFold(strings.TrimSpace(cc.Auth.Method), AuthMethodBedrock) {
+		return fmt.Errorf("engines.claude-code.auth.method %q must be written exactly %q", cc.Auth.Method, AuthMethodBedrock)
+	}
+	if cc.Models != (ClaudeCodeModels{}) {
+		return fmt.Errorf("engines.claude-code.models is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
 	}
 	return nil
 }

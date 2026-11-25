@@ -48,9 +48,10 @@ func TestValidate_ClaudeCodeBedrock(t *testing.T) {
 	bedrock := AuthConfig{Method: "bedrock", BedrockRegion: "example-region-1"}
 
 	tests := []struct {
-		name      string
-		engine    ClaudeCodeEngineConfig
-		wantField string
+		name       string
+		engine     ClaudeCodeEngineConfig
+		wantField  string
+		wantPhrase string
 	}{
 		{name: "valid", engine: ClaudeCodeEngineConfig{Auth: bedrock, Models: models}},
 		{
@@ -99,9 +100,32 @@ func TestValidate_ClaudeCodeBedrock(t *testing.T) {
 			engine: ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}},
 		},
 		{
-			name:      "models without bedrock",
-			engine:    ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}, Models: models},
-			wantField: "engines.claude-code.models",
+			name:       "models without bedrock",
+			engine:     ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}, Models: models},
+			wantField:  "engines.claude-code.models",
+			wantPhrase: "is only used when",
+		},
+		{
+			name:       "capitalised method",
+			engine:     ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "Bedrock", BedrockRegion: "example-region-1"}, Models: models},
+			wantField:  "engines.claude-code.auth.method",
+			wantPhrase: "must be written exactly",
+		},
+		{
+			name:       "method with surrounding whitespace",
+			engine:     ClaudeCodeEngineConfig{Auth: AuthConfig{Method: " bedrock", BedrockRegion: "example-region-1"}, Models: models},
+			wantField:  "engines.claude-code.auth.method",
+			wantPhrase: "must be written exactly",
+		},
+		{
+			name:      "whitespace-only region",
+			engine:    ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "bedrock", BedrockRegion: "  "}, Models: models},
+			wantField: "engines.claude-code.auth.bedrock_region",
+		},
+		{
+			name:      "whitespace-only model",
+			engine:    ClaudeCodeEngineConfig{Auth: bedrock, Models: ClaudeCodeModels{Main: " ", Opus: "o", Sonnet: "s", Haiku: "h"}},
+			wantField: "engines.claude-code.models.main",
 		},
 	}
 
@@ -115,6 +139,7 @@ func TestValidate_ClaudeCodeBedrock(t *testing.T) {
 			if tt.wantField != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantField)
+				assert.Contains(t, err.Error(), tt.wantPhrase)
 				return
 			}
 			assert.NoError(t, err)

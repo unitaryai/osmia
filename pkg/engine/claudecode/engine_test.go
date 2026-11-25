@@ -257,10 +257,24 @@ func TestBuildExecutionSpec(t *testing.T) {
 				},
 				SecretKeyRefs: map[string]engine.SecretKeyRef{
 					"ANTHROPIC_API_KEY": {SecretName: "config-anthropic", Key: "key"},
+					"AWS_REGION":        {SecretName: "config-aws", Key: "region"},
+					"ANTHROPIC_MODEL":   {SecretName: "config-anthropic", Key: "model"},
 				},
 			},
 			check: func(t *testing.T, spec *engine.ExecutionSpec) {
 				assertBedrockEnv(t, spec)
+				for _, name := range []string{
+					"ANTHROPIC_API_KEY",
+					"ANTHROPIC_DEFAULT_HAIKU_MODEL",
+					"ANTHROPIC_DEFAULT_OPUS_MODEL",
+					"ANTHROPIC_DEFAULT_SONNET_MODEL",
+					"ANTHROPIC_MODEL",
+					"AWS_DEFAULT_REGION",
+					"AWS_REGION",
+					"CLAUDE_CODE_USE_BEDROCK",
+				} {
+					assert.NotContains(t, spec.SecretKeyRefs, name)
+				}
 			},
 		},
 		{

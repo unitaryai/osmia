@@ -610,6 +610,10 @@ type AiderEngineConfig struct {
 	Auth  AuthConfig `yaml:"auth"`
 }
 
+// AuthMethodBedrock is the auth method that makes Claude Code call Amazon
+// Bedrock.
+const AuthMethodBedrock = "bedrock"
+
 // AuthConfig configures authentication for an execution engine.
 type AuthConfig struct {
 	Method            string `yaml:"method"`             // "api_key", "setup_token", "bedrock", "vertex", "credentials_file"

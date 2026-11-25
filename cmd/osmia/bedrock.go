@@ -5,16 +5,16 @@ import (
 	"github.com/unitaryai/osmia/pkg/engine/claudecode"
 )
 
-// claudeBedrockOptions returns the option that makes Claude Code call Amazon
-// Bedrock when cfg's auth method is "bedrock", and none otherwise.
-func claudeBedrockOptions(cfg *config.ClaudeCodeEngineConfig) []claudecode.Option {
-	if cfg == nil || cfg.Auth.Method != "bedrock" {
-		return nil
+// claudeBedrockOption returns the option that makes Claude Code call Amazon
+// Bedrock, and true, when cfg's auth method is "bedrock"; otherwise false.
+func claudeBedrockOption(cfg *config.ClaudeCodeEngineConfig) (claudecode.Option, bool) {
+	if cfg == nil || cfg.Auth.Method != config.AuthMethodBedrock {
+		return nil, false
 	}
-	return []claudecode.Option{claudecode.WithBedrock(cfg.Auth.BedrockRegion, claudecode.BedrockModels{
+	return claudecode.WithBedrock(cfg.Auth.BedrockRegion, claudecode.BedrockModels{
 		Main:   cfg.Models.Main,
 		Opus:   cfg.Models.Opus,
 		Sonnet: cfg.Models.Sonnet,
 		Haiku:  cfg.Models.Haiku,
-	})}
+	}), true
 }

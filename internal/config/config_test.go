@@ -160,6 +160,36 @@ guardrails:
 	require.ErrorContains(t, err, "ticketing.config.seed_file must be a string")
 }
 
+// TestLoad_ClaudeCodeModels pins the YAML names of the Bedrock models block.
+func TestLoad_ClaudeCodeModels(t *testing.T) {
+	tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
+	err := os.WriteFile(tmp, []byte(`
+engines:
+  default: claude-code
+  claude-code:
+    auth:
+      method: bedrock
+      bedrock_region: example-region-1
+    models:
+      main: example-main-model
+      opus: example-opus-model
+      sonnet: example-sonnet-model
+      haiku: example-haiku-model
+`), 0o600)
+	require.NoError(t, err)
+
+	got, err := Load(tmp)
+
+	require.NoError(t, err)
+	require.NotNil(t, got.Engines.ClaudeCode)
+	assert.Equal(t, ClaudeCodeModels{
+		Main:   "example-main-model",
+		Opus:   "example-opus-model",
+		Sonnet: "example-sonnet-model",
+		Haiku:  "example-haiku-model",
+	}, got.Engines.ClaudeCode.Models)
+}
+
 func TestLoad_TaskProfiles(t *testing.T) {
 	tests := []struct {
 		name         string

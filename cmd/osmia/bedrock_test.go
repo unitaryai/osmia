@@ -11,7 +11,7 @@ import (
 	"github.com/unitaryai/osmia/pkg/engine/claudecode"
 )
 
-func TestClaudeBedrockOptions(t *testing.T) {
+func TestClaudeBedrockOption(t *testing.T) {
 	tests := []struct {
 		name       string
 		cfg        *config.ClaudeCodeEngineConfig
@@ -53,7 +53,13 @@ func TestClaudeBedrockOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := claudecode.New(claudeBedrockOptions(tt.cfg)...)
+			var opts []claudecode.Option
+			opt, ok := claudeBedrockOption(tt.cfg)
+			assert.Equal(t, !tt.wantAPIKey, ok)
+			if ok {
+				opts = append(opts, opt)
+			}
+			e := claudecode.New(opts...)
 
 			spec, err := e.BuildExecutionSpec(engine.Task{ID: "task-1", Title: "Fix it"}, engine.EngineConfig{})
 

@@ -621,6 +621,10 @@ type AuthConfig struct {
 	APIKeyKey         string `yaml:"api_key_key"`        // Key within the secret (default: tries ANTHROPIC_API_KEY, then api_key)
 	BedrockRegion     string `yaml:"bedrock_region"`     // AWS region for Bedrock
 	CredentialsSecret string `yaml:"credentials_secret"` // K8s Secret name for credentials file
+	// AllowOtherEngines lets engines other than Claude Code be given tasks
+	// when Claude Code's method is "bedrock". Those engines call their own
+	// providers, outside the Bedrock region.
+	AllowOtherEngines bool `yaml:"allow_other_engines"`
 }
 
 // AgentTeamsConfig configures experimental agent teams for Claude Code.

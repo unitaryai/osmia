@@ -75,3 +75,26 @@ func TestClaudeBedrockOption(t *testing.T) {
 		})
 	}
 }
+
+// TestClaudeBedrockOptionAfterValidate pins that a region with surrounding
+// whitespace reaches the agent trimmed once the config has been validated.
+func TestClaudeBedrockOptionAfterValidate(t *testing.T) {
+	cfg := &config.Config{Engines: config.EnginesConfig{ClaudeCode: &config.ClaudeCodeEngineConfig{
+		Auth: config.AuthConfig{Method: "bedrock", BedrockRegion: " example-region-1 "},
+		Models: config.ClaudeCodeModels{
+			Main:   " example-main-model ",
+			Opus:   "example-opus-model",
+			Sonnet: "example-sonnet-model",
+			Haiku:  "example-haiku-model",
+		},
+	}}}
+	require.NoError(t, cfg.Validate())
+	opt, ok := claudeBedrockOption(cfg.Engines.ClaudeCode)
+	require.True(t, ok)
+
+	spec, err := claudecode.New(opt).BuildExecutionSpec(engine.Task{ID: "task-1", Title: "Fix it"}, engine.EngineConfig{})
+
+	require.NoError(t, err)
+	assert.Equal(t, "example-region-1", spec.Env["AWS_REGION"])
+	assert.Equal(t, "example-main-model", spec.Env["ANTHROPIC_MODEL"])
+}

@@ -285,6 +285,64 @@ func TestApplyTaskSecrets(t *testing.T) {
 			},
 			wantErr: "collides with a secret mount set by the engine",
 		},
+		{
+			name: "with Bedrock, an Anthropic API key is refused",
+			spec: bedrockSpec(),
+			plan: &taskSecrets{
+				Values: map[string]string{"ANTHROPIC_API_KEY": "sk-attacker"},
+			},
+			wantErr: "is reserved for the model provider",
+		},
+		{
+			name: "with Bedrock, an Anthropic endpoint is refused",
+			spec: bedrockSpec(),
+			plan: &taskSecrets{
+				Values: map[string]string{"ANTHROPIC_BEDROCK_BASE_URL": "https://attacker.example.com"},
+			},
+			wantErr: "is reserved for the model provider",
+		},
+		{
+			name: "with Bedrock, an AWS credential is refused",
+			spec: bedrockSpec(),
+			plan: &taskSecrets{
+				KeyRefs: map[string]engine.SecretKeyRef{
+					"AWS_ACCESS_KEY_ID": {SecretName: "attacker", Key: "id"},
+				},
+			},
+			wantErr: "is reserved for the model provider",
+		},
+		{
+			name: "with Bedrock, a Claude Code setting is refused",
+			spec: bedrockSpec(),
+			plan: &taskSecrets{
+				Values: map[string]string{"CLAUDE_CODE_USE_BEDROCK": "0"},
+			},
+			wantErr: "is reserved for the model provider",
+		},
+		{
+			name: "with Bedrock, another name is accepted",
+			spec: bedrockSpec(),
+			plan: &taskSecrets{
+				KeyRefs: map[string]engine.SecretKeyRef{
+					"DATABASE_URL": {SecretName: "db-secret", Key: "url"},
+				},
+			},
+			wantKeyRefs: map[string]engine.SecretKeyRef{
+				"DATABASE_URL": {SecretName: "db-secret", Key: "url"},
+			},
+		},
+		{
+			name: "without Bedrock, an AWS name the engine does not set is accepted",
+			spec: &engine.ExecutionSpec{},
+			plan: &taskSecrets{
+				KeyRefs: map[string]engine.SecretKeyRef{
+					"AWS_ACCESS_KEY_ID": {SecretName: "deploy", Key: "id"},
+				},
+			},
+			wantKeyRefs: map[string]engine.SecretKeyRef{
+				"AWS_ACCESS_KEY_ID": {SecretName: "deploy", Key: "id"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -304,6 +362,17 @@ func TestApplyTaskSecrets(t *testing.T) {
 			assert.Len(t, tt.spec.SecretKeyRefs, len(tt.wantKeyRefs))
 		})
 	}
+}
+
+// bedrockSpec returns the environment the Claude Code engine sets when it
+// calls Amazon Bedrock.
+func bedrockSpec() *engine.ExecutionSpec {
+	return &engine.ExecutionSpec{Env: map[string]string{
+		"CLAUDE_CODE_USE_BEDROCK": "1",
+		"AWS_REGION":              "example-region-1",
+		"AWS_DEFAULT_REGION":      "example-region-1",
+		"ANTHROPIC_MODEL":         "example-main-model",
+	}}
 }
 
 // TestApplyTaskSecrets_ValuesNeverReachSpecEnv is the security invariant the

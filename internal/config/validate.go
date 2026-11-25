@@ -46,6 +46,37 @@ func validateStorePath(name, path string) error {
 	return nil
 }
 
+// validateClaudeCodeBedrock requires a Bedrock sign-in to name its region and
+// every model, since Claude Code's own Bedrock defaults are cross-region, and
+// refuses an API key alongside it.
+func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
+	if cc.Auth.Method != "bedrock" {
+		return nil
+	}
+	required := []struct{ field, value string }{
+		{"engines.claude-code.auth.bedrock_region", cc.Auth.BedrockRegion},
+		{"engines.claude-code.models.main", cc.Models.Main},
+		{"engines.claude-code.models.opus", cc.Models.Opus},
+		{"engines.claude-code.models.sonnet", cc.Models.Sonnet},
+		{"engines.claude-code.models.haiku", cc.Models.Haiku},
+	}
+	for _, r := range required {
+		if r.value == "" {
+			return fmt.Errorf("%s is required when engines.claude-code.auth.method is \"bedrock\"", r.field)
+		}
+	}
+	forbidden := []struct{ field, value string }{
+		{"engines.claude-code.auth.api_key_secret", cc.Auth.APIKeySecret},
+		{"engines.claude-code.auth.api_key_key", cc.Auth.APIKeyKey},
+	}
+	for _, f := range forbidden {
+		if f.value != "" {
+			return fmt.Errorf("%s must not be set when engines.claude-code.auth.method is \"bedrock\"", f.field)
+		}
+	}
+	return nil
+}
+
 // Validate checks all configuration fields for correctness.
 // It is called automatically by Load after unmarshalling.
 func (c *Config) Validate() error {
@@ -164,6 +195,9 @@ func (c *Config) Validate() error {
 
 	if cc := c.Engines.ClaudeCode; cc != nil {
 		cc.AgentTeams.TeammateModel = strings.TrimSpace(cc.AgentTeams.TeammateModel)
+		if err := validateClaudeCodeBedrock(cc); err != nil {
+			return err
+		}
 	}
 
 	if g := c.Webhook.Generic; g != nil {

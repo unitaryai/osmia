@@ -270,6 +270,10 @@ func main() {
 			"max_teammates", cfg.Engines.ClaudeCode.AgentTeams.MaxTeammates,
 		)
 	}
+	if bedrockOpts := claudeBedrockOptions(cfg.Engines.ClaudeCode); len(bedrockOpts) > 0 {
+		claudeOpts = append(claudeOpts, bedrockOpts...)
+		logger.Info("claude-code calls Amazon Bedrock", "region", cfg.Engines.ClaudeCode.Auth.BedrockRegion)
+	}
 	// --- Session persistence (Claude Code only) ---
 	var sessionCleaner *sessionstore.Cleaner
 	if cfg.Engines.ClaudeCode != nil && cfg.Engines.ClaudeCode.SessionPersistence.Enabled {

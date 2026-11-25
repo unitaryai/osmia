@@ -549,6 +549,9 @@ type ClaudeCodeEngineConfig struct {
 	// via shared task lists and inter-agent messaging.
 	AgentTeams    AgentTeamsConfig `yaml:"agent_teams"`
 	FallbackModel string           `yaml:"fallback_model,omitempty"`
+	// Models pins the model IDs Claude Code uses. Required, in full, when
+	// Auth.Method is "bedrock".
+	Models ClaudeCodeModels `yaml:"models,omitempty"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more
 	// steps, such as large refactors or multi-file changes.
@@ -579,6 +582,20 @@ type ClaudeCodeEngineConfig struct {
 	// MaxContinuations limits how many user-approved continuations are allowed
 	// per TaskRun. Defaults to 3.
 	MaxContinuations int `yaml:"max_continuations,omitempty"`
+}
+
+// ClaudeCodeModels names the model ID Claude Code uses for its main session
+// and for each of the opus, sonnet and haiku aliases.
+type ClaudeCodeModels struct {
+	// Main is the model for the main session.
+	Main string `yaml:"main,omitempty"`
+	// Opus is the model used wherever "opus" is asked for.
+	Opus string `yaml:"opus,omitempty"`
+	// Sonnet is the model used wherever "sonnet" is asked for.
+	Sonnet string `yaml:"sonnet,omitempty"`
+	// Haiku is the model used wherever "haiku" is asked for, including
+	// Claude Code's background calls.
+	Haiku string `yaml:"haiku,omitempty"`
 }
 
 // CodexEngineConfig holds OpenAI Codex-specific engine settings.

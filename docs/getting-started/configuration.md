@@ -259,19 +259,24 @@ engines:
 The agent's Job gets `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION` and
 `AWS_DEFAULT_REGION` set to `bedrock_region`, and `ANTHROPIC_MODEL`,
 `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and
-`ANTHROPIC_DEFAULT_HAIKU_MODEL` set from `models`. These are set after every
-other source of environment, so nothing else in the configuration can replace
-them. The controller refuses to start when `bedrock_region` or any of the four
-models is missing, or when `api_key_secret` or `api_key_key` is also set, and
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` set from `models`. These are applied after
+every other source of environment the engine merges, and a secret reference
+of the same name, or named `ANTHROPIC_API_KEY`, is dropped. `auth.method` must
+be written exactly `bedrock`: the controller refuses to start on a value that
+differs from it only in case or surrounding whitespace, such as `Bedrock`. It
+also refuses to start when `bedrock_region` or any of the four models is
+missing or blank, or when `api_key_secret` or `api_key_key` is also set, and
 refuses `models` with any other method, where it would be ignored.
 Every model is required because Claude Code's own defaults on Bedrock are
 cross-region inference profiles, which would send calls outside the region
 without saying so.
 
-- **AWS identity.** The agent pod signs its Bedrock calls with its own AWS
-  identity, for example IRSA or EKS Pod Identity on its service account. That
-  identity must be allowed to invoke the four models in the region. Osmia
-  does not create it.
+- **AWS identity.** Osmia does not set a service account on agent pods, so
+  they run under the `default` service account of their namespace, and sign
+  their Bedrock calls with the AWS identity bound to that account, for example
+  through IRSA or EKS Pod Identity. That identity must be allowed to invoke the
+  four models in the region. Every pod in the namespace that uses the
+  `default` service account then shares it. Osmia does not create it.
 - **Other places a model is named.** `agent_teams.teammate_model` and a
   sub-agent's `model` are passed to Claude Code as given. If either names a
   model ID rather than an alias, it must also be one that stays in the

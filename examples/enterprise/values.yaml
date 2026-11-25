@@ -38,6 +38,12 @@ config:
       auth:
         method: bedrock
         bedrock_region: "us-east-1"
+      # Bedrock needs every model pinned to an ID that stays in bedrock_region.
+      models:
+        main: "<model id>"
+        opus: "<model id>"
+        sonnet: "<model id>"
+        haiku: "<model id>"
       agent_teams:
         enabled: true
         mode: "in-process"

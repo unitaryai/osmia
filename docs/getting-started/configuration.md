@@ -87,10 +87,10 @@ ticketing:
 | `in_progress_state_name` | No | State the story is moved to when the agent starts work |
 | `completed_state_name` | No | State the story is moved to on success. Defaults to the first done-type state in the workflow |
 | `owner_mention_name` | No | Only pick up stories assigned to this Shortcut user (e.g. `"osmia"`) |
-| `labels` | No | Stories must carry every one of these labels, named exactly as written in Shortcut. Cannot be used with `webhook.shortcut` |
+| `labels` | No | Stories must carry every one of these labels, named exactly as written in Shortcut. Blank entries are refused at start-up. Cannot be used with `webhook.shortcut` |
 | `exclude_labels` | No | Stories with any of these labels are skipped |
 
-**Several instances on one workspace.** When more than one Osmia instance polls the same workspace, state and owner, give each its own label in `labels` and put that label on the stories it should take. A story carrying two instances' labels is taken by both. `labels` cannot be set together with `webhook.shortcut`: the Shortcut webhook takes any story moved into the trigger state, whatever its labels, so Osmia refuses that configuration at start-up.
+**Several instances on one workspace.** When more than one Osmia instance polls the same workspace, state and owner, give each its own label in `labels` and put that label on the stories it should take. A story carrying two instances' labels is taken by both. An instance without `labels` still takes every story, labelled ones included, so the split holds only if every instance polling the same state and owner has a label of its own. `labels` cannot be set together with `webhook.shortcut`: the Shortcut webhook takes any story moved into the trigger state, whatever its labels, so Osmia refuses that configuration at start-up.
 
 **Multi-workflow support.** If your workspace has several workflows with different state names, use the `workflows` array instead of the flat keys above:
 

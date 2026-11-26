@@ -46,14 +46,28 @@ func validateStorePath(name, path string) error {
 	return nil
 }
 
-// hasTicketingLabels reports whether the ticketing config holds a non-empty
-// labels list.
-func hasTicketingLabels(m map[string]any) bool {
+// ticketingLabels returns the ticketing config's labels list as written, or
+// nil when it is absent or not a list.
+func ticketingLabels(m map[string]any) []any {
 	switch v := m["labels"].(type) {
 	case []any:
-		return len(v) > 0
+		return v
 	case []string:
-		return len(v) > 0
+		labels := make([]any, len(v))
+		for i, s := range v {
+			labels[i] = s
+		}
+		return labels
+	}
+	return nil
+}
+
+// hasBlankLabel reports whether any string entry is empty or whitespace only.
+func hasBlankLabel(labels []any) bool {
+	for _, l := range labels {
+		if s, ok := l.(string); ok && strings.TrimSpace(s) == "" {
+			return true
+		}
 	}
 	return false
 }
@@ -252,8 +266,14 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if c.Ticketing.Backend == "shortcut" && hasTicketingLabels(c.Ticketing.Config) && c.Webhook.Shortcut != nil {
-		return fmt.Errorf("ticketing.config.labels on the shortcut backend cannot be used with webhook.shortcut, which takes stories whatever their labels")
+	if c.Ticketing.Backend == "shortcut" {
+		labels := ticketingLabels(c.Ticketing.Config)
+		if hasBlankLabel(labels) {
+			return fmt.Errorf("ticketing.config.labels on the shortcut backend must not contain a blank entry, which would match no story")
+		}
+		if len(labels) > 0 && c.Webhook.Shortcut != nil {
+			return fmt.Errorf("ticketing.config.labels on the shortcut backend cannot be used with webhook.shortcut, which takes stories whatever their labels")
+		}
 	}
 
 	if c.Engines.ClaudeCode != nil {

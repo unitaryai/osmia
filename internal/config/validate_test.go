@@ -92,6 +92,40 @@ func TestValidate_ShortcutLabelsWithWebhook(t *testing.T) {
 	}
 }
 
+// TestValidate_ShortcutLabelsBlank pins that a blank required label on the
+// Shortcut backend is refused, as it would match no story.
+func TestValidate_ShortcutLabelsBlank(t *testing.T) {
+	tests := []struct {
+		name    string
+		backend string
+		config  map[string]any
+		wantErr bool
+	}{
+		{name: "empty entry", backend: "shortcut", config: map[string]any{"labels": []any{""}}, wantErr: true},
+		{name: "whitespace entry", backend: "shortcut", config: map[string]any{"labels": []string{"  "}}, wantErr: true},
+		{name: "blank among labels", backend: "shortcut", config: map[string]any{"labels": []any{"team-a", ""}}, wantErr: true},
+		{name: "one label", backend: "shortcut", config: map[string]any{"labels": []any{"team-a"}}},
+		{name: "empty list", backend: "shortcut", config: map[string]any{"labels": []any{}}},
+		{name: "no labels key", backend: "shortcut", config: map[string]any{}},
+		{name: "other backend with empty entry", backend: "github", config: map[string]any{"labels": []any{""}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{Ticketing: TicketingConfig{Backend: tt.backend, Config: tt.config}}
+
+			err := cfg.Validate()
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "ticketing.config.labels")
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
 // TestValidate_ClaudeCodeBedrock pins that Bedrock is refused at startup
 // unless it names a region and every model, and has no API key.
 func TestValidate_ClaudeCodeBedrock(t *testing.T) {

@@ -552,6 +552,10 @@ type ClaudeCodeEngineConfig struct {
 	// Models pins the model IDs Claude Code uses. Required, in full, when
 	// Auth.Method is "bedrock", and refused otherwise.
 	Models ClaudeCodeModels `yaml:"models,omitempty"`
+	// AllowOtherEngines lets engines other than Claude Code be given tasks
+	// when Auth.Method is "bedrock", and is refused otherwise. Those engines
+	// call their own providers, outside the Bedrock region.
+	AllowOtherEngines bool `yaml:"allow_other_engines"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more
 	// steps, such as large refactors or multi-file changes.
@@ -621,10 +625,6 @@ type AuthConfig struct {
 	APIKeyKey         string `yaml:"api_key_key"`        // Key within the secret (default: tries ANTHROPIC_API_KEY, then api_key)
 	BedrockRegion     string `yaml:"bedrock_region"`     // AWS region for Bedrock
 	CredentialsSecret string `yaml:"credentials_secret"` // K8s Secret name for credentials file
-	// AllowOtherEngines lets engines other than Claude Code be given tasks
-	// when Claude Code's method is "bedrock". Those engines call their own
-	// providers, outside the Bedrock region.
-	AllowOtherEngines bool `yaml:"allow_other_engines"`
 }
 
 // AgentTeamsConfig configures experimental agent teams for Claude Code.

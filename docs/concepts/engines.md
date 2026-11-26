@@ -58,7 +58,7 @@ engines:
 
 The controller tries `claude-code` first. If it fails, it tries `codex`. If that also fails, it tries `aider`. This helps when an API is down or rate limited.
 
-Each engine in the chain calls its own provider. If Claude Code is set to call [Amazon Bedrock in one region](../getting-started/configuration.md#claude-code-on-amazon-bedrock), the engines after it, and the other candidates in a tournament, do not: they still call their own providers with their own keys. So with Bedrock the controller refuses to start when another engine is configured or named as the default, a fallback, a tournament judge or the incident triage engine, unless `engines.claude-code.auth.allow_other_engines` is `true`.
+Each engine in the chain calls its own provider. If Claude Code is set to call [Amazon Bedrock in one region](../getting-started/configuration.md#claude-code-on-amazon-bedrock), the engines after it, and the other candidates in a tournament, do not: they still call their own providers with their own keys. So with Bedrock the controller refuses to start when another engine is configured or named as the default, a fallback, a tournament judge or the incident triage engine, unless `engines.claude-code.allow_other_engines` is `true`.
 
 !!! note
     Do not use `cline` in a fallback chain. No pre-built Cline image is published. See [Engine Reference](../plugins/engines.md#cline) for details.

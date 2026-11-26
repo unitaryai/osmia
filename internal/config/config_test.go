@@ -160,7 +160,8 @@ guardrails:
 	require.ErrorContains(t, err, "ticketing.config.seed_file must be a string")
 }
 
-// TestLoad_ClaudeCodeModels pins the YAML names of the Bedrock models block.
+// TestLoad_ClaudeCodeModels pins the YAML names of the Bedrock models block
+// and of allow_other_engines beside it.
 func TestLoad_ClaudeCodeModels(t *testing.T) {
 	tmp := filepath.Join(t.TempDir(), "osmia-config.yaml")
 	err := os.WriteFile(tmp, []byte(`
@@ -175,6 +176,7 @@ engines:
       opus: example-opus-model
       sonnet: example-sonnet-model
       haiku: example-haiku-model
+    allow_other_engines: true
 `), 0o600)
 	require.NoError(t, err)
 
@@ -188,6 +190,7 @@ engines:
 		Sonnet: "example-sonnet-model",
 		Haiku:  "example-haiku-model",
 	}, got.Engines.ClaudeCode.Models)
+	assert.True(t, got.Engines.ClaudeCode.AllowOtherEngines)
 }
 
 func TestLoad_TaskProfiles(t *testing.T) {

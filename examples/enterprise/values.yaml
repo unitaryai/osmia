@@ -50,7 +50,7 @@ config:
         max_teammates: 3
     # With method: bedrock no other engine may be configured, named as a
     # fallback or used in a tournament, since it would call its own provider
-    # outside bedrock_region. Set claude-code.auth.allow_other_engines: true
+    # outside bedrock_region. Set claude-code.allow_other_engines: true
     # to allow that, and add the other engine's block here.
 
   guardrails:

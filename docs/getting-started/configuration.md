@@ -267,7 +267,7 @@ differs from it only in case or surrounding whitespace, such as `Bedrock`. It
 also refuses to start when `bedrock_region` or any of the four models is
 missing or blank, when `api_key_secret` or `api_key_key` is also set, or
 when `fallback_model` is set to anything but one of the four models, and
-refuses `models` and `auth.allow_other_engines` with any other method, where
+refuses `models` and `allow_other_engines` with any other method, where
 they would be ignored. Surrounding whitespace in `bedrock_region` and the
 models is removed before they are checked and passed to the agent.
 Every model is required because Claude Code's own defaults on Bedrock are
@@ -313,7 +313,7 @@ without saying so.
   given a task by an `osmia:engine:<name>` ticket label, by intelligent
   routing, or as a tournament candidate or judge, so refusing the block is
   what keeps those routes in the region. To allow other engines anyway, set
-  `engines.claude-code.auth.allow_other_engines: true`.
+  `engines.claude-code.allow_other_engines: true`.
 - **Task-scoped secrets.** A task may not set any variable named `ANTHROPIC_*`,
   `AWS_*` or `CLAUDE_CODE_*` on an agent that calls Bedrock, so a ticket can
   neither bring an API key back nor point the calls elsewhere.

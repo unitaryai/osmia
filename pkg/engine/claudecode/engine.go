@@ -163,6 +163,7 @@ type ClaudeCodeEngine struct {
 	subAgents     []SubAgent
 	plugins       PluginConfig
 	sessionStore  engine.SessionStore
+	bedrock       *bedrockSettings
 }
 
 // New returns a new ClaudeCodeEngine with the given functional options applied.
@@ -444,6 +445,11 @@ func (e *ClaudeCodeEngine) BuildExecutionSpec(task engine.Task, config engine.En
 		for k, v := range e.sessionStore.Env(taskRunID, sessionID) {
 			env[k] = v
 		}
+	}
+
+	// Bedrock's settings are applied last so no other source can replace them.
+	if e.bedrock != nil {
+		e.bedrock.apply(env, secretKeyRefs)
 	}
 
 	spec := &engine.ExecutionSpec{

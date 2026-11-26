@@ -549,6 +549,9 @@ type ClaudeCodeEngineConfig struct {
 	// via shared task lists and inter-agent messaging.
 	AgentTeams    AgentTeamsConfig `yaml:"agent_teams"`
 	FallbackModel string           `yaml:"fallback_model,omitempty"`
+	// Models pins the model IDs Claude Code uses. Required, in full, when
+	// Auth.Method is "bedrock", and refused otherwise.
+	Models ClaudeCodeModels `yaml:"models,omitempty"`
 	// MaxTurns overrides the maximum number of agentic turns (--max-turns).
 	// Defaults to 50 when unset. Increase this for tasks that require more
 	// steps, such as large refactors or multi-file changes.
@@ -581,6 +584,20 @@ type ClaudeCodeEngineConfig struct {
 	MaxContinuations int `yaml:"max_continuations,omitempty"`
 }
 
+// ClaudeCodeModels names the model ID Claude Code uses for its main session
+// and for each of the opus, sonnet and haiku aliases.
+type ClaudeCodeModels struct {
+	// Main is the model for the main session.
+	Main string `yaml:"main,omitempty"`
+	// Opus is the model used wherever "opus" is asked for.
+	Opus string `yaml:"opus,omitempty"`
+	// Sonnet is the model used wherever "sonnet" is asked for.
+	Sonnet string `yaml:"sonnet,omitempty"`
+	// Haiku is the model used wherever "haiku" is asked for, including
+	// Claude Code's background calls.
+	Haiku string `yaml:"haiku,omitempty"`
+}
+
 // CodexEngineConfig holds OpenAI Codex-specific engine settings.
 type CodexEngineConfig struct {
 	Image string     `yaml:"image,omitempty"`
@@ -593,6 +610,10 @@ type AiderEngineConfig struct {
 	Auth  AuthConfig `yaml:"auth"`
 }
 
+// AuthMethodBedrock is the auth method that makes Claude Code call Amazon
+// Bedrock.
+const AuthMethodBedrock = "bedrock"
+
 // AuthConfig configures authentication for an execution engine.
 type AuthConfig struct {
 	Method            string `yaml:"method"`             // "api_key", "setup_token", "bedrock", "vertex", "credentials_file"
@@ -600,6 +621,10 @@ type AuthConfig struct {
 	APIKeyKey         string `yaml:"api_key_key"`        // Key within the secret (default: tries ANTHROPIC_API_KEY, then api_key)
 	BedrockRegion     string `yaml:"bedrock_region"`     // AWS region for Bedrock
 	CredentialsSecret string `yaml:"credentials_secret"` // K8s Secret name for credentials file
+	// AllowOtherEngines lets engines other than Claude Code be given tasks
+	// when Claude Code's method is "bedrock". Those engines call their own
+	// providers, outside the Bedrock region.
+	AllowOtherEngines bool `yaml:"allow_other_engines"`
 }
 
 // AgentTeamsConfig configures experimental agent teams for Claude Code.

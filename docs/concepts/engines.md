@@ -27,7 +27,7 @@ Use Claude Code unless you have a specific reason not to. It has the strongest g
 | Feature | Claude Code | Codex | Aider | OpenCode | Cline |
 |---|---|---|---|---|---|
 | Guard rails | Hook-based (deterministic) | Prompt-based | Prompt-based | Prompt-based | Prompt-based |
-| AI provider | Anthropic | OpenAI | Anthropic or OpenAI | Anthropic, OpenAI, or Google | Anthropic, OpenAI, Google, or Bedrock |
+| AI provider | Anthropic or Amazon Bedrock | OpenAI | Anthropic or OpenAI | Anthropic, OpenAI, or Google | Anthropic, OpenAI, Google, or Bedrock |
 | Heartbeat telemetry | Built-in via hooks | Not built-in | Not built-in | Not built-in | Not built-in |
 | Agent teams | [Yes (experimental)](../plugins/engines.md#agent-teams) | No | No | No | No |
 | MCP support | Yes | No | No | No | Yes |
@@ -57,6 +57,8 @@ engines:
 ```
 
 The controller tries `claude-code` first. If it fails, it tries `codex`. If that also fails, it tries `aider`. This helps when an API is down or rate limited.
+
+Each engine in the chain calls its own provider. If Claude Code is set to call [Amazon Bedrock in one region](../getting-started/configuration.md#claude-code-on-amazon-bedrock), the engines after it, and the other candidates in a tournament, do not: they still call their own providers with their own keys. So with Bedrock the controller refuses to start when another engine is configured or named as the default, a fallback, a tournament judge or the incident triage engine, unless `engines.claude-code.auth.allow_other_engines` is `true`.
 
 !!! note
     Do not use `cline` in a fallback chain. No pre-built Cline image is published. See [Engine Reference](../plugins/engines.md#cline) for details.

@@ -46,6 +46,124 @@ func validateStorePath(name, path string) error {
 	return nil
 }
 
+// claudeCodeEngine is the name the Claude Code engine is registered under.
+const claudeCodeEngine = "claude-code"
+
+// validateClaudeCodeBedrock requires the bedrock method to name its region and
+// every model, since Claude Code's own Bedrock defaults are cross-region, and
+// refuses an API key alongside it. Models are refused without Bedrock, where
+// they would be ignored, as is a method that is bedrock only once case and
+// surrounding whitespace are ignored.
+func validateClaudeCodeBedrock(cc *ClaudeCodeEngineConfig) error {
+	if cc.Auth.Method != AuthMethodBedrock {
+		return validateClaudeCodeNotBedrock(cc)
+	}
+	required := []struct{ field, value string }{
+		{"engines.claude-code.auth.bedrock_region", cc.Auth.BedrockRegion},
+		{"engines.claude-code.models.main", cc.Models.Main},
+		{"engines.claude-code.models.opus", cc.Models.Opus},
+		{"engines.claude-code.models.sonnet", cc.Models.Sonnet},
+		{"engines.claude-code.models.haiku", cc.Models.Haiku},
+	}
+	for _, r := range required {
+		if strings.TrimSpace(r.value) == "" {
+			return fmt.Errorf("%s is required when engines.claude-code.auth.method is %q", r.field, AuthMethodBedrock)
+		}
+	}
+	forbidden := []struct{ field, value string }{
+		{"engines.claude-code.auth.api_key_secret", cc.Auth.APIKeySecret},
+		{"engines.claude-code.auth.api_key_key", cc.Auth.APIKeyKey},
+	}
+	for _, f := range forbidden {
+		if f.value != "" {
+			return fmt.Errorf("%s must not be set when engines.claude-code.auth.method is %q", f.field, AuthMethodBedrock)
+		}
+	}
+	return validateClaudeCodeFallbackModel(cc)
+}
+
+// validateClaudeCodeFallbackModel requires a fallback model, when set, to be
+// one of the pinned Bedrock models, so it cannot leave the region.
+func validateClaudeCodeFallbackModel(cc *ClaudeCodeEngineConfig) error {
+	m := cc.Models
+	switch cc.FallbackModel {
+	case "", m.Main, m.Opus, m.Sonnet, m.Haiku:
+		return nil
+	}
+	return fmt.Errorf("engines.claude-code.fallback_model must be one of engines.claude-code.models when engines.claude-code.auth.method is %q", AuthMethodBedrock)
+}
+
+// validateClaudeCodeNotBedrock refuses a method that differs from bedrock only
+// in case or surrounding whitespace, and the settings only bedrock uses.
+func validateClaudeCodeNotBedrock(cc *ClaudeCodeEngineConfig) error {
+	if strings.EqualFold(strings.TrimSpace(cc.Auth.Method), AuthMethodBedrock) {
+		return fmt.Errorf("engines.claude-code.auth.method %q must be written exactly %q", cc.Auth.Method, AuthMethodBedrock)
+	}
+	if cc.Models != (ClaudeCodeModels{}) {
+		return fmt.Errorf("engines.claude-code.models is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
+	}
+	if cc.Auth.AllowOtherEngines {
+		return fmt.Errorf("engines.claude-code.auth.allow_other_engines is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
+	}
+	return nil
+}
+
+// validateOnlyClaudeCodeEngine refuses every setting that could give a task
+// to an engine other than Claude Code: the default, the fallback chain, the
+// tournament judge, the incident triage engine, and any other engine's block,
+// since a registered engine can be chosen by a ticket label, by routing or as
+// a tournament candidate.
+func validateOnlyClaudeCodeEngine(c *Config) error {
+	if d := c.Engines.Default; d != "" && d != claudeCodeEngine {
+		return otherEngineError("engines.default")
+	}
+	for i, name := range c.Engines.FallbackEngines {
+		if name != claudeCodeEngine {
+			return otherEngineError(fmt.Sprintf("engines.fallback_engines[%d]", i))
+		}
+	}
+	ce := c.CompetitiveExecution
+	if ce.Enabled && ce.JudgeEngine != "" && ce.JudgeEngine != claudeCodeEngine {
+		return otherEngineError("competitive_execution.judge_engine")
+	}
+	if e := c.IncidentTriage.Engine; e != "" && e != claudeCodeEngine {
+		return otherEngineError("incident_triage.engine")
+	}
+	blocks := []struct {
+		field string
+		set   bool
+	}{
+		{"engines.aider", c.Engines.Aider != nil},
+		{"engines.cline", c.Engines.Cline != nil},
+		{"engines.codex", c.Engines.Codex != nil},
+		{"engines.opencode", c.Engines.OpenCode != nil},
+	}
+	for _, b := range blocks {
+		if b.set {
+			return otherEngineError(b.field)
+		}
+	}
+	return nil
+}
+
+// otherEngineError refuses field, which could give a task to an engine that
+// calls its own provider outside the Bedrock region.
+func otherEngineError(field string) error {
+	return fmt.Errorf("%s lets an engine other than %q take a task outside the Bedrock region, which is refused when engines.claude-code.auth.method is %q unless engines.claude-code.auth.allow_other_engines is true", field, claudeCodeEngine, AuthMethodBedrock)
+}
+
+// trimClaudeCodeModelSettings trims the region and model names in place, so
+// the values validated are the values the agent is given.
+func trimClaudeCodeModelSettings(cc *ClaudeCodeEngineConfig) {
+	cc.AgentTeams.TeammateModel = strings.TrimSpace(cc.AgentTeams.TeammateModel)
+	cc.Auth.BedrockRegion = strings.TrimSpace(cc.Auth.BedrockRegion)
+	cc.FallbackModel = strings.TrimSpace(cc.FallbackModel)
+	cc.Models.Main = strings.TrimSpace(cc.Models.Main)
+	cc.Models.Opus = strings.TrimSpace(cc.Models.Opus)
+	cc.Models.Sonnet = strings.TrimSpace(cc.Models.Sonnet)
+	cc.Models.Haiku = strings.TrimSpace(cc.Models.Haiku)
+}
+
 // Validate checks all configuration fields for correctness.
 // It is called automatically by Load after unmarshalling.
 func (c *Config) Validate() error {
@@ -163,7 +281,15 @@ func (c *Config) Validate() error {
 	}
 
 	if cc := c.Engines.ClaudeCode; cc != nil {
-		cc.AgentTeams.TeammateModel = strings.TrimSpace(cc.AgentTeams.TeammateModel)
+		trimClaudeCodeModelSettings(cc)
+		if err := validateClaudeCodeBedrock(cc); err != nil {
+			return err
+		}
+		if cc.Auth.Method == AuthMethodBedrock && !cc.Auth.AllowOtherEngines {
+			if err := validateOnlyClaudeCodeEngine(c); err != nil {
+				return err
+			}
+		}
 	}
 
 	if g := c.Webhook.Generic; g != nil {

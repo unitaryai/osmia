@@ -233,10 +233,90 @@ A digest can only ever mean one image, so a node that already has it uses its ca
 | Method | Description |
 |---|---|
 | `api_key` | API key stored in a Kubernetes Secret |
-| `bedrock` | AWS Bedrock via IRSA (IAM Roles for Service Accounts) |
+| `bedrock` | Amazon Bedrock in one region, with the agent pod's AWS identity. Claude Code only; see below |
 | `vertex` | Google Vertex AI via Workload Identity Federation |
 | `credentials_file` | Credentials file mounted from a Kubernetes Secret |
 | `setup_token` | Setup token for initial authentication |
+
+### Claude Code on Amazon Bedrock
+
+With `auth.method: bedrock`, the Claude Code agent calls Amazon Bedrock in the
+region you name instead of the Anthropic API, and no API key is mounted:
+
+```yaml
+engines:
+  claude-code:
+    auth:
+      method: bedrock
+      bedrock_region: <region>
+    models:
+      main: <model id>     # the main session
+      opus: <model id>     # wherever "opus" is asked for
+      sonnet: <model id>   # wherever "sonnet" is asked for
+      haiku: <model id>    # wherever "haiku" is asked for, and background calls
+```
+
+The agent's Job gets `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION` and
+`AWS_DEFAULT_REGION` set to `bedrock_region`, and `ANTHROPIC_MODEL`,
+`ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` set from `models`. These are applied after
+every other source of environment the engine merges, and a secret reference
+of the same name, or named `ANTHROPIC_API_KEY`, is dropped. `auth.method` must
+be written exactly `bedrock`: the controller refuses to start on a value that
+differs from it only in case or surrounding whitespace, such as `Bedrock`. It
+also refuses to start when `bedrock_region` or any of the four models is
+missing or blank, when `api_key_secret` or `api_key_key` is also set, or
+when `fallback_model` is set to anything but one of the four models, and
+refuses `models` and `auth.allow_other_engines` with any other method, where
+they would be ignored. Surrounding whitespace in `bedrock_region` and the
+models is removed before they are checked and passed to the agent.
+Every model is required because Claude Code's own defaults on Bedrock are
+cross-region inference profiles, which would send calls outside the region
+without saying so.
+
+- **AWS identity.** Osmia does not set a service account on agent pods, so
+  they run under the `default` service account of their namespace, and sign
+  their Bedrock calls with the AWS identity bound to that account, for example
+  through IRSA or EKS Pod Identity. That identity must be allowed to invoke the
+  four models in the region. Every pod in the namespace that uses the
+  `default` service account then shares it. Osmia does not create it. IRSA
+  works with the chart's agent network policy as it is, since it exchanges
+  the pod's token with AWS STS over port 443. EKS Pod Identity fetches
+  credentials from the Pod Identity Agent at `169.254.170.23` on TCP port 80,
+  which that policy blocks, so when `networkPolicy.enabled` is `true` add an
+  egress rule for it (and for `fd00:ec2::23/128` on IPv6 clusters):
+
+    ```yaml
+    networkPolicy:
+      enabled: true
+      agent:
+        extraEgressRules:
+          - to:
+              - ipBlock:
+                  cidr: 169.254.170.23/32
+            ports:
+              - protocol: TCP
+                port: 80
+    ```
+- **Other places a model is named.** `agent_teams.teammate_model` and a
+  sub-agent's `model` are passed to Claude Code as given. If either names a
+  model ID rather than an alias, it must also be one that stays in the
+  region. Osmia does not check what kind of ID it is given.
+- **Other engines.** Only Claude Code uses Bedrock; every other engine calls
+  its own provider with its own key, outside the region. So the controller
+  refuses to start when `engines.default`, any entry of
+  `engines.fallback_engines`, `competitive_execution.judge_engine` (with
+  competitive execution enabled) or `incident_triage.engine` names an engine
+  other than `claude-code`, or when any other engine's block
+  (`engines.aider`, `engines.cline`, `engines.codex`, `engines.opencode`) is
+  set. A configured engine is registered, and a registered engine can be
+  given a task by an `osmia:engine:<name>` ticket label, by intelligent
+  routing, or as a tournament candidate or judge, so refusing the block is
+  what keeps those routes in the region. To allow other engines anyway, set
+  `engines.claude-code.auth.allow_other_engines: true`.
+- **Task-scoped secrets.** A task may not set any variable named `ANTHROPIC_*`,
+  `AWS_*` or `CLAUDE_CODE_*` on an agent that calls Bedrock, so a ticket can
+  neither bring an API key back nor point the calls elsewhere.
 
 ## Guard rails
 

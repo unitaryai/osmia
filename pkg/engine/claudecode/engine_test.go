@@ -45,6 +45,43 @@ func (s *stubSessionStore) Cleanup(_ context.Context, _ string) error {
 	return nil
 }
 
+// envSessionStore is a SessionStore whose environment is set by the test.
+type envSessionStore struct {
+	stubSessionStore
+	env map[string]string
+}
+
+func (s *envSessionStore) Env(_, _ string) map[string]string {
+	return s.env
+}
+
+var testBedrockModels = BedrockModels{
+	Main:   "example-main-model",
+	Opus:   "example-opus-model",
+	Sonnet: "example-sonnet-model",
+	Haiku:  "example-haiku-model",
+}
+
+// assertBedrockEnv checks the spec carries exactly the Bedrock settings built
+// from "example-region-1" and testBedrockModels, and no API key.
+func assertBedrockEnv(t *testing.T, spec *engine.ExecutionSpec) {
+	t.Helper()
+	want := map[string]string{
+		"CLAUDE_CODE_USE_BEDROCK":        "1",
+		"AWS_REGION":                     "example-region-1",
+		"AWS_DEFAULT_REGION":             "example-region-1",
+		"ANTHROPIC_MODEL":                "example-main-model",
+		"ANTHROPIC_DEFAULT_OPUS_MODEL":   "example-opus-model",
+		"ANTHROPIC_DEFAULT_SONNET_MODEL": "example-sonnet-model",
+		"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "example-haiku-model",
+	}
+	for name, value := range want {
+		assert.Equal(t, value, spec.Env[name], name)
+	}
+	assert.NotContains(t, spec.Env, "ANTHROPIC_API_KEY")
+	assert.NotContains(t, spec.SecretKeyRefs, "ANTHROPIC_API_KEY")
+}
+
 func TestName(t *testing.T) {
 	e := New()
 	assert.Equal(t, "claude-code", e.Name())
@@ -172,6 +209,72 @@ func TestBuildExecutionSpec(t *testing.T) {
 				require.True(t, ok, "ANTHROPIC_API_KEY must be present in SecretKeyRefs")
 				assert.Equal(t, apiKeySecretName, ref.SecretName)
 				assert.Equal(t, apiKeySecretKey, ref.Key)
+			},
+		},
+		{
+			name: "explicit API key secret and key reach the ANTHROPIC_API_KEY reference",
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+				APIKeySecret:   "team-anthropic",
+				APIKeyKey:      "token",
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assert.Equal(t, engine.SecretKeyRef{SecretName: "team-anthropic", Key: "token"}, spec.SecretKeyRefs["ANTHROPIC_API_KEY"])
+			},
+		},
+		{
+			name: "Bedrock sets the region and pinned models and mounts no API key",
+			opts: []Option{WithBedrock("example-region-1", testBedrockModels)},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assertBedrockEnv(t, spec)
+			},
+		},
+		{
+			name: "Bedrock settings win over config and session store environment",
+			opts: []Option{
+				WithBedrock("example-region-1", testBedrockModels),
+				WithSessionStore(&envSessionStore{env: map[string]string{
+					"AWS_REGION":                   "session-region",
+					"ANTHROPIC_DEFAULT_OPUS_MODEL": "session-opus",
+					"ANTHROPIC_API_KEY":            "sk-session",
+				}}),
+			},
+			task: baseTask,
+			config: engine.EngineConfig{
+				TimeoutSeconds: 3600,
+				Env: map[string]string{
+					"CLAUDE_CODE_USE_BEDROCK":        "0",
+					"AWS_DEFAULT_REGION":             "config-region",
+					"ANTHROPIC_MODEL":                "config-main",
+					"ANTHROPIC_DEFAULT_SONNET_MODEL": "config-sonnet",
+					"ANTHROPIC_DEFAULT_HAIKU_MODEL":  "config-haiku",
+					"ANTHROPIC_API_KEY":              "sk-config",
+				},
+				SecretKeyRefs: map[string]engine.SecretKeyRef{
+					"ANTHROPIC_API_KEY": {SecretName: "config-anthropic", Key: "key"},
+					"AWS_REGION":        {SecretName: "config-aws", Key: "region"},
+					"ANTHROPIC_MODEL":   {SecretName: "config-anthropic", Key: "model"},
+				},
+			},
+			check: func(t *testing.T, spec *engine.ExecutionSpec) {
+				assertBedrockEnv(t, spec)
+				for _, name := range []string{
+					"ANTHROPIC_API_KEY",
+					"ANTHROPIC_DEFAULT_HAIKU_MODEL",
+					"ANTHROPIC_DEFAULT_OPUS_MODEL",
+					"ANTHROPIC_DEFAULT_SONNET_MODEL",
+					"ANTHROPIC_MODEL",
+					"AWS_DEFAULT_REGION",
+					"AWS_REGION",
+					"CLAUDE_CODE_USE_BEDROCK",
+				} {
+					assert.NotContains(t, spec.SecretKeyRefs, name)
+				}
 			},
 		},
 		{

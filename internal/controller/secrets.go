@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -173,9 +174,21 @@ func sortedEnvNames(plan *taskSecrets) []string {
 	return names
 }
 
+// bedrockSwitchEnvVar is the variable that sends Claude Code's model calls to
+// Amazon Bedrock. The Claude Code engine sets it to "1" when configured to.
+const bedrockSwitchEnvVar = "CLAUDE_CODE_USE_BEDROCK"
+
+// bedrockReservedEnvPrefixes are the names a task may not set on an agent that
+// calls Amazon Bedrock: any of them could bring back an API key or move the
+// model calls to another endpoint, region or identity.
+var bedrockReservedEnvPrefixes = []string{"ANTHROPIC_", "AWS_", "CLAUDE_CODE_"}
+
 // checkEnvCollision reports an error when envName is already supplied by the
-// engine's own execution spec.
+// engine's own execution spec, or is reserved for the model provider.
 func checkEnvCollision(spec *engine.ExecutionSpec, envName string) error {
+	if err := checkBedrockReserved(spec, envName); err != nil {
+		return err
+	}
 	if _, ok := spec.Env[envName]; ok {
 		return fmt.Errorf("task-scoped secret %q collides with an environment variable set by the engine", envName)
 	}
@@ -199,6 +212,20 @@ func checkEnvCollision(spec *engine.ExecutionSpec, envName string) error {
 	// docs/getting-started/configuration.md rather than papered over here.
 	if _, ok := spec.SecretEnv[envName]; ok {
 		return fmt.Errorf("task-scoped secret %q collides with a secret mount set by the engine", envName)
+	}
+	return nil
+}
+
+// checkBedrockReserved reports an error when spec calls Amazon Bedrock and
+// envName is one of the names reserved for it.
+func checkBedrockReserved(spec *engine.ExecutionSpec, envName string) error {
+	if spec.Env[bedrockSwitchEnvVar] != "1" {
+		return nil
+	}
+	for _, prefix := range bedrockReservedEnvPrefixes {
+		if strings.HasPrefix(envName, prefix) {
+			return fmt.Errorf("task-scoped secret %q is reserved for the model provider when the agent calls Amazon Bedrock", envName)
+		}
 	}
 	return nil
 }

@@ -38,15 +38,20 @@ config:
       auth:
         method: bedrock
         bedrock_region: "us-east-1"
+      # Bedrock needs every model pinned to an ID that stays in bedrock_region.
+      models:
+        main: "<model id>"
+        opus: "<model id>"
+        sonnet: "<model id>"
+        haiku: "<model id>"
       agent_teams:
         enabled: true
         mode: "in-process"
         max_teammates: 3
-    codex:
-      image: "ghcr.io/unitaryai/engine-codex:latest"
-      auth:
-        method: api_key
-        api_key_secret: "osmia-openai-key"
+    # With method: bedrock no other engine may be configured, named as a
+    # fallback or used in a tournament, since it would call its own provider
+    # outside bedrock_region. Set claude-code.auth.allow_other_engines: true
+    # to allow that, and add the other engine's block here.
 
   guardrails:
     max_cost_per_job: 100.0

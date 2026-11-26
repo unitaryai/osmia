@@ -171,6 +171,7 @@ them by setting `networkPolicy.enabled: true` in your `values.yaml`:
 networkPolicy:
   enabled: true
   agent:
+    # egressRules: []             # replace the default egress rules (see below)
     extraEgressRules: []          # add custom egress rules if needed
   controller:
     webhookSourceCIDR: ""         # restrict webhook ingress to a CIDR
@@ -195,6 +196,45 @@ The agent policy selects pods with `app.kubernetes.io/component: agent` and
 
 Additional egress rules can be added via `networkPolicy.agent.extraEgressRules`.
 
+To restrict agents further, set `networkPolicy.agent.egressRules` to a list of
+rules. It replaces the three default rules above, DNS included, so list DNS
+yourself if agents need it. `extraEgressRules` is still added after it. For
+example, to allow only DNS and HTTPS to one internal range:
+
+```yaml
+networkPolicy:
+  enabled: true
+  agent:
+    egressRules:
+      - ports:                    # DNS
+          - protocol: UDP
+            port: 53
+          - protocol: TCP
+            port: 53
+      - to:
+          - ipBlock:
+              cidr: 10.0.0.0/8
+        ports:
+          - protocol: TCP
+            port: 443
+```
+
+A NetworkPolicy matches IP ranges, not host names. Public endpoints, such as
+a cloud provider's model or token service or a hosted git service, sit behind
+addresses that change, so pinning the addresses they resolve to today will
+break later. In practice a tight list means reaching the cloud services
+through private endpoints inside your network, which have stable private
+addresses (on AWS, VPC interface endpoints), and using the ranges your git
+host and package index publish. The `10.0.0.0/8` in the example above stands
+for such a private range.
+
+An empty list (`egressRules: []`) allows no egress at all apart from
+`extraEgressRules`. On the command line, pass it with
+`--set-json 'networkPolicy.agent.egressRules=[]'`: `--set` would pass the
+string `[]`, and a value that is not a list is refused when the chart is
+rendered. Leaving `egressRules` unset, or setting it to `null`, keeps the
+default rules.
+
 ### Controller NetworkPolicy
 
 The controller policy uses the Helm chart's standard selector labels.
@@ -215,6 +255,8 @@ The controller policy uses the Helm chart's standard selector labels.
 - Non-HTTPS egress: plain HTTP (port 80) is blocked by default. If your
   environment uses internal registries on port 80, add a rule via
   `networkPolicy.agent.extraEgressRules`.
+- With `networkPolicy.agent.egressRules` set: any agent egress that neither
+  that list nor `extraEgressRules` allows, DNS included.
 - Controller access from arbitrary sources: webhook and metrics ingress can
   be restricted to specific CIDRs or pod selectors.
 

@@ -281,7 +281,9 @@ without saying so.
   four models in the region. Every pod in the namespace that uses the
   `default` service account then shares it. Osmia does not create it. IRSA
   works with the chart's agent network policy as it is, since it exchanges
-  the pod's token with AWS STS over port 443. EKS Pod Identity fetches
+  the pod's token with AWS STS over port 443. If you replace the default
+  rules with `networkPolicy.agent.egressRules`, that list must still allow
+  port 443 to AWS STS, and DNS. EKS Pod Identity fetches
   credentials from the Pod Identity Agent at `169.254.170.23` on TCP port 80,
   which that policy blocks, so when `networkPolicy.enabled` is `true` add an
   egress rule for it (and for `fd00:ec2::23/128` on IPv6 clusters):

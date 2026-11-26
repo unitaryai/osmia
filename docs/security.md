@@ -219,6 +219,15 @@ networkPolicy:
             port: 443
 ```
 
+A NetworkPolicy matches IP ranges, not host names. Public endpoints, such as
+a cloud provider's model or token service or a hosted git service, sit behind
+addresses that change, so pinning the addresses they resolve to today will
+break later. In practice a tight list means reaching the cloud services
+through private endpoints inside your network, which have stable private
+addresses (on AWS, VPC interface endpoints), and using the ranges your git
+host and package index publish. The `10.0.0.0/8` in the example above stands
+for such a private range.
+
 An empty list (`egressRules: []`) allows no egress at all apart from
 `extraEgressRules`. On the command line, pass it with
 `--set-json 'networkPolicy.agent.egressRules=[]'`: `--set` would pass the

@@ -49,9 +49,10 @@ const (
 // SandboxBuilder constructs Kubernetes Jobs from engine ExecutionSpecs with
 // gVisor runtime isolation and optional warm pool scheduling.
 type SandboxBuilder struct {
-	namespace      string
-	cfg            config.SandboxConfig
-	podAnnotations map[string]string
+	namespace          string
+	cfg                config.SandboxConfig
+	podAnnotations     map[string]string
+	serviceAccountName string
 }
 
 // Option configures a SandboxBuilder.
@@ -62,6 +63,14 @@ type Option func(*SandboxBuilder)
 func WithPodAnnotations(annotations map[string]string) Option {
 	return func(b *SandboxBuilder) {
 		b.podAnnotations = annotations
+	}
+}
+
+// WithServiceAccountName runs every sandboxed agent pod as the named
+// service account. Empty leaves the namespace's default account.
+func WithServiceAccountName(name string) Option {
+	return func(b *SandboxBuilder) {
+		b.serviceAccountName = name
 	}
 }
 
@@ -149,8 +158,9 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 					Annotations: jobbuilder.MergePodAnnotations(b.podAnnotations, podAnnotations),
 				},
 				Spec: corev1.PodSpec{
-					RuntimeClassName: &runtimeClass,
-					RestartPolicy:    corev1.RestartPolicyNever,
+					RuntimeClassName:   &runtimeClass,
+					ServiceAccountName: b.serviceAccountName,
+					RestartPolicy:      corev1.RestartPolicyNever,
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      taintKey,

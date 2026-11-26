@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -339,6 +340,35 @@ func TestValidate_ClaudeCodeBedrockOtherEngines(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantField)
 				assert.Contains(t, err.Error(), "engines.claude-code.auth.allow_other_engines")
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestValidate_ServiceAccountName(t *testing.T) {
+	tests := []struct {
+		name    string
+		account string
+		wantErr bool
+	}{
+		{name: "none configured", account: ""},
+		{name: "valid name", account: "osmia-agent"},
+		{name: "longest valid name", account: strings.Repeat("a", 253)},
+		{name: "invalid characters", account: "Bad_Name", wantErr: true},
+		{name: "too long", account: strings.Repeat("a", 254), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{Execution: ExecutionConfig{ServiceAccountName: tt.account}}
+
+			err := cfg.Validate()
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "execution.service_account_name")
 				return
 			}
 			assert.NoError(t, err)

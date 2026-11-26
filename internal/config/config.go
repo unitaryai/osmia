@@ -115,6 +115,11 @@ type ExecutionConfig struct {
 	// `karpenter.sh/do-not-disrupt: "true"`; an evicted agent loses its work
 	// and its cost. Annotations Osmia sets itself take precedence over these.
 	PodAnnotations map[string]string `yaml:"pod_annotations,omitempty"`
+	// ServiceAccountName is the service account every agent job's pod runs
+	// as, so that a cloud role can be bound to agents alone. The account must
+	// already exist in the namespace the jobs run in. Empty leaves the pod on
+	// the namespace's default account.
+	ServiceAccountName string `yaml:"service_account_name,omitempty"`
 }
 
 // SandboxConfig holds settings for gVisor-based sandboxed execution.

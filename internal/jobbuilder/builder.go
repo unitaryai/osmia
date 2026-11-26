@@ -38,8 +38,9 @@ const (
 
 // JobBuilder constructs Kubernetes Jobs from engine ExecutionSpecs.
 type JobBuilder struct {
-	namespace      string
-	podAnnotations map[string]string
+	namespace          string
+	podAnnotations     map[string]string
+	serviceAccountName string
 }
 
 // Option configures a JobBuilder.
@@ -50,6 +51,14 @@ type Option func(*JobBuilder)
 func WithPodAnnotations(annotations map[string]string) Option {
 	return func(b *JobBuilder) {
 		b.podAnnotations = annotations
+	}
+}
+
+// WithServiceAccountName runs every agent pod the builder creates as the
+// named service account. Empty leaves the namespace's default account.
+func WithServiceAccountName(name string) Option {
+	return func(b *JobBuilder) {
+		b.serviceAccountName = name
 	}
 }
 
@@ -122,7 +131,8 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 					Annotations: MergePodAnnotations(b.podAnnotations, nil),
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyNever,
+					ServiceAccountName: b.serviceAccountName,
+					RestartPolicy:      corev1.RestartPolicyNever,
 					SecurityContext: &corev1.PodSecurityContext{
 						FSGroup: &fsGroup,
 					},

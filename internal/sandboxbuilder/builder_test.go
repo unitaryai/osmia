@@ -359,3 +359,24 @@ func TestBuild_PodAnnotations(t *testing.T) {
 	assert.Equal(t, "true", ann["karpenter.sh/do-not-disrupt"])
 	assert.Equal(t, "true", ann[annotationSandboxClaim], "the sandbox claim marker must not be switchable by config")
 }
+
+func TestBuild_ServiceAccountName(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{name: "configured account names the sandboxed agent pod", opts: []Option{WithServiceAccountName("osmia-agent")}, want: "osmia-agent"},
+		{name: "no configuration leaves the pod spec as before", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			job, err := New("default", defaultSandboxConfig(), tt.opts...).Build("tr-sa", "claude-code", validSpec())
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, job.Spec.Template.Spec.ServiceAccountName)
+			assert.Nil(t, job.Spec.Template.Spec.AutomountServiceAccountToken)
+		})
+	}
+}

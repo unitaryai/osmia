@@ -143,6 +143,8 @@ guardrails:
 !!! tip "Polling vs. webhooks"
     With only polling configured, Osmia checks Shortcut every 30 seconds. Adding the webhook (above) means work starts within a second or two of you moving a story. Both can run together: the webhook speeds things up and polling is the safety net.
 
+    The webhook takes any story moved into the trigger state, whatever its labels. If you run several Osmia instances against one workspace and split the stories between them with `labels` in `ticketing.config`, use polling only: Osmia refuses `labels` together with `webhook.shortcut` at start-up.
+
 !!! tip "Multiple workflows"
     If your workspace has several Shortcut workflows with different state names, replace `workflow_state_name` and `in_progress_state_name` with a `workflows` array:
 

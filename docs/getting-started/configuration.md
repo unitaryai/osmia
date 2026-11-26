@@ -571,6 +571,7 @@ execution:
     env_stripping: true
   pod_annotations:            # added to every agent pod (job and sandbox backends)
     karpenter.sh/do-not-disrupt: "true"
+  service_account_name: osmia-agent   # every agent pod runs as this account (job and sandbox backends)
 ```
 
 ### Keeping the autoscaler away from running work
@@ -589,6 +590,23 @@ podAnnotations:
 ```
 
 The controller tracks running agent jobs in memory, so moving it while a job is running orphans that job.
+
+### Giving agents a cloud identity
+
+Without a service account named, agent pods run as the `default` account of the namespace their jobs run in, which every other pod there shares. A cloud role is attached to a service account (for example through AWS IRSA, EKS Pod Identity or GKE Workload Identity), so to give agents a role of their own, name an account for them:
+
+```yaml
+execution:
+  service_account_name: osmia-agent
+```
+
+Every agent pod on the `job` and `sandbox` backends then runs as that account. The name is checked when the config is loaded, and an invalid one is rejected at startup. With the Helm chart, set it as `config.execution.service_account_name`.
+
+Osmia does not create the account. Create it, and attach the cloud role to it, in the namespace the agent jobs run in. Osmia does not check that it exists: if it does not, Kubernetes creates no pod for the job, and the task waits until it times out.
+
+Do not name the controller's own service account. Agents would then hold the controller's rights to the cluster.
+
+The `local` (Docker) backend ignores this setting.
 
 ## Webhook
 

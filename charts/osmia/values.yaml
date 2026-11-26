@@ -16,6 +16,8 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+# This is the controller's account. Agent pods run as the account named by
+# config.execution.service_account_name, which the chart does not create.
 serviceAccount:
   create: true
   automount: true

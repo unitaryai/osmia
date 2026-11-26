@@ -441,6 +441,74 @@ func TestShortcutBackend_PollReadyTickets_ExcludeLabels(t *testing.T) {
 	}
 }
 
+func TestShortcutBackend_PollReadyTickets_RequiredLabels(t *testing.T) {
+	stories := []scStory{
+		{ID: 1, Name: "Unlabelled story"},
+		{ID: 2, Name: "Team A story", Labels: []scLabel{{Name: "team-a"}}},
+		{ID: 3, Name: "Both teams story", Labels: []scLabel{{Name: "team-a"}, {Name: "team b"}}},
+		{ID: 4, Name: "Failed team A story", Labels: []scLabel{{Name: "team-a"}, {Name: "osmia-failed"}}},
+	}
+
+	tests := []struct {
+		name          string
+		opts          []Option
+		wantTerms     []string
+		wantNoLabel   bool
+		wantTicketIDs []string
+	}{
+		{
+			name:          "no labels configured",
+			wantNoLabel:   true,
+			wantTicketIDs: []string{"1", "2", "3"},
+		},
+		{
+			name:          "one required label",
+			opts:          []Option{WithLabels([]string{"team-a"})},
+			wantTerms:     []string{`label:"team-a"`},
+			wantTicketIDs: []string{"2", "3"},
+		},
+		{
+			name:          "two labels, one with a space",
+			opts:          []Option{WithLabels([]string{"team-a", "team b"})},
+			wantTerms:     []string{`label:"team-a"`, `label:"team b"`},
+			wantTicketIDs: []string{"3"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var gotQuery string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				gotQuery = r.URL.Query().Get("query")
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(searchResponse{Data: stories})
+			}))
+			defer srv.Close()
+
+			allOpts := append([]Option{
+				WithBaseURL(srv.URL),
+				WithHTTPClient(srv.Client()),
+			}, tc.opts...)
+			b := NewShortcutBackend("tok", 500, testLogger(), allOpts...)
+
+			tickets, err := b.PollReadyTickets(context.Background())
+			require.NoError(t, err)
+
+			for _, term := range tc.wantTerms {
+				assert.Contains(t, gotQuery, term)
+			}
+			if tc.wantNoLabel {
+				assert.NotContains(t, gotQuery, "label:")
+			}
+			gotIDs := make([]string, 0, len(tickets))
+			for _, tk := range tickets {
+				gotIDs = append(gotIDs, tk.ID)
+			}
+			assert.Equal(t, tc.wantTicketIDs, gotIDs)
+		})
+	}
+}
+
 func TestShortcutBackend_PollReadyTickets_RepoURLFromExternalLinks(t *testing.T) {
 	stories := []scStory{
 		{

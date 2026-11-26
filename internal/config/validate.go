@@ -46,6 +46,18 @@ func validateStorePath(name, path string) error {
 	return nil
 }
 
+// hasTicketingLabels reports whether the ticketing config holds a non-empty
+// labels list.
+func hasTicketingLabels(m map[string]any) bool {
+	switch v := m["labels"].(type) {
+	case []any:
+		return len(v) > 0
+	case []string:
+		return len(v) > 0
+	}
+	return false
+}
+
 // claudeCodeEngine is the name the Claude Code engine is registered under.
 const claudeCodeEngine = "claude-code"
 
@@ -238,6 +250,10 @@ func (c *Config) Validate() error {
 				}
 			}
 		}
+	}
+
+	if c.Ticketing.Backend == "shortcut" && hasTicketingLabels(c.Ticketing.Config) && c.Webhook.Shortcut != nil {
+		return fmt.Errorf("ticketing.config.labels on the shortcut backend cannot be used with webhook.shortcut, which takes stories whatever their labels")
 	}
 
 	if c.Engines.ClaudeCode != nil {

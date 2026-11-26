@@ -168,6 +168,10 @@ sandbox:
 networkPolicy:
   enabled: false
   agent: {}
+    # A list here replaces the default egress rules (DNS, TCP 443 and TCP 22
+    # to anywhere), so list DNS yourself if agents need it. An empty list
+    # allows no egress beyond extraEgressRules. Unset keeps the defaults.
+    # egressRules: []
     # extraEgressRules: []
   controller: {}
     # webhookSourceCIDR: ""

@@ -15,6 +15,18 @@ spec:
     - Egress
   # Deny ALL ingress — agent pods should not accept any inbound connections
   ingress: []
+  {{- $agent := .Values.networkPolicy.agent | default dict }}
+  {{- $egressRules := get $agent "egressRules" }}
+  {{- /* A list in egressRules, even an empty one, replaces the default rules, DNS included. */}}
+  {{- if kindIs "slice" $egressRules }}
+  {{- $rules := concat $egressRules (get $agent "extraEgressRules" | default list) }}
+  {{- if $rules }}
+  egress:
+    {{- toYaml $rules | nindent 4 }}
+  {{- else }}
+  egress: []
+  {{- end }}
+  {{- else }}
   egress:
     # Allow DNS resolution
     - to: []
@@ -38,4 +50,5 @@ spec:
     {{- toYaml .extraEgressRules | nindent 4 }}
     {{- end }}
     {{- end }}
+  {{- end }}
 {{- end }}

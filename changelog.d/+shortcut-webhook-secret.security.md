@@ -1,0 +1,1 @@
+The Shortcut webhook accepted unsigned requests when no Shortcut secret was set, even when Shortcut was not configured. It now requires `webhook.shortcut.secret` and returns 500 without it. It also reads Shortcut's real `Payload-Signature` header instead of `X-Shortcut-Signature`, which Shortcut never sends.

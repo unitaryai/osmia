@@ -244,7 +244,7 @@ SHORTCUT_TOKEN=your_token ./hack/shortcut-list-states.sh
 **The webhook is not triggering.**
 - Confirm port 8081 is reachable from Shortcut's servers.
 - Confirm the webhook secret in Shortcut matches `webhook.shortcut.secret` in your config.
-- Check controller logs for `"shortcut webhook signature mismatch"`.
+- Check controller logs for `"invalid shortcut webhook signature"` or `"shortcut webhook secret not configured"`.
 
 **No Slack message received.**
 - Confirm the bot is invited to the channel (`/invite @Osmia`).

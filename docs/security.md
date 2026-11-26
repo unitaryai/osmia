@@ -221,8 +221,9 @@ networkPolicy:
 
 An empty list (`egressRules: []`) allows no egress at all apart from
 `extraEgressRules`. On the command line, pass it with
-`--set-json 'networkPolicy.agent.egressRules=[]'`, since `--set` would pass the
-string `[]`. Leaving `egressRules` unset, or setting it to `null`, keeps the
+`--set-json 'networkPolicy.agent.egressRules=[]'`: `--set` would pass the
+string `[]`, and a value that is not a list is refused when the chart is
+rendered. Leaving `egressRules` unset, or setting it to `null`, keeps the
 default rules.
 
 ### Controller NetworkPolicy

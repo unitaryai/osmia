@@ -17,6 +17,9 @@ spec:
   ingress: []
   {{- $agent := .Values.networkPolicy.agent | default dict }}
   {{- $egressRules := get $agent "egressRules" }}
+  {{- if and (hasKey $agent "egressRules") (not (kindIs "slice" $egressRules)) (not (kindIs "invalid" $egressRules)) }}
+  {{- fail "networkPolicy.agent.egressRules must be a list (with --set, use --set-json)" }}
+  {{- end }}
   {{- /* A list in egressRules, even an empty one, replaces the default rules, DNS included. */}}
   {{- if kindIs "slice" $egressRules }}
   {{- $rules := concat $egressRules (get $agent "extraEgressRules" | default list) }}

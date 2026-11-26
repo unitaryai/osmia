@@ -119,8 +119,8 @@ func TestValidate_ClaudeCodeBedrock(t *testing.T) {
 		},
 		{
 			name:       "allow other engines without bedrock",
-			engine:     ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic", AllowOtherEngines: true}},
-			wantField:  "engines.claude-code.auth.allow_other_engines",
+			engine:     ClaudeCodeEngineConfig{Auth: AuthConfig{Method: "api_key", APIKeySecret: "anthropic"}, AllowOtherEngines: true},
+			wantField:  "engines.claude-code.allow_other_engines",
 			wantPhrase: "is only used when",
 		},
 		{
@@ -199,17 +199,18 @@ func TestValidate_ClaudeCodeBedrockTrimsValues(t *testing.T) {
 
 // TestValidate_ClaudeCodeBedrockOtherEngines pins that, with the bedrock
 // method, no configuration lets an engine other than Claude Code be given a
-// task, unless auth.allow_other_engines says so.
+// task, unless allow_other_engines says so.
 func TestValidate_ClaudeCodeBedrockOtherEngines(t *testing.T) {
 	bedrockEngine := func(allowOtherEngines bool) *ClaudeCodeEngineConfig {
 		return &ClaudeCodeEngineConfig{
-			Auth: AuthConfig{Method: "bedrock", BedrockRegion: "example-region-1", AllowOtherEngines: allowOtherEngines},
+			Auth: AuthConfig{Method: "bedrock", BedrockRegion: "example-region-1"},
 			Models: ClaudeCodeModels{
 				Main:   "example-main-model",
 				Opus:   "example-opus-model",
 				Sonnet: "example-sonnet-model",
 				Haiku:  "example-haiku-model",
 			},
+			AllowOtherEngines: allowOtherEngines,
 		}
 	}
 	tournament := func(judge string) CompetitiveExecutionConfig {
@@ -338,7 +339,7 @@ func TestValidate_ClaudeCodeBedrockOtherEngines(t *testing.T) {
 			if tt.wantField != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantField)
-				assert.Contains(t, err.Error(), "engines.claude-code.auth.allow_other_engines")
+				assert.Contains(t, err.Error(), "engines.claude-code.allow_other_engines")
 				return
 			}
 			assert.NoError(t, err)

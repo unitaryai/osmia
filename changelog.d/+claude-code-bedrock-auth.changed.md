@@ -7,6 +7,6 @@ start unless it also names all four models under `engines.claude-code.models`
 `auth.api_key_key`, and gives no task to another engine: no other engine
 may be configured, or named in `engines.default`, `engines.fallback_engines`,
 `competitive_execution.judge_engine` or `incident_triage.engine`, unless
-`engines.claude-code.auth.allow_other_engines` is `true`. To keep calling the
+`engines.claude-code.allow_other_engines` is `true`. To keep calling the
 Anthropic API, set another method, such as `api_key`, instead. See
 [Claude Code on Amazon Bedrock](https://github.com/unitaryai/osmia/blob/main/docs/getting-started/configuration.md#claude-code-on-amazon-bedrock).

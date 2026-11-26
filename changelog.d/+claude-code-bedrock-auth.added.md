@@ -19,6 +19,6 @@ start when `engines.default`, `engines.fallback_engines`,
 `competitive_execution.judge_engine` or `incident_triage.engine` names
 another engine, or when another engine's block is configured, which would let
 a ticket label, routing or a tournament give it a task, unless the new
-`engines.claude-code.auth.allow_other_engines` is `true`. Every other auth
+`engines.claude-code.allow_other_engines` is `true`. Every other auth
 method is unchanged. See
 [Claude Code on Amazon Bedrock](https://github.com/unitaryai/osmia/blob/main/docs/getting-started/configuration.md#claude-code-on-amazon-bedrock).

@@ -102,8 +102,8 @@ func validateClaudeCodeNotBedrock(cc *ClaudeCodeEngineConfig) error {
 	if cc.Models != (ClaudeCodeModels{}) {
 		return fmt.Errorf("engines.claude-code.models is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
 	}
-	if cc.Auth.AllowOtherEngines {
-		return fmt.Errorf("engines.claude-code.auth.allow_other_engines is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
+	if cc.AllowOtherEngines {
+		return fmt.Errorf("engines.claude-code.allow_other_engines is only used when engines.claude-code.auth.method is %q", AuthMethodBedrock)
 	}
 	return nil
 }
@@ -149,7 +149,7 @@ func validateOnlyClaudeCodeEngine(c *Config) error {
 // otherEngineError refuses field, which could give a task to an engine that
 // calls its own provider outside the Bedrock region.
 func otherEngineError(field string) error {
-	return fmt.Errorf("%s lets an engine other than %q take a task outside the Bedrock region, which is refused when engines.claude-code.auth.method is %q unless engines.claude-code.auth.allow_other_engines is true", field, claudeCodeEngine, AuthMethodBedrock)
+	return fmt.Errorf("%s lets an engine other than %q take a task outside the Bedrock region, which is refused when engines.claude-code.auth.method is %q unless engines.claude-code.allow_other_engines is true", field, claudeCodeEngine, AuthMethodBedrock)
 }
 
 // trimClaudeCodeModelSettings trims the region and model names in place, so
@@ -285,7 +285,7 @@ func (c *Config) Validate() error {
 		if err := validateClaudeCodeBedrock(cc); err != nil {
 			return err
 		}
-		if cc.Auth.Method == AuthMethodBedrock && !cc.Auth.AllowOtherEngines {
+		if cc.Auth.Method == AuthMethodBedrock && !cc.AllowOtherEngines {
 			if err := validateOnlyClaudeCodeEngine(c); err != nil {
 				return err
 			}

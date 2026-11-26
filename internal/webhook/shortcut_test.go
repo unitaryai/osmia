@@ -12,8 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testShortcutSecret = "test-shortcut-secret"
+
+// newShortcutRequest builds a Shortcut delivery signed with testShortcutSecret.
+func newShortcutRequest(body []byte) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Payload-Signature", computeShortcutSignature(body, testShortcutSecret))
+	return req
+}
+
 func TestHandleShortcut(t *testing.T) {
-	secret := "test-shortcut-secret"
+	secret := testShortcutSecret
+	sign := func(b []byte) string { return computeShortcutSignature(b, secret) }
 
 	storyUpdatePayload := scWebhookPayload{
 		Actions: []scAction{
@@ -52,12 +63,12 @@ func TestHandleShortcut(t *testing.T) {
 			wantCalls:  1,
 		},
 		{
-			name:       "valid story update without secret (no validation)",
+			name:       "no secret configured",
 			payload:    storyUpdatePayload,
-			secret:     "", // no secret configured, so signature is not validated
+			secret:     "",
 			sigFunc:    func(_ []byte) string { return "" },
-			wantStatus: http.StatusOK,
-			wantCalls:  1,
+			wantStatus: http.StatusInternalServerError,
+			wantCalls:  0,
 		},
 		{
 			name:       "invalid signature",
@@ -79,8 +90,8 @@ func TestHandleShortcut(t *testing.T) {
 					},
 				},
 			},
-			secret:     "",
-			sigFunc:    func(_ []byte) string { return "" },
+			secret:     secret,
+			sigFunc:    sign,
 			wantStatus: http.StatusOK,
 			wantCalls:  0,
 		},
@@ -96,8 +107,8 @@ func TestHandleShortcut(t *testing.T) {
 					},
 				},
 			},
-			secret:     "",
-			sigFunc:    func(_ []byte) string { return "" },
+			secret:     secret,
+			sigFunc:    sign,
 			wantStatus: http.StatusOK,
 			wantCalls:  0,
 		},
@@ -122,7 +133,7 @@ func TestHandleShortcut(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			if sig != "" {
-				req.Header.Set("X-Shortcut-Signature", sig)
+				req.Header.Set("Payload-Signature", sig)
 			}
 
 			rec := httptest.NewRecorder()
@@ -147,7 +158,7 @@ func TestHandleShortcut(t *testing.T) {
 
 func TestHandleShortcut_MultipleActions(t *testing.T) {
 	mock := &mockEventHandler{}
-	srv, err := NewServer(testLogger(), mock)
+	srv, err := NewServer(testLogger(), mock, WithSecret("shortcut", testShortcutSecret))
 	require.NoError(t, err)
 
 	payload := scWebhookPayload{
@@ -176,8 +187,7 @@ func TestHandleShortcut_MultipleActions(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newShortcutRequest(body)
 
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -191,11 +201,10 @@ func TestHandleShortcut_MultipleActions(t *testing.T) {
 
 func TestHandleShortcut_MalformedJSON(t *testing.T) {
 	mock := &mockEventHandler{}
-	srv, err := NewServer(testLogger(), mock)
+	srv, err := NewServer(testLogger(), mock, WithSecret("shortcut", testShortcutSecret))
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader([]byte(`not json`)))
-	req.Header.Set("Content-Type", "application/json")
+	req := newShortcutRequest([]byte(`not json`))
 
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -205,7 +214,7 @@ func TestHandleShortcut_MalformedJSON(t *testing.T) {
 
 func TestHandleShortcut_HandlerError(t *testing.T) {
 	mock := &mockEventHandler{err: fmt.Errorf("handler failed")}
-	srv, err := NewServer(testLogger(), mock)
+	srv, err := NewServer(testLogger(), mock, WithSecret("shortcut", testShortcutSecret))
 	require.NoError(t, err)
 
 	payload := scWebhookPayload{
@@ -221,8 +230,7 @@ func TestHandleShortcut_HandlerError(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newShortcutRequest(body)
 
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -287,14 +295,13 @@ func TestHandleShortcut_TargetStateFilter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mock := &mockEventHandler{}
-			srv, err := NewServer(testLogger(), mock, WithShortcutTargetStateID(targetState))
+			srv, err := NewServer(testLogger(), mock, WithSecret("shortcut", testShortcutSecret), WithShortcutTargetStateID(targetState))
 			require.NoError(t, err)
 
 			payload := scWebhookPayload{Actions: []scAction{tc.action}}
 			body, _ := json.Marshal(payload)
 
-			req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
-			req.Header.Set("Content-Type", "application/json")
+			req := newShortcutRequest(body)
 
 			rec := httptest.NewRecorder()
 			srv.ServeHTTP(rec, req)
@@ -308,7 +315,7 @@ func TestHandleShortcut_TargetStateFilter(t *testing.T) {
 func TestHandleShortcut_NoTargetStateFilter_AllUpdatesForwarded(t *testing.T) {
 	// Without a target state ID, all story updates pass through (existing behaviour).
 	mock := &mockEventHandler{}
-	srv, err := NewServer(testLogger(), mock) // no WithShortcutTargetStateID
+	srv, err := NewServer(testLogger(), mock, WithSecret("shortcut", testShortcutSecret)) // no WithShortcutTargetStateID
 	require.NoError(t, err)
 
 	payload := scWebhookPayload{
@@ -326,8 +333,7 @@ func TestHandleShortcut_NoTargetStateFilter_AllUpdatesForwarded(t *testing.T) {
 		},
 	}
 	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/shortcut", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
+	req := newShortcutRequest(body)
 
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)

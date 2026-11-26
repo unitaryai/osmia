@@ -23,8 +23,8 @@ POST /webhooks/incident-io
 ```
 
 Every endpoint validates a signature or token before processing the request
-body, with two exceptions: Shortcut checks its signature only when a secret is
-configured, and the generic endpoint depends on its `auth_mode`. See [Webhook API](webhooks.md) for the
+body. The generic endpoint is the exception: its check depends on its
+`auth_mode`. See [Webhook API](webhooks.md) for the
 full reference.
 
 ## Plugin gRPC API

@@ -48,10 +48,17 @@ type scWorkflowStateChange struct {
 	New int `json:"new"`
 }
 
-// handleShortcut processes incoming Shortcut webhook deliveries. It optionally
-// validates the webhook signature if a secret is configured, then parses
-// story update events into tickets.
+// handleShortcut processes incoming Shortcut webhook deliveries. It
+// validates the Payload-Signature header against the configured secret,
+// then parses story update events into tickets.
 func (s *Server) handleShortcut(w http.ResponseWriter, r *http.Request) {
+	secret := s.secrets["shortcut"]
+	if secret == "" {
+		s.logger.Error("shortcut webhook secret not configured")
+		http.Error(w, "webhook secret not configured", http.StatusInternalServerError)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		s.logger.Error("failed to read request body", slog.String("error", err.Error()))
@@ -59,15 +66,10 @@ func (s *Server) handleShortcut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate signature if a secret is configured.
-	secret := s.secrets["shortcut"]
-	if secret != "" {
-		sigHeader := r.Header.Get("X-Shortcut-Signature")
-		if !validateShortcutSignature(body, sigHeader, secret) {
-			s.logger.Warn("invalid shortcut webhook signature")
-			http.Error(w, "invalid signature", http.StatusUnauthorized)
-			return
-		}
+	if !validateShortcutSignature(body, r.Header.Get("Payload-Signature"), secret) {
+		s.logger.Warn("invalid shortcut webhook signature")
+		http.Error(w, "invalid signature", http.StatusUnauthorized)
+		return
 	}
 
 	var payload scWebhookPayload
@@ -130,7 +132,7 @@ func (s *Server) handleShortcut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// validateShortcutSignature checks the X-Shortcut-Signature header against
+// validateShortcutSignature checks the Payload-Signature header against
 // the HMAC-SHA256 of the request body.
 func validateShortcutSignature(body []byte, sigHeader, secret string) bool {
 	if sigHeader == "" {

@@ -15,7 +15,7 @@ the plugin gRPC API; see [Plugin gRPC API](plugins.md) for the plugin system.
 | Configuration key | Default | Description |
 |---|---|---|
 | `webhook.port` | `8080` | TCP port the webhook server listens on. |
-| `webhook.<source>.secret` | None | Per-source signing secret, where `<source>` is `github`, `gitlab`, `slack`, `shortcut`, `generic` or `incident_io`. Required for all sources except Shortcut (optional) and Generic (depends on `auth_mode`). |
+| `webhook.<source>.secret` | None | Per-source signing secret, where `<source>` is `github`, `gitlab`, `slack`, `shortcut`, `generic` or `incident_io`. Required for all sources except Generic (depends on `auth_mode`). |
 | `webhook.path_prefix` | `/webhooks` | Base path prepended to all route registrations. Not configurable at present; all routes are hard-coded under `/webhooks/`. |
 
 A health-check endpoint is available at `GET /healthz` and returns `200 OK`
@@ -134,13 +134,9 @@ POST /webhooks/shortcut
 
 ### Authentication
 
-Shortcut signature validation is optional. If a secret is configured under
-`webhook.shortcut.secret`, the `X-Shortcut-Signature` header is validated
-using HMAC-SHA256. The header value may be sent with or without a `sha256=`
-prefix. Both formats are accepted.
-
-If no secret is configured, all well-formed requests are accepted. Configure a
-secret in production.
+A secret is required under `webhook.shortcut.secret`. Osmia checks the
+`Payload-Signature` header, the HMAC-SHA256 of the body in hex, against it.
+Without a secret, the endpoint returns 500 and accepts no requests.
 
 ### Supported events
 
@@ -563,9 +559,8 @@ Without the YAML blocks, `POST /webhooks/incident-io` responds with 500
 ## Security
 
 !!! warning "Always configure signing secrets"
-    Running the webhook server without secrets means any actor who can reach the
-    endpoint can inject arbitrary tickets. Configure a secret for every source
-    you enable and rotate secrets regularly.
+    A source without a secret returns 500 and accepts no requests. Configure a
+    secret for every source you enable and rotate secrets regularly.
 
 - Signatures are validated using `crypto/hmac` constant-time comparison to
   prevent timing attacks.

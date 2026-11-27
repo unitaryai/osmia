@@ -1179,6 +1179,12 @@ func initShortcutBackend(cfg *config.Config, k8sClient kubernetes.Interface, nam
 		opts = append(opts, scticket.WithOwnerMentionName(ownerName))
 	}
 
+	if labels, err := configStringSlice(m, "labels"); err != nil {
+		return nil, err
+	} else if len(labels) > 0 {
+		opts = append(opts, scticket.WithLabels(labels))
+	}
+
 	if excludeLabels, err := configStringSlice(m, "exclude_labels"); err != nil {
 		return nil, err
 	} else if len(excludeLabels) > 0 {

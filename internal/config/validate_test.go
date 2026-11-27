@@ -36,6 +36,71 @@ func TestValidate_PodAnnotations(t *testing.T) {
 	}
 }
 
+// TestValidate_ShortcutLabels pins that required labels on the Shortcut
+// backend are refused alongside the Shortcut webhook or with a blank entry.
+func TestValidate_ShortcutLabels(t *testing.T) {
+	labels := map[string]any{"labels": []any{"team-a"}}
+	shortcutWebhook := WebhookConfig{Shortcut: &WebhookSourceConfig{Secret: "example-secret"}}
+
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr bool
+	}{
+		{
+			name: "labels with shortcut webhook",
+			cfg: Config{
+				Ticketing: TicketingConfig{Backend: "shortcut", Config: labels},
+				Webhook:   shortcutWebhook,
+			},
+			wantErr: true,
+		},
+		{
+			name: "labels without webhook",
+			cfg:  Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: labels}},
+		},
+		{
+			name: "shortcut webhook without labels",
+			cfg: Config{
+				Ticketing: TicketingConfig{Backend: "shortcut", Config: map[string]any{}},
+				Webhook:   shortcutWebhook,
+			},
+		},
+		{
+			name: "other backend with labels and shortcut webhook",
+			cfg: Config{
+				Ticketing: TicketingConfig{Backend: "github", Config: labels},
+				Webhook:   shortcutWebhook,
+			},
+		},
+		{
+			name:    "blank among labels",
+			cfg:     Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: map[string]any{"labels": []any{"team-a", ""}}}},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace-only label",
+			cfg:     Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: map[string]any{"labels": []any{"  "}}}},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := tt.cfg
+
+			err := cfg.Validate()
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "ticketing.config.labels")
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
 // TestValidate_ClaudeCodeBedrock pins that Bedrock is refused at startup
 // unless it names a region and every model, and has no API key.
 func TestValidate_ClaudeCodeBedrock(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -98,6 +99,7 @@ type ShortcutBackend struct {
 	workflowMappings    []WorkflowMapping // multi-workflow support; synthesised from legacy fields by Init
 	ownerMentionName    string            // mention name (e.g. "osmia"); resolved to ownerMemberID by Init
 	ownerMemberID       string            // resolved Shortcut member UUID for owner filtering
+	labels              []string
 	excludeLabels       []string
 	completedStateName  string       // if set, MarkComplete moves stories here instead of the first done-type state
 	workflows           []scWorkflow // cached at Init; used for per-story state lookups
@@ -178,6 +180,14 @@ func WithOwnerMentionName(name string) Option {
 	return func(b *ShortcutBackend) {
 		// Strip a leading "@" if the caller included it.
 		b.ownerMentionName = strings.TrimPrefix(name, "@")
+	}
+}
+
+// WithLabels sets the labels a story must all carry to be picked up. Each is
+// added to the search query and checked again on every story returned.
+func WithLabels(labels []string) Option {
+	return func(b *ShortcutBackend) {
+		b.labels = labels
 	}
 }
 
@@ -420,6 +430,9 @@ func (b *ShortcutBackend) pollQuery(ctx context.Context, stateName string) ([]sc
 	if b.ownerMentionName != "" {
 		query += fmt.Sprintf(` owner:%s`, b.ownerMentionName)
 	}
+	for _, l := range b.labels {
+		query += fmt.Sprintf(` label:"%s"`, l)
+	}
 
 	body, err := b.doGet(ctx, b.baseURL+"/search/stories?query="+url.QueryEscape(query))
 	if err != nil {
@@ -508,7 +521,7 @@ func (b *ShortcutBackend) PollReadyTickets(ctx context.Context) ([]ticketing.Tic
 
 	var tickets []ticketing.Ticket
 	for _, story := range allStories {
-		if hasExcludedLabel(story.Labels, excludeSet) {
+		if !hasAllLabels(story.Labels, b.labels) || hasExcludedLabel(story.Labels, excludeSet) {
 			continue
 		}
 
@@ -543,6 +556,17 @@ func hasExcludedLabel(storyLabels []scLabel, excludeSet map[string]struct{}) boo
 		}
 	}
 	return false
+}
+
+// hasAllLabels returns true if the story carries every one of the required
+// labels, compared exactly.
+func hasAllLabels(storyLabels []scLabel, required []string) bool {
+	for _, want := range required {
+		if !slices.ContainsFunc(storyLabels, func(l scLabel) bool { return l.Name == want }) {
+			return false
+		}
+	}
+	return true
 }
 
 // storyWorkflow fetches the story and returns the workflow it currently belongs

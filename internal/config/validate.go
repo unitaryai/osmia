@@ -240,6 +240,18 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.Ticketing.Backend == "shortcut" {
+		labels, _ := c.Ticketing.Config["labels"].([]any)
+		for _, l := range labels {
+			if s, ok := l.(string); ok && strings.TrimSpace(s) == "" {
+				return fmt.Errorf("ticketing.config.labels on the shortcut backend must not contain a blank entry, which would match no story")
+			}
+		}
+		if len(labels) > 0 && c.Webhook.Shortcut != nil {
+			return fmt.Errorf("ticketing.config.labels on the shortcut backend cannot be used with webhook.shortcut, which takes stories whatever their labels")
+		}
+	}
+
 	if c.Engines.ClaudeCode != nil {
 		sp := c.Engines.ClaudeCode.SessionPersistence
 		if sp.Enabled {

@@ -227,9 +227,13 @@ config:
       in_progress_state_name: "In Development"
       completed_state_name: "Ready for Review"     # optional
       owner_mention_name: "osmia"
+      labels:                                      # optional
+        - "team-a"
       exclude_labels:
         - "osmia-failed"
 ```
+
+When `labels` is set, a story is taken only if it carries every listed label, named exactly as written in Shortcut; `exclude_labels` still applies after it. A blank entry would match no story, so it is refused at start-up. To run several instances against one workspace, give each its own label; a story carrying two instances' labels is taken by both. An instance without `labels` still takes every story, labelled ones included, so the split holds only if every instance polling the same state and owner has a label of its own. `labels` cannot be used with the Shortcut webhook (`webhook.shortcut`), which takes stories whatever their labels, and that configuration is refused at start-up.
 
 For workspaces with multiple workflows, use the `workflows` array instead of the flat state name keys (see the [Configuration reference](../getting-started/configuration.md#shortcut)).
 
@@ -237,7 +241,7 @@ For workspaces with multiple workflows, use the `workflows` array instead of the
 
 | Method | Shortcut action |
 |---|---|
-| `PollReadyTickets` | Lists stories in the configured trigger state, optionally filtered by assignee |
+| `PollReadyTickets` | Lists stories in the configured trigger state, optionally filtered by assignee and by required labels |
 | `MarkInProgress` | Moves the story to `in_progress_state_name` |
 | `MarkComplete` | Posts a comment with the PR link, summary, cost, and token usage; moves the story to `completed_state_name` (or the first done-type state if not configured) |
 | `MarkFailed` | Posts a comment with the failure reason; adds the `osmia-failed` label |

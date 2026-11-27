@@ -158,9 +158,10 @@ func (b *SandboxBuilder) Build(taskRunID string, engineName string, spec *engine
 					Annotations: jobbuilder.MergePodAnnotations(b.podAnnotations, podAnnotations),
 				},
 				Spec: corev1.PodSpec{
-					RuntimeClassName:   &runtimeClass,
-					ServiceAccountName: b.serviceAccountName,
-					RestartPolicy:      corev1.RestartPolicyNever,
+					RuntimeClassName:             &runtimeClass,
+					ServiceAccountName:           b.serviceAccountName,
+					AutomountServiceAccountToken: ptrBool(false),
+					RestartPolicy:                corev1.RestartPolicyNever,
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      taintKey,

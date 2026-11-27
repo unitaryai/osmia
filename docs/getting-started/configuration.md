@@ -604,6 +604,8 @@ execution:
 
 Every agent pod on the `job` and `sandbox` backends then runs as that account. An invalid name is rejected when the config is loaded at startup. With the Helm chart, set it as `config.execution.service_account_name`.
 
+Agent pods on the `job` and `sandbox` backends never mount a Kubernetes API token, whether or not an account is named, since agents have no need of the Kubernetes API. Cloud identity does not depend on that token: IRSA projects a token of its own into the pod, and EKS Pod Identity and GKE Workload Identity serve credentials from an agent on the node.
+
 Osmia does not create the account. Create it, and attach the cloud role to it, in the namespace the agent jobs run in. Osmia does not check that it exists: if it does not, Kubernetes creates no pod for the job, and the task waits until it times out.
 
 Do not name the controller's own service account. Agents would then hold the controller's rights to the cluster.

@@ -131,8 +131,9 @@ func (b *JobBuilder) Build(taskRunID string, engineName string, spec *engine.Exe
 					Annotations: MergePodAnnotations(b.podAnnotations, nil),
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: b.serviceAccountName,
-					RestartPolicy:      corev1.RestartPolicyNever,
+					ServiceAccountName:           b.serviceAccountName,
+					AutomountServiceAccountToken: ptrBool(false),
+					RestartPolicy:                corev1.RestartPolicyNever,
 					SecurityContext: &corev1.PodSecurityContext{
 						FSGroup: &fsGroup,
 					},

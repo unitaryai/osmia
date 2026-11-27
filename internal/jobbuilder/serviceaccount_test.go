@@ -14,7 +14,7 @@ func TestBuild_ServiceAccountName(t *testing.T) {
 		want string
 	}{
 		{name: "configured account names the agent pod", opts: []Option{WithServiceAccountName("osmia-agent")}, want: "osmia-agent"},
-		{name: "no configuration leaves the pod spec as before", want: ""},
+		{name: "no account named leaves the namespace default account", want: ""},
 	}
 
 	for _, tt := range tests {
@@ -23,7 +23,7 @@ func TestBuild_ServiceAccountName(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, job.Spec.Template.Spec.ServiceAccountName)
-			assert.Nil(t, job.Spec.Template.Spec.AutomountServiceAccountToken)
+			assert.Equal(t, ptrBool(false), job.Spec.Template.Spec.AutomountServiceAccountToken)
 		})
 	}
 }

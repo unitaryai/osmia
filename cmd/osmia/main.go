@@ -385,6 +385,12 @@ func main() {
 			jobbuilder.WithServiceAccountName(cfg.Execution.ServiceAccountName))
 		logger.Info("using standard kubernetes job builder")
 	}
+	if name := cfg.Execution.ServiceAccountName; name != "" && cfg.Execution.Backend != "local" {
+		if err := checkAgentServiceAccountExists(context.Background(), k8sClient, *namespace, name); err != nil {
+			logger.Error("invalid agent service account", "error", err)
+			os.Exit(1)
+		}
+	}
 	opts = append(opts, controller.WithJobBuilder(jb))
 
 	// --- Notification channels (non-critical) ---

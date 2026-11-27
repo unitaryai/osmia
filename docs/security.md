@@ -419,6 +419,7 @@ the principle of least privilege:
 | `""` (core) | `pods`, `pods/log` | get, list, watch | Monitor agent pod status and retrieve logs |
 | `""` (core) | `configmaps` | get, list, watch, create, update, patch | Store controller state and configuration |
 | `""` (core) | `secrets` | get, list, watch | Read secrets for injection into agent pods |
+| `""` (core) | `serviceaccounts` | get | Check at startup that the account named by `execution.service_account_name` exists |
 | `coordination.k8s.io` | `leases` | get, list, watch, create, update, patch, delete | Leader election (RBAC granted ahead of implementation; leader election itself is not yet implemented, see [roadmap](roadmap.md#leader-election-controller-ha)) |
 
 Key constraints:

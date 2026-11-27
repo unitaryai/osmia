@@ -34,6 +34,11 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list", "watch", "create", "update", "delete"]
+  # get lets the controller check at startup that the account named by
+  # execution.service_account_name exists.
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "create", "delete"]

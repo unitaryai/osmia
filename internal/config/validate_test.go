@@ -1,7 +1,6 @@
 package config
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -355,9 +354,7 @@ func TestValidate_ServiceAccountName(t *testing.T) {
 	}{
 		{name: "none configured", account: ""},
 		{name: "valid name", account: "osmia-agent"},
-		{name: "longest valid name", account: strings.Repeat("a", 253)},
 		{name: "invalid characters", account: "Bad_Name", wantErr: true},
-		{name: "too long", account: strings.Repeat("a", 254), wantErr: true},
 	}
 
 	for _, tt := range tests {

@@ -274,12 +274,14 @@ Every model is required because Claude Code's own defaults on Bedrock are
 cross-region inference profiles, which would send calls outside the region
 without saying so.
 
-- **AWS identity.** Osmia does not set a service account on agent pods, so
-  they run under the `default` service account of their namespace, and sign
-  their Bedrock calls with the AWS identity bound to that account, for example
-  through IRSA or EKS Pod Identity. That identity must be allowed to invoke the
-  four models in the region. Every pod in the namespace that uses the
-  `default` service account then shares it. Osmia does not create it. IRSA
+- **AWS identity.** Agent pods sign their Bedrock calls with the AWS identity
+  bound to their service account, for example through IRSA or EKS Pod
+  Identity. That identity must be allowed to invoke the four models in the
+  region. By default agent pods run under the `default` service account of
+  their namespace, which every pod there shares; to give agents an identity of
+  their own, set `execution.service_account_name` (see
+  [Giving agents a cloud identity](#giving-agents-a-cloud-identity)). Osmia
+  does not create the account. IRSA
   works with the chart's agent network policy as it is, since it exchanges
   the pod's token with AWS STS over port 443. EKS Pod Identity fetches
   credentials from the Pod Identity Agent at `169.254.170.23` on TCP port 80,
@@ -600,7 +602,7 @@ execution:
   service_account_name: osmia-agent
 ```
 
-Every agent pod on the `job` and `sandbox` backends then runs as that account. The name is checked when the config is loaded, and an invalid one is rejected at startup. With the Helm chart, set it as `config.execution.service_account_name`.
+Every agent pod on the `job` and `sandbox` backends then runs as that account. An invalid name is rejected when the config is loaded at startup. With the Helm chart, set it as `config.execution.service_account_name`.
 
 Osmia does not create the account. Create it, and attach the cloud role to it, in the namespace the agent jobs run in. Osmia does not check that it exists: if it does not, Kubernetes creates no pod for the job, and the task waits until it times out.
 

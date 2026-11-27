@@ -175,12 +175,8 @@ func (c *Config) Validate() error {
 	}
 
 	if name := c.Execution.ServiceAccountName; name != "" {
-		var errs field.ErrorList
-		for _, msg := range apivalidation.ValidateServiceAccountName(name, false) {
-			errs = append(errs, field.Invalid(field.NewPath("execution", "service_account_name"), name, msg))
-		}
-		if len(errs) > 0 {
-			return errs.ToAggregate()
+		if msgs := apivalidation.ValidateServiceAccountName(name, false); len(msgs) > 0 {
+			return field.Invalid(field.NewPath("execution", "service_account_name"), name, strings.Join(msgs, "; "))
 		}
 	}
 

@@ -456,6 +456,7 @@ engines:
 - Chromium runs under the agent pod's normal security settings: non-root, read-only root filesystem and all capabilities dropped. The browser is installed at build time under `/opt/ms-playwright`. Playwright needs a writable home and `/tmp`, which the pod already has.
 - Playwright browsers are tied to the Playwright version. An image built on this one that uses another Playwright version must run `playwright install chromium` with `PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright` at build time.
 - Docker inside the agent pod is not supported. Build work tests against a development cluster instead.
+- Agent pods mount no Kubernetes service account token, so `kubectl` has no credentials of its own. Give it them explicitly: a kubeconfig, or cloud credentials from the pod's cloud identity, such as an EKS token (see [Giving agents a cloud identity](../getting-started/configuration.md#giving-agents-a-cloud-identity)).
 
 To add private tools, build your own image `FROM` this one.
 

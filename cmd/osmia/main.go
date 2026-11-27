@@ -374,14 +374,27 @@ func main() {
 		logger.Info("using local docker job builder")
 	case "sandbox":
 		jb = sandboxbuilder.New(*namespace, cfg.Execution.Sandbox,
-			sandboxbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations))
+			sandboxbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations),
+			sandboxbuilder.WithServiceAccountName(cfg.Execution.ServiceAccountName))
 		logger.Info("using sandbox job builder",
 			"runtime_class", cfg.Execution.Sandbox.RuntimeClass,
 		)
 	default:
 		jb = jobbuilder.NewJobBuilder(*namespace,
-			jobbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations))
+			jobbuilder.WithPodAnnotations(cfg.Execution.PodAnnotations),
+			jobbuilder.WithServiceAccountName(cfg.Execution.ServiceAccountName))
 		logger.Info("using standard kubernetes job builder")
+	}
+	if name := cfg.Execution.ServiceAccountName; name != "" && cfg.Execution.Backend != "local" {
+		if err := checkNotControllerServiceAccount(name, *namespace,
+			os.Getenv("OSMIA_CONTROLLER_SERVICE_ACCOUNT"), os.Getenv("OSMIA_CONTROLLER_NAMESPACE")); err != nil {
+			logger.Error("invalid agent service account", "error", err)
+			os.Exit(1)
+		}
+		if err := checkAgentServiceAccountExists(context.Background(), k8sClient, *namespace, name); err != nil {
+			logger.Error("invalid agent service account", "error", err)
+			os.Exit(1)
+		}
 	}
 	opts = append(opts, controller.WithJobBuilder(jb))
 

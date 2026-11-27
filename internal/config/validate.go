@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
-	apivalidation "k8s.io/apimachinery/pkg/api/validation"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // validateNonNegativeFloat returns an error if v < 0.
@@ -171,6 +172,12 @@ func (c *Config) Validate() error {
 	// sign would be every agent Job failing to create.
 	if errs := apivalidation.ValidateAnnotations(c.Execution.PodAnnotations, field.NewPath("execution", "pod_annotations")); len(errs) > 0 {
 		return errs.ToAggregate()
+	}
+
+	if name := c.Execution.ServiceAccountName; name != "" {
+		if msgs := apivalidation.ValidateServiceAccountName(name, false); len(msgs) > 0 {
+			return field.Invalid(field.NewPath("execution", "service_account_name"), name, strings.Join(msgs, "; "))
+		}
 	}
 
 	if err := validateNonNegativeFloat("guardrails.max_job_duration_minutes", float64(c.GuardRails.MaxJobDurationMinutes)); err != nil {

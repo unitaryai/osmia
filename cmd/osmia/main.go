@@ -386,6 +386,11 @@ func main() {
 		logger.Info("using standard kubernetes job builder")
 	}
 	if name := cfg.Execution.ServiceAccountName; name != "" && cfg.Execution.Backend != "local" {
+		if err := checkNotControllerServiceAccount(name, *namespace,
+			os.Getenv("OSMIA_CONTROLLER_SERVICE_ACCOUNT"), os.Getenv("OSMIA_CONTROLLER_NAMESPACE")); err != nil {
+			logger.Error("invalid agent service account", "error", err)
+			os.Exit(1)
+		}
 		if err := checkAgentServiceAccountExists(context.Background(), k8sClient, *namespace, name); err != nil {
 			logger.Error("invalid agent service account", "error", err)
 			os.Exit(1)

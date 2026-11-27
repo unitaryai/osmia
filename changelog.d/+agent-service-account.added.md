@@ -7,6 +7,8 @@ rejected at startup. Osmia does not create the account; it must exist in the
 namespace the agent jobs run in, and the controller refuses to start if it
 does not, or if it cannot read it. The Helm chart's ClusterRole now grants
 `get` on `serviceaccounts` for that check; a controller deployed without the
-chart needs the same. With the Helm chart, set
+chart needs the same. Run from the chart, the controller also refuses its own
+service account, which would give agents its rights to the cluster. With the
+Helm chart, set
 `config.execution.service_account_name`. See
 [Configuration](https://github.com/unitaryai/osmia/blob/main/docs/getting-started/configuration.md#giving-agents-a-cloud-identity).

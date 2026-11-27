@@ -42,3 +42,26 @@ func TestCheckAgentServiceAccountExists(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckNotControllerServiceAccount(t *testing.T) {
+	tests := []struct {
+		name                string
+		agentNamespace      string
+		controllerAccount   string
+		controllerNamespace string
+		wantErr             bool
+	}{
+		{name: "controller's account in its namespace", agentNamespace: "osmia", controllerAccount: "osmia", controllerNamespace: "osmia", wantErr: true},
+		{name: "same name in another namespace", agentNamespace: "agents", controllerAccount: "osmia", controllerNamespace: "osmia"},
+		{name: "another account", agentNamespace: "osmia", controllerAccount: "osmia-controller", controllerNamespace: "osmia"},
+		{name: "controller's account not known", agentNamespace: "osmia"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkNotControllerServiceAccount("osmia", tt.agentNamespace, tt.controllerAccount, tt.controllerNamespace)
+
+			assert.Equal(t, tt.wantErr, err != nil, "error: %v", err)
+		})
+	}
+}

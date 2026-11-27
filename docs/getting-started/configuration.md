@@ -608,7 +608,7 @@ Agent pods on the `job` and `sandbox` backends never mount a Kubernetes API toke
 
 Osmia does not create the account. Create it, and attach the cloud role to it, in the namespace the agent jobs run in. On the `job` and `sandbox` backends the controller reads the account at startup and refuses to start if it does not exist there, or if it cannot read it: the controller needs `get` on `serviceaccounts`, which the Helm chart grants.
 
-Do not name the controller's own service account. Agents would then hold the controller's rights to the cluster.
+The controller's own service account is refused, since agents would then hold the controller's rights to the cluster. When the controller runs from the Helm chart, it refuses to start if the account named is its own and agent jobs run in its own namespace.
 
 The `local` (Docker) backend ignores this setting.
 

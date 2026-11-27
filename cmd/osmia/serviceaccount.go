@@ -26,3 +26,13 @@ func checkAgentServiceAccountExists(ctx context.Context, client kubernetes.Inter
 	}
 	return nil
 }
+
+// checkNotControllerServiceAccount returns an error when agent pods would run
+// as the controller's own service account, and so hold its rights to the
+// cluster. An unknown controller account allows any name.
+func checkNotControllerServiceAccount(name, namespace, controllerAccount, controllerNamespace string) error {
+	if name == controllerAccount && namespace == controllerNamespace {
+		return fmt.Errorf("execution.service_account_name: %q is the controller's own service account in namespace %q", name, namespace)
+	}
+	return nil
+}

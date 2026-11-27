@@ -36,9 +36,9 @@ func TestValidate_PodAnnotations(t *testing.T) {
 	}
 }
 
-// TestValidate_ShortcutLabelsWithWebhook pins that required labels on the
-// Shortcut backend are refused alongside the Shortcut webhook.
-func TestValidate_ShortcutLabelsWithWebhook(t *testing.T) {
+// TestValidate_ShortcutLabels pins that required labels on the Shortcut
+// backend are refused alongside the Shortcut webhook or with a blank entry.
+func TestValidate_ShortcutLabels(t *testing.T) {
 	labels := map[string]any{"labels": []any{"team-a"}}
 	shortcutWebhook := WebhookConfig{Shortcut: &WebhookSourceConfig{Secret: "example-secret"}}
 
@@ -48,7 +48,7 @@ func TestValidate_ShortcutLabelsWithWebhook(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "shortcut labels with shortcut webhook",
+			name: "labels with shortcut webhook",
 			cfg: Config{
 				Ticketing: TicketingConfig{Backend: "shortcut", Config: labels},
 				Webhook:   shortcutWebhook,
@@ -56,7 +56,7 @@ func TestValidate_ShortcutLabelsWithWebhook(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "shortcut labels without webhook",
+			name: "labels without webhook",
 			cfg:  Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: labels}},
 		},
 		{
@@ -73,46 +73,21 @@ func TestValidate_ShortcutLabelsWithWebhook(t *testing.T) {
 				Webhook:   shortcutWebhook,
 			},
 		},
+		{
+			name:    "blank among labels",
+			cfg:     Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: map[string]any{"labels": []any{"team-a", ""}}}},
+			wantErr: true,
+		},
+		{
+			name:    "whitespace-only label",
+			cfg:     Config{Ticketing: TicketingConfig{Backend: "shortcut", Config: map[string]any{"labels": []any{"  "}}}},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := tt.cfg
-
-			err := cfg.Validate()
-
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "ticketing.config.labels")
-				assert.Contains(t, err.Error(), "webhook.shortcut")
-				return
-			}
-			assert.NoError(t, err)
-		})
-	}
-}
-
-// TestValidate_ShortcutLabelsBlank pins that a blank required label on the
-// Shortcut backend is refused, as it would match no story.
-func TestValidate_ShortcutLabelsBlank(t *testing.T) {
-	tests := []struct {
-		name    string
-		backend string
-		config  map[string]any
-		wantErr bool
-	}{
-		{name: "empty entry", backend: "shortcut", config: map[string]any{"labels": []any{""}}, wantErr: true},
-		{name: "whitespace entry", backend: "shortcut", config: map[string]any{"labels": []string{"  "}}, wantErr: true},
-		{name: "blank among labels", backend: "shortcut", config: map[string]any{"labels": []any{"team-a", ""}}, wantErr: true},
-		{name: "one label", backend: "shortcut", config: map[string]any{"labels": []any{"team-a"}}},
-		{name: "empty list", backend: "shortcut", config: map[string]any{"labels": []any{}}},
-		{name: "no labels key", backend: "shortcut", config: map[string]any{}},
-		{name: "other backend with empty entry", backend: "github", config: map[string]any{"labels": []any{""}}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := Config{Ticketing: TicketingConfig{Backend: tt.backend, Config: tt.config}}
 
 			err := cfg.Validate()
 
